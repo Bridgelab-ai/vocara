@@ -192,7 +192,7 @@ function App() {
           email: u.email,
           lastActive: new Date().toLocaleDateString('de-DE'),
         }, { merge: true })
-        const partnerSnap = await getDoc(doc(db, 'users', 'elosy-placeholder'))
+        const partnerSnap = await getDoc(doc(db, 'users', 'NIX3DYenRdbRjmr2EHsIad9GcqG3'))
         if (partnerSnap.exists()) setPartnerData(partnerSnap.data())
       }
       setUser(u)
