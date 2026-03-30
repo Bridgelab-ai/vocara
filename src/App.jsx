@@ -572,6 +572,98 @@ function StreakWidget({ history, th, t }) {
   )
 }
 
+// ── KI-GESPRÄCH ───────────────────────────────────────────────
+function KiGespraechScreen({ lang, theme, onBack, userName }) {
+  const th = THEMES[theme]; const s = makeStyles(th)
+  const [messages, setMessages] = useState([])
+  const [input, setInput] = useState('')
+  const [loading, setLoading] = useState(false)
+  const bottomRef = useRef(null)
+  const isMarkLang = lang === 'de'
+  const targetLang = isMarkLang ? 'English' : 'German'
+  const nativeLang = isMarkLang ? 'German' : 'English'
+  const systemPrompt = `You are Vocara, a friendly language tutor helping ${userName} learn ${targetLang}. Have natural, encouraging conversations in ${targetLang}. If the user writes in ${nativeLang}, respond in ${targetLang} and gently encourage them to try in ${targetLang} too. If the user makes a grammar mistake in ${targetLang}, have a natural conversation first, then add a short gentle correction at the end like "💡 Small tip: ..." Keep responses short (2-4 sentences). Be warm and natural — like a friend who happens to be a language expert. The Vocara philosophy: The voice is the bridge.`
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, loading])
+
+  const sendMessage = async () => {
+    const text = input.trim()
+    if (!text || loading) return
+    const userMsg = { role: 'user', content: text }
+    const newMessages = [...messages, userMsg]
+    setMessages(newMessages); setInput(''); setLoading(true)
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': import.meta.env.VITE_ANTHROPIC_KEY,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 300,
+          system: systemPrompt,
+          messages: newMessages,
+        })
+      })
+      const data = await response.json()
+      const reply = data.content?.[0]?.text || '...'
+      setMessages(prev => [...prev, { role: 'assistant', content: reply }])
+    } catch (e) {
+      setMessages(prev => [...prev, { role: 'assistant', content: '⚠️ Verbindungsfehler. Bitte versuche es erneut.' }])
+    }
+    setLoading(false)
+  }
+
+  const handleKey = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() } }
+
+  return (
+    <div style={{ minHeight: '100vh', width: '100%', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', background: th.bg }} className="vocara-screen">
+      <div style={{ width: '100%', maxWidth: '420px', display: 'flex', flexDirection: 'column', height: '100vh' }}>
+        <div style={{ padding: '16px 20px 10px', background: th.bg, borderBottom: `1px solid ${th.border}`, display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+          <button style={{ ...s.backBtn, marginBottom: 0 }} onClick={onBack}>←</button>
+          <div>
+            <p style={{ color: th.text, fontWeight: 'bold', margin: 0, fontSize: '1rem' }}>🤖 KI-Gespräch</p>
+            <p style={{ color: th.sub, fontSize: '0.75rem', margin: 0 }}>{isMarkLang ? 'Übe Englisch mit KI' : 'Practice German with AI'}</p>
+          </div>
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {messages.length === 0 && (
+            <div style={{ textAlign: 'center', marginTop: '40px' }}>
+              <p style={{ color: th.sub, fontSize: '0.9rem', lineHeight: '1.6' }}>
+                {isMarkLang ? 'Schreib einfach drauflos — auf Englisch oder Deutsch. Die KI antwortet auf Englisch und hilft dir dabei.' : 'Just start writing — in German or English. The AI will respond in German and help you along the way.'}
+              </p>
+            </div>
+          )}
+          {messages.map((msg, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+              <div style={{ maxWidth: '85%', padding: '10px 14px', borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px', background: msg.role === 'user' ? th.accent : th.card, border: msg.role === 'assistant' ? `1px solid ${th.border}` : 'none', color: th.text, fontSize: '0.9rem', lineHeight: '1.5' }}>
+                {msg.content}
+              </div>
+            </div>
+          ))}
+          {loading && (
+            <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+              <div style={{ padding: '10px 14px', borderRadius: '16px 16px 16px 4px', background: th.card, border: `1px solid ${th.border}`, color: th.sub, fontSize: '1.2rem', letterSpacing: '4px' }}>···</div>
+            </div>
+          )}
+          <div ref={bottomRef} />
+        </div>
+        <div style={{ padding: '12px 16px', background: th.bg, borderTop: `1px solid ${th.border}`, display: 'flex', gap: '8px', alignItems: 'flex-end', flexShrink: 0 }}>
+          <textarea
+            style={{ flex: 1, padding: '10px 14px', borderRadius: '12px', border: `1px solid ${th.border}`, background: th.card, color: th.text, fontSize: '0.95rem', resize: 'none', minHeight: '44px', maxHeight: '120px', fontFamily: 'inherit', outline: 'none', lineHeight: '1.4' }}
+            placeholder={isMarkLang ? 'Schreib auf Englisch...' : 'Write in German...'}
+            value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKey} rows={1}
+          />
+          <button style={{ background: th.accent, border: 'none', borderRadius: '12px', width: '44px', height: '44px', cursor: loading ? 'not-allowed' : 'pointer', fontSize: '1.1rem', opacity: loading ? 0.5 : 1, flexShrink: 0, color: '#fff' }} onClick={sendMessage} disabled={loading}>➤</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function PlacementTest({ lang, theme, user, onBack, onSaveCefr }) {
   const th = THEMES[theme]; const s = makeStyles(th); const t = T[lang]
   const questions = lang === 'de' ? PLACEMENT_EN : PLACEMENT_DE
@@ -970,6 +1062,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   if (screen === 'partner') return <PartnerScreen user={user} myData={myData} lang={lang} theme={theme} onBack={() => setScreen('menu')} onPartnerUpdate={(uid) => { onPartnerUpdate(uid); setScreen('menu') }} />
   if (screen === 'test') return <PlacementTest lang={lang} theme={theme} user={user} onBack={() => setScreen('menu')} onSaveCefr={onSaveCefr} />
   if (screen === 'impressum') return <ImpressumScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} />
+  if (screen === 'ki') return <KiGespraechScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} userName={user.displayName?.split(' ')[0] || 'du'} />
 
   return (
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
@@ -1035,7 +1128,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
       <button style={s.menuBtn} onClick={() => setScreen('partner')}>
         🤝 {myData?.partnerUID ? partnerName : (lang === 'de' ? 'Partner verbinden' : 'Connect partner')}
       </button>
-      <button style={s.menuBtnDisabled} disabled>{t.aiChat} <span style={{ marginLeft: 'auto', fontSize: '0.7rem' }}>bald</span></button>
+      <button style={s.menuBtn} onClick={() => setScreen('ki')}>{t.aiChat}</button>
       <button style={s.menuBtn} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>{t.dailyPhrase}</button>
       <button style={s.logoutBtn} onClick={() => signOut(auth)}>{t.logout}</button>
       <button style={s.legalBtn} onClick={() => setScreen('impressum')}>{t.impressumLink}</button>
