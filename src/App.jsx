@@ -214,7 +214,7 @@ function getDailyPhrase(lang) {
   return pool[dayOfYear % pool.length]
 }
 
-const ALL_MARK_CARDS = [
+const ALL_MARK_CARDS_BASE = [
   { id: 'en_1', front: "What's the catch?", back: "Wo ist der Haken?", context: "Sie bot mir alles an — ich fragte trotzdem: What's the catch? Manchmal ist Vorsicht die klügere Brücke.", langA: 'en', langB: 'de' },
   { id: 'en_2', front: "Long story short...", back: "Um es kurz zu machen...", context: "Drei Stunden, zwei Länder, ein Missverständnis — long story short: wir lachten am Ende.", langA: 'en', langB: 'de' },
   { id: 'en_3', front: "I'm down.", back: "Ich bin dabei.", context: "Spontaner Ausflug um Mitternacht? I'm down — manche Entscheidungen trifft man mit dem Herzen.", langA: 'en', langB: 'de' },
@@ -274,9 +274,67 @@ const ALL_MARK_CARDS = [
   { id: 'sw_14', front: "Ninakupenda", back: "Ich liebe dich", pronunciation: "ni-na-ku-PEN-da", context: "Ninakupenda — das wichtigste Wort, das man lernen kann. In jeder Sprache.", langA: 'sw', langB: 'de' },
   { id: 'sw_15', front: "Nakukosa", back: "Ich vermisse dich", pronunciation: "na-ku-KO-sa", context: "Nakukosa — Sehnsucht auf Swahili. Fünf Silben, die alles sagen.", langA: 'sw', langB: 'de' },
   { id: 'sw_16', front: "Lala salama", back: "Schlaf gut", pronunciation: "LA-la sa-LA-ma", context: "Lala salama — Gute Nacht über tausend Kilometer hinweg. Die Stimme überbrückt die Nacht.", langA: 'sw', langB: 'de' },
+  { id: 'sw_17', front: "Pole pole", back: "Langsam / Sachte", pronunciation: "POH-leh POH-leh", context: "Pole pole — Nairobi erinnert dich manchmal: Nicht alles muss schnell gehen. Manche Dinge brauchen Zeit.", langA: 'sw', langB: 'de' },
+  { id: 'sw_18', front: "Karibu", back: "Willkommen / Bitte (Einladung)", pronunciation: "ka-REE-bu", context: "Karibu — das wärmste Wort Kenias. Eine Einladung, die sagt: Du gehörst hierher.", langA: 'sw', langB: 'de' },
+  { id: 'sw_19', front: "Samahani", back: "Entschuldigung / Tut mir leid", pronunciation: "sa-ma-HA-ni", context: "Samahani — Verzeihung braucht keine lange Erklärung. Manchmal reicht ein einziges Wort.", langA: 'sw', langB: 'de' },
+  { id: 'sw_20', front: "Ninapenda", back: "Ich mag / Ich liebe", pronunciation: "ni-na-PEN-da", context: "Ninapenda — ohne Objekt gesagt, klingt es nach einem offenen Geheimnis. Die Brücke, die sich selbst erklärt.", langA: 'sw', langB: 'de' },
+  { id: 'sw_21', front: "Wewe ni rafiki yangu", back: "Du bist mein Freund / meine Freundin", pronunciation: "WEH-weh ni ra-FEE-ki YAN-gu", context: "Wewe ni rafiki yangu — Freundschaft über Kontinente beginnt damit, sie auszusprechen.", langA: 'sw', langB: 'de' },
+  { id: 'sw_22', front: "Tutaonana", back: "Bis bald / Wir sehen uns", pronunciation: "tu-ta-oh-NA-na", context: "Tutaonana — kein Abschied, sondern ein Versprechen. Wir sehen uns wieder.", langA: 'sw', langB: 'de' },
+  { id: 'en_44', front: "I'm all in.", back: "Ich bin voll dabei.", context: "I'm all in — wenn die Entscheidung fällt, gibt es kein Halbherzig mehr. Ganz oder gar nicht.", langA: 'en', langB: 'de' },
+  { id: 'en_45', front: "That's out of the question.", back: "Das kommt nicht in Frage.", context: "That's out of the question — manche Grenzen zieht man ruhig, aber unmissverständlich.", langA: 'en', langB: 'de' },
+  { id: 'en_46', front: "Let's call it a day.", back: "Machen wir Schluss für heute.", context: "Let's call it a day — der Zug steht still, die Schicht ist vorbei. Manchmal ist aufhören Stärke.", langA: 'en', langB: 'de' },
+  { id: 'en_47', front: "I'm on the fence.", back: "Ich bin unentschlossen.", context: "I'm on the fence — zwischen zwei Welten stehen und noch nicht wissen, auf welche Seite man springt.", langA: 'en', langB: 'de' },
+  { id: 'en_48', front: "It's now or never.", back: "Jetzt oder nie.", context: "It's now or never — manche Momente kommen nicht zurück. Die Stimme ist die Brücke, aber man muss sprechen.", langA: 'en', langB: 'de' },
+  { id: 'en_49', front: "Don't take it personally.", back: "Nimm es nicht persönlich.", context: "Don't take it personally — leichter gesagt als getan. Aber manchmal ist Distanz das Klügste.", langA: 'en', langB: 'de' },
+  { id: 'en_50', front: "You're overthinking it.", back: "Du denkst zu viel nach.", context: "You're overthinking it — der Kopf baut Hindernisse, die das Herz längst überwunden hat.", langA: 'en', langB: 'de' },
+  { id: 'en_51', front: "I couldn't agree more.", back: "Da stimme ich vollkommen zu.", context: "I couldn't agree more — der Satz, der sagt: Du hast genau das getroffen, was ich dachte.", langA: 'en', langB: 'de' },
+  { id: 'en_52', front: "Fair enough.", back: "Fair genug. / Schon gut.", context: "Fair enough — keine perfekte Antwort, aber eine ehrliche. Manchmal reicht das völlig.", langA: 'en', langB: 'de' },
+  { id: 'en_53', front: "You've got a point.", back: "Da hast du recht. / Das stimmt.", context: "You've got a point — zuhören bedeutet auch, umdenken zu können. Das ist die echte Brücke.", langA: 'en', langB: 'de' },
+  { id: 'en_54', front: "Out of nowhere.", back: "Aus dem Nichts. / Plötzlich.", context: "Out of nowhere — manchmal kommen die besten Momente ohne Ankündigung.", langA: 'en', langB: 'de' },
+  { id: 'en_55', front: "I'm at a loss.", back: "Ich weiß nicht weiter.", context: "I'm at a loss — nicht Schwäche, sondern Ehrlichkeit. Der erste Schritt zur Lösung.", langA: 'en', langB: 'de' },
+  { id: 'en_56', front: "Let it go.", back: "Lass es los.", context: "Let it go — manche Dinge trägt man zu lange mit sich. Das Loslassen ist kein Verlust.", langA: 'en', langB: 'de' },
+  { id: 'en_57', front: "I'm dead serious.", back: "Ich meine das todernst.", context: "I'm dead serious — wenn Worte Gewicht haben, spürt man es sofort.", langA: 'en', langB: 'de' },
+  { id: 'en_58', front: "What's on your mind?", back: "Was beschäftigt dich?", context: "What's on your mind? — die Frage, die sagt: Ich bin hier. Ich höre zu. Erzähl mir.", langA: 'en', langB: 'de' },
+  { id: 'en_59', front: "Think outside the box.", back: "Über den Tellerrand denken.", context: "Think outside the box — Hamburg und Nairobi zu verbinden war auch außerhalb aller Boxen.", langA: 'en', langB: 'de' },
+  { id: 'en_60', front: "I wasn't expecting that.", back: "Das hatte ich nicht erwartet.", context: "I wasn't expecting that — Überraschungen sind manchmal die ehrlichsten Momente des Lebens.", langA: 'en', langB: 'de' },
+  { id: 'en_61', front: "You had me worried.", back: "Du hast mich besorgt.", context: "You had me worried — Sorge ist eine Form von Liebe, die sich nicht verbergen lässt.", langA: 'en', langB: 'de' },
+  { id: 'en_62', front: "I'll make it work.", back: "Ich kriege das hin.", context: "I'll make it work — nicht Optimismus, sondern Entschlossenheit. Der Unterschied liegt im Ton.", langA: 'en', langB: 'de' },
+  { id: 'en_63', front: "Something came up.", back: "Etwas ist dazwischengekommen.", context: "Something came up — das Leben plant mit. Manchmal hat es eigene Ideen.", langA: 'en', langB: 'de' },
+  { id: 'en_64', front: "I'm not buying it.", back: "Das glaube ich dir nicht.", context: "I'm not buying it — manchmal liest man zwischen den Zeilen mehr als in den Worten selbst.", langA: 'en', langB: 'de' },
+  { id: 'en_65', front: "We're on the same page.", back: "Wir sind einer Meinung. / Wir verstehen uns.", context: "We're on the same page — zwei Kontinente, eine Sprache der Verbindung.", langA: 'en', langB: 'de' },
+  { id: 'en_66', front: "I owe you one.", back: "Das bin ich dir schuldig.", context: "I owe you one — kleine Schulden des Herzens. Die schönsten, die man tragen kann.", langA: 'en', langB: 'de' },
+  { id: 'en_67', front: "That's the last straw.", back: "Das ist der Tropfen, der das Fass zum Überlaufen bringt.", context: "That's the last straw — manche Dinge stauen sich, bis einer sagt: Jetzt reicht es.", langA: 'en', langB: 'de' },
+  { id: 'en_68', front: "I can't wrap my head around it.", back: "Ich kann es nicht begreifen.", context: "I can't wrap my head around it — manche Dinge versteht man erst mit dem Herzen.", langA: 'en', langB: 'de' },
+  { id: 'en_69', front: "You read my mind.", back: "Du hast mir die Gedanken gelesen.", context: "You read my mind — Verbindung braucht manchmal keine Worte. Sie ist einfach da.", langA: 'en', langB: 'de' },
+  { id: 'en_70', front: "It was a wake-up call.", back: "Es war ein Weckruf.", context: "It was a wake-up call — manche Erfahrungen verändern alles. Danach ist man ein anderer.", langA: 'en', langB: 'de' },
+  { id: 'en_71', front: "I'm in over my head.", back: "Ich bin überfordert.", context: "I'm in over my head — das zu sagen braucht Mut. Und ist meistens der Beginn einer Lösung.", langA: 'en', langB: 'de' },
+  { id: 'en_72', front: "Just go with the flow.", back: "Geh einfach mit dem Strom.", context: "Just go with the flow — Hamburg am Hafen. Nairobi im Regen. Manchmal ist Loslassen die beste Navigation.", langA: 'en', langB: 'de' },
+  { id: 'en_73', front: "I blew it.", back: "Ich habe es vermasselt.", context: "I blew it — ehrlich gesagt, ohne Ausrede. Das ist der schnellste Weg nach vorne.", langA: 'en', langB: 'de' },
+  { id: 'en_74', front: "We need to talk.", back: "Wir müssen reden.", context: "We need to talk — vier Worte, die alles anhalten. Weil Stille manchmal lauter ist.", langA: 'en', langB: 'de' },
+  { id: 'en_75', front: "It goes without saying.", back: "Es versteht sich von selbst.", context: "It goes without saying — und doch sagt man es. Weil manche Dinge laut sein dürfen.", langA: 'en', langB: 'de' },
+  { id: 'en_76', front: "I'm running late.", back: "Ich komme zu spät.", context: "I'm running late — der Lokführer sagt es selten. Aber das Leben macht keine Ausnahmen.", langA: 'en', langB: 'de' },
+  { id: 'en_77', front: "You're a lifesaver.", back: "Du rettest mir den Tag. / Du bist ein Lebensretter.", context: "You're a lifesaver — manchmal braucht es nur ein Wort im richtigen Moment.", langA: 'en', langB: 'de' },
+  { id: 'en_78', front: "I've got a lot on my plate.", back: "Ich habe sehr viel um die Ohren.", context: "I've got a lot on my plate — der Zug fährt, die App wächst, das Herz schlägt. Immer alles gleichzeitig.", langA: 'en', langB: 'de' },
+  { id: 'en_79', front: "Let's meet halfway.", back: "Lass uns einen Kompromiss finden.", context: "Let's meet halfway — Hamburg und Nairobi treffen sich irgendwo in der Mitte. Das ist die Brücke.", langA: 'en', langB: 'de' },
+  { id: 'en_80', front: "I lost track of time.", back: "Ich habe die Zeit vergessen.", context: "I lost track of time — die schönsten Gespräche haben kein Ende. Nur ein Weitermachen.", langA: 'en', langB: 'de' },
+  { id: 'en_81', front: "Don't get me wrong.", back: "Versteh mich nicht falsch.", context: "Don't get me wrong — manchmal braucht eine Wahrheit einen Rahmen, damit sie landet.", langA: 'en', langB: 'de' },
+  { id: 'en_82', front: "It's on me.", back: "Ich lade ein. / Das geht auf meine Rechnung.", context: "It's on me — Großzügigkeit braucht keine Entfernung. Sie überquert Ozeane.", langA: 'en', langB: 'de' },
+  { id: 'en_83', front: "You deserve it.", back: "Das hast du verdient.", context: "You deserve it — gesagt mit echtem Stolz, nicht als Floskel. Weil man es wirklich meint.", langA: 'en', langB: 'de' },
+  { id: 'en_84', front: "I've made up my mind.", back: "Ich habe mich entschieden.", context: "I've made up my mind — kein Zögern mehr. Die Brücke ist gebaut. Man geht jetzt drüber.", langA: 'en', langB: 'de' },
+  { id: 'en_85', front: "That means a lot to me.", back: "Das bedeutet mir sehr viel.", context: "That means a lot to me — manche Worte trägt man tage-, wochenlang mit sich. Dieser Satz ist einer davon.", langA: 'en', langB: 'de' },
+  { id: 'en_86', front: "I'll be there for you.", back: "Ich bin für dich da.", context: "I'll be there for you — über jeden Ozean, durch jede Zeitzone. Das ist das Versprechen hinter der Stimme.", langA: 'en', langB: 'de' },
 ]
 
-const ALL_ELOSY_CARDS = [
+// Auto-generate both directions: each vocab gets a forward card + a reversed _r card
+const ALL_MARK_CARDS = ALL_MARK_CARDS_BASE.flatMap(card => {
+  const targetLang = card.langA // 'en' or 'sw' — the foreign language being learned
+  return [
+    { ...card, targetLang },
+    { ...card, id: card.id + '_r', front: card.back, back: card.front, langA: card.langB, langB: card.langA, targetLang }
+  ]
+})
+
+const ALL_ELOSY_CARDS_BASE = [
   { id: 'de_1', front: "Guten Morgen", back: "Good morning", context: "Guten Morgen — the first bridge of the day. Said with warmth, it means: I thought of you when I woke up.", langA: 'de', langB: 'en' },
   { id: 'de_2', front: "Guten Abend", back: "Good evening", context: "Guten Abend — the day winds down, but connection doesn't. A greeting that says: I'm still here.", langA: 'de', langB: 'en' },
   { id: 'de_3', front: "Wie geht es dir?", back: "How are you?", context: "Wie geht es dir? — more than small talk. In German, it's an invitation to be honest.", langA: 'de', langB: 'en' },
@@ -307,7 +365,45 @@ const ALL_ELOSY_CARDS = [
   { id: 'de_28', front: "Ich freue mich", back: "I am looking forward to it", context: "Ich freue mich — joy in anticipation. The German language celebrates waiting too.", langA: 'de', langB: 'en' },
   { id: 'de_29', front: "Gute Nacht", back: "Good night", context: "Gute Nacht — the last word of the day. In any language, it means: until tomorrow.", langA: 'de', langB: 'en' },
   { id: 'de_30', front: "Ich lerne Deutsch", back: "I am learning German", context: "Ich lerne Deutsch — five words that change everything. The bridge is being built, one word at a time.", langA: 'de', langB: 'en' },
+  { id: 'de_31', front: "Ich habe keine Zeit", back: "I don't have time", context: "Ich habe keine Zeit — honest and direct. German respects clarity, even when the answer is no.", langA: 'de', langB: 'en' },
+  { id: 'de_32', front: "Das macht Spaß", back: "That's fun / I enjoy this", context: "Das macht Spaß — learning a language should feel like this. Joy is the best teacher.", langA: 'de', langB: 'en' },
+  { id: 'de_33', front: "Ich bin einverstanden", back: "I agree", context: "Ich bin einverstanden — four syllables of yes. A full commitment, not just a nod.", langA: 'de', langB: 'en' },
+  { id: 'de_34', front: "Das ist nicht einfach", back: "That is not easy", context: "Das ist nicht einfach — learning German, crossing distances, building bridges. None of it is. But worth it.", langA: 'de', langB: 'en' },
+  { id: 'de_35', front: "Ich brauche Hilfe", back: "I need help", context: "Ich brauche Hilfe — asking for help is its own kind of strength. Say it without hesitation.", langA: 'de', langB: 'en' },
+  { id: 'de_36', front: "Warte mal kurz", back: "Wait a moment", context: "Warte mal kurz — the tiny pause before something important. Hamburg knows this well.", langA: 'de', langB: 'en' },
+  { id: 'de_37', front: "Das stimmt", back: "That's right / That's correct", context: "Das stimmt — simple, clean, certain. One of the most satisfying things to say in any language.", langA: 'de', langB: 'en' },
+  { id: 'de_38', front: "Ich bin nicht sicher", back: "I'm not sure", context: "Ich bin nicht sicher — honesty about uncertainty is the beginning of real conversation.", langA: 'de', langB: 'en' },
+  { id: 'de_39', front: "Wie bitte?", back: "Pardon? / Could you repeat that?", context: "Wie bitte? — always ask again. Understanding matters more than appearing to understand.", langA: 'de', langB: 'en' },
+  { id: 'de_40', front: "Das ist wunderschön", back: "That is beautiful", context: "Das ist wunderschön — wonder + beautiful, combined. German sometimes says exactly what it means.", langA: 'de', langB: 'en' },
+  { id: 'de_41', front: "Ich werde bald kommen", back: "I will come soon", context: "Ich werde bald kommen — a promise traveling thousands of kilometers, arriving intact.", langA: 'de', langB: 'en' },
+  { id: 'de_42', front: "Was bedeutet das?", back: "What does that mean?", context: "Was bedeutet das? — the most important question a learner can ask. Never stop asking it.", langA: 'de', langB: 'en' },
+  { id: 'de_43', front: "Ich spreche ein bisschen Deutsch", back: "I speak a little German", context: "Ich spreche ein bisschen Deutsch — a little is more than nothing. And it grows every day.", langA: 'de', langB: 'en' },
+  { id: 'de_44', front: "Du siehst gut aus", back: "You look good", context: "Du siehst gut aus — simple compliments land the hardest. Especially across time zones.", langA: 'de', langB: 'en' },
+  { id: 'de_45', front: "Ich warte auf dich", back: "I am waiting for you", context: "Ich warte auf dich — waiting is not passive. It's a form of love that holds space.", langA: 'de', langB: 'en' },
+  { id: 'de_46', front: "Das klingt gut", back: "That sounds good", context: "Das klingt gut — agreement with warmth. The German version of 'I'm in'.", langA: 'de', langB: 'en' },
+  { id: 'de_47', front: "Keine Sorge", back: "No worries / Don't worry", context: "Keine Sorge — two words that carry a whole hug. Light, warm, reassuring.", langA: 'de', langB: 'en' },
+  { id: 'de_48', front: "Ich bin so froh", back: "I am so glad / happy", context: "Ich bin so froh — happiness with emphasis. The 'so' makes it real.", langA: 'de', langB: 'en' },
+  { id: 'de_49', front: "Das war wunderbar", back: "That was wonderful", context: "Das war wunderbar — looking back at something shared. The memory already glowing.", langA: 'de', langB: 'en' },
+  { id: 'de_50', front: "Ich habe dich vermisst", back: "I missed you", context: "Ich habe dich vermisst — past tense, but the feeling is present. Still here.", langA: 'de', langB: 'en' },
+  { id: 'de_51', front: "Wann kommst du?", back: "When are you coming?", context: "Wann kommst du? — the question behind every quiet evening, every unanswered message.", langA: 'de', langB: 'en' },
+  { id: 'de_52', front: "Wie war dein Tag?", back: "How was your day?", context: "Wie war dein Tag? — the small question that says: your day matters to me.", langA: 'de', langB: 'en' },
+  { id: 'de_53', front: "Das macht nichts", back: "That doesn't matter / Never mind", context: "Das macht nichts — forgiveness in three words. Small ones carry the most weight.", langA: 'de', langB: 'en' },
+  { id: 'de_54', front: "Ich freue mich auf dich", back: "I'm looking forward to seeing you", context: "Ich freue mich auf dich — anticipation as a love language. German has a word for everything.", langA: 'de', langB: 'en' },
+  { id: 'de_55', front: "Du bist wichtig für mich", back: "You are important to me", context: "Du bist wichtig für mich — not dramatic, just true. The kind of sentence that changes things.", langA: 'de', langB: 'en' },
+  { id: 'de_56', front: "Ich denke oft an dich", back: "I often think of you", context: "Ich denke oft an dich — often. Not sometimes. The word 'oft' carries the whole weight.", langA: 'de', langB: 'en' },
+  { id: 'de_57', front: "Bis morgen", back: "See you tomorrow / Until tomorrow", context: "Bis morgen — the smallest promise. And sometimes the most important one.", langA: 'de', langB: 'en' },
+  { id: 'de_58', front: "Ich bin auf dem Weg", back: "I am on my way", context: "Ich bin auf dem Weg — movement toward someone. Three words that change the waiting.", langA: 'de', langB: 'en' },
+  { id: 'de_59', front: "Das höre ich gern", back: "I love to hear that / That's good to hear", context: "Das höre ich gern — the German way of saying: keep going, I needed that.", langA: 'de', langB: 'en' },
+  { id: 'de_60', front: "Du machst mich glücklich", back: "You make me happy", context: "Du machst mich glücklich — simple, direct, complete. Some sentences don't need translation.", langA: 'de', langB: 'en' },
 ]
+
+const ALL_ELOSY_CARDS = ALL_ELOSY_CARDS_BASE.flatMap(card => {
+  const targetLang = card.langA // 'de' — German is the foreign language Elosy is learning
+  return [
+    { ...card, targetLang },
+    { ...card, id: card.id + '_r', front: card.back, back: card.front, langA: card.langB, langB: card.langA, targetLang }
+  ]
+})
 
 function getSpeed(s) {
   if (s < VERY_FAST_S) return 'very_fast'
@@ -367,8 +463,8 @@ function buildSession(allCards, cardProgress) {
     else if (p.nextReview <= today) due.push(card)
   })
   const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
-  const addDir = cards => cards.map(c => ({ ...c, reversed: Math.random() > 0.5 }))
-  return addDir([...shuffle(forced), ...shuffle(due), ...shuffle(newCards)].slice(0, SESSION_SIZE))
+  // No random reversal — each vocab has two explicit cards (forward + _r)
+  return [...shuffle(forced), ...shuffle(due), ...shuffle(newCards)].slice(0, SESSION_SIZE)
 }
 function checkMastery(allCards, cardProgress, sessionCorrect, sessionTotal) {
   // Only count cards actually practiced (interval > 0 OR wrongSessions > 0)
@@ -384,17 +480,16 @@ function checkMastery(allCards, cardProgress, sessionCorrect, sessionTotal) {
 }
 function getNextNewCards(allCards, cardProgress, count) {
   const unstarted = allCards.filter(c => !cardProgress[c.id])
-  const unstartedEN = unstarted.filter(c => c.langA === 'en')
-  const unstartedSW = unstarted.filter(c => c.langA === 'sw')
+  const unstartedEN = unstarted.filter(c => c.targetLang === 'en')
+  const unstartedSW = unstarted.filter(c => c.targetLang === 'sw')
   // Always prioritize English. Only add Swahili if English batch is exhausted.
   if (unstartedEN.length >= count) return unstartedEN.slice(0, count)
-  // Fill remaining slots with max 20% Swahili
   const maxSW = Math.max(0, Math.floor(count * 0.2))
   const swCards = unstartedSW.slice(0, Math.min(maxSW, count - unstartedEN.length))
   return [...unstartedEN, ...swCards].slice(0, count)
 }
 function getLangStats(allCards, cardProgress, langCode) {
-  const cards = allCards.filter(c => c.langA === langCode)
+  const cards = allCards.filter(c => c.targetLang === langCode)
   // "active" = cards that have been answered at least once
   const active = cards.filter(c => {
     const p = cardProgress[c.id]
@@ -906,12 +1001,11 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
   const startTime = useRef(Date.now())
   const t = T[lang]
   const item = queue[index]
-  const isReversed = item.reversed
-  const question = isReversed ? item.back : item.front
-  const answer = isReversed ? item.front : item.back
-  const fromLang = isReversed ? item.langB : item.langA
-  const toLang = isReversed ? item.langA : item.langB
-  const showPronunciation = !isReversed && item.pronunciation
+  const question = item.front
+  const answer = item.back
+  const fromLang = item.langA
+  const toLang = item.langB
+  const showPronunciation = item.pronunciation
   const handleReveal = () => { startTime.current = Date.now(); setRevealed(true) }
   const handleStop = () => { if (window.confirm(t.stopConfirm)) onBack() }
   const handleAnswer = (isCorrect) => {
@@ -922,7 +1016,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
     if (!isCorrect) {
       const updatedProgress = { ...prev, interval: 0, consecutiveFast: 0, wrongSessions: 3, nextReview: todayStr() }
       const finalNewProgress = { ...newProgress, [cardId]: updatedProgress }
-      const newQueue = [...queue]; newQueue.splice(index, 1); newQueue.push({ ...item, reversed: Math.random() > 0.5 })
+      const newQueue = [...queue]; newQueue.splice(index, 1); newQueue.push({ ...item })
       setQueue(newQueue); setNewProgress(finalNewProgress); setWrong(w => w + 1); setRevealed(false)
       onSaveState?.(newQueue, index, finalNewProgress)
     } else {
@@ -1039,6 +1133,15 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const myTodaySessions = sessionHistory.filter(h => h.date === today).length
   const partnerSessionHistory = partnerData?.sessionHistory || []
   const partnerTodaySessions = partnerSessionHistory.filter(h => h.date === today).length
+  const sessionPreview = (() => {
+    let due = 0, newC = 0
+    allCards.forEach(card => {
+      const p = cardProgress[card.id]
+      if (!p) newC++
+      else if (p.wrongSessions > 0 || p.nextReview <= today) due++
+    })
+    return { due, new: newC }
+  })()
 
   useEffect(() => {
     if (screen !== 'menu') return
@@ -1120,7 +1223,14 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
         {t.whereAmI}
         {cefr && <span style={{ marginLeft: 'auto', color: CEFR_COLORS[cefr], fontWeight: 'bold', fontSize: '0.85rem' }}>{cefr}</span>}
       </button>
-      <button style={s.menuBtn} onClick={startSession}>{t.mySession}</button>
+      <button style={s.menuBtn} onClick={startSession}>
+        {t.mySession}
+        <span style={{ marginLeft: 'auto', color: th.sub, fontSize: '0.78rem', fontWeight: 'normal' }}>
+          {sessionPreview.due > 0 ? `${sessionPreview.due} ${lang === 'de' ? 'fällig' : 'due'}` : ''}
+          {sessionPreview.due > 0 && sessionPreview.new > 0 ? ' · ' : ''}
+          {sessionPreview.new > 0 ? `${Math.min(sessionPreview.new, SESSION_SIZE)} ${lang === 'de' ? 'neu' : 'new'}` : ''}
+        </span>
+      </button>
       <button style={progressOpen ? s.menuBtnActive : s.menuBtn} onClick={() => setProgressOpen(o => !o)}>
         {t.progressBtn} <span style={{ marginLeft: 'auto' }}>{progressOpen ? '▲' : '▼'}</span>
       </button>
