@@ -371,16 +371,35 @@ function buildSession(allCards, cardProgress) {
   return addDir([...shuffle(forced), ...shuffle(due), ...shuffle(newCards)].slice(0, SESSION_SIZE))
 }
 function checkMastery(allCards, cardProgress, sessionCorrect, sessionTotal) {
-  const active = allCards.filter(c => cardProgress[c.id])
+  // Only count cards actually practiced (interval > 0 OR wrongSessions > 0)
+  // Unlocked-but-not-yet-played cards (interval:0, wrongSessions:0) don't count
+  const active = allCards.filter(c => {
+    const p = cardProgress[c.id]
+    return p && (p.interval > 0 || p.wrongSessions > 0)
+  })
   if (active.length < 10) return false
   if (sessionTotal > 0 && sessionCorrect / sessionTotal < 0.6) return false
   const mastered = active.filter(c => (cardProgress[c.id]?.interval || 0) >= 7)
   return mastered.length / active.length >= MASTERY_THRESHOLD
 }
-function getNextNewCards(allCards, cardProgress, count) { return allCards.filter(c => !cardProgress[c.id]).slice(0, count) }
+function getNextNewCards(allCards, cardProgress, count) {
+  const unstarted = allCards.filter(c => !cardProgress[c.id])
+  const unstartedEN = unstarted.filter(c => c.langA === 'en')
+  const unstartedSW = unstarted.filter(c => c.langA === 'sw')
+  // Always prioritize English. Only add Swahili if English batch is exhausted.
+  if (unstartedEN.length >= count) return unstartedEN.slice(0, count)
+  // Fill remaining slots with max 20% Swahili
+  const maxSW = Math.max(0, Math.floor(count * 0.2))
+  const swCards = unstartedSW.slice(0, Math.min(maxSW, count - unstartedEN.length))
+  return [...unstartedEN, ...swCards].slice(0, count)
+}
 function getLangStats(allCards, cardProgress, langCode) {
   const cards = allCards.filter(c => c.langA === langCode)
-  const active = cards.filter(c => cardProgress[c.id])
+  // "active" = cards that have been answered at least once
+  const active = cards.filter(c => {
+    const p = cardProgress[c.id]
+    return p && (p.interval > 0 || p.wrongSessions > 0)
+  })
   const mastered = active.filter(c => (cardProgress[c.id]?.interval || 0) >= 7)
   return { total: cards.length, active: active.length, mastered: mastered.length }
 }
@@ -1016,6 +1035,10 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const partnerMastered = Object.values(partnerProgress).filter(p => (p?.interval || 0) >= 7).length
   const partnerActive = Object.keys(partnerProgress).length
   const partnerName = myData?.partnerName || partnerData?.name?.split(' ')[0] || 'Partner'
+  const today = todayStr()
+  const myTodaySessions = sessionHistory.filter(h => h.date === today).length
+  const partnerSessionHistory = partnerData?.sessionHistory || []
+  const partnerTodaySessions = partnerSessionHistory.filter(h => h.date === today).length
 
   useEffect(() => {
     if (screen !== 'menu') return
@@ -1113,9 +1136,23 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
             <StatRow label="Deutsch" mastered={deStats.mastered} active={deStats.active} total={deStats.total} s={s} />
           )}
           {myData?.partnerUID || [MARK_UID, ELOSY_UID].includes(user.uid) ? (
-            <div style={{ ...s.langRow, marginTop: '10px', paddingTop: '10px', borderTop: `1px solid ${th.border}` }}>
-              <span style={{ ...s.lang, fontSize: '0.85rem' }}>{partnerName}</span>
-              <span style={{ ...s.langPct, fontSize: '0.8rem' }}>{partnerMastered}/{partnerActive} ✓</span>
+            <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: `1px solid ${th.border}` }}>
+              <p style={{ color: th.sub, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 8px 0' }}>
+                {lang === 'de' ? '📊 Sessions heute' : '📊 Sessions today'}
+              </p>
+              <div style={{ ...s.langRow, marginBottom: '6px' }}>
+                <span style={{ ...s.lang, fontSize: '0.85rem' }}>{firstName}</span>
+                <span style={{ ...s.langPct, fontSize: '0.8rem' }}>
+                  {myTodaySessions} {lang === 'de' ? (myTodaySessions === 1 ? 'Session' : 'Sessions') : (myTodaySessions === 1 ? 'session' : 'sessions')}
+                </span>
+              </div>
+              <div style={s.langRow}>
+                <span style={{ ...s.lang, fontSize: '0.85rem' }}>{partnerName}</span>
+                <span style={{ ...s.langPct, fontSize: '0.8rem' }}>
+                  {partnerTodaySessions} {lang === 'de' ? (partnerTodaySessions === 1 ? 'Session' : 'Sessions') : (partnerTodaySessions === 1 ? 'session' : 'sessions')}
+                  {' · '}{partnerMastered}/{partnerActive} ✓
+                </span>
+              </div>
             </div>
           ) : (
             <p style={{ ...s.noPartner, marginTop: '8px' }}>
