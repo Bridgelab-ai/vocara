@@ -1335,7 +1335,12 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
   const showPronunciation = item.pronunciation
 
   const SPEECH_LANGS = { en: 'en-GB', de: 'de-DE', sw: 'sw-KE' }
-  const speak = (text, langCode) => {
+  const getVoices = () => new Promise(resolve => {
+    const voices = window.speechSynthesis.getVoices()
+    if (voices.length) { resolve(voices); return }
+    window.speechSynthesis.onvoiceschanged = () => resolve(window.speechSynthesis.getVoices())
+  })
+  const speak = async (text, langCode) => {
     if (!window.speechSynthesis) return
     window.speechSynthesis.cancel()
     const u = new SpeechSynthesisUtterance(text)
@@ -1343,8 +1348,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
     u.lang = langTag
     u.rate = 0.7
 
-    // Try to pick best available voice for the language
-    const voices = window.speechSynthesis.getVoices()
+    const voices = await getVoices()
     const preferred = voices.find(v => v.lang === langTag && v.name.toLowerCase().includes('google'))
       || voices.find(v => v.lang === langTag && !v.localService)
       || voices.find(v => v.lang.startsWith(langTag.split('-')[0]) && v.name.toLowerCase().includes('google'))
