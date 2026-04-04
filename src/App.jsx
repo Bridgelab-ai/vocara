@@ -15,9 +15,39 @@ const MEDIUM_S = 15
 const MONTHLY_TEST_DAYS = 30
 
 const THEMES = {
-  nairobi: { name: '🌙 Nairobi', bg: '#0f0a05', card: '#1a1208', accent: '#E8873A', gold: '#D4AF37', text: '#fff', sub: '#8a7060', border: '#2a1f10' },
-  hamburg: { name: '☀️ Hamburg', bg: '#f0f5f2', card: '#ffffff', accent: '#3a7d5c', gold: '#8a9ba8', text: '#1e2d2a', sub: '#7a9080', border: '#c8ddd4' },
-  welt: { name: '🌍 Welt', bg: '#0d2137', card: '#0f2d4a', accent: '#00c9a7', gold: '#ffd166', text: '#fff', sub: '#6a8fa8', border: '#1a3a5c' },
+  nairobi: {
+    name: '🌙 Nairobi',
+    bg: '#0f0a05', card: '#1a1208', text: '#fff', sub: '#B8860B', border: '#2a1f10',
+    accent: '#FFD700', gold: '#FFF0A0', glowColor: '#FFD700',
+    bgGrad: 'radial-gradient(ellipse at 50% 30%, #201508 0%, #0f0a05 55%, #080502 100%)',
+    metalGrad: 'linear-gradient(145deg, #FFF0A0 0%, #FFD700 30%, #B8860B 52%, #D4AF37 72%, #FFF0A0 100%)',
+    metalText: 'linear-gradient(135deg, #FFFAD0 0%, #FFE566 15%, #FFD700 30%, #C9A800 48%, #8B6914 58%, #C9A800 70%, #FFD700 82%, #FFF0A0 100%)',
+    btnFaceGrad: 'linear-gradient(180deg, #FFFACC 0%, #FFE800 18%, #FFD700 38%, #C9A800 62%, #B8860B 82%, #8B6914 100%)',
+    shadow3d: '0 1px 0 rgba(255,255,200,0.35) inset, 0 -1px 0 rgba(0,0,0,0.5) inset, 0 4px 0 #B8860B, 0 6px 0 #8B6914, 0 8px 0 #5A4008, 0 10px 20px rgba(0,0,0,0.75)',
+    shadowPressed: '0 1px 0 rgba(255,255,200,0.15) inset, 0 -1px 0 rgba(0,0,0,0.4) inset, 0 1px 0 #8B6914, 0 3px 8px rgba(0,0,0,0.6)',
+  },
+  hamburg: {
+    name: '☀️ Hamburg',
+    bg: '#111111', card: '#1c1c1c', text: '#f0f0f0', sub: '#888888', border: '#2a2a2a',
+    accent: '#C0C0C0', gold: '#E8E8E8', glowColor: '#C8C8C8',
+    bgGrad: 'radial-gradient(ellipse at 50% 30%, #222222 0%, #111111 55%, #080808 100%)',
+    metalGrad: 'linear-gradient(145deg, #F0F0F0 0%, #C0C0C0 30%, #808080 52%, #A8A8A8 72%, #F0F0F0 100%)',
+    metalText: 'linear-gradient(135deg, #FFFFFF 0%, #E8E8E8 15%, #C0C0C0 30%, #909090 48%, #606060 58%, #909090 70%, #C8C8C8 82%, #FFFFFF 100%)',
+    btnFaceGrad: 'linear-gradient(180deg, #FFFFFF 0%, #E0E0E0 18%, #C0C0C0 38%, #909090 62%, #686868 82%, #444444 100%)',
+    shadow3d: '0 1px 0 rgba(255,255,255,0.4) inset, 0 -1px 0 rgba(0,0,0,0.5) inset, 0 4px 0 #555, 0 6px 0 #333, 0 8px 0 #181818, 0 10px 20px rgba(0,0,0,0.75)',
+    shadowPressed: '0 1px 0 rgba(255,255,255,0.15) inset, 0 -1px 0 rgba(0,0,0,0.4) inset, 0 1px 0 #333, 0 3px 8px rgba(0,0,0,0.6)',
+  },
+  welt: {
+    name: '🌍 Welt',
+    bg: '#0a0818', card: '#130f2a', text: '#fff', sub: '#3D3580', border: '#1e1840',
+    accent: '#7B6FD4', gold: '#B8B0FF', glowColor: '#9D94FF',
+    bgGrad: 'radial-gradient(ellipse at 50% 30%, #1a1438 0%, #0a0818 55%, #050410 100%)',
+    metalGrad: 'linear-gradient(145deg, #C8C0FF 0%, #9D94FF 30%, #7B6FD4 52%, #4D43A0 72%, #B8B0FF 100%)',
+    metalText: 'linear-gradient(135deg, #F0EEFF 0%, #C8C0FF 15%, #9D94FF 30%, #7B6FD4 48%, #3D3580 58%, #7B6FD4 70%, #B8B0FF 82%, #F0EEFF 100%)',
+    btnFaceGrad: 'linear-gradient(180deg, #E0DCFF 0%, #C0B8FF 18%, #9D94FF 38%, #7B6FD4 62%, #5A50B0 82%, #3D3580 100%)',
+    shadow3d: '0 1px 0 rgba(220,216,255,0.35) inset, 0 -1px 0 rgba(0,0,0,0.5) inset, 0 4px 0 #4D43A0, 0 6px 0 #3D3580, 0 8px 0 #252060, 0 10px 20px rgba(0,0,0,0.75)',
+    shadowPressed: '0 1px 0 rgba(220,216,255,0.15) inset, 0 -1px 0 rgba(0,0,0,0.4) inset, 0 1px 0 #3D3580, 0 3px 8px rgba(0,0,0,0.6)',
+  },
 }
 
 const AVAILABLE_LANGS = [
@@ -535,18 +565,86 @@ const GLOBAL_CSS = `
   from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.vocara-screen { animation: vocaraFadeIn 0.3s ease both; }
+@keyframes metalShimmer {
+  0%   { background-position: -250% center; }
+  100% { background-position: 250% center; }
+}
+@keyframes btnGleam {
+  0%, 72%  { transform: translateX(-120%) skewX(-20deg); opacity: 0; }
+  74%      { opacity: 1; }
+  82%      { opacity: 0; transform: translateX(220%) skewX(-20deg); }
+  100%     { opacity: 0; }
+}
+
+.vocara-screen {
+  animation: vocaraFadeIn 0.3s ease both;
+  position: relative;
+}
+.vocara-screen::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.88' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+  opacity: 0.022;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+button {
+  transition: transform 0.07s ease, box-shadow 0.07s ease, filter 0.07s ease;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  font-family: 'Inter', system-ui, sans-serif;
+  position: relative;
+  overflow: hidden;
+}
+button::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 40%;
+  background: linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%);
+  animation: btnGleam 3s ease-in-out infinite;
+  pointer-events: none;
+  border-radius: inherit;
+}
+button:active {
+  transform: translateY(6px) !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.7) !important;
+  filter: brightness(0.8) !important;
+}
 `
 
 function makeStyles(th) {
   return {
-    container: { minHeight: '100vh', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: th.bg },
+    container: { minHeight: '100vh', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: th.bgGrad },
     homeBox: { textAlign: 'center', padding: '20px', width: '100%', maxWidth: '420px' },
     greeting: { color: th.sub, fontSize: '0.95rem', marginBottom: '2px' },
-    title: { color: th.gold, fontSize: 'clamp(1.8rem, 7vw, 2.6rem)', marginBottom: '20px', fontWeight: 'bold' },
+    title: {
+      fontSize: 'clamp(1.8rem, 7vw, 2.6rem)', marginBottom: '20px', fontWeight: '900',
+      fontFamily: "'Playfair Display', Georgia, serif",
+      background: th.metalText,
+      WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+      backgroundSize: '300% auto',
+      animation: 'metalShimmer 3s linear infinite',
+      filter: `drop-shadow(0 0 10px ${th.glowColor}70)`,
+    },
     slogan: { color: th.sub, fontSize: '1rem', marginBottom: '32px', lineHeight: '1.8' },
-    card: { background: th.card, borderRadius: '12px', padding: '16px', marginBottom: '10px', textAlign: 'left', border: `1px solid ${th.border}` },
-    bigCard: { background: th.card, borderRadius: '16px', padding: '28px 20px', marginBottom: '16px', textAlign: 'center', minHeight: '180px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: `1px solid ${th.border}` },
+    card: {
+      background: th.card, borderRadius: '14px', padding: '16px', marginBottom: '10px', textAlign: 'left',
+      border: `1px solid ${th.border}`,
+      boxShadow: `inset 0 0 18px ${th.glowColor}14, 0 0 0 1px ${th.accent}20, 0 2px 12px rgba(0,0,0,0.4)`,
+    },
+    bigCard: {
+      background: `radial-gradient(ellipse at 50% 35%, transparent 20%, rgba(0,0,0,0.38) 100%), ${th.card}`,
+      borderRadius: '18px', padding: '28px 20px', marginBottom: '16px',
+      textAlign: 'center', minHeight: '180px', display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      border: `1px solid ${th.accent}55`,
+      boxShadow: `inset 0 0 30px ${th.glowColor}30, 0 0 28px ${th.accent}22, 0 0 0 1px ${th.accent}35, 0 6px 24px rgba(0,0,0,0.55)`,
+      position: 'relative', overflow: 'hidden',
+    },
     cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', width: '100%' },
     cardLabel: { color: th.sub, fontSize: '0.75rem', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '1px' },
     langRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' },
@@ -560,35 +658,112 @@ function makeStyles(th) {
     dirLabel: { fontSize: '0.8rem', color: th.sub, marginBottom: '12px', letterSpacing: '1px' },
     progressBar: { height: '4px', background: th.border, borderRadius: '2px', marginTop: '4px', overflow: 'hidden' },
     progressFill: { height: '100%', borderRadius: '2px', transition: 'width 0.5s ease', background: th.accent },
-    button: { background: th.accent, color: '#fff', border: 'none', padding: '13px 28px', borderRadius: '8px', fontSize: '1rem', cursor: 'pointer', fontWeight: 'bold', width: '100%', marginBottom: '8px' },
-    menuBtn: { background: th.card, color: th.text, border: `1px solid ${th.border}`, padding: '14px 16px', borderRadius: '10px', fontSize: '0.95rem', cursor: 'pointer', fontWeight: '500', width: '100%', marginBottom: '8px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '10px' },
-    menuBtnDisabled: { background: th.card, color: th.sub, border: `1px solid ${th.border}`, padding: '14px 16px', borderRadius: '10px', fontSize: '0.95rem', cursor: 'not-allowed', fontWeight: '400', width: '100%', marginBottom: '8px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '10px', opacity: 0.45 },
-    menuBtnActive: { background: th.accent + '22', color: th.text, border: `1px solid ${th.accent}`, padding: '14px 16px', borderRadius: '10px', fontSize: '0.95rem', cursor: 'pointer', fontWeight: '500', width: '100%', marginBottom: '8px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '10px' },
-    menuBtnWarning: { background: '#f4433611', color: th.text, border: '1px solid #f44336', padding: '14px 16px', borderRadius: '10px', fontSize: '0.95rem', cursor: 'pointer', fontWeight: '500', width: '100%', marginBottom: '8px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '10px' },
-    optionBtn: (selected, correct, revealed) => {
-      let bg = th.card; let border = `1px solid ${th.border}`
-      if (revealed && correct) { bg = '#4CAF5022'; border = '2px solid #4CAF50' }
-      else if (revealed && selected && !correct) { bg = '#f4433622'; border = '2px solid #f44336' }
-      else if (selected) { bg = th.accent + '22'; border = `2px solid ${th.accent}` }
-      return { background: bg, color: th.text, border, padding: '12px 16px', borderRadius: '8px', fontSize: '0.9rem', cursor: revealed ? 'default' : 'pointer', width: '100%', marginBottom: '8px', textAlign: 'left' }
+    button: {
+      background: th.btnFaceGrad, color: '#111', border: 'none',
+      padding: '13px 28px', borderRadius: '50px', fontSize: '1rem', cursor: 'pointer',
+      fontWeight: '700', width: '100%', marginBottom: '8px',
+      boxShadow: th.shadow3d,
+      backgroundSize: '100% 100%',
     },
-    revealBtn: { background: th.border, color: th.text, border: 'none', padding: '12px 24px', borderRadius: '8px', fontSize: '1rem', cursor: 'pointer' },
+    menuBtn: {
+      background: th.card, color: th.text, border: `1px solid ${th.border}`,
+      padding: '14px 16px', borderRadius: '14px', fontSize: '0.95rem', cursor: 'pointer',
+      fontWeight: '500', width: '100%', marginBottom: '8px', textAlign: 'left',
+      display: 'flex', alignItems: 'center', gap: '10px',
+      boxShadow: `0 3px 0 ${th.border}, 0 5px 10px rgba(0,0,0,0.3)`,
+    },
+    menuBtnDisabled: {
+      background: th.card, color: th.sub, border: `1px solid ${th.border}`,
+      padding: '14px 16px', borderRadius: '14px', fontSize: '0.95rem', cursor: 'not-allowed',
+      fontWeight: '400', width: '100%', marginBottom: '8px', textAlign: 'left',
+      display: 'flex', alignItems: 'center', gap: '10px', opacity: 0.45,
+    },
+    menuBtnActive: {
+      background: th.accent + '18', color: th.text, border: `1px solid ${th.accent}`,
+      padding: '14px 16px', borderRadius: '14px', fontSize: '0.95rem', cursor: 'pointer',
+      fontWeight: '500', width: '100%', marginBottom: '8px', textAlign: 'left',
+      display: 'flex', alignItems: 'center', gap: '10px',
+      boxShadow: `0 3px 0 ${th.sub}, 0 5px 10px rgba(0,0,0,0.3)`,
+    },
+    menuBtnWarning: {
+      background: '#f4433611', color: th.text, border: '1px solid #f44336',
+      padding: '14px 16px', borderRadius: '14px', fontSize: '0.95rem', cursor: 'pointer',
+      fontWeight: '500', width: '100%', marginBottom: '8px', textAlign: 'left',
+      display: 'flex', alignItems: 'center', gap: '10px',
+      boxShadow: '0 3px 0 #8b0000, 0 5px 10px rgba(0,0,0,0.3)',
+    },
+    optionBtn: (selected, correct, revealed) => {
+      let bg = th.card; let border = `1px solid ${th.border}`; let shadow = `0 2px 0 ${th.border}`
+      if (revealed && correct) { bg = '#4CAF5022'; border = '2px solid #4CAF50'; shadow = '0 2px 0 #2e7d32' }
+      else if (revealed && selected && !correct) { bg = '#f4433622'; border = '2px solid #f44336'; shadow = '0 2px 0 #8b0000' }
+      else if (selected) { bg = th.accent + '22'; border = `2px solid ${th.accent}`; shadow = `0 2px 0 ${th.sub}` }
+      return { background: bg, color: th.text, border, padding: '12px 16px', borderRadius: '12px', fontSize: '0.9rem', cursor: revealed ? 'default' : 'pointer', width: '100%', marginBottom: '8px', textAlign: 'left', boxShadow: shadow }
+    },
+    revealBtn: {
+      background: th.btnFaceGrad, color: '#111', border: 'none',
+      padding: '12px 28px', borderRadius: '50px', fontSize: '1rem', cursor: 'pointer', fontWeight: '700',
+      boxShadow: th.shadow3d,
+      backgroundSize: '100% 100%',
+    },
     answerRow: { display: 'flex', gap: '10px', width: '100%' },
-    wrongBtn: { flex: 1, background: th.card, color: '#e06c75', border: '2px solid #e06c75', padding: '12px', borderRadius: '8px', fontSize: '1rem', cursor: 'pointer', fontWeight: 'bold' },
-    easyBtn: { flex: '0 0 auto', background: th.gold + '22', color: th.gold, border: `2px solid ${th.gold}`, padding: '8px 14px', borderRadius: '8px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 'bold', alignSelf: 'center' },
-    rightBtn: { flex: 1, background: th.accent, color: '#fff', border: 'none', padding: '12px', borderRadius: '8px', fontSize: '1rem', cursor: 'pointer', fontWeight: 'bold' },
-    stopBtn: { background: 'transparent', color: '#f44336', border: '1px solid #f44336', padding: '5px 10px', borderRadius: '6px', fontSize: '0.8rem', cursor: 'pointer' },
-    logoutBtn: { background: 'transparent', color: th.sub, border: `1px solid ${th.border}`, padding: '10px 24px', borderRadius: '8px', fontSize: '0.85rem', cursor: 'pointer', width: '100%', marginTop: '4px' },
-    legalBtn: { background: 'transparent', color: th.sub, border: 'none', padding: '8px', fontSize: '0.75rem', cursor: 'pointer', width: '100%', marginTop: '8px', opacity: 0.5 },
+    wrongBtn: {
+      flex: 1, background: th.card, color: '#e06c75', border: '2px solid #e06c75',
+      padding: '12px', borderRadius: '50px', fontSize: '1rem', cursor: 'pointer', fontWeight: 'bold',
+      boxShadow: '0 4px 0 #8b1c24, 0 6px 12px rgba(0,0,0,0.35)',
+    },
+    easyBtn: {
+      flex: '0 0 auto', background: th.gold + '18', color: th.gold, border: `2px solid ${th.gold}`,
+      padding: '8px 14px', borderRadius: '50px', fontSize: '0.8rem', cursor: 'pointer',
+      fontWeight: 'bold', alignSelf: 'center',
+      boxShadow: `0 3px 0 ${th.sub}, 0 5px 10px rgba(0,0,0,0.3)`,
+    },
+    rightBtn: {
+      flex: 1, background: th.btnFaceGrad, color: '#111', border: 'none',
+      padding: '12px', borderRadius: '50px', fontSize: '1rem', cursor: 'pointer', fontWeight: 'bold',
+      boxShadow: th.shadow3d,
+      backgroundSize: '100% 100%',
+    },
+    stopBtn: {
+      background: 'transparent', color: '#f44336', border: '1px solid #f44336',
+      padding: '5px 12px', borderRadius: '50px', fontSize: '0.8rem', cursor: 'pointer',
+      boxShadow: '0 2px 0 #8b0000',
+    },
+    logoutBtn: {
+      background: 'transparent', color: th.sub, border: `1px solid ${th.border}`,
+      padding: '10px 24px', borderRadius: '50px', fontSize: '0.85rem', cursor: 'pointer',
+      width: '100%', marginTop: '4px',
+      boxShadow: `0 2px 0 ${th.border}`,
+    },
+    legalBtn: {
+      background: 'transparent', color: th.sub, border: 'none',
+      padding: '8px', fontSize: '0.75rem', cursor: 'pointer', width: '100%', marginTop: '8px', opacity: 0.5,
+    },
     error: { color: '#ff6b6b', fontSize: '0.85rem', marginTop: '16px' },
     themeRow: { display: 'flex', gap: '8px', marginBottom: '12px' },
-    themeBtn: (active, color) => ({ flex: 1, padding: '10px 4px', borderRadius: '8px', border: active ? `2px solid ${color}` : `1px solid ${th.border}`, background: active ? color + '22' : th.card, color: th.text, cursor: 'pointer', fontSize: '0.75rem', fontWeight: active ? 'bold' : 'normal' }),
-    backBtn: { background: 'transparent', color: th.sub, border: 'none', padding: '6px 0', fontSize: '0.9rem', cursor: 'pointer', marginBottom: '12px', textAlign: 'left', display: 'block' },
+    themeBtn: (active, color) => ({
+      flex: 1, padding: '10px 4px', borderRadius: '50px',
+      border: active ? `2px solid ${color}` : `1px solid ${th.border}`,
+      background: active ? color + '22' : th.card, color: th.text,
+      cursor: 'pointer', fontSize: '0.75rem', fontWeight: active ? 'bold' : 'normal',
+      boxShadow: active ? `0 3px 0 ${th.sub}` : `0 2px 0 ${th.border}`,
+    }),
+    backBtn: {
+      background: 'transparent', color: th.sub, border: 'none',
+      padding: '6px 0', fontSize: '0.9rem', cursor: 'pointer', marginBottom: '12px',
+      textAlign: 'left', display: 'block',
+    },
     headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' },
-    input: { width: '100%', padding: '12px', borderRadius: '8px', border: `1px solid ${th.border}`, background: th.card, color: th.text, fontSize: '1rem', marginBottom: '10px', boxSizing: 'border-box' },
-    langSelectBtn: (selected) => ({ padding: '10px 14px', borderRadius: '8px', border: selected ? `2px solid ${th.accent}` : `1px solid ${th.border}`, background: selected ? th.accent + '22' : th.card, color: th.text, cursor: 'pointer', fontSize: '0.9rem', marginBottom: '8px', width: '100%', textAlign: 'left', display: 'flex', justifyContent: 'space-between' }),
-    infoBox: { background: th.accent + '22', border: `1px solid ${th.accent}`, borderRadius: '8px', padding: '12px', marginBottom: '10px', color: th.text, fontSize: '0.9rem' },
-    resumeBanner: { background: th.card, border: `1px solid ${th.accent}`, borderRadius: '12px', padding: '14px 16px', marginBottom: '12px', textAlign: 'left' },
+    input: { width: '100%', padding: '12px', borderRadius: '12px', border: `1px solid ${th.border}`, background: th.card, color: th.text, fontSize: '1rem', marginBottom: '10px', boxSizing: 'border-box' },
+    langSelectBtn: (selected) => ({
+      padding: '10px 14px', borderRadius: '12px',
+      border: selected ? `2px solid ${th.accent}` : `1px solid ${th.border}`,
+      background: selected ? th.accent + '22' : th.card, color: th.text,
+      cursor: 'pointer', fontSize: '0.9rem', marginBottom: '8px', width: '100%',
+      textAlign: 'left', display: 'flex', justifyContent: 'space-between',
+      boxShadow: selected ? `0 2px 0 ${th.sub}` : `0 2px 0 ${th.border}`,
+    }),
+    infoBox: { background: th.accent + '18', border: `1px solid ${th.accent}`, borderRadius: '12px', padding: '12px', marginBottom: '10px', color: th.text, fontSize: '0.9rem' },
+    resumeBanner: { background: th.card, border: `1px solid ${th.accent}`, borderRadius: '14px', padding: '14px 16px', marginBottom: '12px', textAlign: 'left' },
   }
 }
 
@@ -1320,7 +1495,19 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
   const [correct, setCorrect] = useState(0)
   const [wrong, setWrong] = useState(0)
   const [newProgress, setNewProgress] = useState(startProgress || { ...cardProgress })
+  const [cardTilt, setCardTilt] = useState({ x: 0, y: 0 })
   const startTime = useRef(Date.now())
+
+  useEffect(() => {
+    if (!window.DeviceOrientationEvent) return
+    const handle = (e) => {
+      const gamma = Math.max(-12, Math.min(12, e.gamma || 0))
+      const beta = Math.max(-12, Math.min(12, (e.beta || 0) - 45))
+      setCardTilt({ x: beta, y: gamma })
+    }
+    window.addEventListener('deviceorientation', handle)
+    return () => window.removeEventListener('deviceorientation', handle)
+  }, [])
   const t = T[lang]
   const item = queue[index]
   const question = item.front
@@ -1328,6 +1515,8 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
   const fromLang = item.langA
   const toLang = item.langB
   const showPronunciation = item.pronunciation
+  const targetLangCode = item.targetLang
+  const targetText = item.langA === targetLangCode ? item.front : item.back
 
   const SPEECH_LANGS = { en: 'en-GB', de: 'de-DE', sw: 'sw-KE' }
   const getVoices = () => new Promise(resolve => {
@@ -1356,7 +1545,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
   const handleReveal = () => {
     startTime.current = Date.now()
     setRevealed(true)
-    speak(answer, toLang)
+    speak(targetText, targetLangCode)
   }
   const handleStop = () => { if (window.confirm(t.stopConfirm)) onBack() }
   const handleEasy = () => {
@@ -1401,13 +1590,22 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
         <button style={s.stopBtn} onClick={handleStop}>{t.stop}</button>
       </div>
       {/* ── FLIP CARD ── */}
-      <div style={{ width: '100%', marginBottom: '16px' }}>
+      <div style={{ width: '100%', marginBottom: '16px', perspective: '900px' }}>
         <div style={{
           ...s.bigCard,
           border: revealed ? `1px solid ${s.progressFill.background}` : `1px solid ${s.progressBar.background}`,
-          transition: 'border-color 0.3s ease',
+          transition: 'border-color 0.3s ease, transform 0.12s ease-out',
           minHeight: '220px',
+          transform: `rotateX(${-cardTilt.x * 1.5}deg) rotateY(${cardTilt.y * 1.5}deg)`,
+          transformStyle: 'preserve-3d',
+          willChange: 'transform',
         }}>
+          {/* specular highlight — moves opposite to tilt, simulates light reflection */}
+          <div style={{
+            position: 'absolute', inset: 0, borderRadius: 'inherit', pointerEvents: 'none',
+            background: `radial-gradient(circle at ${50 - cardTilt.y * 3.5}% ${50 - cardTilt.x * 3.5}%, rgba(255,255,255,0.13) 0%, rgba(255,255,255,0.04) 35%, transparent 65%)`,
+            transition: 'background 0.1s ease-out',
+          }} />
           <p style={s.dirLabel}>{LANG_FLAGS[fromLang]} → {LANG_FLAGS[toLang]}</p>
           <p style={s.cardFront}>{question}</p>
           {!revealed && (
@@ -1417,7 +1615,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
             <div style={{ animation: 'vocaraFadeIn 0.3s ease both', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center' }}>
                 <p style={{ ...s.cardBack, margin: 0 }}>{answer}</p>
-                <button onClick={() => speak(answer, toLang)} style={{ background: 'transparent', border: 'none', fontSize: '1.3rem', cursor: 'pointer', padding: '4px', opacity: 0.8 }}>🔊</button>
+                <button onClick={() => speak(targetText, targetLangCode)} style={{ background: 'transparent', border: 'none', fontSize: '1.3rem', cursor: 'pointer', padding: '4px', opacity: 0.8 }}>🔊</button>
               </div>
               {showPronunciation && <p style={s.cardPronunciation}>🔊 {t.pronunciation}: {item.pronunciation}</p>}
               {item.context && <p style={s.cardContext}>„{item.context}"</p>}
@@ -1489,6 +1687,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const [session, setSession] = useState(null)
   const [result, setResult] = useState(null)
   const [masteryUnlocked, setMasteryUnlocked] = useState(false)
+  const [aiNotification, setAiNotification] = useState(null)
   const [progressOpen, setProgressOpen] = useState(false)
   const [pendingSession, setPendingSession] = useState(null)
   const [resumeStartIndex, setResumeStartIndex] = useState(0)
@@ -1546,6 +1745,87 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   }
   const discardSession = async () => { await clearSessionState(user.uid); setPendingSession(null) }
   const handleSaveState = async (queue, index, newProgress) => { await saveSessionState(user.uid, queue, index, newProgress) }
+  const generateAICards = async () => {
+    const homeCity = myData?.homeCity || (isMarkLang ? 'Hamburg' : 'Nairobi')
+    const partnerCity = myData?.partnerCity || (isMarkLang ? 'Nairobi' : 'Hamburg')
+    const existingAI = myData?.aiCards || []
+    const knownFronts = allCards.map(c => c.front)
+
+    // Enforce 80/20 ratio: at most 1 SW card per 5 generated
+    const totalAIAfter = existingAI.length + 5
+    const maxSW = Math.floor(totalAIAfter * 0.2)
+    const currentAISW = existingAI.filter(c => c.langA === 'sw').length
+    const swCount = isMarkLang ? Math.min(1, Math.max(0, maxSW - currentAISW)) : 0
+
+    const requests = isMarkLang
+      ? [
+          { langA: 'en', langB: 'de', count: 5 - swCount },
+          ...(swCount > 0 ? [{ langA: 'sw', langB: 'de', count: swCount }] : []),
+        ]
+      : [{ langA: 'de', langB: 'en', count: 5 }]
+
+    const LANG_NAMES = { en: 'English', de: 'German', sw: 'Swahili' }
+    const allNewCards = []
+    const ts = Date.now()
+
+    for (const req of requests) {
+      const knownList = knownFronts.slice(0, 80).join(' | ')
+      const prompt = `Generate exactly ${req.count} vocabulary flashcard${req.count > 1 ? 's' : ''} for a language learner.
+Front language: ${LANG_NAMES[req.langA]}
+Back language: ${LANG_NAMES[req.langB]}
+Learner's home city: ${homeCity}
+Partner's city: ${partnerCity}
+
+Rules:
+- Choose common, useful everyday phrases or expressions (intermediate level, not basic words like "hello")
+- The "context" field: 1-2 sentences in ${LANG_NAMES[req.langB]} telling a short personal story that mentions ${homeCity} and/or ${partnerCity}
+- Avoid these already known phrases: ${knownList}
+- Return ONLY a valid JSON array, no markdown, no explanation
+
+Format: [{"front":"...","back":"...","context":"...","category":"..."}]`
+
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 600, messages: [{ role: 'user', content: prompt }] }),
+        })
+        const data = await res.json()
+        const raw = data.content?.[0]?.text || ''
+        const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim())
+        parsed.slice(0, req.count).forEach((card, i) => {
+          allNewCards.push({
+            id: `ai_${req.langA}_${ts}_${i}`,
+            front: card.front,
+            back: card.back,
+            context: card.context || '',
+            category: card.category || 'general',
+            langA: req.langA,
+            langB: req.langB,
+            source: 'ai-generated',
+            createdAt: ts,
+          })
+        })
+      } catch (e) {
+        console.warn('AI card generation failed for', req.langA, e)
+      }
+    }
+
+    if (allNewCards.length === 0) return
+    const updatedAiCards = [...existingAI, ...allNewCards]
+    try {
+      await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards })
+      setMyData(d => ({ ...d, aiCards: updatedAiCards }))
+      const msg = isMarkLang
+        ? `✨ ${allNewCards.length} neue KI-Karten hinzugefügt!`
+        : `✨ ${allNewCards.length} new AI cards added!`
+      setAiNotification(msg)
+      setTimeout(() => setAiNotification(null), 4000)
+    } catch (e) {
+      console.warn('Failed to save AI cards:', e)
+    }
+  }
+
   const handleFinish = async (finalProgress, correct, wrong) => {
     let unlocked = false
     if (checkMastery(allCards, finalProgress, correct, correct + wrong)) {
@@ -1557,6 +1837,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
         })
         unlocked = true
       }
+      generateAICards()
     }
     setMasteryUnlocked(unlocked)
     await onSaveProgress(finalProgress)
@@ -1683,6 +1964,11 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
       <button style={s.menuBtn} onClick={() => setScreen('satz')}>{lang === 'de' ? '📝 Satz-Training' : '📝 Sentence training'}</button>
       <button style={s.logoutBtn} onClick={() => signOut(auth)}>{t.logout}</button>
       <button style={s.legalBtn} onClick={() => setScreen('impressum')}>{t.impressumLink}</button>
+      {aiNotification && (
+        <div style={{ position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)', background: th.accent, color: '#fff', padding: '10px 20px', borderRadius: '20px', fontSize: '0.9rem', fontWeight: 'bold', zIndex: 1000, animation: 'vocaraFadeIn 0.3s ease both', whiteSpace: 'nowrap', pointerEvents: 'none' }}>
+          {aiNotification}
+        </div>
+      )}
     </div></div>
   )
 }
@@ -1776,7 +2062,7 @@ function App() {
 
   return (
     <MenuScreen user={user} myData={myData} setMyData={setMyData} partnerData={partnerData}
-      allCards={isElosy ? ALL_ELOSY_CARDS : ALL_MARK_CARDS}
+      allCards={[...(isElosy ? ALL_ELOSY_CARDS : ALL_MARK_CARDS), ...(myData?.aiCards || []).flatMap(buildCardPair)]}
       lang={lang} onSaveProgress={saveProgress}
       theme={theme} onThemeChange={handleThemeChange}
       onPartnerUpdate={handlePartnerUpdate} onSaveCefr={handleSaveCefr} />
