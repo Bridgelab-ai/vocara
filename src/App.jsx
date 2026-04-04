@@ -18,7 +18,7 @@ const THEMES = {
   nairobi: {
     name: '🌙 Nairobi',
     bg: '#0f0a05', card: '#1a1208', text: '#fff', sub: '#B8860B', border: '#2a1f10',
-    accent: '#FFD700', gold: '#FFF0A0', glowColor: '#FFD700',
+    accent: '#FFD700', gold: '#FFF0A0', glowColor: '#FFD700', btnTextColor: '#111',
     bgGrad: 'radial-gradient(ellipse at 50% 30%, #201508 0%, #0f0a05 55%, #080502 100%)',
     metalGrad: 'linear-gradient(145deg, #FFF0A0 0%, #FFD700 30%, #B8860B 52%, #D4AF37 72%, #FFF0A0 100%)',
     metalText: 'linear-gradient(135deg, #FFFAD0 0%, #FFE566 15%, #FFD700 30%, #C9A800 48%, #8B6914 58%, #C9A800 70%, #FFD700 82%, #FFF0A0 100%)',
@@ -27,26 +27,34 @@ const THEMES = {
     shadowPressed: '0 1px 0 rgba(255,255,200,0.15) inset, 0 -1px 0 rgba(0,0,0,0.4) inset, 0 1px 0 #8B6914, 0 3px 8px rgba(0,0,0,0.6)',
   },
   hamburg: {
-    name: '☀️ Hamburg',
-    bg: '#111111', card: '#1c1c1c', text: '#f0f0f0', sub: '#888888', border: '#2a2a2a',
-    accent: '#C0C0C0', gold: '#E8E8E8', glowColor: '#C8C8C8',
-    bgGrad: 'radial-gradient(ellipse at 50% 30%, #222222 0%, #111111 55%, #080808 100%)',
-    metalGrad: 'linear-gradient(145deg, #F0F0F0 0%, #C0C0C0 30%, #808080 52%, #A8A8A8 72%, #F0F0F0 100%)',
-    metalText: 'linear-gradient(135deg, #FFFFFF 0%, #E8E8E8 15%, #C0C0C0 30%, #909090 48%, #606060 58%, #909090 70%, #C8C8C8 82%, #FFFFFF 100%)',
-    btnFaceGrad: 'linear-gradient(180deg, #FFFFFF 0%, #E0E0E0 18%, #C0C0C0 38%, #909090 62%, #686868 82%, #444444 100%)',
-    shadow3d: '0 1px 0 rgba(255,255,255,0.4) inset, 0 -1px 0 rgba(0,0,0,0.5) inset, 0 4px 0 #555, 0 6px 0 #333, 0 8px 0 #181818, 0 10px 20px rgba(0,0,0,0.75)',
-    shadowPressed: '0 1px 0 rgba(255,255,255,0.15) inset, 0 -1px 0 rgba(0,0,0,0.4) inset, 0 1px 0 #333, 0 3px 8px rgba(0,0,0,0.6)',
+    name: '🌊 Hamburg',
+    bg: '#0D1F33', card: '#162840', text: '#E8F4FF', sub: '#4A80A8', border: '#1B3A5C',
+    accent: '#8B3A2A', gold: '#C4704A', glowColor: '#2E6B9E', btnTextColor: '#E8F4FF',
+    bgGrad: 'radial-gradient(ellipse at 50% 30%, #1B3A5C 0%, #0D1F33 55%, #050D1A 100%)',
+    metalGrad: 'linear-gradient(145deg, #3A8CC0 0%, #1B3A5C 30%, #8B3A2A 52%, #1B3A5C 72%, #3A8CC0 100%)',
+    metalText: 'linear-gradient(135deg, #A8D8F0 0%, #3A8CC0 18%, #1B3A5C 35%, #8B3A2A 52%, #C4704A 62%, #2E6B9E 78%, #A8D8F0 100%)',
+    btnFaceGrad: 'linear-gradient(180deg, #3A8CC0 0%, #2E6B9E 22%, #1B3A5C 50%, #8B3A2A 78%, #5A2018 100%)',
+    shadow3d: '0 1px 0 rgba(120,200,255,0.25) inset, 0 -1px 0 rgba(0,0,0,0.5) inset, 0 4px 0 #8B3A2A, 0 6px 0 #6B2A1A, 0 8px 0 #3B1A0A, 0 10px 20px rgba(0,0,0,0.75)',
+    shadowPressed: '0 1px 0 rgba(120,200,255,0.1) inset, 0 -1px 0 rgba(0,0,0,0.4) inset, 0 1px 0 #6B2A1A, 0 3px 8px rgba(0,0,0,0.6)',
   },
   welt: {
     name: '🌍 Welt',
-    bg: '#0a0818', card: '#130f2a', text: '#fff', sub: '#3D3580', border: '#1e1840',
-    accent: '#7B6FD4', gold: '#B8B0FF', glowColor: '#9D94FF',
-    bgGrad: 'radial-gradient(ellipse at 50% 30%, #1a1438 0%, #0a0818 55%, #050410 100%)',
-    metalGrad: 'linear-gradient(145deg, #C8C0FF 0%, #9D94FF 30%, #7B6FD4 52%, #4D43A0 72%, #B8B0FF 100%)',
-    metalText: 'linear-gradient(135deg, #F0EEFF 0%, #C8C0FF 15%, #9D94FF 30%, #7B6FD4 48%, #3D3580 58%, #7B6FD4 70%, #B8B0FF 82%, #F0EEFF 100%)',
-    btnFaceGrad: 'linear-gradient(180deg, #E0DCFF 0%, #C0B8FF 18%, #9D94FF 38%, #7B6FD4 62%, #5A50B0 82%, #3D3580 100%)',
-    shadow3d: '0 1px 0 rgba(220,216,255,0.35) inset, 0 -1px 0 rgba(0,0,0,0.5) inset, 0 4px 0 #4D43A0, 0 6px 0 #3D3580, 0 8px 0 #252060, 0 10px 20px rgba(0,0,0,0.75)',
-    shadowPressed: '0 1px 0 rgba(220,216,255,0.15) inset, 0 -1px 0 rgba(0,0,0,0.4) inset, 0 1px 0 #3D3580, 0 3px 8px rgba(0,0,0,0.6)',
+    bg: '#060410', card: '#0e0a1e', text: '#fff', sub: '#7A70A0', border: '#1A1430',
+    accent: '#FF6B6B', gold: '#FFD93D', glowColor: '#C77DFF', btnTextColor: '#fff',
+    rainbow: true,
+    bgGrad: [
+      'radial-gradient(ellipse at 15% 40%, #FF6B6B28 0%, transparent 45%)',
+      'radial-gradient(ellipse at 85% 20%, #4D96FF28 0%, transparent 45%)',
+      'radial-gradient(ellipse at 50% 85%, #6BCB7728 0%, transparent 45%)',
+      'radial-gradient(ellipse at 75% 65%, #C77DFF28 0%, transparent 40%)',
+      'radial-gradient(ellipse at 30% 70%, #FFD93D22 0%, transparent 40%)',
+      '#060410',
+    ].join(', '),
+    metalGrad: 'linear-gradient(145deg, #FF6B6B, #FFD93D, #6BCB77, #4D96FF, #C77DFF, #FF6B6B)',
+    metalText: 'linear-gradient(135deg, #fff 0%, #FF6B6B 15%, #FFD93D 30%, #6BCB77 45%, #4D96FF 60%, #C77DFF 75%, #FF6B6B 90%, #fff 100%)',
+    btnFaceGrad: 'linear-gradient(180deg, #FF6B6B 0%, #FFD93D 25%, #6BCB77 50%, #4D96FF 75%, #C77DFF 100%)',
+    shadow3d: '0 1px 0 rgba(255,255,255,0.3) inset, 0 -1px 0 rgba(0,0,0,0.5) inset, 0 4px 0 #9B3BFF, 0 6px 0 #7B1BDF, 0 8px 0 #3D008F, 0 10px 20px rgba(0,0,0,0.75)',
+    shadowPressed: '0 1px 0 rgba(255,255,255,0.15) inset, 0 -1px 0 rgba(0,0,0,0.4) inset, 0 1px 0 #7B1BDF, 0 3px 8px rgba(0,0,0,0.6)',
   },
 }
 
@@ -356,12 +364,39 @@ const ALL_MARK_CARDS_BASE = [
   { id: 'en_86', front: "I'll be there for you.", back: "Ich bin für dich da.", context: "I'll be there for you — über jeden Ozean, durch jede Zeitzone. Das ist das Versprechen hinter der Stimme.", langA: 'en', langB: 'de' },
 ]
 
+const VALID_CATEGORIES = ['vocabulary', 'sentence', 'street', 'home']
+
+function autoCategory(front) {
+  const words = front.trim().split(/\s+/).filter(Boolean)
+  return words.length <= 2 ? 'vocabulary' : 'sentence'
+}
+
+function ruleCategory(card) {
+  const front = card.front || ''
+  // Rule 1: Swahili card or has pronunciation guide → street
+  if (card.langA === 'sw' || card.pronunciation) return 'street'
+  // Rule 2: contractions/apostrophes → street
+  if (/\b(i'm|you're|it's|let's|don't|can't|won't|i've|they're|we're|that's|what's|there's|i'll|you'll)\b/i.test(front)) return 'street'
+  // Rule 3: single word or simple infinitive → vocabulary
+  const words = front.trim().split(/\s+/).filter(Boolean)
+  if (words.length === 1) return 'vocabulary'
+  if (/^to\s/i.test(front) && words.length <= 3) return 'vocabulary'
+  // Rule 4: questions → home if personal/domestic, else street
+  if (front.trim().endsWith('?')) {
+    const personalRe = /\b(you|your|du|dich|dir|ich|mich|mir|we|wir|uns|me|my|our|hast|bist|machst|kommst|schläfst|isst|eat|ate|home|haus|keys|schlüssel|ready|bereit)\b/i
+    return personalRe.test(front) ? 'home' : 'street'
+  }
+  // Rule 5: everything else → sentence
+  return 'sentence'
+}
+
 // ── CARD GENERATION: split reversed cards on " / " ────────────
 // EN→DE (forward): show all meanings together as-is
 // DE→EN (reversed): split each " / " meaning into its own card
 function buildCardPair(card) {
   const targetLang = card.langA
-  const forwardCard = { ...card, targetLang }
+  const category = card.category || autoCategory(card.front)
+  const forwardCard = { ...card, targetLang, category }
 
   const meanings = card.back.split(' / ').map(m => m.trim()).filter(Boolean)
   let reversedCards
@@ -374,6 +409,7 @@ function buildCardPair(card) {
       langA: card.langB,
       langB: card.langA,
       targetLang,
+      category,
     }))
   } else {
     reversedCards = [{
@@ -384,6 +420,7 @@ function buildCardPair(card) {
       langA: card.langB,
       langB: card.langA,
       targetLang,
+      category,
     }]
   }
   return [forwardCard, ...reversedCards]
@@ -575,6 +612,18 @@ const GLOBAL_CSS = `
   82%      { opacity: 0; transform: translateX(220%) skewX(-20deg); }
   100%     { opacity: 0; }
 }
+@keyframes rainbowBtnShift {
+  0%   { background-position: 0% 0%; }
+  100% { background-position: 0% 200%; }
+}
+@keyframes rainbowCardBorder {
+  0%   { box-shadow: 0 0 0 2px #FF6B6B, 0 0 20px #FF6B6B55, inset 0 0 30px #FF6B6B18; }
+  20%  { box-shadow: 0 0 0 2px #FFD93D, 0 0 20px #FFD93D55, inset 0 0 30px #FFD93D18; }
+  40%  { box-shadow: 0 0 0 2px #6BCB77, 0 0 20px #6BCB7755, inset 0 0 30px #6BCB7718; }
+  60%  { box-shadow: 0 0 0 2px #4D96FF, 0 0 20px #4D96FF55, inset 0 0 30px #4D96FF18; }
+  80%  { box-shadow: 0 0 0 2px #C77DFF, 0 0 20px #C77DFF55, inset 0 0 30px #C77DFF18; }
+  100% { box-shadow: 0 0 0 2px #FF6B6B, 0 0 20px #FF6B6B55, inset 0 0 30px #FF6B6B18; }
+}
 
 .vocara-screen {
   animation: vocaraFadeIn 0.3s ease both;
@@ -626,8 +675,8 @@ function makeStyles(th) {
       fontFamily: "'Playfair Display', Georgia, serif",
       background: th.metalText,
       WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-      backgroundSize: '300% auto',
-      animation: 'metalShimmer 3s linear infinite',
+      backgroundSize: th.rainbow ? '400% auto' : '300% auto',
+      animation: th.rainbow ? 'metalShimmer 2.5s linear infinite' : 'metalShimmer 3s linear infinite',
       filter: `drop-shadow(0 0 10px ${th.glowColor}70)`,
     },
     slogan: { color: th.sub, fontSize: '1rem', marginBottom: '32px', lineHeight: '1.8' },
@@ -641,8 +690,9 @@ function makeStyles(th) {
       borderRadius: '18px', padding: '28px 20px', marginBottom: '16px',
       textAlign: 'center', minHeight: '180px', display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
-      border: `1px solid ${th.accent}55`,
-      boxShadow: `inset 0 0 30px ${th.glowColor}30, 0 0 28px ${th.accent}22, 0 0 0 1px ${th.accent}35, 0 6px 24px rgba(0,0,0,0.55)`,
+      border: th.rainbow ? '2px solid transparent' : `1px solid ${th.accent}55`,
+      boxShadow: th.rainbow ? undefined : `inset 0 0 30px ${th.glowColor}30, 0 0 28px ${th.accent}22, 0 0 0 1px ${th.accent}35, 0 6px 24px rgba(0,0,0,0.55)`,
+      animation: th.rainbow ? 'rainbowCardBorder 4s linear infinite' : undefined,
       position: 'relative', overflow: 'hidden',
     },
     cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', width: '100%' },
@@ -659,11 +709,12 @@ function makeStyles(th) {
     progressBar: { height: '4px', background: th.border, borderRadius: '2px', marginTop: '4px', overflow: 'hidden' },
     progressFill: { height: '100%', borderRadius: '2px', transition: 'width 0.5s ease', background: th.accent },
     button: {
-      background: th.btnFaceGrad, color: '#111', border: 'none',
+      background: th.btnFaceGrad, color: th.btnTextColor, border: 'none',
       padding: '13px 28px', borderRadius: '50px', fontSize: '1rem', cursor: 'pointer',
       fontWeight: '700', width: '100%', marginBottom: '8px',
       boxShadow: th.shadow3d,
-      backgroundSize: '100% 100%',
+      backgroundSize: th.rainbow ? '100% 300%' : '100% 100%',
+      animation: th.rainbow ? 'rainbowBtnShift 4s linear infinite' : undefined,
     },
     menuBtn: {
       background: th.card, color: th.text, border: `1px solid ${th.border}`,
@@ -700,10 +751,11 @@ function makeStyles(th) {
       return { background: bg, color: th.text, border, padding: '12px 16px', borderRadius: '12px', fontSize: '0.9rem', cursor: revealed ? 'default' : 'pointer', width: '100%', marginBottom: '8px', textAlign: 'left', boxShadow: shadow }
     },
     revealBtn: {
-      background: th.btnFaceGrad, color: '#111', border: 'none',
+      background: th.btnFaceGrad, color: th.btnTextColor, border: 'none',
       padding: '12px 28px', borderRadius: '50px', fontSize: '1rem', cursor: 'pointer', fontWeight: '700',
       boxShadow: th.shadow3d,
-      backgroundSize: '100% 100%',
+      backgroundSize: th.rainbow ? '100% 300%' : '100% 100%',
+      animation: th.rainbow ? 'rainbowBtnShift 4s linear infinite' : undefined,
     },
     answerRow: { display: 'flex', gap: '10px', width: '100%' },
     wrongBtn: {
@@ -718,10 +770,11 @@ function makeStyles(th) {
       boxShadow: `0 3px 0 ${th.sub}, 0 5px 10px rgba(0,0,0,0.3)`,
     },
     rightBtn: {
-      flex: 1, background: th.btnFaceGrad, color: '#111', border: 'none',
+      flex: 1, background: th.btnFaceGrad, color: th.btnTextColor, border: 'none',
       padding: '12px', borderRadius: '50px', fontSize: '1rem', cursor: 'pointer', fontWeight: 'bold',
       boxShadow: th.shadow3d,
-      backgroundSize: '100% 100%',
+      backgroundSize: th.rainbow ? '100% 300%' : '100% 100%',
+      animation: th.rainbow ? 'rainbowBtnShift 4s linear infinite' : undefined,
     },
     stopBtn: {
       background: 'transparent', color: '#f44336', border: '1px solid #f44336',
@@ -764,6 +817,23 @@ function makeStyles(th) {
     }),
     infoBox: { background: th.accent + '18', border: `1px solid ${th.accent}`, borderRadius: '12px', padding: '12px', marginBottom: '10px', color: th.text, fontSize: '0.9rem' },
     resumeBanner: { background: th.card, border: `1px solid ${th.accent}`, borderRadius: '14px', padding: '14px 16px', marginBottom: '12px', textAlign: 'left' },
+    catBtn: {
+      background: th.btnFaceGrad, color: th.btnTextColor, border: 'none',
+      padding: '20px 10px', borderRadius: '18px', fontSize: '0.92rem', cursor: 'pointer',
+      fontWeight: '800', flex: 1, lineHeight: '1.25', textAlign: 'center',
+      boxShadow: th.shadow3d,
+      backgroundSize: th.rainbow ? '100% 300%' : '100% 100%',
+      animation: th.rainbow ? 'rainbowBtnShift 4s linear infinite' : undefined,
+      fontFamily: "'Playfair Display', Georgia, serif",
+      letterSpacing: '0.2px',
+    },
+    navBtn: {
+      background: 'transparent', color: th.sub, border: `1px solid ${th.border}`,
+      padding: '11px 16px', borderRadius: '12px', fontSize: '0.88rem', cursor: 'pointer',
+      fontWeight: '500', width: '100%', marginBottom: '6px', textAlign: 'center',
+      boxShadow: `0 2px 0 ${th.border}`,
+      fontFamily: "'Inter', system-ui, sans-serif",
+    },
   }
 }
 
@@ -1692,6 +1762,8 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const [pendingSession, setPendingSession] = useState(null)
   const [resumeStartIndex, setResumeStartIndex] = useState(0)
   const [resumeStartProgress, setResumeStartProgress] = useState(null)
+  const [emptyCategoryMsg, setEmptyCategoryMsg] = useState(null)
+  const [categorizingStatus, setCategorizingStatus] = useState(null)
   const t = T[lang]; const th = THEMES[theme]; const s = makeStyles(th)
   const firstName = user.displayName?.split(' ')[0] || user.displayName
   const cardProgress = myData?.cardProgress || {}
@@ -1736,6 +1808,19 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
 
   const startSession = () => {
     const sess = buildSession(allCards, cardProgress)
+    setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+  }
+  const startCategorySession = (category) => {
+    const cards = category === 'all'
+      ? allCards
+      : allCards.filter(c => c.category === category)
+    if (cards.length === 0) {
+      setEmptyCategoryMsg('Noch keine Karten in dieser Kategorie — füge welche hinzu!')
+      setTimeout(() => setEmptyCategoryMsg(null), 3500)
+      return
+    }
+    const sess = buildSession(cards, cardProgress)
+    if (sess.length === 0) return
     setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
   }
   const resumeSession = () => {
@@ -1826,6 +1911,60 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."}]`
     }
   }
 
+  const runCategorization = async () => {
+    const baseIdRegex = /_r(_\d+)?$/
+    const existingCats = myData?.cardCategories || {}
+    const toProcess = allCards.filter(c =>
+      !baseIdRegex.test(c.id) &&
+      !VALID_CATEGORIES.includes(existingCats[c.id]) &&
+      !VALID_CATEGORIES.includes(c.category)
+    )
+    if (toProcess.length === 0) {
+      setCategorizingStatus('Alle Karten bereits kategorisiert ✓')
+      setTimeout(() => setCategorizingStatus(null), 2500)
+      return
+    }
+    const newCats = { ...existingCats }
+    for (let i = 0; i < toProcess.length; i++) {
+      const card = toProcess[i]
+      setCategorizingStatus(`Kategorisiere ${i + 1}/${toProcess.length}...`)
+      const prompt = `Categorize this flashcard: '${card.front}'
+Return ONLY one word: vocabulary, street, home, or sentence.
+- vocabulary = single words or simple infinitives
+- street = slang, idioms, colloquial phrases, contractions like I'm / you're
+- home = family, romantic, household phrases
+- sentence = neutral everyday sentences`
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'claude-haiku-4-5',
+            max_tokens: 10,
+            messages: [{ role: 'user', content: prompt }],
+          }),
+        })
+        const data = await res.json()
+        const raw = (data.content?.[0]?.text || '').trim().toLowerCase().replace(/[^a-z]/g, '')
+        const cat = VALID_CATEGORIES.find(c => raw === c || raw.startsWith(c))
+        if (cat) newCats[card.id] = cat
+      } catch (e) {
+        console.warn('Categorization failed for', card.id, e)
+      }
+      // Save every 10 cards and on the last one
+      if ((i + 1) % 10 === 0 || i === toProcess.length - 1) {
+        try {
+          await updateDoc(doc(db, 'users', user.uid), { cardCategories: newCats })
+          setMyData(d => ({ ...d, cardCategories: { ...newCats } }))
+        } catch (e) {
+          console.warn('Failed to save categories:', e)
+        }
+      }
+    }
+    setCategorizingStatus(`Fertig! ${toProcess.length} Karten kategorisiert ✓`)
+    setTimeout(() => setCategorizingStatus(null), 3000)
+  }
+
   const handleFinish = async (finalProgress, correct, wrong) => {
     let unlocked = false
     if (checkMastery(allCards, finalProgress, correct, correct + wrong)) {
@@ -1857,28 +1996,17 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."}]`
   if (screen === 'satz') return <SatzTrainingScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} userName={user.displayName?.split(' ')[0] || 'du'} />
 
   return (
-    <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
-      <div style={s.headerRow}>
-        <p style={s.greeting}>{t.hello}, {firstName} 👋</p>
-        <button style={{ background: 'transparent', border: 'none', fontSize: '1.2rem', cursor: 'pointer' }} onClick={() => setScreen('settings')}>⚙️</button>
-      </div>
-      <h1 style={s.title}>Vocara</h1>
+    <div style={s.container} className="vocara-screen"><div style={{ ...s.homeBox, paddingTop: '12px' }}>
 
-      {/* ── TAGES-PHRASE ── */}
-      {(() => {
-        const dp = getDailyPhrase(lang)
-        return (
-          <div style={{ ...s.card, borderLeft: `3px solid ${th.accent}`, marginBottom: '16px', textAlign: 'left' }}>
-            <p style={{ color: th.sub, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 6px 0' }}>{lang === 'de' ? '☀️ Phrase des Tages' : '☀️ Phrase of the day'}</p>
-            <p style={{ color: th.text, fontSize: '0.95rem', fontWeight: '500', margin: '0 0 4px 0' }}>{dp.phrase}</p>
-            <p style={{ color: th.sub, fontSize: '0.8rem', fontStyle: 'italic', margin: 0 }}>{dp.translation}</p>
-          </div>
-        )
-      })()}
+      {/* ── LOGO ── */}
+      <div style={{ textAlign: 'center', paddingTop: '20px', paddingBottom: '16px' }}>
+        <h1 style={{ ...s.title, fontSize: 'clamp(4rem, 17vw, 6.5rem)', lineHeight: 1, marginBottom: '10px' }}>Vocara</h1>
+        <p style={{ ...s.greeting, marginBottom: 0 }}>{t.hello}, {firstName}</p>
+      </div>
 
       {/* ── MONTHLY TEST BANNER ── */}
       {testDue && (
-        <button style={s.menuBtnWarning} onClick={() => setScreen('test')}>
+        <button style={{ ...s.menuBtnWarning, marginBottom: '12px' }} onClick={() => setScreen('test')}>
           <span style={{ flex: 1 }}>
             <span style={{ display: 'block', fontWeight: 'bold', color: '#f44336' }}>{t.monthlyTestBanner}</span>
             <span style={{ fontSize: '0.75rem', color: th.sub }}>{t.monthlyTestSub}</span>
@@ -1887,8 +2015,9 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."}]`
         </button>
       )}
 
+      {/* ── PENDING SESSION BANNER ── */}
       {pendingSession && (
-        <div style={s.resumeBanner}>
+        <div style={{ ...s.resumeBanner, marginBottom: '12px' }}>
           <p style={{ color: th.text, margin: '0 0 10px 0', fontSize: '0.9rem' }}>
             {t.resumeTitle} — {pendingSession.index ?? '?'} {t.resumeOf} {pendingSession.queue?.length ?? '?'} {t.resumeCards}
           </p>
@@ -1899,28 +2028,36 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."}]`
         </div>
       )}
 
-      {!testDue && (
-        <button style={s.menuBtn} onClick={() => setScreen('test')}>
-          {t.whereAmI}
-          {cefr && <span style={{ marginLeft: 'auto', color: CEFR_COLORS[cefr], fontWeight: 'bold', fontSize: '0.85rem' }}>{cefr}</span>}
+      {/* ── 5-BUTTON GRID ── */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button style={s.catBtn} onClick={() => startCategorySession('vocabulary')}>
+            Meine<br />Worte
+          </button>
+          <button style={s.catBtn} onClick={() => startCategorySession('sentence')}>
+            werden<br />Sätze
+          </button>
+        </div>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button style={s.catBtn} onClick={() => startCategorySession('street')}>
+            Auf der<br />Straße
+          </button>
+          <button style={s.catBtn} onClick={() => startCategorySession('home')}>
+            und zu<br />Hause
+          </button>
+        </div>
+        <button style={{ ...s.button, padding: '18px 28px', fontSize: '1rem', letterSpacing: '0.3px', marginBottom: 0 }} onClick={() => startCategorySession('all')}>
+          Wir lernen alles, überall
         </button>
-      )}
+      </div>
 
-      <button style={s.menuBtn} onClick={startSession}>
-        {t.mySession}
-        <span style={{ marginLeft: 'auto', color: th.sub, fontSize: '0.78rem', fontWeight: 'normal' }}>
-          {sessionPreview.due > 0 ? `${sessionPreview.due} ${lang === 'de' ? 'fällig' : 'due'}` : ''}
-          {sessionPreview.due > 0 && sessionPreview.new > 0 ? ' · ' : ''}
-          {sessionPreview.new > 0 ? `${Math.min(sessionPreview.new, SESSION_SIZE)} ${lang === 'de' ? 'neu' : 'new'}` : ''}
-        </span>
-      </button>
-
-      <button style={progressOpen ? s.menuBtnActive : s.menuBtn} onClick={() => setProgressOpen(o => !o)}>
-        {t.progressBtn} <span style={{ marginLeft: 'auto' }}>{progressOpen ? '▲' : '▼'}</span>
-      </button>
+      {/* ── PROGRESS PANEL ── */}
       {progressOpen && (
-        <div style={{ ...s.card, marginTop: '-4px', borderTopLeftRadius: 0, borderTopRightRadius: 0 }}>
-          <p style={s.cardLabel}>{t.myProgress}</p>
+        <div style={{ ...s.card, marginBottom: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <p style={{ ...s.cardLabel, marginBottom: 0 }}>{t.myProgress}</p>
+            <button onClick={() => setProgressOpen(false)} style={{ background: 'none', border: 'none', color: th.sub, cursor: 'pointer', fontSize: '1.1rem', lineHeight: 1, padding: '2px 4px', borderRadius: '4px' }}>✕</button>
+          </div>
           {isMarkLang ? (
             <>
               <StatRow label="Englisch" mastered={enStats.mastered} active={enStats.active} total={enStats.total} s={s} />
@@ -1957,16 +2094,36 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."}]`
         </div>
       )}
 
-      <button style={s.menuBtn} onClick={() => setScreen('partner')}>
-        🤝 {myData?.partnerUID ? partnerName : (lang === 'de' ? 'Partner verbinden' : 'Connect partner')}
-      </button>
-      <button style={s.menuBtn} onClick={() => setScreen('ki')}>{t.aiChat}</button>
-      <button style={s.menuBtn} onClick={() => setScreen('satz')}>{lang === 'de' ? '📝 Satz-Training' : '📝 Sentence training'}</button>
-      <button style={s.logoutBtn} onClick={() => signOut(auth)}>{t.logout}</button>
+      {/* ── SECONDARY NAVIGATION ── */}
+      <div style={{ marginTop: '4px', marginBottom: '10px' }}>
+        <button style={s.navBtn} onClick={() => setScreen('ki')}>KI-Gespräch</button>
+        <button style={progressOpen ? { ...s.navBtn, color: th.accent, borderColor: th.accent } : s.navBtn} onClick={() => setProgressOpen(o => !o)}>
+          Fortschritt{cefr ? ` · ${cefr}` : ''}
+        </button>
+        <button style={s.navBtn} onClick={() => setScreen('partner')}>
+          {myData?.partnerUID ? `Partner: ${partnerName}` : 'Partner verbinden'}
+        </button>
+        <button style={s.navBtn} onClick={generateAICards}>Karten hinzufügen</button>
+        <button style={{ ...s.navBtn, opacity: categorizingStatus ? 0.5 : 1 }} onClick={runCategorization} disabled={!!categorizingStatus}>Kategorisieren</button>
+        <button style={s.navBtn} onClick={() => setScreen('settings')}>Einstellungen</button>
+        <button style={{ ...s.navBtn, marginBottom: 0 }} onClick={() => signOut(auth)}>Abmelden</button>
+      </div>
+
       <button style={s.legalBtn} onClick={() => setScreen('impressum')}>{t.impressumLink}</button>
+
       {aiNotification && (
-        <div style={{ position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)', background: th.accent, color: '#fff', padding: '10px 20px', borderRadius: '20px', fontSize: '0.9rem', fontWeight: 'bold', zIndex: 1000, animation: 'vocaraFadeIn 0.3s ease both', whiteSpace: 'nowrap', pointerEvents: 'none' }}>
+        <div style={{ position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)', background: th.accent, color: '#111', padding: '10px 20px', borderRadius: '20px', fontSize: '0.9rem', fontWeight: 'bold', zIndex: 1000, animation: 'vocaraFadeIn 0.3s ease both', whiteSpace: 'nowrap', pointerEvents: 'none' }}>
           {aiNotification}
+        </div>
+      )}
+      {emptyCategoryMsg && (
+        <div style={{ position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)', background: th.card, color: th.text, border: `1px solid ${th.border}`, padding: '12px 20px', borderRadius: '16px', fontSize: '0.85rem', fontWeight: '500', zIndex: 1000, animation: 'vocaraFadeIn 0.3s ease both', maxWidth: '90vw', textAlign: 'center', pointerEvents: 'none' }}>
+          {emptyCategoryMsg}
+        </div>
+      )}
+      {categorizingStatus && (
+        <div style={{ position: 'fixed', bottom: aiNotification ? '72px' : '24px', left: '50%', transform: 'translateX(-50%)', background: th.card, color: th.text, border: `1px solid ${th.border}`, padding: '10px 20px', borderRadius: '16px', fontSize: '0.85rem', fontWeight: '500', zIndex: 1000, animation: 'vocaraFadeIn 0.3s ease both', whiteSpace: 'nowrap', pointerEvents: 'none' }}>
+          {categorizingStatus}
         </div>
       )}
     </div></div>
@@ -1999,8 +2156,24 @@ function App() {
         await setDoc(doc(db, 'inviteCodes', code), { uid: u.uid }, { merge: true })
         const snap = await getDoc(userRef)
         if (snap.exists()) {
-          const data = snap.data(); setMyData(data)
+          const data = snap.data()
           if (data.theme) setTheme(data.theme)
+          // ── Rule-based categorization on load ──────────────────
+          const baseCards = u.uid === ELOSY_UID ? ALL_ELOSY_CARDS_BASE : ALL_MARK_CARDS_BASE
+          const aiCards = data.aiCards || []
+          const existingCats = data.cardCategories || {}
+          const newCats = { ...existingCats }
+          let catChanged = false
+          for (const card of [...baseCards, ...aiCards]) {
+            if (VALID_CATEGORIES.includes(newCats[card.id])) continue
+            newCats[card.id] = VALID_CATEGORIES.includes(card.category) ? card.category : ruleCategory(card)
+            catChanged = true
+          }
+          if (catChanged) {
+            data.cardCategories = newCats
+            updateDoc(userRef, { cardCategories: newCats }).catch(e => console.warn('Category save failed:', e))
+          }
+          setMyData(data)
           const isKnown = u.uid === MARK_UID || u.uid === ELOSY_UID
           if (!isKnown) {
             if (!data.onboardingDone) setNeedsOnboarding(true)
@@ -2048,6 +2221,7 @@ function App() {
     setNeedsOnboarding(false)
   }
 
+
   const th = THEMES[theme]
   const isElosy = user?.uid === ELOSY_UID
   const lang = isElosy ? 'en' : 'de'
@@ -2060,9 +2234,19 @@ function App() {
 
   if (needsLangSetup) return <LangSetupScreen user={user} lang={lang} theme={theme} onDone={(langs) => { setNeedsLangSetup(false); setMyData(d => ({ ...d, languages: langs })) }} />
 
+  const cardCategories = myData?.cardCategories || {}
+  const allCards = [
+    ...(isElosy ? ALL_ELOSY_CARDS : ALL_MARK_CARDS),
+    ...(myData?.aiCards || []).flatMap(buildCardPair),
+  ].map(card => {
+    const baseId = card.id.replace(/_r(_\d+)?$/, '')
+    const aiCat = cardCategories[baseId]
+    return aiCat ? { ...card, category: aiCat } : card
+  })
+
   return (
     <MenuScreen user={user} myData={myData} setMyData={setMyData} partnerData={partnerData}
-      allCards={[...(isElosy ? ALL_ELOSY_CARDS : ALL_MARK_CARDS), ...(myData?.aiCards || []).flatMap(buildCardPair)]}
+      allCards={allCards}
       lang={lang} onSaveProgress={saveProgress}
       theme={theme} onThemeChange={handleThemeChange}
       onPartnerUpdate={handlePartnerUpdate} onSaveCefr={handleSaveCefr} />
