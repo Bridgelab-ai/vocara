@@ -6,7 +6,7 @@ import './App.css'
 
 const MARK_UID = 'aiNZh4Myn8Y0KfYkGGrkNNW0HC72'
 const ELOSY_UID = 'NIX3DYenRdbRjmr2EHsIad9GcqG3'
-const SESSION_SIZE = 20
+const SESSION_SIZE = 15
 const MASTERY_THRESHOLD = 0.85
 const NEW_CARDS_BATCH = 3
 const VERY_FAST_S = 3
@@ -559,7 +559,10 @@ function buildSession(allCards, cardProgress) {
     else if (p.nextReview <= today) due.push(card)
   })
   const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
-  return [...shuffle(forced), ...shuffle(due), ...shuffle(newCards)].slice(0, SESSION_SIZE)
+  const reviews = [...shuffle(forced), ...shuffle(due)]
+  // New cards only when fewer than 3 reviews available — reviews always come first
+  const newBatch = reviews.length < 3 ? shuffle(newCards).slice(0, 5) : []
+  return [...reviews, ...newBatch].slice(0, SESSION_SIZE)
 }
 function checkMastery(allCards, cardProgress, sessionCorrect, sessionTotal) {
   const active = allCards.filter(c => {
@@ -610,9 +613,9 @@ const GLOBAL_CSS = `
   100% { background-position: 250% center; }
 }
 @keyframes btnGleam {
-  0%, 72%  { transform: translateX(-120%) skewX(-20deg); opacity: 0; }
-  74%      { opacity: 1; }
-  82%      { opacity: 0; transform: translateX(220%) skewX(-20deg); }
+  0%, 82%  { transform: translateX(-130%) skewX(-15deg); opacity: 0; }
+  87%      { opacity: 1; }
+  95%      { opacity: 0; transform: translateX(230%) skewX(-15deg); }
   100%     { opacity: 0; }
 }
 @keyframes rainbowBtnShift {
@@ -655,9 +658,10 @@ button::after {
   content: '';
   position: absolute;
   top: 0; left: 0; bottom: 0;
-  width: 40%;
-  background: linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%);
-  animation: btnGleam 3s ease-in-out infinite;
+  width: 35%;
+  background: linear-gradient(105deg, transparent 20%, rgba(255,255,255,0.18) 50%, transparent 80%);
+  animation: btnGleam 7s ease-in-out infinite;
+  animation-delay: var(--gleam-delay, 0s);
   pointer-events: none;
   border-radius: inherit;
 }
@@ -822,13 +826,13 @@ function makeStyles(th) {
     resumeBanner: { background: th.card, border: `1px solid ${th.accent}`, borderRadius: '14px', padding: '14px 16px', marginBottom: '12px', textAlign: 'left' },
     catBtn: {
       background: th.btnFaceGrad, color: th.btnTextColor, border: 'none',
-      padding: '20px 10px', borderRadius: '18px', fontSize: '0.92rem', cursor: 'pointer',
-      fontWeight: '800', flex: 1, lineHeight: '1.25', textAlign: 'center',
+      padding: '14px 10px', borderRadius: '20px', fontSize: '0.84rem', cursor: 'pointer',
+      fontWeight: '700', flex: 1, lineHeight: '1.3', textAlign: 'center',
       boxShadow: th.shadow3d,
       backgroundSize: th.rainbow ? '100% 300%' : '100% 100%',
       animation: th.rainbow ? 'rainbowBtnShift 4s linear infinite' : undefined,
       fontFamily: "'Playfair Display', Georgia, serif",
-      letterSpacing: '0.2px',
+      letterSpacing: '0.1px',
     },
     navBtn: {
       background: 'transparent', color: th.sub, border: `1px solid ${th.border}`,
@@ -1709,6 +1713,19 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
         <p style={s.greeting}>{t.card} {index + 1} {t.of} {queue.length}</p>
         <button style={s.stopBtn} onClick={handleStop}>{t.stop}</button>
       </div>
+      {/* ── REVIEW STATS ── */}
+      {(() => {
+        const today = todayStr()
+        const tom = new Date(); tom.setDate(tom.getDate() + 1)
+        const tomorrow = tom.toISOString().slice(0, 10)
+        const rToday = Object.values(cardProgress).filter(p => p.nextReview === today).length
+        const rTom = Object.values(cardProgress).filter(p => p.nextReview === tomorrow).length
+        return (
+          <p style={{ ...s.greeting, fontSize: '0.72rem', marginBottom: '6px', textAlign: 'center', opacity: 0.7 }}>
+            Wiederholungen heute: {rToday} · Morgen: {rTom}
+          </p>
+        )
+      })()}
       {/* ── FLIP CARD ── */}
       <div style={{ width: '100%', marginBottom: '16px', perspective: '900px' }}>
         <div style={{
@@ -2193,24 +2210,24 @@ Return ONLY one word: vocabulary, street, home, or sentence.
       )}
 
       {/* ── 5-BUTTON GRID ── */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button style={s.catBtn} onClick={() => startCategorySession('vocabulary')}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button style={{ ...s.catBtn, '--gleam-delay': '0s' }} onClick={() => startCategorySession('vocabulary')}>
             Meine<br />Worte
           </button>
-          <button style={s.catBtn} onClick={() => startCategorySession('sentence')}>
+          <button style={{ ...s.catBtn, '--gleam-delay': '1.8s' }} onClick={() => startCategorySession('sentence')}>
             werden<br />Sätze
           </button>
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button style={s.catBtn} onClick={() => startCategorySession('street')}>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button style={{ ...s.catBtn, '--gleam-delay': '3.5s' }} onClick={() => startCategorySession('street')}>
             Auf der<br />Straße
           </button>
-          <button style={s.catBtn} onClick={() => startCategorySession('home')}>
+          <button style={{ ...s.catBtn, '--gleam-delay': '5.2s' }} onClick={() => startCategorySession('home')}>
             und zu<br />Hause
           </button>
         </div>
-        <button style={{ ...s.button, padding: '18px 28px', fontSize: '1rem', letterSpacing: '0.3px', marginBottom: 0 }} onClick={() => startCategorySession('all')}>
+        <button style={{ ...s.button, padding: '13px 28px', fontSize: '0.9rem', letterSpacing: '0.2px', marginBottom: 0, '--gleam-delay': '2.5s' }} onClick={() => startCategorySession('all')}>
           Wir lernen alles, überall
         </button>
       </div>
