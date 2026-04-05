@@ -394,21 +394,25 @@ function autoCategory(front) {
 
 function ruleCategory(card) {
   const front = card.front || ''
+  const back = card.back || ''
   const words = front.trim().split(/\s+/).filter(Boolean)
+  const backWords = back.trim().split(/\s+/).filter(Boolean)
   // Rule 1: Swahili card, pronunciation field, or common Swahili words → street
   const swahiliRe = /\b(habari|yako|nzuri|asante|karibu|pole|sawa|jambo|mambo|rafiki|wewe|mimi|nina|hii|hilo|chakula|maji|nyumba|watoto|upendo)\b/i
   if (card.langA === 'sw' || card.pronunciation || swahiliRe.test(front)) return 'street'
   // Rule 2: apostrophes or contractions → street
   if (/['']/.test(front) || /\b(im|youre|its|lets|dont|cant|wont|ive|theyre|were|thats|whats|theres|ill|youll)\b/i.test(front)) return 'street'
-  // Rule 3: exactly 1 word OR starts with "to " → vocabulary
+  // Rule 3: single front word but back is 3+ words → street (single word that expands to phrase)
+  if (words.length === 1 && backWords.length >= 3) return 'street'
+  // Rule 4: exactly 1 word OR starts with "to " → vocabulary
   if (words.length === 1) return 'vocabulary'
   if (/^to\s/i.test(front)) return 'vocabulary'
-  // Rule 4: question ending with "?" containing domestic/personal words → home
+  // Rule 5: question ending with "?" containing domestic/personal words → home
   if (front.trim().endsWith('?')) {
     const homeRe = /\b(love|miss|okay|home|eat|sleep|baby|darling|babe|honey)\b/i
     return homeRe.test(front) ? 'home' : 'sentence'
   }
-  // Rule 5: 3+ words → sentence
+  // Rule 6: 3+ words → sentence
   if (words.length >= 3) return 'sentence'
   // 2-word fallback → sentence
   return 'sentence'
@@ -535,6 +539,13 @@ function getNextReview(days) {
   return d.toISOString().split('T')[0]
 }
 function todayStr() { return new Date().toISOString().split('T')[0] }
+function getISOWeekStr(date = new Date()) {
+  const d = new Date(date); d.setHours(0, 0, 0, 0)
+  d.setDate(d.getDate() + 4 - (d.getDay() || 7))
+  const yearStart = new Date(d.getFullYear(), 0, 1)
+  const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7)
+  return `${d.getFullYear()}-W${String(weekNo).padStart(2, '0')}`
+}
 
 function daysSince(dateStr) {
   if (!dateStr) return 9999
@@ -580,9 +591,15 @@ function buildSession(allCards, cardProgress) {
     else if (p.nextReview <= today) due.push(card)
   })
   const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
-  const reviews = [...shuffle(forced), ...shuffle(due)]
-  // New cards only when fewer than 3 reviews available — reviews always come first
-  const newBatch = reviews.length < 3 ? shuffle(newCards).slice(0, 5) : []
+  // Most overdue first: sort by nextReview ascending (oldest date first)
+  const sortedDue = due.slice().sort((a, b) => {
+    const pa = cardProgress[a.id]?.nextReview || ''
+    const pb = cardProgress[b.id]?.nextReview || ''
+    return pa < pb ? -1 : pa > pb ? 1 : 0
+  })
+  const reviews = [...shuffle(forced), ...sortedDue]
+  // New cards only when review queue < 10; always at end, max 5
+  const newBatch = reviews.length < 10 ? shuffle(newCards).slice(0, 5) : []
   return [...reviews, ...newBatch].slice(0, SESSION_SIZE)
 }
 function checkMastery(allCards, cardProgress, sessionCorrect, sessionTotal) {
@@ -633,6 +650,17 @@ const GLOBAL_CSS = `
   0%   { background-position: 0% center; }
   100% { background-position: 100% center; }
 }
+@keyframes vocaraCelebrate {
+  0%   { opacity: 0; transform: translateX(-50%) scale(0.85) translateY(8px); }
+  15%  { opacity: 1; transform: translateX(-50%) scale(1.05) translateY(0); }
+  80%  { opacity: 1; transform: translateX(-50%) scale(1.0) translateY(0); }
+  100% { opacity: 0; transform: translateX(-50%) scale(0.95) translateY(-4px); }
+}
+@keyframes dotPop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.6); }
+  100% { transform: scale(1); }
+}
 @keyframes rainbowBtnShift {
   0%   { background-position: 0% 0%; }
   100% { background-position: 0% 200%; }
@@ -659,6 +687,30 @@ const GLOBAL_CSS = `
   opacity: 0.022;
   pointer-events: none;
   z-index: 9999;
+}
+
+@media (max-width: 767px) {
+  .vocara-logo-title {
+    filter: drop-shadow(0 0 5px rgba(200,200,255,0.2)) !important;
+  }
+}
+@media (min-width: 768px) {
+  .vocara-home-outer { align-items: flex-start !important; }
+  .vocara-home-box { padding-top: 8px !important; padding-bottom: 8px !important; }
+  .vocara-logo-section { padding-top: 6px !important; padding-bottom: 4px !important; }
+  .vocara-logo-title {
+    font-size: 2.8rem !important;
+    margin-bottom: 4px !important;
+    filter: drop-shadow(0 0 7px rgba(200,200,255,0.22)) !important;
+  }
+  .vocara-logo-greeting { font-size: 0.82rem !important; margin-bottom: 0 !important; }
+  .vocara-cat-grid { gap: 8px !important; margin-bottom: 6px !important; }
+  .vocara-cat-grid > div { gap: 8px !important; }
+  .vocara-cat-btn { padding: 9px 8px !important; font-size: 0.78rem !important; }
+  .vocara-alle-btn { padding: 8px 16px !important; font-size: 0.82rem !important; }
+  .vocara-dots-row { margin-bottom: 5px !important; }
+  .vocara-nav-section { margin-top: 0 !important; margin-bottom: 2px !important; }
+  .vocara-nav-btn { padding: 7px 12px !important; font-size: 0.82rem !important; margin-bottom: 3px !important; }
 }
 
 button {
@@ -688,7 +740,7 @@ function makeStyles(th) {
       WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
       backgroundSize: '300% auto',
       animation: 'metalFlow 8s linear infinite',
-      filter: `drop-shadow(0 0 10px ${th.glowColor}70)`,
+      filter: `drop-shadow(0 0 10px ${th.glowColor}4D)`,
     },
     slogan: { color: th.sub, fontSize: '1rem', marginBottom: '32px', lineHeight: '1.8' },
     card: {
@@ -875,6 +927,12 @@ const T = {
     datenschutzTitle: 'Datenschutzerklärung',
     monthlyTestBanner: '🎯 Monatlicher Level-Check fällig!',
     monthlyTestSub: 'Teste dein aktuelles Niveau',
+    menuWorte: 'Meine\nWorte', menuSaetze: 'werden\nSätze', menuStraße: 'Auf der\nStraße', menuHause: 'und zu\nHause',
+    menuAlle: 'Wir lernen alles, überall',
+    menuKi: 'KI-Gespräch', menuSatz: 'Satztraining',
+    menuAddCards: 'Karten hinzufügen', menuCategorize: 'Kategorisieren', menuSettings: 'Einstellungen', menuSignOut: 'Abmelden',
+    menuPartnerConnect: 'Partner verbinden', menuPartnerLabel: 'Partner',
+    weekGoalTitle: 'Wochenziel', weekGoalDone: 'Wochenziel erreicht! 🎉',
   },
   en: {
     hello: 'Hello', mySession: '🃏 My session', whereAmI: '🎯 Where do I stand?',
@@ -902,8 +960,22 @@ const T = {
     datenschutzTitle: 'Privacy Policy',
     monthlyTestBanner: '🎯 Monthly level check due!',
     monthlyTestSub: 'Test your current level',
+    menuWorte: 'My\nWords', menuSaetze: 'become\nSentences', menuStraße: 'On the\nStreet', menuHause: 'and at\nHome',
+    menuAlle: 'We learn everything, everywhere',
+    menuKi: 'AI Chat', menuSatz: 'Sentence training',
+    menuAddCards: 'Add cards', menuCategorize: 'Categorize', menuSettings: 'Settings', menuSignOut: 'Sign out',
+    menuPartnerConnect: 'Connect partner', menuPartnerLabel: 'Partner',
+    weekGoalTitle: 'Weekly goal', weekGoalDone: 'Weekly goal reached! 🎉',
   }
 }
+
+const WEEK_AREAS = [
+  { key: 'vocabulary', labelDe: 'Meine Worte', labelEn: 'My Words' },
+  { key: 'sentence', labelDe: 'werden Sätze', labelEn: 'become Sentences' },
+  { key: 'street', labelDe: 'Auf der Straße', labelEn: 'On the Street' },
+  { key: 'home', labelDe: 'und zu Hause', labelEn: 'and at Home' },
+  { key: 'satztraining', labelDe: 'Satztraining', labelEn: 'Sentence training' },
+]
 
 // ── ONBOARDING SCREEN ─────────────────────────────────────────
 const ONBOARDING_SLIDES_DE = [
@@ -1163,7 +1235,7 @@ function KiGespraechScreen({ lang, theme, onBack, userName }) {
                       disabled={translating === i}
                       style={{ background: 'none', border: 'none', color: th.sub, fontSize: '0.75rem', cursor: 'pointer', padding: '2px 4px', opacity: translating === i ? 0.5 : 0.7, textDecoration: 'underline' }}
                     >
-                      {translating === i ? '...' : isMarkLang ? 'Übersetzen' : 'Translate'}
+                      {translating === i ? '...' : isMarkLang ? '🌐 Übersetzen' : '🌐 Translate'}
                     </button>
                   )}
                 </div>
@@ -1793,6 +1865,30 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
   const [newBack, setNewBack] = useState('')
   const [newCardCat, setNewCardCat] = useState('vocabulary')
   const [cardSaveStatus, setCardSaveStatus] = useState(null)
+  const [catUserOverride, setCatUserOverride] = useState(false)
+
+  useEffect(() => {
+    if (catUserOverride) return
+    const fw = newFront.trim().split(/\s+/).filter(Boolean).length
+    const bw = newBack.trim().split(/\s+/).filter(Boolean).length
+    if (newFront.trim() && newBack.trim() && fw === 1 && bw >= 3) {
+      setNewCardCat('street')
+    } else if (!catUserOverride) {
+      setNewCardCat('vocabulary')
+    }
+  }, [newFront, newBack])
+
+  const catAutoHint = (() => {
+    if (!newFront.trim() || !newBack.trim()) return null
+    const fw = newFront.trim().split(/\s+/).filter(Boolean).length
+    const bw = newBack.trim().split(/\s+/).filter(Boolean).length
+    if (fw === 1 && bw >= 3) {
+      return lang === 'de'
+        ? "Dieses Wort wird in der Übersetzung zu einem Satz — wir sortieren es unter 'Auf der Straße' ein."
+        : "This word becomes a phrase in translation — we'll place it under 'On the Street'."
+    }
+    return null
+  })()
 
   const togglePause = async (langCode) => {
     const newPaused = pausedLanguages.includes(langCode)
@@ -1823,7 +1919,7 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
     try {
       await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards })
       setMyData(d => ({ ...d, aiCards: updatedAiCards }))
-      setNewFront(''); setNewBack(''); setNewCardCat('vocabulary')
+      setNewFront(''); setNewBack(''); setNewCardCat('vocabulary'); setCatUserOverride(false)
       setCardSaveStatus('Gespeichert ✓')
       setTimeout(() => setCardSaveStatus(null), 2500)
     } catch (e) {
@@ -1886,9 +1982,9 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
           value={newBack}
           onChange={e => setNewBack(e.target.value)}
         />
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+        <div style={{ display: 'flex', gap: '8px', marginBottom: catAutoHint ? '8px' : '12px' }}>
           <button
-            onClick={() => setNewCardCat('vocabulary')}
+            onClick={() => { setNewCardCat('vocabulary'); setCatUserOverride(true) }}
             style={{
               flex: 1, padding: '8px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem',
               background: newCardCat === 'vocabulary' ? 'rgba(140,140,155,0.25)' : 'transparent',
@@ -1899,7 +1995,7 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
             Hochsprache
           </button>
           <button
-            onClick={() => setNewCardCat('street')}
+            onClick={() => { setNewCardCat('street'); setCatUserOverride(true) }}
             style={{
               flex: 1, padding: '8px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem',
               background: newCardCat === 'street' ? 'rgba(180,120,30,0.2)' : 'transparent',
@@ -1910,6 +2006,11 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
             Slang / Umgangs&shy;sprachlich
           </button>
         </div>
+        {catAutoHint && (
+          <p style={{ fontSize: '0.75rem', color: th.sub, margin: '0 0 12px 0', lineHeight: 1.4, padding: '6px 8px', background: `${th.border}88`, borderRadius: '8px' }}>
+            💡 {catAutoHint}
+          </p>
+        )}
         <button
           style={{ ...s.button, marginBottom: 0, opacity: (!newFront.trim() || !newBack.trim()) ? 0.45 : 1 }}
           onClick={saveCustomCard}
@@ -1985,11 +2086,20 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
   )
 
   return (
-    <div style={s.container} className="vocara-screen"><div style={{ ...s.homeBox, paddingTop: '12px' }}>
-      <button style={s.backBtn} onClick={onBack}>← {t.back}</button>
-      <h2 style={{ ...s.title, fontSize: 'clamp(1.4rem, 5vw, 1.8rem)', marginBottom: '20px' }}>
-        {isMarkLang ? 'Statistiken' : 'Statistics'}
-      </h2>
+    <div style={{ minHeight: '100vh', width: '100%', background: th.bgGrad, display: 'flex', flexDirection: 'column', alignItems: 'center' }} className="vocara-screen">
+      {/* ── FIXED BACK BAR ── */}
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, background: th.bg, borderBottom: `1px solid ${th.border}`, display: 'flex', alignItems: 'center', padding: '0 16px', minHeight: '52px' }}>
+        <button
+          onClick={onBack}
+          style={{ background: 'none', border: 'none', color: th.accent, cursor: 'pointer', fontSize: '1.1rem', fontWeight: '700', padding: '12px 8px 12px 0', display: 'flex', alignItems: 'center', gap: '6px', WebkitTapHighlightColor: 'transparent' }}
+        >
+          ← {isMarkLang ? 'Zurück' : 'Back'}
+        </button>
+        <span style={{ color: th.text, fontWeight: '600', fontSize: '1rem', marginLeft: '8px' }}>
+          {isMarkLang ? 'Statistiken' : 'Statistics'}
+        </span>
+      </div>
+      <div style={{ ...s.homeBox, paddingTop: '68px' }}>
 
       {/* ── TOP STATS GRID ── */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
@@ -2039,10 +2149,15 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const [resumeStartIndex, setResumeStartIndex] = useState(0)
   const [resumeStartProgress, setResumeStartProgress] = useState(null)
   const [emptyCategoryMsg, setEmptyCategoryMsg] = useState(null)
-  const [categorizingStatus, setCategorizingStatus] = useState(null)
   const [resumeDialog, setResumeDialog] = useState(null)
   const [currentSessionMode, setCurrentSessionMode] = useState('all')
   const [satzLoading, setSatzLoading] = useState(false)
+  const [weekGoalCelebration, setWeekGoalCelebration] = useState(false)
+  const [weeklyGoals, setWeeklyGoals] = useState(() => {
+    const currentWeek = getISOWeekStr()
+    const stored = myData?.weeklyGoals
+    return stored?.week === currentWeek ? stored : { week: currentWeek, completed: [] }
+  })
   const t = T[lang]; const th = THEMES[theme]; const s = makeStyles(th)
   const firstName = user.displayName?.split(' ')[0] || user.displayName
   const cardProgress = myData?.cardProgress || {}
@@ -2104,34 +2219,39 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
     if (sess.length === 0) return
     setCurrentSessionMode(category)
     setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+    if (['vocabulary', 'street', 'home'].includes(category)) markAreaDone(category)
   }
   const startSatzSession = async () => {
     const LANG_NAMES = { en: 'English', de: 'German', sw: 'Swahili' }
-    const vocabCards = activeCards.filter(c =>
+    // Only cards with mastery > 0 (interval > 0 = answered correctly at least once)
+    const knownVocabCards = activeCards.filter(c =>
       c.category === 'vocabulary' &&
       !/_r(_\d+)?$/.test(c.id) &&
-      cardProgress[c.id] !== undefined
+      (cardProgress[c.id]?.interval || 0) > 0
     )
-    if (vocabCards.length < 5) {
+    if (knownVocabCards.length < 5) {
       setEmptyCategoryMsg(isMarkLang
-        ? 'Noch zu wenig bekannte Wörter — lerne mehr Vokabeln!'
-        : 'Not enough known words yet — learn more vocabulary first!')
+        ? 'Lerne zuerst mehr Wörter in Meine Worte!'
+        : 'Learn more words in My Words first!')
       setTimeout(() => setEmptyCategoryMsg(null), 3500)
       return
     }
     setSatzLoading(true)
     try {
-      const wordList = vocabCards.map(c => c.front).slice(0, 60).join(', ')
+      // Use the toLang text (back) — the target language words the user has actually learned
+      const wordList = knownVocabCards.map(c => c.back).slice(0, 60).join(', ')
       const toLangCode = isMarkLang ? 'de' : 'en'
       const fromLangCode = isMarkLang ? 'en' : 'de'
       const toLangName = LANG_NAMES[toLangCode]
       const fromLangName = LANG_NAMES[fromLangCode]
-      const prompt = `You are a language learning assistant. Given this list of vocabulary words the learner knows in ${fromLangName}: ${wordList}
+      const prompt = `You are a language learning assistant. The user knows these words and phrases in ${toLangName}: ${wordList}
 
-Generate exactly 5 natural sentences in ${fromLangName} that use these known words creatively. Each sentence should combine 2-4 of the known words in a meaningful, everyday context.
+Build exactly 5 short, natural, everyday sentences in ${toLangName} using vocabulary from that list plus only basic grammar words (articles, prepositions, conjunctions, common verbs). Max 8 words per sentence.
+
+For each sentence also write the ${fromLangName} translation.
 
 Return ONLY a valid JSON array with no markdown or explanation:
-[{"front":"<sentence in ${fromLangName}>","back":"<translation in ${toLangName}>","context":"<1 sentence explaining when you'd use this>"}]`
+[{"front":"<sentence in ${fromLangName}>","back":"<sentence in ${toLangName}>","context":"<1 sentence explaining when you'd say this>"}]`
 
       const res = await fetch('/api/chat', {
         method: 'POST',
@@ -2155,6 +2275,7 @@ Return ONLY a valid JSON array with no markdown or explanation:
       }))
       setCurrentSessionMode('sentence')
       setSession(sessionCards); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+      markAreaDone('sentence')
     } catch (e) {
       console.warn('Satz session generation failed:', e)
       setEmptyCategoryMsg(isMarkLang ? 'Fehler beim Generieren der Sätze.' : 'Failed to generate sentences.')
@@ -2190,6 +2311,25 @@ Return ONLY a valid JSON array with no markdown or explanation:
     setResumeStartProgress(pendingSession.newProgress || null); setPendingSession(null); setScreen('cards')
   }
   const discardSession = async () => { await clearSessionState(user.uid); setPendingSession(null) }
+  const markAreaDone = (area) => {
+    const currentWeek = getISOWeekStr()
+    setWeeklyGoals(prev => {
+      const base = prev?.week === currentWeek ? prev : { week: currentWeek, completed: [] }
+      if (base.completed.includes(area)) return base
+      const updated = { week: currentWeek, completed: [...base.completed, area] }
+      updateDoc(doc(db, 'users', user.uid), { weeklyGoals: updated }).catch(() => {})
+      if (updated.completed.length === 5) {
+        const newCount = (myData?.completedWeeks || 0) + 1
+        updateDoc(doc(db, 'users', user.uid), { completedWeeks: newCount }).catch(() => {})
+        setMyData(d => ({ ...d, completedWeeks: newCount, weeklyGoals: updated }))
+        setWeekGoalCelebration(true)
+        setTimeout(() => setWeekGoalCelebration(false), 4500)
+      } else {
+        setMyData(d => ({ ...d, weeklyGoals: updated }))
+      }
+      return updated
+    })
+  }
   const handleSaveState = async (queue, index, newProgress) => { await saveSessionState(user.uid, queue, index, newProgress) }
   const saveSessionProgress = async (cardIds, mode) => {
     const sp = { cardIds, mode, timestamp: Date.now() }
@@ -2281,60 +2421,6 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${isSwahili
     }
   }
 
-  const runCategorization = async () => {
-    const baseIdRegex = /_r(_\d+)?$/
-    const existingCats = myData?.cardCategories || {}
-    const toProcess = allCards.filter(c =>
-      !baseIdRegex.test(c.id) &&
-      !VALID_CATEGORIES.includes(existingCats[c.id]) &&
-      !VALID_CATEGORIES.includes(c.category)
-    )
-    if (toProcess.length === 0) {
-      setCategorizingStatus('Alle Karten bereits kategorisiert ✓')
-      setTimeout(() => setCategorizingStatus(null), 2500)
-      return
-    }
-    const newCats = { ...existingCats }
-    for (let i = 0; i < toProcess.length; i++) {
-      const card = toProcess[i]
-      setCategorizingStatus(`Kategorisiere ${i + 1}/${toProcess.length}...`)
-      const prompt = `Categorize this flashcard: '${card.front}'
-Return ONLY one word: vocabulary, street, home, or sentence.
-- vocabulary = single words or simple infinitives
-- street = slang, idioms, colloquial phrases, contractions like I'm / you're
-- home = family, romantic, household phrases
-- sentence = neutral everyday sentences`
-      try {
-        const res = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: 'claude-haiku-4-5',
-            max_tokens: 10,
-            messages: [{ role: 'user', content: prompt }],
-          }),
-        })
-        const data = await res.json()
-        const raw = (data.content?.[0]?.text || '').trim().toLowerCase().replace(/[^a-z]/g, '')
-        const cat = VALID_CATEGORIES.find(c => raw === c || raw.startsWith(c))
-        if (cat) newCats[card.id] = cat
-      } catch (e) {
-        console.warn('Categorization failed for', card.id, e)
-      }
-      // Save every 10 cards and on the last one
-      if ((i + 1) % 10 === 0 || i === toProcess.length - 1) {
-        try {
-          await updateDoc(doc(db, 'users', user.uid), { cardCategories: newCats })
-          setMyData(d => ({ ...d, cardCategories: { ...newCats } }))
-        } catch (e) {
-          console.warn('Failed to save categories:', e)
-        }
-      }
-    }
-    setCategorizingStatus(`Fertig! ${toProcess.length} Karten kategorisiert ✓`)
-    setTimeout(() => setCategorizingStatus(null), 3000)
-  }
-
   const handleFinish = async (finalProgress, correct, wrong) => {
     let unlocked = false
     if (checkMastery(allCards, finalProgress, correct, correct + wrong)) {
@@ -2367,12 +2453,12 @@ Return ONLY one word: vocabulary, street, home, or sentence.
   if (screen === 'satz') return <SatzTrainingScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} userName={user.displayName?.split(' ')[0] || 'du'} />
 
   return (
-    <div style={s.container} className="vocara-screen"><div style={{ ...s.homeBox, paddingTop: '12px' }}>
+    <div style={s.container} className="vocara-screen vocara-home-outer"><div style={{ ...s.homeBox, paddingTop: '12px' }} className="vocara-home-box">
 
       {/* ── LOGO ── */}
-      <div style={{ textAlign: 'center', paddingTop: '20px', paddingBottom: '16px' }}>
-        <h1 style={{ ...s.title, fontSize: 'clamp(4rem, 17vw, 6.5rem)', lineHeight: 1, marginBottom: '10px' }}>Vocara</h1>
-        <p style={{ ...s.greeting, marginBottom: uniqueTargetLangs.length > 0 ? '6px' : 0 }}>{t.hello}, {firstName}</p>
+      <div className="vocara-logo-section" style={{ textAlign: 'center', paddingTop: '20px', paddingBottom: '16px' }}>
+        <h1 className="vocara-logo-title" style={{ ...s.title, fontSize: 'clamp(4rem, 17vw, 6.5rem)', lineHeight: 1, marginBottom: '10px' }}>Vocara</h1>
+        <p className="vocara-logo-greeting" style={{ ...s.greeting, marginBottom: uniqueTargetLangs.length > 0 ? '6px' : 0 }}>{t.hello}, {firstName}</p>
         {uniqueTargetLangs.length > 0 && (
           <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
             {uniqueTargetLangs.map(l => {
@@ -2429,44 +2515,70 @@ Return ONLY one word: vocabulary, street, home, or sentence.
       )}
 
       {/* ── 5-BUTTON GRID ── */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
+      <div className="vocara-cat-grid" style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '12px' }}>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button style={{ ...s.catBtn, '--gleam-delay': '0s' }} onClick={() => startCategorySession('vocabulary')}>
-            Meine<br />Worte
+          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '0s' }} onClick={() => startCategorySession('vocabulary')}>
+            {t.menuWorte.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
           </button>
-          <button style={{ ...s.catBtn, '--gleam-delay': '1.8s', opacity: satzLoading ? 0.6 : 1 }} onClick={startSatzSession} disabled={satzLoading}>
-            {satzLoading ? '...' : <><span>werden</span><br /><span>Sätze</span></>}
+          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '1.8s', opacity: satzLoading ? 0.6 : 1 }} onClick={startSatzSession} disabled={satzLoading}>
+            {satzLoading ? '...' : t.menuSaetze.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
           </button>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button style={{ ...s.catBtn, '--gleam-delay': '3.5s' }} onClick={() => startCategorySession('street')}>
-            Auf der<br />Straße
+          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '3.5s' }} onClick={() => startCategorySession('street')}>
+            {t.menuStraße.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
           </button>
-          <button style={{ ...s.catBtn, '--gleam-delay': '5.2s' }} onClick={() => startCategorySession('home')}>
-            und zu<br />Hause
+          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '5.2s' }} onClick={() => startCategorySession('home')}>
+            {t.menuHause.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
           </button>
         </div>
-        <button style={{ ...s.button, padding: '13px 28px', fontSize: '0.9rem', letterSpacing: '0.2px', marginBottom: 0, '--gleam-delay': '2.5s' }} onClick={() => startCategorySession('all')}>
-          Wir lernen alles, überall
+        <button className="vocara-alle-btn" style={{ ...s.button, padding: '13px 28px', fontSize: '0.9rem', letterSpacing: '0.2px', marginBottom: 0, '--gleam-delay': '2.5s' }} onClick={() => startCategorySession('all')}>
+          {t.menuAlle}
         </button>
+      </div>
+
+      {/* ── WOCHENZIEL DOTS ── */}
+      <div className="vocara-dots-row" style={{ display: 'flex', justifyContent: 'center', gap: '14px', marginBottom: '20px', alignItems: 'flex-start' }}>
+        {WEEK_AREAS.map(area => {
+          const done = weeklyGoals.completed.includes(area.key)
+          return (
+            <div key={area.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
+              <div style={{
+                width: '10px', height: '10px', borderRadius: '50%',
+                background: done ? th.accent : th.border,
+                transition: 'background 0.35s ease',
+                boxShadow: done ? `0 0 7px ${th.glowColor}` : 'none',
+                animation: done ? 'dotPop 0.4s ease both' : 'none',
+              }} />
+              <span style={{ fontSize: '8px', color: done ? th.accent : th.sub, fontWeight: done ? '600' : '400', textAlign: 'center', lineHeight: 1.2, maxWidth: '46px', transition: 'color 0.35s ease' }}>
+                {lang === 'de' ? area.labelDe : area.labelEn}
+              </span>
+            </div>
+          )
+        })}
       </div>
 
       {/* ── SECONDARY NAVIGATION ── */}
-      <div style={{ marginTop: '4px', marginBottom: '10px' }}>
-        <button style={s.navBtn} onClick={() => setScreen('ki')}>KI-Gespräch</button>
-        <button style={s.navBtn} onClick={() => setScreen('stats')}>
-          Fortschritt{cefr ? ` · ${cefr}` : ''}
+      <div className="vocara-nav-section" style={{ marginTop: '4px', marginBottom: '10px' }}>
+        <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('ki')}>{t.menuKi}</button>
+        <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('stats')}>
+          {t.progressBtn}{cefr ? ` · ${cefr}` : ''}
         </button>
-        <button style={s.navBtn} onClick={() => setScreen('partner')}>
-          {myData?.partnerUID ? `Partner: ${partnerName}` : 'Partner verbinden'}
+        <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('partner')}>
+          {myData?.partnerUID ? `${t.menuPartnerLabel}: ${partnerName}` : t.menuPartnerConnect}
         </button>
-        <button style={s.navBtn} onClick={generateAICards}>Karten hinzufügen</button>
-        <button style={{ ...s.navBtn, opacity: categorizingStatus ? 0.5 : 1 }} onClick={runCategorization} disabled={!!categorizingStatus}>Kategorisieren</button>
-        <button style={s.navBtn} onClick={() => setScreen('settings')}>Einstellungen</button>
-        <button style={{ ...s.navBtn, marginBottom: 0 }} onClick={() => signOut(auth)}>Abmelden</button>
+        <button className="vocara-nav-btn" style={s.navBtn} onClick={generateAICards}>{t.menuAddCards}</button>
+        <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('settings')}>{t.menuSettings}</button>
+        <button className="vocara-nav-btn" style={{ ...s.navBtn, marginBottom: 0 }} onClick={() => signOut(auth)}>{t.menuSignOut}</button>
       </div>
 
       <button style={s.legalBtn} onClick={() => setScreen('impressum')}>{t.impressumLink}</button>
+      <button
+        onClick={() => setScreen('impressum')}
+        style={{ background: 'transparent', border: 'none', color: th.sub, cursor: 'pointer', fontSize: '0.68rem', opacity: 0.38, padding: '4px 8px', display: 'block', width: '100%', textAlign: 'center', marginTop: '2px', marginBottom: '6px', fontFamily: "'Inter', system-ui, sans-serif" }}
+      >
+        🇩🇪 Made in Germany
+      </button>
 
       {aiNotification && (
         <div style={{ position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)', background: th.accent, color: '#111', padding: '10px 20px', borderRadius: '20px', fontSize: '0.9rem', fontWeight: 'bold', zIndex: 1000, animation: 'vocaraFadeIn 0.3s ease both', whiteSpace: 'nowrap', pointerEvents: 'none' }}>
@@ -2478,9 +2590,9 @@ Return ONLY one word: vocabulary, street, home, or sentence.
           {emptyCategoryMsg}
         </div>
       )}
-      {categorizingStatus && (
-        <div style={{ position: 'fixed', bottom: aiNotification ? '72px' : '24px', left: '50%', transform: 'translateX(-50%)', background: th.card, color: th.text, border: `1px solid ${th.border}`, padding: '10px 20px', borderRadius: '16px', fontSize: '0.85rem', fontWeight: '500', zIndex: 1000, animation: 'vocaraFadeIn 0.3s ease both', whiteSpace: 'nowrap', pointerEvents: 'none' }}>
-          {categorizingStatus}
+      {weekGoalCelebration && (
+        <div style={{ position: 'fixed', bottom: '80px', left: '50%', background: th.accent, color: '#111', padding: '14px 28px', borderRadius: '28px', fontSize: '1rem', fontWeight: 'bold', zIndex: 1000, animation: 'vocaraCelebrate 4.5s ease both', whiteSpace: 'nowrap', pointerEvents: 'none', boxShadow: `0 6px 28px ${th.glowColor}AA` }}>
+          {t.weekGoalDone}
         </div>
       )}
     </div></div>
@@ -2524,14 +2636,17 @@ function App() {
           const swahiliOverrideRe = /\b(habari|yako|nzuri|asante|karibu|pole|sawa|jambo|mambo|rafiki|wewe|mimi|nina|hii|hilo|chakula|maji|nyumba|watoto|upendo)\b/i
           for (const card of [...baseCards, ...aiCards]) {
             const front = card.front || ''
+            const back = card.back || ''
             const wordCount = front.trim().split(/\s+/).filter(Boolean).length
+            const backWordCount = back.trim().split(/\s+/).filter(Boolean).length
             const current = newCats[card.id]
             const isSwahiliCard = card.pronunciation || swahiliOverrideRe.test(front) || card.langA === 'sw'
             const needsRun =
               (isSwahiliCard && current !== 'street') ||
               !current ||
               current === '' ||
-              (current === 'vocabulary' && wordCount > 1)
+              (current === 'vocabulary' && wordCount > 1) ||
+              (current === 'vocabulary' && wordCount === 1 && backWordCount >= 3)
             if (!needsRun) continue
             const newCat = ruleCategory(card)
             if (current !== newCat) {
