@@ -373,20 +373,23 @@ function autoCategory(front) {
 
 function ruleCategory(card) {
   const front = card.front || ''
-  // Rule 1: Swahili card or has pronunciation guide → street
-  if (card.langA === 'sw' || card.pronunciation) return 'street'
-  // Rule 2: contractions/apostrophes → street
-  if (/\b(i'm|you're|it's|let's|don't|can't|won't|i've|they're|we're|that's|what's|there's|i'll|you'll)\b/i.test(front)) return 'street'
-  // Rule 3: single word or simple infinitive → vocabulary
   const words = front.trim().split(/\s+/).filter(Boolean)
+  // Rule 1: Swahili card, pronunciation field, or common Swahili words → street
+  const swahiliRe = /\b(habari|yako|nzuri|asante|karibu|pole|sawa|jambo|mambo|rafiki|wewe|mimi|nina|hii|hilo)\b/i
+  if (card.langA === 'sw' || card.pronunciation || swahiliRe.test(front)) return 'street'
+  // Rule 2: apostrophes or contractions → street
+  if (/['']/.test(front) || /\b(im|youre|its|lets|dont|cant|wont|ive|theyre|were|thats|whats|theres|ill|youll)\b/i.test(front)) return 'street'
+  // Rule 3: exactly 1 word OR starts with "to " → vocabulary
   if (words.length === 1) return 'vocabulary'
-  if (/^to\s/i.test(front) && words.length <= 3) return 'vocabulary'
-  // Rule 4: questions → home if personal/domestic, else street
+  if (/^to\s/i.test(front)) return 'vocabulary'
+  // Rule 4: question ending with "?" containing domestic/personal words → home
   if (front.trim().endsWith('?')) {
-    const personalRe = /\b(you|your|du|dich|dir|ich|mich|mir|we|wir|uns|me|my|our|hast|bist|machst|kommst|schläfst|isst|eat|ate|home|haus|keys|schlüssel|ready|bereit)\b/i
-    return personalRe.test(front) ? 'home' : 'street'
+    const homeRe = /\b(love|miss|okay|home|eat|sleep|baby|darling|babe|honey)\b/i
+    return homeRe.test(front) ? 'home' : 'sentence'
   }
-  // Rule 5: everything else → sentence
+  // Rule 5: 3+ words → sentence
+  if (words.length >= 3) return 'sentence'
+  // 2-word fallback → sentence
   return 'sentence'
 }
 
@@ -855,8 +858,8 @@ const T = {
     langSetupTitle: 'Welche Sprachen lernst du?', langSetupSub: 'Wähle 1 bis 3 Sprachen', langSetupDone: 'Weiter',
     testQuestion: 'Frage', testOf: 'von', testDone: 'Geschätztes Niveau:',
     testBack: 'Zurück zum Menü', testScore: 'Richtig beantwortet', testStop3: '3 falsch hintereinander — Test endet hier.',
-    resumeTitle: '⚡ Unterbrochene Session', resumeOf: 'von', resumeCards: 'Karten beantwortet',
-    resumeContinue: 'Weiter machen', resumeDiscard: 'Verwerfen',
+    resumeTitle: 'Weitermachen wo du aufgehört hast?', resumeOf: 'von', resumeCards: 'Karten beantwortet',
+    resumeContinue: 'Weiter', resumeDiscard: 'Neu starten',
     pronunciation: 'Aussprache',
     streak: 'Tage in Folge', streakNone: 'Noch kein Streak', historyLabel: 'Letzte 7 Tage',
     impressumLink: 'Impressum & Datenschutz',
@@ -882,8 +885,8 @@ const T = {
     langSetupTitle: 'Which languages are you learning?', langSetupSub: 'Choose 1 to 3 languages', langSetupDone: 'Continue',
     testQuestion: 'Question', testOf: 'of', testDone: 'Estimated level:',
     testBack: 'Back to menu', testScore: 'Correct answers', testStop3: '3 wrong in a row — test ends here.',
-    resumeTitle: '⚡ Interrupted session', resumeOf: 'of', resumeCards: 'cards answered',
-    resumeContinue: 'Continue', resumeDiscard: 'Discard',
+    resumeTitle: 'Continue where you left off?', resumeOf: 'of', resumeCards: 'cards answered',
+    resumeContinue: 'Continue', resumeDiscard: 'Start fresh',
     pronunciation: 'Pronunciation',
     streak: 'days in a row', streakNone: 'No streak yet', historyLabel: 'Last 7 days',
     impressumLink: 'Imprint & Privacy',
@@ -1617,7 +1620,10 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
     setRevealed(true)
     speak(targetText, targetLangCode)
   }
-  const handleStop = () => { if (window.confirm(t.stopConfirm)) onBack() }
+  const handleStop = () => {
+    onSaveState?.(queue, index, newProgress)
+    onBack()
+  }
   const handleEasy = () => {
     const cardId = item.id
     const prev = newProgress[cardId] || { interval: 0, consecutiveFast: 0, wrongSessions: 0 }
@@ -1855,6 +1861,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
 
     for (const req of requests) {
       const knownList = knownFronts.slice(0, 80).join(' | ')
+      const isSwahili = req.langA === 'sw'
       const prompt = `Generate exactly ${req.count} vocabulary flashcard${req.count > 1 ? 's' : ''} for a language learner.
 Front language: ${LANG_NAMES[req.langA]}
 Back language: ${LANG_NAMES[req.langB]}
@@ -1865,9 +1872,13 @@ Rules:
 - Choose common, useful everyday phrases or expressions (intermediate level, not basic words like "hello")
 - The "context" field: 1-2 sentences in ${LANG_NAMES[req.langB]} telling a short personal story that mentions ${homeCity} and/or ${partnerCity}
 - Avoid these already known phrases: ${knownList}
-- Return ONLY a valid JSON array, no markdown, no explanation
+- Return ONLY a valid JSON array, no markdown, no explanation${isSwahili ? `
+- Add a "pronunciation" field with German-phonetic pronunciation guide for the Swahili front text
+- German phonetics only: "a" like German "Vater", "e" like "Bett", "i" like "mit", rolled "r"
+- No English sounds — never use "ay", "oh", "ee"; use "e", "o", "i" instead
+- Example: "habari" → "ha-BA-ri", "asante" → "a-SAN-te"` : ''}
 
-Format: [{"front":"...","back":"...","context":"...","category":"..."}]`
+Format: [{"front":"...","back":"...","context":"...","category":"..."${isSwahili ? ',"pronunciation":"..."' : ''}}]`
 
       try {
         const res = await fetch('/api/chat', {
@@ -2165,13 +2176,27 @@ function App() {
           const newCats = { ...existingCats }
           let catChanged = false
           for (const card of [...baseCards, ...aiCards]) {
-            if (VALID_CATEGORIES.includes(newCats[card.id])) continue
-            newCats[card.id] = VALID_CATEGORIES.includes(card.category) ? card.category : ruleCategory(card)
-            catChanged = true
+            const front = card.front || ''
+            const wordCount = front.trim().split(/\s+/).filter(Boolean).length
+            const current = newCats[card.id]
+            const needsRun =
+              !current ||
+              current === '' ||
+              current === 'vocabulary' && wordCount > 1
+            if (!needsRun) continue
+            const newCat = ruleCategory(card)
+            if (current !== newCat) {
+              console.log(`[category] ${card.id} "${front}" : ${current || 'undefined'} → ${newCat}`)
+              newCats[card.id] = newCat
+              catChanged = true
+            }
           }
           if (catChanged) {
             data.cardCategories = newCats
             updateDoc(userRef, { cardCategories: newCats }).catch(e => console.warn('Category save failed:', e))
+            console.log('[category] Saved', Object.keys(newCats).length, 'categories to Firestore')
+          } else {
+            console.log('[category] All cards already correctly categorized')
           }
           setMyData(data)
           const isKnown = u.uid === MARK_UID || u.uid === ELOSY_UID
