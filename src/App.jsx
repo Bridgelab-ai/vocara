@@ -375,7 +375,7 @@ function ruleCategory(card) {
   const front = card.front || ''
   const words = front.trim().split(/\s+/).filter(Boolean)
   // Rule 1: Swahili card, pronunciation field, or common Swahili words → street
-  const swahiliRe = /\b(habari|yako|nzuri|asante|karibu|pole|sawa|jambo|mambo|rafiki|wewe|mimi|nina|hii|hilo)\b/i
+  const swahiliRe = /\b(habari|yako|nzuri|asante|karibu|pole|sawa|jambo|mambo|rafiki|wewe|mimi|nina|hii|hilo|chakula|maji|nyumba|watoto|upendo)\b/i
   if (card.langA === 'sw' || card.pronunciation || swahiliRe.test(front)) return 'street'
   // Rule 2: apostrophes or contractions → street
   if (/['']/.test(front) || /\b(im|youre|its|lets|dont|cant|wont|ive|theyre|were|thats|whats|theres|ill|youll)\b/i.test(front)) return 'street'
@@ -1058,11 +1058,13 @@ function KiGespraechScreen({ lang, theme, onBack, userName }) {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [translations, setTranslations] = useState({})
+  const [translating, setTranslating] = useState(null)
   const bottomRef = useRef(null)
   const isMarkLang = lang === 'de'
   const targetLang = isMarkLang ? 'English' : 'German'
   const nativeLang = isMarkLang ? 'German' : 'English'
-  const systemPrompt = `You are Vocara, a friendly language tutor helping ${userName} learn ${targetLang}. Have natural, encouraging conversations in ${targetLang}. If the user writes in ${nativeLang}, respond in ${targetLang} and gently encourage them to try in ${targetLang} too. If the user makes a grammar mistake in ${targetLang}, have a natural conversation first, then add a short gentle correction at the end like "💡 Small tip: ..." Keep responses short (2-4 sentences). Be warm and natural — like a friend who happens to be a language expert. The Vocara philosophy: The voice is the bridge.`
+  const systemPrompt = `You are Vocara, a friendly language tutor helping ${userName} learn ${targetLang}. You must respond ONLY in ${targetLang}. Never use ${nativeLang} in your response. If the user writes in ${nativeLang}, still respond entirely in ${targetLang} and gently encourage them to try in ${targetLang} too. If the user makes a grammar mistake in ${targetLang}, have a natural conversation first, then add a short gentle correction at the end like "💡 Small tip: ..." Keep responses short (2-4 sentences). Be warm and natural — like a friend who happens to be a language expert. The Vocara philosophy: The voice is the bridge.`
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, loading])
 
@@ -1092,6 +1094,27 @@ function KiGespraechScreen({ lang, theme, onBack, userName }) {
     setLoading(false)
   }
 
+  const translateMessage = async (msgIndex, text) => {
+    setTranslating(msgIndex)
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5',
+          max_tokens: 200,
+          messages: [{ role: 'user', content: `Translate this ${targetLang} text to ${nativeLang}. Return ONLY the translation, no explanation:\n\n"${text}"` }],
+        })
+      })
+      const data = await res.json()
+      const translation = (data.content?.[0]?.text || '').trim()
+      setTranslations(prev => ({ ...prev, [msgIndex]: translation }))
+    } catch (e) {
+      setTranslations(prev => ({ ...prev, [msgIndex]: '⚠️ Übersetzung fehlgeschlagen' }))
+    }
+    setTranslating(null)
+  }
+
   const handleKey = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() } }
 
   return (
@@ -1101,22 +1124,37 @@ function KiGespraechScreen({ lang, theme, onBack, userName }) {
           <button style={{ ...s.backBtn, marginBottom: 0 }} onClick={onBack}>←</button>
           <div>
             <p style={{ color: th.text, fontWeight: 'bold', margin: 0, fontSize: '1rem' }}>🤖 KI-Gespräch</p>
-            <p style={{ color: th.sub, fontSize: '0.75rem', margin: 0 }}>{isMarkLang ? 'Übe Englisch mit KI' : 'Practice German with AI'}</p>
+            <p style={{ color: th.sub, fontSize: '0.75rem', margin: 0 }}>{isMarkLang ? `Übe Englisch mit KI` : 'Practice German with AI'}</p>
           </div>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {messages.length === 0 && (
             <div style={{ textAlign: 'center', marginTop: '40px' }}>
               <p style={{ color: th.sub, fontSize: '0.9rem', lineHeight: '1.6' }}>
-                {isMarkLang ? 'Schreib einfach drauflos — auf Englisch oder Deutsch. Die KI antwortet auf Englisch und hilft dir dabei.' : 'Just start writing — in German or English. The AI will respond in German and help you along the way.'}
+                {isMarkLang ? `Schreib auf Englisch oder Deutsch — die KI antwortet immer auf Englisch.` : 'Write in German or English — the AI always responds in German.'}
               </p>
             </div>
           )}
           {messages.map((msg, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+            <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
               <div style={{ maxWidth: '85%', padding: '10px 14px', borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px', background: msg.role === 'user' ? th.accent : th.card, border: msg.role === 'assistant' ? `1px solid ${th.border}` : 'none', color: th.text, fontSize: '0.9rem', lineHeight: '1.5' }}>
                 {msg.content}
               </div>
+              {msg.role === 'assistant' && (
+                <div style={{ maxWidth: '85%', marginTop: '4px' }}>
+                  {translations[i] ? (
+                    <p style={{ color: th.sub, fontSize: '0.78rem', margin: 0, lineHeight: '1.4', fontStyle: 'italic', padding: '0 4px' }}>{translations[i]}</p>
+                  ) : (
+                    <button
+                      onClick={() => translateMessage(i, msg.content)}
+                      disabled={translating === i}
+                      style={{ background: 'none', border: 'none', color: th.sub, fontSize: '0.75rem', cursor: 'pointer', padding: '2px 4px', opacity: translating === i ? 0.5 : 0.7, textDecoration: 'underline' }}
+                    >
+                      {translating === i ? '...' : isMarkLang ? 'Übersetzen' : 'Translate'}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           ))}
           {loading && (
@@ -1561,7 +1599,7 @@ function PartnerScreen({ user, myData, lang, theme, onBack, onPartnerUpdate }) {
   )
 }
 
-function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveState, startIndex = 0, startProgress = null }) {
+function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveState, onSaveSessionProgress, mode = 'all', startIndex = 0, startProgress = null }) {
   const [index, setIndex] = useState(startIndex)
   const [queue, setQueue] = useState(session)
   const [revealed, setRevealed] = useState(false)
@@ -1570,6 +1608,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
   const [newProgress, setNewProgress] = useState(startProgress || { ...cardProgress })
   const [cardTilt, setCardTilt] = useState({ x: 0, y: 0 })
   const startTime = useRef(Date.now())
+  const answeredIds = useRef(new Set())
 
   useEffect(() => {
     if (!window.DeviceOrientationEvent) return
@@ -1622,10 +1661,14 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
   }
   const handleStop = () => {
     onSaveState?.(queue, index, newProgress)
+    if (answeredIds.current.size > 0) {
+      onSaveSessionProgress?.(Array.from(answeredIds.current), mode)
+    }
     onBack()
   }
   const handleEasy = () => {
     const cardId = item.id
+    answeredIds.current.add(cardId)
     const prev = newProgress[cardId] || { interval: 0, consecutiveFast: 0, wrongSessions: 0 }
     const easyInterval = Math.max(7, (prev.interval || 0) + 3)
     const updatedProgress = { ...prev, interval: easyInterval, consecutiveFast: 0, wrongSessions: Math.max(0, (prev.wrongSessions || 0) - 1), nextReview: getNextReview(easyInterval) }
@@ -1640,6 +1683,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
     const elapsed = (Date.now() - startTime.current) / 1000
     const speed = getSpeed(elapsed)
     const cardId = item.id
+    answeredIds.current.add(cardId)
     const prev = newProgress[cardId] || { interval: 0, consecutiveFast: 0, wrongSessions: 0 }
     if (!isCorrect) {
       const updatedProgress = { ...prev, interval: 0, consecutiveFast: 0, wrongSessions: 3, nextReview: todayStr() }
@@ -1811,6 +1855,8 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const [resumeStartProgress, setResumeStartProgress] = useState(null)
   const [emptyCategoryMsg, setEmptyCategoryMsg] = useState(null)
   const [categorizingStatus, setCategorizingStatus] = useState(null)
+  const [resumeDialog, setResumeDialog] = useState(null)
+  const [currentSessionMode, setCurrentSessionMode] = useState('all')
   const t = T[lang]; const th = THEMES[theme]; const s = makeStyles(th)
   const firstName = user.displayName?.split(' ')[0] || user.displayName
   const cardProgress = myData?.cardProgress || {}
@@ -1860,6 +1906,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
 
   const startSession = () => {
     const sess = buildSession(activeCards, cardProgress)
+    setCurrentSessionMode('all')
     setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
   }
   const startCategorySession = (category) => {
@@ -1871,7 +1918,34 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
       setTimeout(() => setEmptyCategoryMsg(null), 3500)
       return
     }
+    const sp = myData?.sessionProgress
+    if (sp?.mode === category && sp.cardIds?.length > 0) {
+      setResumeDialog({ category, cards })
+      return
+    }
     const sess = buildSession(cards, cardProgress)
+    if (sess.length === 0) return
+    setCurrentSessionMode(category)
+    setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+  }
+  const continueSession = async () => {
+    const { category, cards } = resumeDialog
+    const answeredSet = new Set(myData?.sessionProgress?.cardIds || [])
+    const remaining = cards.filter(c => !answeredSet.has(c.id))
+    const pool = remaining.length > 0 ? remaining : cards
+    const sess = buildSession(pool, cardProgress)
+    try { await updateDoc(doc(db, 'users', user.uid), { sessionProgress: null }); setMyData(d => ({ ...d, sessionProgress: null })) } catch (e) {}
+    setCurrentSessionMode(category)
+    setResumeDialog(null)
+    if (sess.length === 0) return
+    setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+  }
+  const startFresh = async () => {
+    const { category, cards } = resumeDialog
+    try { await updateDoc(doc(db, 'users', user.uid), { sessionProgress: null }); setMyData(d => ({ ...d, sessionProgress: null })) } catch (e) {}
+    const sess = buildSession(cards, cardProgress)
+    setCurrentSessionMode(category)
+    setResumeDialog(null)
     if (sess.length === 0) return
     setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
   }
@@ -1882,6 +1956,10 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   }
   const discardSession = async () => { await clearSessionState(user.uid); setPendingSession(null) }
   const handleSaveState = async (queue, index, newProgress) => { await saveSessionState(user.uid, queue, index, newProgress) }
+  const saveSessionProgress = async (cardIds, mode) => {
+    const sp = { cardIds, mode, timestamp: Date.now() }
+    try { await updateDoc(doc(db, 'users', user.uid), { sessionProgress: sp }); setMyData(d => ({ ...d, sessionProgress: sp })) } catch (e) { console.warn('Session progress save failed:', e) }
+  }
   const generateAICards = async () => {
     const homeCity = myData?.homeCity || (isMarkLang ? 'Hamburg' : 'Nairobi')
     const partnerCity = myData?.partnerCity || (isMarkLang ? 'Nairobi' : 'Hamburg')
@@ -2043,7 +2121,7 @@ Return ONLY one word: vocabulary, street, home, or sentence.
     setResult({ correct, wrong }); setScreen('result')
   }
 
-  if (screen === 'cards' && session) return <CardScreen session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} startIndex={resumeStartIndex} startProgress={resumeStartProgress} />
+  if (screen === 'cards' && session) return <CardScreen session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} onSaveSessionProgress={saveSessionProgress} mode={currentSessionMode} startIndex={resumeStartIndex} startProgress={resumeStartProgress} />
   if (screen === 'result') return <ResultScreen correct={result.correct} wrong={result.wrong} masteryUnlocked={masteryUnlocked} t={t} onBack={() => { setScreen('menu'); setSession(null) }} s={s} />
   if (screen === 'settings') return <SettingsScreen t={t} s={s} theme={theme} onThemeChange={onThemeChange} onBack={() => setScreen('menu')} user={user} myData={myData} setMyData={setMyData} allCards={allCards} />
   if (screen === 'partner') return <PartnerScreen user={user} myData={myData} lang={lang} theme={theme} onBack={() => setScreen('menu')} onPartnerUpdate={(uid) => { onPartnerUpdate(uid); setScreen('menu') }} />
@@ -2083,6 +2161,22 @@ Return ONLY one word: vocabulary, street, home, or sentence.
           </span>
           <span style={{ color: '#f44336' }}>→</span>
         </button>
+      )}
+
+      {/* ── SESSION RESUME DIALOG ── */}
+      {resumeDialog && (
+        <div style={{ ...s.resumeBanner, marginBottom: '12px' }}>
+          <p style={{ color: th.text, margin: '0 0 10px 0', fontSize: '0.9rem', fontWeight: '600' }}>
+            {t.resumeTitle}
+          </p>
+          <p style={{ color: th.sub, margin: '0 0 10px 0', fontSize: '0.8rem' }}>
+            {(myData?.sessionProgress?.cardIds?.length || 0)} Karten bereits beantwortet
+          </p>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button style={{ ...s.button, marginBottom: 0, flex: 1, padding: '10px' }} onClick={continueSession}>{t.resumeContinue}</button>
+            <button style={{ ...s.logoutBtn, marginTop: 0, flex: 1, padding: '10px', textAlign: 'center' }} onClick={startFresh}>{t.resumeDiscard}</button>
+          </div>
+        </div>
       )}
 
       {/* ── PENDING SESSION BANNER ── */}
@@ -2234,14 +2328,17 @@ function App() {
           const existingCats = data.cardCategories || {}
           const newCats = { ...existingCats }
           let catChanged = false
+          const swahiliOverrideRe = /\b(habari|yako|nzuri|asante|karibu|pole|sawa|jambo|mambo|rafiki|wewe|mimi|nina|hii|hilo|chakula|maji|nyumba|watoto|upendo)\b/i
           for (const card of [...baseCards, ...aiCards]) {
             const front = card.front || ''
             const wordCount = front.trim().split(/\s+/).filter(Boolean).length
             const current = newCats[card.id]
+            const isSwahiliCard = card.pronunciation || swahiliOverrideRe.test(front) || card.langA === 'sw'
             const needsRun =
+              (isSwahiliCard && current !== 'street') ||
               !current ||
               current === '' ||
-              current === 'vocabulary' && wordCount > 1
+              (current === 'vocabulary' && wordCount > 1)
             if (!needsRun) continue
             const newCat = ruleCategory(card)
             if (current !== newCat) {
