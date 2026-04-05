@@ -78,7 +78,7 @@ async function speak(text, langCode) {
   window.speechSynthesis.cancel()
   const u = new SpeechSynthesisUtterance(text)
   const langTag = SPEECH_LANGS[langCode] || 'en-GB'
-  u.lang = langTag; u.rate = 0.72
+  u.lang = langTag; u.rate = 1.1
   const voices = await new Promise(resolve => {
     const v = window.speechSynthesis.getVoices()
     if (v.length) { resolve(v); return }
@@ -108,7 +108,7 @@ async function speakSyllable(text, langCode) {
   words.forEach((word, i) => {
     setTimeout(() => {
       const u = new SpeechSynthesisUtterance(word)
-      u.lang = langTag; u.rate = 0.65
+      u.lang = langTag; u.rate = 0.9
       if (preferred) u.voice = preferred
       window.speechSynthesis.speak(u)
     }, i * 500)
@@ -243,6 +243,8 @@ const PLACEMENT_DE = [
 
 const CEFR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
 const CEFR_COLORS = { A1: '#81c784', A2: '#4CAF50', B1: '#29b6f6', B2: '#1976d2', C1: '#ab47bc', C2: '#e53935' }
+// Cards mastered needed to REACH that level
+const CEFR_MASTERY_REQ = { A1: 0, A2: 30, B1: 70, B2: 150, C1: 260, C2: 400 }
 const CEFR_DESC = {
   de: { A1: 'Anfänger', A2: 'Grundlagen', B1: 'Mittelstufe', B2: 'Fortgeschritten', C1: 'Kompetent', C2: 'Meister' },
   en: { A1: 'Beginner', A2: 'Elementary', B1: 'Intermediate', B2: 'Upper-Intermediate', C1: 'Advanced', C2: 'Mastery' },
@@ -683,6 +685,11 @@ async function clearSessionState(uid) {
 }
 
 const GLOBAL_CSS = `
+html, body, #root {
+  background-color: #0a0a0a !important;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
 @keyframes vocaraFadeIn {
   from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -771,7 +778,7 @@ button:active {
 
 function makeStyles(th) {
   return {
-    container: { minHeight: '100vh', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: th.bgGrad },
+    container: { minHeight: '100vh', minHeight: '100dvh', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: th.bgGrad, backgroundColor: th.bg },
     homeBox: { textAlign: 'center', padding: '20px', width: '100%', maxWidth: '420px' },
     greeting: { color: th.sub, fontSize: '0.95rem', marginBottom: '2px' },
     title: {
@@ -932,11 +939,12 @@ function makeStyles(th) {
       letterSpacing: '0.1px',
     },
     navBtn: {
-      background: 'transparent', color: th.sub, border: `1px solid ${th.border}`,
+      background: th.card, color: th.sub, border: `1px solid ${th.border}`,
       padding: '11px 16px', borderRadius: '12px', fontSize: '0.88rem', cursor: 'pointer',
       fontWeight: '500', width: '100%', marginBottom: '6px', textAlign: 'center',
       boxShadow: `0 2px 0 ${th.border}`,
       fontFamily: "'Inter', system-ui, sans-serif",
+      WebkitAppearance: 'none', appearance: 'none',
     },
   }
 }
@@ -1184,6 +1192,23 @@ function ImpressumScreen({ lang, theme, onBack }) {
       </div>
       <button style={s.button} onClick={onBack}>{t.back}</button>
     </div></div>
+  )
+}
+
+const THAI_MIDDLE = new Set('กจดตฎฏบปอ')
+const THAI_HIGH_LOW = new Set('ขฃฉฐถผฝศษสหคฅฆงชซฌญณทธนพฟภมยรลวฬฮ')
+function ThaiColorPronunciation({ text }) {
+  return (
+    <>
+      {[...text].map((ch, i) => {
+        const code = ch.charCodeAt(0)
+        if (THAI_MIDDLE.has(ch)) return <span key={i} style={{ color: '#4CAF50' }}>{ch}</span>
+        if (THAI_HIGH_LOW.has(ch)) return <span key={i} style={{ color: '#9C27B0' }}>{ch}</span>
+        if (code >= 0x0E48 && code <= 0x0E4B) return <span key={i} style={{ color: '#9C27B0' }}>{ch}</span>
+        if (code >= 0x0E30 && code <= 0x0E47) return <span key={i} style={{ color: '#f44336' }}>{ch}</span>
+        return <span key={i}>{ch}</span>
+      })}
+    </>
   )
 }
 
@@ -1809,7 +1834,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
   const showPronunciation = item.pronunciation
   // Always speak the back (toLang) text in its language
   const speakBack = () => {
-    if (ttsMode === 0) speakSyllable(item.back, item.langB)
+    if (ttsMode === 1) speakSyllable(item.back, item.langB)
     else speak(item.back, item.langB)
   }
   const cycleTtsMode = () => setTtsMode(m => (m + 1) % 2)
@@ -1934,10 +1959,17 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
                 <p style={{ ...s.cardBack, margin: 0 }}>{answer}</p>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
                   <button onClick={speakBack} style={{ background: 'transparent', border: 'none', fontSize: '1.3rem', cursor: 'pointer', padding: '4px', opacity: 0.8 }}>🔊</button>
-                  <button onClick={cycleTtsMode} style={{ background: 'transparent', border: `1px solid rgba(140,140,155,0.35)`, borderRadius: '4px', fontSize: '0.58rem', cursor: 'pointer', padding: '1px 5px', color: '#8A8A9A', fontFamily: "'Inter', system-ui, sans-serif", letterSpacing: '0.3px' }}>{ttsMode === 0 ? 'Silbe' : 'Satz'}</button>
+                  <button onClick={cycleTtsMode} style={{ background: 'transparent', border: `1px solid rgba(140,140,155,0.35)`, borderRadius: '4px', fontSize: '0.58rem', cursor: 'pointer', padding: '1px 5px', color: '#8A8A9A', fontFamily: "'Inter', system-ui, sans-serif", letterSpacing: '0.3px' }}>{ttsMode === 1 ? 'Silbe' : 'Satz'}</button>
                 </div>
               </div>
-              {showPronunciation && <p style={s.cardPronunciation}>🔊 {t.pronunciation}: {item.pronunciation}</p>}
+              {showPronunciation && (
+                <p style={s.cardPronunciation}>
+                  🔊 {t.pronunciation}:{' '}
+                  {(item.langA === 'th' || item.langB === 'th')
+                    ? <ThaiColorPronunciation text={item.pronunciation} />
+                    : item.pronunciation}
+                </p>
+              )}
               {item.context && <p style={s.cardContext}>„{item.context}"</p>}
             </div>
           )}
@@ -2335,8 +2367,12 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
   const myLongestStreak = calcLongestStreak(sessionHistory)
   const partnerLongestStreak = calcLongestStreak(partnerHistory)
   const currentWeekStr = getISOWeekStr()
-  const myWeekSessions = sessionHistory.filter(h => getISOWeekStr(new Date(...h.date.split('-').map((v,i) => i===1?v-1:+v))) === currentWeekStr).length
-  const partnerWeekSessions = partnerHistory.filter(h => getISOWeekStr(new Date(...h.date.split('-').map((v,i) => i===1?v-1:+v))) === currentWeekStr).length
+  const weekFilter = (h) => getISOWeekStr(new Date(...h.date.split('-').map((v, i) => i === 1 ? v - 1 : +v))) === currentWeekStr
+  const myWeekSessions = sessionHistory.filter(weekFilter).length
+  const partnerWeekSessions = partnerHistory.filter(weekFilter).length
+  const myWeekLearnSec = sessionHistory.filter(weekFilter).reduce((a, b) => a + (b.total || 0) * 15, 0)
+  const partnerWeekLearnSec = partnerHistory.filter(weekFilter).reduce((a, b) => a + (b.total || 0) * 15, 0)
+  const fmtMin = (s) => s < 60 ? `${s}s` : `${Math.round(s / 60)} min`
   const AREA_LABEL_MAP = { vocabulary: isMarkLang ? 'Worte' : 'Words', sentence: isMarkLang ? 'Sätze' : 'Sentences', street: isMarkLang ? 'Straße' : 'Street', home: isMarkLang ? 'Zuhause' : 'Home' }
   const getFavArea = (progress) => {
     const counts = {}
@@ -2371,7 +2407,7 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
   )
 
   return (
-    <div style={{ minHeight: '100vh', width: '100%', background: th.bgGrad, display: 'flex', flexDirection: 'column', alignItems: 'center' }} className="vocara-screen">
+    <div style={{ minHeight: '100vh', minHeight: '100dvh', width: '100%', background: th.bgGrad, backgroundColor: th.bg, display: 'flex', flexDirection: 'column', alignItems: 'center' }} className="vocara-screen">
       {/* ── FIXED BACK BAR ── */}
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, background: th.bg, borderBottom: `1px solid ${th.border}`, display: 'flex', alignItems: 'center', padding: '0 16px', minHeight: '52px' }}>
         <button
@@ -2418,9 +2454,9 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
           {compRow(isMarkLang ? 'Längster Streak 🏆' : 'Best streak 🏆', myLongestStreak, partnerLongestStreak)}
           {compRow(isMarkLang ? 'Lieblingsbereich' : 'Favourite area', myFavArea, partnerFavArea)}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0 0' }}>
-            <span style={{ color: th.text, fontWeight: '600', fontSize: '0.85rem', minWidth: '60px', textAlign: 'center' }}>{myWeekSessions * 5} min</span>
+            <span style={{ color: th.text, fontWeight: '600', fontSize: '0.85rem', minWidth: '60px', textAlign: 'center' }}>{fmtMin(myWeekLearnSec)}</span>
             <span style={{ color: th.sub, fontSize: '0.75rem', flex: 1, textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{isMarkLang ? 'Lernzeit Woche' : 'Study time week'}</span>
-            <span style={{ color: th.text, fontWeight: '600', fontSize: '0.85rem', minWidth: '60px', textAlign: 'center' }}>{partnerWeekSessions * 5} min</span>
+            <span style={{ color: th.text, fontWeight: '600', fontSize: '0.85rem', minWidth: '60px', textAlign: 'center' }}>{fmtMin(partnerWeekLearnSec)}</span>
           </div>
         </div>
       )}
@@ -2480,6 +2516,18 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const partnerLastActive = partnerData?.lastActive
   const partnerOnline = !!(partnerData && (partnerLastActive === today || partnerLastActive === yesterday))
 
+  // ── CEFR PROGRESS ─────────────────────────────────────────
+  const myMasteredCount = Object.values(cardProgress).filter(p => (p?.interval || 0) >= 7).length
+  const cefrIdx = cefr ? CEFR_LEVELS.indexOf(cefr) : -1
+  const nextCefr = cefrIdx >= 0 && cefrIdx < CEFR_LEVELS.length - 1 ? CEFR_LEVELS[cefrIdx + 1] : null
+  const cefrFrom = cefr ? (CEFR_MASTERY_REQ[cefr] || 0) : 0
+  const cefrTo = nextCefr ? CEFR_MASTERY_REQ[nextCefr] : cefrFrom
+  const cefrPct = cefrTo > cefrFrom ? Math.min(100, Math.round(((myMasteredCount - cefrFrom) / (cefrTo - cefrFrom)) * 100)) : 100
+  const cefrBar = (() => {
+    const filled = Math.round(cefrPct / 20); const empty = 5 - filled
+    return '▓'.repeat(filled) + '░'.repeat(empty)
+  })()
+
   // ── MONTHLY TEST CHECK ────────────────────────────────────
   const testDue = !myData?.cefr || daysSince(myData?.lastTestDate) >= MONTHLY_TEST_DAYS
 
@@ -2531,16 +2579,16 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   }
   const startSatzSession = async () => {
     const LANG_NAMES = { en: 'English', de: 'German', sw: 'Swahili' }
-    // Only cards with mastery > 0 (interval > 0 = answered correctly at least once)
+    // Only cards with mastery >= 2 (answered correctly at least twice = interval >= 2)
     const knownVocabCards = activeCards.filter(c =>
       c.category === 'vocabulary' &&
       !/_r(_\d+)?$/.test(c.id) &&
-      (cardProgress[c.id]?.interval || 0) > 0
+      (cardProgress[c.id]?.interval || 0) >= 2
     )
     if (knownVocabCards.length < 5) {
       setEmptyCategoryMsg(isMarkLang
-        ? 'Lerne zuerst mehr Wörter in Meine Worte!'
-        : 'Learn more words in My Words first!')
+        ? 'Übe zuerst mehr Wörter in Meine Worte — du brauchst mindestens 5 gefestigte Wörter!'
+        : 'Practice more words in My Words first — you need at least 5 solid words!')
       setTimeout(() => setEmptyCategoryMsg(null), 3500)
       return
     }
@@ -2926,7 +2974,12 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
       <div className="vocara-nav-section" style={{ marginTop: '4px', marginBottom: '10px' }}>
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('ki')}>{t.menuKi}</button>
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('stats')}>
-          {t.progressBtn}{cefr ? ` · ${cefr}` : ''}
+          {t.progressBtn}
+          {cefr && (
+            <span style={{ marginLeft: '6px', fontFamily: 'monospace', fontSize: '0.78rem', color: CEFR_COLORS[cefr] || th.accent, letterSpacing: '0px' }}>
+              {cefr} {cefrBar} {cefrPct}%{nextCefr ? ` → ${nextCefr}` : ''}
+            </span>
+          )}
         </button>
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('partner')}>
           {myData?.partnerUID ? `${t.menuPartnerLabel}: ${partnerName}` : t.menuPartnerConnect}
