@@ -21,8 +21,8 @@ const THEMES = {
     accent: '#FFD700', gold: '#FFF0A0', glowColor: '#FFD700', btnTextColor: '#111',
     bgGrad: 'radial-gradient(ellipse at 50% 30%, #201508 0%, #0f0a05 55%, #080502 100%)',
     metalGrad: 'linear-gradient(145deg, #FFF0A0 0%, #FFD700 30%, #B8860B 52%, #D4AF37 72%, #FFF0A0 100%)',
-    metalText: 'linear-gradient(135deg, #FFFAD0 0%, #FFE566 15%, #FFD700 30%, #C9A800 48%, #8B6914 58%, #C9A800 70%, #FFD700 82%, #FFF0A0 100%)',
-    btnFaceGrad: 'linear-gradient(180deg, #FFFACC 0%, #FFE800 18%, #FFD700 38%, #C9A800 62%, #B8860B 82%, #8B6914 100%)',
+    metalText: 'linear-gradient(90deg, #5C4008 0%, #FFF8D0 16%, #8B6914 33%, #FFF0A0 50%, #5C4008 66%, #FFF8D0 83%, #8B6914 100%)',
+    btnFaceGrad: 'linear-gradient(90deg, #3A2004 0%, #FFD700 16%, #8B6914 33%, #FFE566 50%, #3A2004 66%, #FFD700 83%, #8B6914 100%)',
     shadow3d: '0 1px 0 rgba(255,255,200,0.35) inset, 0 -1px 0 rgba(0,0,0,0.5) inset, 0 4px 0 #B8860B, 0 6px 0 #8B6914, 0 8px 0 #5A4008, 0 10px 20px rgba(0,0,0,0.75)',
     shadowPressed: '0 1px 0 rgba(255,255,200,0.15) inset, 0 -1px 0 rgba(0,0,0,0.4) inset, 0 1px 0 #8B6914, 0 3px 8px rgba(0,0,0,0.6)',
   },
@@ -32,8 +32,8 @@ const THEMES = {
     accent: '#8B3A2A', gold: '#C4704A', glowColor: '#2E6B9E', btnTextColor: '#E8F4FF',
     bgGrad: 'radial-gradient(ellipse at 50% 30%, #1B3A5C 0%, #0D1F33 55%, #050D1A 100%)',
     metalGrad: 'linear-gradient(145deg, #3A8CC0 0%, #1B3A5C 30%, #8B3A2A 52%, #1B3A5C 72%, #3A8CC0 100%)',
-    metalText: 'linear-gradient(135deg, #A8D8F0 0%, #3A8CC0 18%, #1B3A5C 35%, #8B3A2A 52%, #C4704A 62%, #2E6B9E 78%, #A8D8F0 100%)',
-    btnFaceGrad: 'linear-gradient(180deg, #3A8CC0 0%, #2E6B9E 22%, #1B3A5C 50%, #8B3A2A 78%, #5A2018 100%)',
+    metalText: 'linear-gradient(90deg, #05111F 0%, #6BB8E0 16%, #2E6B9E 33%, #A8D8F0 50%, #05111F 66%, #6BB8E0 83%, #2E6B9E 100%)',
+    btnFaceGrad: 'linear-gradient(90deg, #05111F 0%, #3A8CC0 16%, #1B3A5C 33%, #3A8CC0 50%, #05111F 66%, #3A8CC0 83%, #1B3A5C 100%)',
     shadow3d: '0 1px 0 rgba(120,200,255,0.25) inset, 0 -1px 0 rgba(0,0,0,0.5) inset, 0 4px 0 #8B3A2A, 0 6px 0 #6B2A1A, 0 8px 0 #3B1A0A, 0 10px 20px rgba(0,0,0,0.75)',
     shadowPressed: '0 1px 0 rgba(120,200,255,0.1) inset, 0 -1px 0 rgba(0,0,0,0.4) inset, 0 1px 0 #6B2A1A, 0 3px 8px rgba(0,0,0,0.6)',
   },
@@ -51,8 +51,8 @@ const THEMES = {
       '#060410',
     ].join(', '),
     metalGrad: 'linear-gradient(145deg, #FF6B6B, #FFD93D, #6BCB77, #4D96FF, #C77DFF, #FF6B6B)',
-    metalText: 'linear-gradient(135deg, #fff 0%, #FF6B6B 15%, #FFD93D 30%, #6BCB77 45%, #4D96FF 60%, #C77DFF 75%, #FF6B6B 90%, #fff 100%)',
-    btnFaceGrad: 'linear-gradient(180deg, #FF6B6B 0%, #FFD93D 25%, #6BCB77 50%, #4D96FF 75%, #C77DFF 100%)',
+    metalText: 'linear-gradient(90deg, #C77DFF 0%, #FF6B6B 16%, #FFD93D 33%, #6BCB77 50%, #4D96FF 66%, #C77DFF 83%, #FF6B6B 100%)',
+    btnFaceGrad: 'linear-gradient(90deg, #C77DFF 0%, #FF6B6B 16%, #FFD93D 33%, #6BCB77 50%, #4D96FF 66%, #C77DFF 83%, #FF6B6B 100%)',
     shadow3d: '0 1px 0 rgba(255,255,255,0.3) inset, 0 -1px 0 rgba(0,0,0,0.5) inset, 0 4px 0 #9B3BFF, 0 6px 0 #7B1BDF, 0 8px 0 #3D008F, 0 10px 20px rgba(0,0,0,0.75)',
     shadowPressed: '0 1px 0 rgba(255,255,255,0.15) inset, 0 -1px 0 rgba(0,0,0,0.4) inset, 0 1px 0 #7B1BDF, 0 3px 8px rgba(0,0,0,0.6)',
   },
@@ -70,6 +70,27 @@ const AVAILABLE_LANGS = [
 ]
 
 const LANG_FLAGS = { en: '🇬🇧', de: '🇩🇪', sw: '🇰🇪', es: '🇪🇸', fr: '🇫🇷', ar: '🇸🇦', tr: '🇹🇷', pt: '🇵🇹' }
+
+const SPEECH_LANGS = { en: 'en-GB', de: 'de-DE', sw: 'sw-KE', th: 'th-TH', fr: 'fr-FR', es: 'es-ES', ar: 'ar-SA', tr: 'tr-TR', pt: 'pt-PT' }
+
+async function speak(text, langCode) {
+  if (!window.speechSynthesis || !text) return
+  window.speechSynthesis.cancel()
+  const u = new SpeechSynthesisUtterance(text)
+  const langTag = SPEECH_LANGS[langCode] || 'en-GB'
+  u.lang = langTag; u.rate = 0.72
+  const voices = await new Promise(resolve => {
+    const v = window.speechSynthesis.getVoices()
+    if (v.length) { resolve(v); return }
+    window.speechSynthesis.onvoiceschanged = () => resolve(window.speechSynthesis.getVoices())
+  })
+  const preferred = voices.find(v => v.lang === langTag && v.name.toLowerCase().includes('google'))
+    || voices.find(v => v.lang === langTag && !v.localService)
+    || voices.find(v => v.lang.startsWith(langTag.split('-')[0]) && v.name.toLowerCase().includes('google'))
+    || voices.find(v => v.lang.startsWith(langTag.split('-')[0]))
+  if (preferred) u.voice = preferred
+  window.speechSynthesis.speak(u)
+}
 
 const PLACEMENT_EN = [
   { id: 'p_en_1', level: 'A1', question: 'What does "Hello" mean?', options: ['Hallo', 'Tschüss', 'Danke', 'Bitte'], correct: 0 },
@@ -608,21 +629,9 @@ const GLOBAL_CSS = `
   from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-@keyframes metalShimmer {
-  0%   { background-position: -250% center; }
-  100% { background-position: 250% center; }
-}
-@keyframes logoSweep {
-  0%    { background-position: -250% center; }
-  25%   { background-position: 250% center; }
-  25.1% { background-position: -250% center; }
-  100%  { background-position: -250% center; }
-}
-@keyframes btnGleam {
-  0%, 82%  { transform: translateX(-130%) skewX(-15deg); opacity: 0; }
-  87%      { opacity: 1; }
-  95%      { opacity: 0; transform: translateX(230%) skewX(-15deg); }
-  100%     { opacity: 0; }
+@keyframes metalFlow {
+  0%   { background-position: 0% center; }
+  100% { background-position: 100% center; }
 }
 @keyframes rainbowBtnShift {
   0%   { background-position: 0% 0%; }
@@ -660,17 +669,6 @@ button {
   position: relative;
   overflow: hidden;
 }
-button::after {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; bottom: 0;
-  width: 35%;
-  background: linear-gradient(105deg, transparent 20%, rgba(255,255,255,0.18) 50%, transparent 80%);
-  animation: btnGleam 7s ease-in-out infinite;
-  animation-delay: var(--gleam-delay, 0s);
-  pointer-events: none;
-  border-radius: inherit;
-}
 button:active {
   transform: translateY(6px) !important;
   box-shadow: 0 1px 4px rgba(0,0,0,0.7) !important;
@@ -688,8 +686,8 @@ function makeStyles(th) {
       fontFamily: "'Playfair Display', Georgia, serif",
       background: th.metalText,
       WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-      backgroundSize: th.rainbow ? '400% auto' : '300% auto',
-      animation: th.rainbow ? 'metalShimmer 2.5s linear infinite' : 'logoSweep 8s ease-in-out infinite',
+      backgroundSize: '300% auto',
+      animation: 'metalFlow 8s linear infinite',
       filter: `drop-shadow(0 0 10px ${th.glowColor}70)`,
     },
     slogan: { color: th.sub, fontSize: '1rem', marginBottom: '32px', lineHeight: '1.8' },
@@ -726,8 +724,8 @@ function makeStyles(th) {
       padding: '13px 28px', borderRadius: '50px', fontSize: '1rem', cursor: 'pointer',
       fontWeight: '700', width: '100%', marginBottom: '8px',
       boxShadow: th.shadow3d,
-      backgroundSize: th.rainbow ? '100% 300%' : '100% 100%',
-      animation: th.rainbow ? 'rainbowBtnShift 4s linear infinite' : undefined,
+      backgroundSize: '300% auto',
+      animation: 'metalFlow 6s linear infinite',
     },
     menuBtn: {
       background: th.card, color: th.text, border: `1px solid ${th.border}`,
@@ -767,8 +765,8 @@ function makeStyles(th) {
       background: th.btnFaceGrad, color: th.btnTextColor, border: 'none',
       padding: '12px 28px', borderRadius: '50px', fontSize: '1rem', cursor: 'pointer', fontWeight: '700',
       boxShadow: th.shadow3d,
-      backgroundSize: th.rainbow ? '100% 300%' : '100% 100%',
-      animation: th.rainbow ? 'rainbowBtnShift 4s linear infinite' : undefined,
+      backgroundSize: '300% auto',
+      animation: 'metalFlow 6s linear infinite',
     },
     answerRow: { display: 'flex', gap: '10px', width: '100%' },
     wrongBtn: {
@@ -786,8 +784,8 @@ function makeStyles(th) {
       flex: 1, background: th.btnFaceGrad, color: th.btnTextColor, border: 'none',
       padding: '12px', borderRadius: '50px', fontSize: '1rem', cursor: 'pointer', fontWeight: 'bold',
       boxShadow: th.shadow3d,
-      backgroundSize: th.rainbow ? '100% 300%' : '100% 100%',
-      animation: th.rainbow ? 'rainbowBtnShift 4s linear infinite' : undefined,
+      backgroundSize: '300% auto',
+      animation: 'metalFlow 6s linear infinite',
     },
     stopBtn: {
       background: 'transparent', color: '#f44336', border: '1px solid #f44336',
@@ -835,8 +833,8 @@ function makeStyles(th) {
       padding: '14px 10px', borderRadius: '20px', fontSize: '0.84rem', cursor: 'pointer',
       fontWeight: '700', flex: 1, lineHeight: '1.3', textAlign: 'center',
       boxShadow: th.shadow3d,
-      backgroundSize: th.rainbow ? '100% 300%' : '100% 100%',
-      animation: th.rainbow ? 'rainbowBtnShift 4s linear infinite' : undefined,
+      backgroundSize: '300% auto',
+      animation: 'metalFlow 6s linear infinite',
       fontFamily: "'Playfair Display', Georgia, serif",
       letterSpacing: '0.1px',
     },
@@ -1074,6 +1072,7 @@ function KiGespraechScreen({ lang, theme, onBack, userName }) {
   const isMarkLang = lang === 'de'
   const targetLang = isMarkLang ? 'English' : 'German'
   const nativeLang = isMarkLang ? 'German' : 'English'
+  const ttsLangCode = isMarkLang ? 'en' : 'de'
   const systemPrompt = `You are Vocara, a friendly language tutor helping ${userName} learn ${targetLang}. You must respond ONLY in ${targetLang}. Never use ${nativeLang} in your response. If the user writes in ${nativeLang}, still respond entirely in ${targetLang} and gently encourage them to try in ${targetLang} too. If the user makes a grammar mistake in ${targetLang}, have a natural conversation first, then add a short gentle correction at the end like "💡 Small tip: ..." Keep responses short (2-4 sentences). Be warm and natural — like a friend who happens to be a language expert. The Vocara philosophy: The voice is the bridge.`
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, loading])
@@ -1151,7 +1150,11 @@ function KiGespraechScreen({ lang, theme, onBack, userName }) {
                 {msg.content}
               </div>
               {msg.role === 'assistant' && (
-                <div style={{ maxWidth: '85%', marginTop: '4px' }}>
+                <div style={{ maxWidth: '85%', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <button
+                    onClick={() => speak(msg.content, ttsLangCode)}
+                    style={{ background: 'none', border: 'none', color: th.sub, fontSize: '1rem', cursor: 'pointer', padding: '2px 4px', opacity: 0.6, flexShrink: 0 }}
+                  >🔊</button>
                   {translations[i] ? (
                     <p style={{ color: th.sub, fontSize: '0.78rem', margin: 0, lineHeight: '1.4', fontStyle: 'italic', padding: '0 4px' }}>{translations[i]}</p>
                   ) : (
@@ -1211,6 +1214,8 @@ function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userN
     generateExercises()
   }, [])
 
+  const ttsLangCode = isMarkLang ? 'en' : 'de'
+
   const generateExercises = async () => {
     setLoading(true); setError(null)
     const targetLang = isMarkLang ? 'English' : 'German'
@@ -1265,6 +1270,7 @@ Return ONLY a valid JSON array. No markdown. No explanation. Example format:
     const answer = scrambleOrder.map(w => w.word).join(' ')
     const correct = answer.trim().toLowerCase() === ex.sentence.trim().toLowerCase()
     setRevealed(true); setSelected(correct ? 'correct' : 'wrong')
+    speak(ex.sentence, ttsLangCode)
   }
 
   const addWord = (item) => {
@@ -1380,7 +1386,7 @@ Return ONLY a valid JSON array. No markdown. No explanation. Example format:
               else if (revealed && selected === i) { bg = '#f4433622'; border = '2px solid #f44336' }
               else if (selected === i) { bg = th.accent + '22'; border = `2px solid ${th.accent}` }
               return (
-                <button key={i} onClick={() => { if (!revealed) { setSelected(i); setRevealed(true) } }}
+                <button key={i} onClick={() => { if (!revealed) { setSelected(i); setRevealed(true); speak(ex.options[ex.correct_index], ttsLangCode) } }}
                   style={{ background: bg, color: th.text, border, borderRadius: '10px', padding: '13px 16px', fontSize: '0.95rem', cursor: revealed ? 'default' : 'pointer', textAlign: 'left' }}>
                   {opt}
                 </button>
@@ -1637,37 +1643,13 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
   const fromLang = item.langA
   const toLang = item.langB
   const showPronunciation = item.pronunciation
-  const targetLangCode = item.targetLang
-  const targetText = item.langA === targetLangCode ? item.front : item.back
-
-  const SPEECH_LANGS = { en: 'en-GB', de: 'de-DE', sw: 'sw-KE' }
-  const getVoices = () => new Promise(resolve => {
-    const voices = window.speechSynthesis.getVoices()
-    if (voices.length) { resolve(voices); return }
-    window.speechSynthesis.onvoiceschanged = () => resolve(window.speechSynthesis.getVoices())
-  })
-  const speak = async (text, langCode) => {
-    if (!window.speechSynthesis) return
-    window.speechSynthesis.cancel()
-    const u = new SpeechSynthesisUtterance(text)
-    const langTag = SPEECH_LANGS[langCode] || 'en-GB'
-    u.lang = langTag
-    u.rate = 0.7
-
-    const voices = await getVoices()
-    const preferred = voices.find(v => v.lang === langTag && v.name.toLowerCase().includes('google'))
-      || voices.find(v => v.lang === langTag && !v.localService)
-      || voices.find(v => v.lang.startsWith(langTag.split('-')[0]) && v.name.toLowerCase().includes('google'))
-      || voices.find(v => v.lang.startsWith(langTag.split('-')[0]))
-    if (preferred) u.voice = preferred
-
-    window.speechSynthesis.speak(u)
-  }
+  // Always speak the back (toLang) text in its language
+  const speakBack = () => speak(item.back, item.langB)
 
   const handleReveal = () => {
     startTime.current = Date.now()
     setRevealed(true)
-    speak(targetText, targetLangCode)
+    speakBack()
   }
   const handleStop = () => {
     onSaveState?.(queue, index, newProgress)
@@ -1749,6 +1731,18 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
             background: `radial-gradient(circle at ${50 - cardTilt.y * 3.5}% ${50 - cardTilt.x * 3.5}%, rgba(255,255,255,0.13) 0%, rgba(255,255,255,0.04) 35%, transparent 65%)`,
             transition: 'background 0.1s ease-out',
           }} />
+          {/* register badge */}
+          <div style={{
+            position: 'absolute', top: '8px', left: '10px',
+            background: item.category === 'street' ? 'rgba(180,120,30,0.22)' : 'rgba(140,140,155,0.18)',
+            color: item.category === 'street' ? '#C8922A' : '#8A8A9A',
+            border: `1px solid ${item.category === 'street' ? 'rgba(180,120,30,0.35)' : 'rgba(140,140,155,0.28)'}`,
+            borderRadius: '6px', padding: '2px 7px',
+            fontSize: '9px', fontWeight: '600', letterSpacing: '0.5px', textTransform: 'uppercase',
+            pointerEvents: 'none',
+          }}>
+            {item.category === 'street' ? 'Slang' : 'Hochsprache'}
+          </div>
           <p style={s.dirLabel}>{LANG_FLAGS[fromLang]} → {LANG_FLAGS[toLang]}</p>
           <p style={s.cardFront}>{question}</p>
           {!revealed && (
@@ -1758,7 +1752,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
             <div style={{ animation: 'vocaraFadeIn 0.3s ease both', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center' }}>
                 <p style={{ ...s.cardBack, margin: 0 }}>{answer}</p>
-                <button onClick={() => speak(targetText, targetLangCode)} style={{ background: 'transparent', border: 'none', fontSize: '1.3rem', cursor: 'pointer', padding: '4px', opacity: 0.8 }}>🔊</button>
+                <button onClick={speakBack} style={{ background: 'transparent', border: 'none', fontSize: '1.3rem', cursor: 'pointer', padding: '4px', opacity: 0.8 }}>🔊</button>
               </div>
               {showPronunciation && <p style={s.cardPronunciation}>🔊 {t.pronunciation}: {item.pronunciation}</p>}
               {item.context && <p style={s.cardContext}>„{item.context}"</p>}
@@ -1791,10 +1785,14 @@ function ResultScreen({ correct, wrong, masteryUnlocked, t, onBack, s }) {
   )
 }
 
-function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setMyData, allCards }) {
+function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setMyData, allCards, lang }) {
   const th = THEMES[theme]
   const pausedLanguages = myData?.pausedLanguages || []
   const uniqueTargetLangs = [...new Set(allCards.map(c => c.targetLang).filter(Boolean))]
+  const [newFront, setNewFront] = useState('')
+  const [newBack, setNewBack] = useState('')
+  const [newCardCat, setNewCardCat] = useState('vocabulary')
+  const [cardSaveStatus, setCardSaveStatus] = useState(null)
 
   const togglePause = async (langCode) => {
     const newPaused = pausedLanguages.includes(langCode)
@@ -1804,6 +1802,34 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
       await updateDoc(doc(db, 'users', user.uid), { pausedLanguages: newPaused })
       setMyData(d => ({ ...d, pausedLanguages: newPaused }))
     } catch (e) { console.warn('Failed to save paused languages:', e) }
+  }
+
+  const saveCustomCard = async () => {
+    if (!newFront.trim() || !newBack.trim()) return
+    const baseCard = allCards.find(c => !/_r(_\d+)?$/.test(c.id))
+    const langA = baseCard?.langA || (lang === 'de' ? 'en' : 'de')
+    const langB = baseCard?.langB || lang
+    const ts = Date.now()
+    const card = {
+      id: `custom_${ts}`,
+      front: newFront.trim(),
+      back: newBack.trim(),
+      category: newCardCat,
+      langA, langB,
+      source: 'custom',
+      createdAt: ts,
+    }
+    const updatedAiCards = [...(myData?.aiCards || []), card]
+    try {
+      await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards })
+      setMyData(d => ({ ...d, aiCards: updatedAiCards }))
+      setNewFront(''); setNewBack(''); setNewCardCat('vocabulary')
+      setCardSaveStatus('Gespeichert ✓')
+      setTimeout(() => setCardSaveStatus(null), 2500)
+    } catch (e) {
+      setCardSaveStatus('Fehler beim Speichern')
+      setTimeout(() => setCardSaveStatus(null), 3000)
+    }
   }
 
   return (
@@ -1845,6 +1871,55 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
           })}
         </div>
       )}
+      {/* ── NEUE KARTE ── */}
+      <div style={s.card}>
+        <p style={{ ...s.cardLabel, marginBottom: '14px' }}>{lang === 'de' ? 'Neue Karte' : 'New Card'}</p>
+        <input
+          style={{ ...s.input, marginBottom: '8px' }}
+          placeholder={lang === 'de' ? 'Vorderseite (z.B. englisches Wort)' : 'Front (e.g. German word)'}
+          value={newFront}
+          onChange={e => setNewFront(e.target.value)}
+        />
+        <input
+          style={{ ...s.input, marginBottom: '12px' }}
+          placeholder={lang === 'de' ? 'Rückseite (Übersetzung)' : 'Back (translation)'}
+          value={newBack}
+          onChange={e => setNewBack(e.target.value)}
+        />
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+          <button
+            onClick={() => setNewCardCat('vocabulary')}
+            style={{
+              flex: 1, padding: '8px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem',
+              background: newCardCat === 'vocabulary' ? 'rgba(140,140,155,0.25)' : 'transparent',
+              color: newCardCat === 'vocabulary' ? '#A0A0B8' : th.sub,
+              border: `1px solid ${newCardCat === 'vocabulary' ? 'rgba(140,140,155,0.45)' : th.border}`,
+            }}
+          >
+            Hochsprache
+          </button>
+          <button
+            onClick={() => setNewCardCat('street')}
+            style={{
+              flex: 1, padding: '8px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem',
+              background: newCardCat === 'street' ? 'rgba(180,120,30,0.2)' : 'transparent',
+              color: newCardCat === 'street' ? '#C8922A' : th.sub,
+              border: `1px solid ${newCardCat === 'street' ? 'rgba(180,120,30,0.4)' : th.border}`,
+            }}
+          >
+            Slang / Umgangs&shy;sprachlich
+          </button>
+        </div>
+        <button
+          style={{ ...s.button, marginBottom: 0, opacity: (!newFront.trim() || !newBack.trim()) ? 0.45 : 1 }}
+          onClick={saveCustomCard}
+          disabled={!newFront.trim() || !newBack.trim()}
+        >
+          {lang === 'de' ? 'Karte speichern' : 'Save card'}
+        </button>
+        {cardSaveStatus && <p style={{ color: th.accent, fontSize: '0.82rem', marginTop: '8px', textAlign: 'center' }}>{cardSaveStatus}</p>}
+      </div>
+
       <div style={{ ...s.card, opacity: 0.4 }}>
         <p style={s.cardLabel}>{t.comingSoon}</p>
         <p style={s.noPartner}>Benachrichtigungen • Stumm-Modus</p>
@@ -1866,13 +1941,100 @@ function StatRow({ label, mastered, active, total, s }) {
   )
 }
 
+function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack, cardProgress }) {
+  const th = THEMES[theme]; const s = makeStyles(th); const t = T[lang]
+  const isMarkLang = lang === 'de'
+  const today = todayStr()
+  const tom = new Date(); tom.setDate(tom.getDate() + 1)
+  const tomorrow = tom.toISOString().slice(0, 10)
+
+  const sessionHistory = myData?.sessionHistory || []
+  const todayCorrect = sessionHistory.filter(h => h.date === today).reduce((a, b) => a + (b.correct || 0), 0)
+  const todaySessions = sessionHistory.filter(h => h.date === today).length
+  const myStreak = calcStreak(sessionHistory)
+  const totalCards = allCards.filter(c => !/_r(_\d+)?$/.test(c.id)).length
+  const dueTomorrow = Object.values(cardProgress).filter(p => p.nextReview === tomorrow).length
+  const myMastered = Object.values(cardProgress).filter(p => (p?.interval || 0) >= 7).length
+
+  const partnerHistory = partnerData?.sessionHistory || []
+  const partnerStreak = calcStreak(partnerHistory)
+  const partnerTodayCorrect = partnerHistory.filter(h => h.date === today).reduce((a, b) => a + (b.correct || 0), 0)
+  const partnerTodaySessions = partnerHistory.filter(h => h.date === today).length
+  const partnerProgress = partnerData?.cardProgress || {}
+  const partnerMastered = Object.values(partnerProgress).filter(p => (p?.interval || 0) >= 7).length
+  const partnerActive = Object.keys(partnerProgress).length
+
+  const myName = myData?.name?.split(' ')[0] || user.displayName?.split(' ')[0] || 'Ich'
+  const partnerName = myData?.partnerName || partnerData?.name?.split(' ')[0] || 'Partner'
+  const hasPartner = !!myData?.partnerUID || !!partnerData
+
+  const statBox = (label, value, sub) => (
+    <div style={{ flex: 1, background: th.card, borderRadius: '14px', padding: '16px 12px', border: `1px solid ${th.border}`, textAlign: 'center' }}>
+      <p style={{ color: th.gold, fontSize: '1.8rem', fontWeight: '900', margin: 0, lineHeight: 1 }}>{value}</p>
+      {sub && <p style={{ color: th.accent, fontSize: '0.72rem', margin: '2px 0 4px', fontWeight: '600' }}>{sub}</p>}
+      <p style={{ color: th.sub, fontSize: '0.72rem', margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</p>
+    </div>
+  )
+
+  const compRow = (label, myVal, partnerVal) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: `1px solid ${th.border}` }}>
+      <span style={{ color: th.text, fontWeight: '600', fontSize: '0.85rem', minWidth: '60px', textAlign: 'center' }}>{myVal}</span>
+      <span style={{ color: th.sub, fontSize: '0.75rem', flex: 1, textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</span>
+      <span style={{ color: th.text, fontWeight: '600', fontSize: '0.85rem', minWidth: '60px', textAlign: 'center' }}>{partnerVal}</span>
+    </div>
+  )
+
+  return (
+    <div style={s.container} className="vocara-screen"><div style={{ ...s.homeBox, paddingTop: '12px' }}>
+      <button style={s.backBtn} onClick={onBack}>← {t.back}</button>
+      <h2 style={{ ...s.title, fontSize: 'clamp(1.4rem, 5vw, 1.8rem)', marginBottom: '20px' }}>
+        {isMarkLang ? 'Statistiken' : 'Statistics'}
+      </h2>
+
+      {/* ── TOP STATS GRID ── */}
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
+        {statBox(isMarkLang ? 'Heute gelernt' : 'Learned today', todayCorrect, isMarkLang ? `${todaySessions} Session${todaySessions !== 1 ? 's' : ''}` : `${todaySessions} session${todaySessions !== 1 ? 's' : ''}`)}
+        {statBox(isMarkLang ? 'Streak' : 'Streak', myStreak > 0 ? `🔥 ${myStreak}` : '—', isMarkLang ? 'Tage' : 'days')}
+      </div>
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+        {statBox(isMarkLang ? 'Karten gesamt' : 'Total cards', totalCards, `${myMastered} ✓`)}
+        {statBox(isMarkLang ? 'Morgen fällig' : 'Due tomorrow', dueTomorrow, '')}
+      </div>
+
+      {/* ── 7-DAY CHART ── */}
+      <div style={{ ...s.card, marginBottom: '16px' }}>
+        <StreakWidget history={sessionHistory} th={th} t={t} />
+      </div>
+
+      {/* ── PARTNER COMPARISON ── */}
+      {hasPartner && (
+        <div style={s.card}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <span style={{ color: th.accent, fontWeight: '700', fontSize: '0.9rem' }}>{myName}</span>
+            <span style={{ color: th.sub, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px', alignSelf: 'center' }}>vs</span>
+            <span style={{ color: th.gold, fontWeight: '700', fontSize: '0.9rem' }}>{partnerName}</span>
+          </div>
+          {compRow(isMarkLang ? 'Heute gelernt' : 'Today', todayCorrect, partnerTodayCorrect)}
+          {compRow(isMarkLang ? 'Sessions heute' : 'Sessions today', todaySessions, partnerTodaySessions)}
+          {compRow(isMarkLang ? 'Streak 🔥' : 'Streak 🔥', myStreak, partnerStreak)}
+          {compRow(isMarkLang ? 'Gemeistert ✓' : 'Mastered ✓', myMastered, partnerMastered)}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0 0' }}>
+            <span style={{ color: th.text, fontWeight: '600', fontSize: '0.85rem', minWidth: '60px', textAlign: 'center' }}>{Object.keys(cardProgress).length}</span>
+            <span style={{ color: th.sub, fontSize: '0.75rem', flex: 1, textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{isMarkLang ? 'Aktive Karten' : 'Active cards'}</span>
+            <span style={{ color: th.text, fontWeight: '600', fontSize: '0.85rem', minWidth: '60px', textAlign: 'center' }}>{partnerActive}</span>
+          </div>
+        </div>
+      )}
+    </div></div>
+  )
+}
+
 function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSaveProgress, theme, onThemeChange, onPartnerUpdate, onSaveCefr }) {
   const [screen, setScreen] = useState('menu')
   const [session, setSession] = useState(null)
   const [result, setResult] = useState(null)
   const [masteryUnlocked, setMasteryUnlocked] = useState(false)
   const [aiNotification, setAiNotification] = useState(null)
-  const [progressOpen, setProgressOpen] = useState(false)
   const [pendingSession, setPendingSession] = useState(null)
   const [resumeStartIndex, setResumeStartIndex] = useState(0)
   const [resumeStartProgress, setResumeStartProgress] = useState(null)
@@ -1887,22 +2049,13 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const isMarkLang = lang === 'de'
   const cefr = myData?.cefr
   const sessionHistory = myData?.sessionHistory || []
-  const enStats = isMarkLang ? getLangStats(allCards, cardProgress, 'en') : null
-  const swStats = isMarkLang ? getLangStats(allCards, cardProgress, 'sw') : null
-  const deStats = !isMarkLang ? getLangStats(allCards, cardProgress, 'de') : null
-  const partnerProgress = partnerData?.cardProgress || {}
-  const partnerMastered = Object.values(partnerProgress).filter(p => (p?.interval || 0) >= 7).length
-  const partnerActive = Object.keys(partnerProgress).length
   const partnerName = myData?.partnerName || partnerData?.name?.split(' ')[0] || 'Partner'
   const today = todayStr()
-  const myTodaySessions = sessionHistory.filter(h => h.date === today).length
   const pausedLanguages = myData?.pausedLanguages || []
   const uniqueTargetLangs = [...new Set(allCards.map(c => c.targetLang).filter(Boolean))]
   const activeCards = pausedLanguages.length > 0
     ? allCards.filter(c => !pausedLanguages.includes(c.targetLang))
     : allCards
-  const partnerSessionHistory = partnerData?.sessionHistory || []
-  const partnerTodaySessions = partnerSessionHistory.filter(h => h.date === today).length
 
   // ── MONTHLY TEST CHECK ────────────────────────────────────
   const testDue = !myData?.cefr || daysSince(myData?.lastTestDate) >= MONTHLY_TEST_DAYS
@@ -2205,10 +2358,11 @@ Return ONLY one word: vocabulary, street, home, or sentence.
 
   if (screen === 'cards' && session) return <CardScreen session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} onSaveSessionProgress={saveSessionProgress} mode={currentSessionMode} startIndex={resumeStartIndex} startProgress={resumeStartProgress} />
   if (screen === 'result') return <ResultScreen correct={result.correct} wrong={result.wrong} masteryUnlocked={masteryUnlocked} t={t} onBack={() => { setScreen('menu'); setSession(null) }} s={s} />
-  if (screen === 'settings') return <SettingsScreen t={t} s={s} theme={theme} onThemeChange={onThemeChange} onBack={() => setScreen('menu')} user={user} myData={myData} setMyData={setMyData} allCards={allCards} />
+  if (screen === 'settings') return <SettingsScreen t={t} s={s} theme={theme} onThemeChange={onThemeChange} onBack={() => setScreen('menu')} user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} />
   if (screen === 'partner') return <PartnerScreen user={user} myData={myData} lang={lang} theme={theme} onBack={() => setScreen('menu')} onPartnerUpdate={(uid) => { onPartnerUpdate(uid); setScreen('menu') }} />
   if (screen === 'test') return <PlacementTest lang={lang} theme={theme} user={user} onBack={() => setScreen('menu')} onSaveCefr={onSaveCefr} />
   if (screen === 'impressum') return <ImpressumScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} />
+  if (screen === 'stats') return <StatsScreen user={user} myData={myData} partnerData={partnerData} allCards={allCards} lang={lang} theme={theme} onBack={() => setScreen('menu')} cardProgress={cardProgress} />
   if (screen === 'ki') return <KiGespraechScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} userName={user.displayName?.split(' ')[0] || 'du'} />
   if (screen === 'satz') return <SatzTrainingScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} userName={user.displayName?.split(' ')[0] || 'du'} />
 
@@ -2297,53 +2451,10 @@ Return ONLY one word: vocabulary, street, home, or sentence.
         </button>
       </div>
 
-      {/* ── PROGRESS PANEL ── */}
-      {progressOpen && (
-        <div style={{ ...s.card, marginBottom: '12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-            <p style={{ ...s.cardLabel, marginBottom: 0 }}>{t.myProgress}</p>
-            <button onClick={() => setProgressOpen(false)} style={{ background: 'none', border: 'none', color: th.sub, cursor: 'pointer', fontSize: '1.1rem', lineHeight: 1, padding: '2px 4px', borderRadius: '4px' }}>✕</button>
-          </div>
-          {isMarkLang ? (
-            <>
-              <StatRow label="Englisch" mastered={enStats.mastered} active={enStats.active} total={enStats.total} s={s} />
-              <StatRow label="Swahili" mastered={swStats.mastered} active={swStats.active} total={swStats.total} s={s} />
-            </>
-          ) : (
-            <StatRow label="Deutsch" mastered={deStats.mastered} active={deStats.active} total={deStats.total} s={s} />
-          )}
-          {myData?.partnerUID || [MARK_UID, ELOSY_UID].includes(user.uid) ? (
-            <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: `1px solid ${th.border}` }}>
-              <p style={{ color: th.sub, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 8px 0' }}>
-                {lang === 'de' ? '📊 Sessions heute' : '📊 Sessions today'}
-              </p>
-              <div style={{ ...s.langRow, marginBottom: '6px' }}>
-                <span style={{ ...s.lang, fontSize: '0.85rem' }}>{firstName}</span>
-                <span style={{ ...s.langPct, fontSize: '0.8rem' }}>
-                  {myTodaySessions} {lang === 'de' ? (myTodaySessions === 1 ? 'Session' : 'Sessions') : (myTodaySessions === 1 ? 'session' : 'sessions')}
-                </span>
-              </div>
-              <div style={s.langRow}>
-                <span style={{ ...s.lang, fontSize: '0.85rem' }}>{partnerName}</span>
-                <span style={{ ...s.langPct, fontSize: '0.8rem' }}>
-                  {partnerTodaySessions} {lang === 'de' ? (partnerTodaySessions === 1 ? 'Session' : 'Sessions') : (partnerTodaySessions === 1 ? 'session' : 'sessions')}
-                  {' · '}{partnerMastered}/{partnerActive} ✓
-                </span>
-              </div>
-            </div>
-          ) : (
-            <p style={{ ...s.noPartner, marginTop: '8px' }}>
-              {t.notActive} — <span style={{ color: th.accent, cursor: 'pointer' }} onClick={() => setScreen('partner')}>verbinden →</span>
-            </p>
-          )}
-          <StreakWidget history={sessionHistory} th={th} t={t} />
-        </div>
-      )}
-
       {/* ── SECONDARY NAVIGATION ── */}
       <div style={{ marginTop: '4px', marginBottom: '10px' }}>
         <button style={s.navBtn} onClick={() => setScreen('ki')}>KI-Gespräch</button>
-        <button style={progressOpen ? { ...s.navBtn, color: th.accent, borderColor: th.accent } : s.navBtn} onClick={() => setProgressOpen(o => !o)}>
+        <button style={s.navBtn} onClick={() => setScreen('stats')}>
           Fortschritt{cefr ? ` · ${cefr}` : ''}
         </button>
         <button style={s.navBtn} onClick={() => setScreen('partner')}>
