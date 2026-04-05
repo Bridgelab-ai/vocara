@@ -91,6 +91,29 @@ async function speak(text, langCode) {
   if (preferred) u.voice = preferred
   window.speechSynthesis.speak(u)
 }
+async function speakSyllable(text, langCode) {
+  if (!window.speechSynthesis || !text) return
+  window.speechSynthesis.cancel()
+  const langTag = SPEECH_LANGS[langCode] || 'en-GB'
+  const voices = await new Promise(resolve => {
+    const v = window.speechSynthesis.getVoices()
+    if (v.length) { resolve(v); return }
+    window.speechSynthesis.onvoiceschanged = () => resolve(window.speechSynthesis.getVoices())
+  })
+  const preferred = voices.find(v => v.lang === langTag && v.name.toLowerCase().includes('google'))
+    || voices.find(v => v.lang === langTag && !v.localService)
+    || voices.find(v => v.lang.startsWith(langTag.split('-')[0]) && v.name.toLowerCase().includes('google'))
+    || voices.find(v => v.lang.startsWith(langTag.split('-')[0]))
+  const words = text.trim().split(/\s+/).filter(Boolean)
+  words.forEach((word, i) => {
+    setTimeout(() => {
+      const u = new SpeechSynthesisUtterance(word)
+      u.lang = langTag; u.rate = 0.65
+      if (preferred) u.voice = preferred
+      window.speechSynthesis.speak(u)
+    }, i * 500)
+  })
+}
 
 const PLACEMENT_EN = [
   { id: 'p_en_1', level: 'A1', question: 'What does "Hello" mean?', options: ['Hallo', 'Tschüss', 'Danke', 'Bitte'], correct: 0 },
@@ -565,11 +588,29 @@ function calcStreak(history) {
   }
   return streak
 }
+function calcLongestStreak(history) {
+  if (!history?.length) return 0
+  const dates = [...new Set(history.map(h => h.date))].sort()
+  if (!dates.length) return 0
+  let maxStreak = 1, streak = 1
+  for (let i = 1; i < dates.length; i++) {
+    const [py, pm, pd] = dates[i - 1].split('-').map(Number)
+    const prev = new Date(py, pm - 1, pd); prev.setDate(prev.getDate() + 1)
+    const [cy, cm, cd] = dates[i].split('-').map(Number)
+    const curr = new Date(cy, cm - 1, cd)
+    if (prev.getTime() === curr.getTime()) { streak++; maxStreak = Math.max(maxStreak, streak) }
+    else streak = 1
+  }
+  return maxStreak
+}
 function getLast7Days(history) {
   const result = []
   for (let i = 6; i >= 0; i--) {
     const d = new Date(); d.setDate(d.getDate() - i)
-    const dateStr = d.toISOString().split('T')[0]
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    const dateStr = `${year}-${month}-${day}`
     const sessions = history?.filter(h => h.date === dateStr) || []
     result.push({ date: dateStr, done: sessions.length > 0, total: sessions.reduce((a, b) => a + (b.total || 0), 0), correct: sessions.reduce((a, b) => a + (b.correct || 0), 0) })
   }
@@ -1027,8 +1068,55 @@ function OnboardingScreen({ lang, theme, onDone }) {
   const th = THEMES[theme]
   const slides = lang === 'de' ? ONBOARDING_SLIDES_DE : ONBOARDING_SLIDES_EN
   const [index, setIndex] = useState(0)
+  const [showCities, setShowCities] = useState(false)
+  const [homeCity, setHomeCity] = useState('')
+  const [partnerCity, setPartnerCity] = useState('')
   const isLast = index === slides.length - 1
   const slide = slides[index]
+
+  const inputStyle = { width: '100%', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '10px', padding: '12px 14px', color: '#fff', fontSize: '1rem', outline: 'none', boxSizing: 'border-box', marginBottom: '12px' }
+
+  if (showCities) {
+    return (
+      <div style={{ minHeight: '100vh', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: th.bg }} className="vocara-screen">
+        <div style={{ textAlign: 'center', padding: '32px 24px', width: '100%', maxWidth: '420px', animation: 'vocaraFadeIn 0.3s ease both' }}>
+          <p style={{ fontSize: '3.5rem', margin: '0 0 16px 0' }}>🏙️</p>
+          <h2 style={{ color: th.gold, fontSize: '1.5rem', fontWeight: 'bold', margin: '0 0 10px 0' }}>
+            {lang === 'de' ? 'Eure Städte' : 'Your cities'}
+          </h2>
+          <p style={{ color: th.sub, fontSize: '0.95rem', lineHeight: '1.6', margin: '0 0 28px 0' }}>
+            {lang === 'de'
+              ? 'Damit die KI-Karten persönliche Geschichten über euch erzählen können.'
+              : 'So the AI cards can tell personal stories about you.'}
+          </p>
+          <input
+            style={inputStyle}
+            placeholder={lang === 'de' ? '🏠 Deine Stadt (z.B. Hamburg)' : '🏠 Your city (e.g. Hamburg)'}
+            value={homeCity}
+            onChange={e => setHomeCity(e.target.value)}
+          />
+          <input
+            style={inputStyle}
+            placeholder={lang === 'de' ? '✈️ Stadt deines Partners (z.B. Nairobi)' : "✈️ Partner's city (e.g. Nairobi)"}
+            value={partnerCity}
+            onChange={e => setPartnerCity(e.target.value)}
+          />
+          <button
+            style={{ background: th.accent, color: '#fff', border: 'none', padding: '14px 28px', borderRadius: '10px', fontSize: '1rem', cursor: 'pointer', fontWeight: 'bold', width: '100%', marginBottom: '12px' }}
+            onClick={() => onDone({ homeCity: homeCity.trim() || undefined, partnerCity: partnerCity.trim() || undefined })}
+          >
+            {lang === 'de' ? 'Level-Check starten →' : 'Start level check →'}
+          </button>
+          <button
+            style={{ background: 'transparent', color: th.sub, border: 'none', padding: '8px', fontSize: '0.85rem', cursor: 'pointer', width: '100%' }}
+            onClick={() => onDone({})}
+          >
+            {lang === 'de' ? 'Überspringen' : 'Skip'}
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={{ minHeight: '100vh', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: th.bg }} className="vocara-screen">
@@ -1050,14 +1138,14 @@ function OnboardingScreen({ lang, theme, onDone }) {
         {/* Buttons */}
         <button
           style={{ background: th.accent, color: '#fff', border: 'none', padding: '14px 28px', borderRadius: '10px', fontSize: '1rem', cursor: 'pointer', fontWeight: 'bold', width: '100%', marginBottom: '12px' }}
-          onClick={() => isLast ? onDone() : setIndex(i => i + 1)}
+          onClick={() => isLast ? setShowCities(true) : setIndex(i => i + 1)}
         >
-          {isLast ? (lang === 'de' ? 'Level-Check starten →' : 'Start level check →') : (lang === 'de' ? 'Weiter →' : 'Next →')}
+          {isLast ? (lang === 'de' ? 'Weiter →' : 'Next →') : (lang === 'de' ? 'Weiter →' : 'Next →')}
         </button>
         {!isLast && (
           <button
             style={{ background: 'transparent', color: th.sub, border: 'none', padding: '8px', fontSize: '0.85rem', cursor: 'pointer', width: '100%' }}
-            onClick={onDone}
+            onClick={() => onDone({})}
           >
             {lang === 'de' ? 'Überspringen' : 'Skip'}
           </button>
@@ -1116,7 +1204,8 @@ function StreakWidget({ history, th, t }) {
         {days.map((day, i) => {
           const isToday = day.date === today
           const pct = day.total > 0 ? Math.round((day.correct / day.total) * 100) : 0
-          const d = new Date(day.date)
+          const [dy, dm, dd] = day.date.split('-').map(Number)
+          const d = new Date(dy, dm - 1, dd)
           const dayLabel = weekDays[d.getDay() === 0 ? 6 : d.getDay() - 1]
           return (
             <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
@@ -1695,8 +1784,11 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
   const [wrong, setWrong] = useState(0)
   const [newProgress, setNewProgress] = useState(startProgress || { ...cardProgress })
   const [cardTilt, setCardTilt] = useState({ x: 0, y: 0 })
+  const [ttsMode, setTtsMode] = useState(0)
   const startTime = useRef(Date.now())
   const answeredIds = useRef(new Set())
+  const easyCountRef = useRef(0)
+  const cardStatsRef = useRef({})
 
   useEffect(() => {
     if (!window.DeviceOrientationEvent) return
@@ -1716,7 +1808,11 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
   const toLang = item.langB
   const showPronunciation = item.pronunciation
   // Always speak the back (toLang) text in its language
-  const speakBack = () => speak(item.back, item.langB)
+  const speakBack = () => {
+    if (ttsMode === 0) speakSyllable(item.back, item.langB)
+    else speak(item.back, item.langB)
+  }
+  const cycleTtsMode = () => setTtsMode(m => (m + 1) % 2)
 
   const handleReveal = () => {
     startTime.current = Date.now()
@@ -1733,13 +1829,16 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
   const handleEasy = () => {
     const cardId = item.id
     answeredIds.current.add(cardId)
+    easyCountRef.current += 1
+    const st = cardStatsRef.current[cardId] || { wrongs: 0, fastestMs: Infinity }
+    cardStatsRef.current[cardId] = { ...st, fastestMs: Math.min(st.fastestMs, 500) }
     const prev = newProgress[cardId] || { interval: 0, consecutiveFast: 0, wrongSessions: 0 }
     const easyInterval = Math.max(7, (prev.interval || 0) + 3)
     const updatedProgress = { ...prev, interval: easyInterval, consecutiveFast: 0, wrongSessions: Math.max(0, (prev.wrongSessions || 0) - 1), nextReview: getNextReview(easyInterval) }
     const finalProgress = { ...newProgress, [cardId]: updatedProgress }
     setNewProgress(finalProgress)
     const newCorrect = correct + 1; setCorrect(newCorrect)
-    if (index + 1 >= queue.length) { onFinish(finalProgress, newCorrect, wrong); return }
+    if (index + 1 >= queue.length) { onFinish(finalProgress, newCorrect, wrong, easyCountRef.current, cardStatsRef.current); return }
     setIndex(i => i + 1); setRevealed(false)
     onSaveState?.(queue, index + 1, finalProgress)
   }
@@ -1748,21 +1847,25 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
     const speed = getSpeed(elapsed)
     const cardId = item.id
     answeredIds.current.add(cardId)
-    const prev = newProgress[cardId] || { interval: 0, consecutiveFast: 0, wrongSessions: 0 }
+    const st = cardStatsRef.current[cardId] || { wrongs: 0, fastestMs: Infinity }
     if (!isCorrect) {
+      cardStatsRef.current[cardId] = { ...st, wrongs: st.wrongs + 1 }
+      const prev = newProgress[cardId] || { interval: 0, consecutiveFast: 0, wrongSessions: 0 }
       const updatedProgress = { ...prev, interval: 0, consecutiveFast: 0, wrongSessions: 3, nextReview: todayStr() }
       const finalNewProgress = { ...newProgress, [cardId]: updatedProgress }
       const newQueue = [...queue]; newQueue.splice(index, 1); newQueue.push({ ...item })
       setQueue(newQueue); setNewProgress(finalNewProgress); setWrong(w => w + 1); setRevealed(false)
       onSaveState?.(newQueue, index, finalNewProgress)
     } else {
+      cardStatsRef.current[cardId] = { ...st, fastestMs: Math.min(st.fastestMs, elapsed * 1000) }
+      const prev = newProgress[cardId] || { interval: 0, consecutiveFast: 0, wrongSessions: 0 }
       const newCF = speed === 'very_fast' ? (prev.consecutiveFast || 0) + 1 : 0
       const interval = getNewInterval(speed, { consecutiveFast: newCF })
       const updatedProgress = { ...prev, interval, consecutiveFast: newCF, wrongSessions: Math.max(0, (prev.wrongSessions || 0) - 1), nextReview: getNextReview(interval) }
       const finalProgress = { ...newProgress, [cardId]: updatedProgress }
       setNewProgress(finalProgress)
       const newCorrect = correct + 1; setCorrect(newCorrect)
-      if (index + 1 >= queue.length) { onFinish(finalProgress, newCorrect, wrong); return }
+      if (index + 1 >= queue.length) { onFinish(finalProgress, newCorrect, wrong, easyCountRef.current, cardStatsRef.current); return }
       setIndex(i => i + 1); setRevealed(false)
       onSaveState?.(queue, index + 1, finalProgress)
     }
@@ -1815,6 +1918,11 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
           }}>
             {item.category === 'street' ? 'Slang' : 'Hochsprache'}
           </div>
+          {item.sharedBy && !cardProgress[item.id] && (
+            <div style={{ position: 'absolute', top: '8px', right: '10px', background: 'rgba(255,215,0,0.18)', color: '#FFD700', border: '1px solid rgba(255,215,0,0.35)', borderRadius: '6px', padding: '2px 7px', fontSize: '9px', fontWeight: '600', letterSpacing: '0.3px', pointerEvents: 'none' }}>
+              🎁 {item.sharedBy}
+            </div>
+          )}
           <p style={s.dirLabel}>{LANG_FLAGS[fromLang]} → {LANG_FLAGS[toLang]}</p>
           <p style={s.cardFront}>{question}</p>
           {!revealed && (
@@ -1824,7 +1932,10 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
             <div style={{ animation: 'vocaraFadeIn 0.3s ease both', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center' }}>
                 <p style={{ ...s.cardBack, margin: 0 }}>{answer}</p>
-                <button onClick={speakBack} style={{ background: 'transparent', border: 'none', fontSize: '1.3rem', cursor: 'pointer', padding: '4px', opacity: 0.8 }}>🔊</button>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                  <button onClick={speakBack} style={{ background: 'transparent', border: 'none', fontSize: '1.3rem', cursor: 'pointer', padding: '4px', opacity: 0.8 }}>🔊</button>
+                  <button onClick={cycleTtsMode} style={{ background: 'transparent', border: `1px solid rgba(140,140,155,0.35)`, borderRadius: '4px', fontSize: '0.58rem', cursor: 'pointer', padding: '1px 5px', color: '#8A8A9A', fontFamily: "'Inter', system-ui, sans-serif", letterSpacing: '0.3px' }}>{ttsMode === 0 ? 'Silbe' : 'Satz'}</button>
+                </div>
               </div>
               {showPronunciation && <p style={s.cardPronunciation}>🔊 {t.pronunciation}: {item.pronunciation}</p>}
               {item.context && <p style={s.cardContext}>„{item.context}"</p>}
@@ -1843,7 +1954,8 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
   )
 }
 
-function ResultScreen({ correct, wrong, masteryUnlocked, t, onBack, s }) {
+function ResultScreen({ correct, wrong, easy, weakestCard, strongestCard, masteryUnlocked, t, lang, onBack, onReplay, s, th }) {
+  const isMarkLang = lang === 'de'
   return (
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
       <h1 style={s.title}>{t.done} 🎉</h1>
@@ -1851,8 +1963,34 @@ function ResultScreen({ correct, wrong, masteryUnlocked, t, onBack, s }) {
       <div style={s.card}>
         <div style={s.langRow}><span style={s.lang}>{t.correct}</span><span style={{ ...s.langPct, color: '#4CAF50' }}>{correct}</span></div>
         <div style={s.langRow}><span style={s.lang}>{t.wrong}</span><span style={{ ...s.langPct, color: '#f44336' }}>{wrong}</span></div>
+        {easy > 0 && <div style={s.langRow}><span style={s.lang}>Easy ⚡</span><span style={{ ...s.langPct, color: th?.gold || '#FFD700' }}>{easy}</span></div>}
       </div>
-      <button style={s.button} onClick={onBack}>{t.back}</button>
+      {(weakestCard || strongestCard) && (
+        <div style={s.card}>
+          {weakestCard && (
+            <div style={{ marginBottom: strongestCard ? '14px' : 0 }}>
+              <p style={{ ...s.cardLabel, marginBottom: '5px', color: '#e06c75' }}>⚠️ {isMarkLang ? 'Schwächste Karte' : 'Weakest card'}</p>
+              <p style={{ color: th?.text || '#fff', fontSize: '0.9rem', margin: 0, fontWeight: '500' }}>{weakestCard.front}</p>
+              <p style={{ color: th?.sub || '#888', fontSize: '0.8rem', margin: '2px 0 0' }}>{weakestCard.back}</p>
+            </div>
+          )}
+          {strongestCard && (
+            <div>
+              <p style={{ ...s.cardLabel, marginBottom: '5px', color: '#4CAF50' }}>⚡ {isMarkLang ? 'Stärkste Karte' : 'Strongest card'}</p>
+              <p style={{ color: th?.text || '#fff', fontSize: '0.9rem', margin: 0, fontWeight: '500' }}>{strongestCard.front}</p>
+              <p style={{ color: th?.sub || '#888', fontSize: '0.8rem', margin: '2px 0 0' }}>{strongestCard.back}</p>
+            </div>
+          )}
+        </div>
+      )}
+      {onReplay && (
+        <button style={{ ...s.button, marginBottom: '8px' }} onClick={onReplay}>
+          🔁 {isMarkLang ? 'Nochmal' : 'Again'}
+        </button>
+      )}
+      <button style={{ background: 'transparent', color: th?.sub || '#888', border: `1px solid ${th?.border || '#333'}`, padding: '12px 28px', borderRadius: '50px', fontSize: '0.95rem', cursor: 'pointer', fontWeight: '600', width: '100%' }} onClick={onBack}>
+        {isMarkLang ? 'Fertig' : 'Done'}
+      </button>
     </div></div>
   )
 }
@@ -1866,6 +2004,15 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
   const [newCardCat, setNewCardCat] = useState('vocabulary')
   const [cardSaveStatus, setCardSaveStatus] = useState(null)
   const [catUserOverride, setCatUserOverride] = useState(false)
+  const [editCard, setEditCard] = useState(null)
+  const [editFront, setEditFront] = useState('')
+  const [editBack, setEditBack] = useState('')
+  const [editCat, setEditCat] = useState('vocabulary')
+  const [editPronunciation, setEditPronunciation] = useState('')
+  const [shareStatus, setShareStatus] = useState(null)
+  const myPartnerUID = myData?.partnerUID || (user.uid === MARK_UID ? ELOSY_UID : user.uid === ELOSY_UID ? MARK_UID : null)
+  const myPartnerName = myData?.partnerName || (user.uid === MARK_UID ? 'Elosy' : user.uid === ELOSY_UID ? 'Mark' : null)
+  const firstName = user.displayName?.split(' ')[0] || 'Partner'
 
   useEffect(() => {
     if (catUserOverride) return
@@ -1927,6 +2074,50 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
       setTimeout(() => setCardSaveStatus(null), 3000)
     }
   }
+  const openEditCard = (card) => {
+    setEditCard(card); setEditFront(card.front); setEditBack(card.back)
+    setEditCat(card.category || 'vocabulary'); setEditPronunciation(card.pronunciation || '')
+  }
+  const saveEditCard = async () => {
+    if (!editFront.trim() || !editBack.trim()) return
+    const updatedAiCards = (myData?.aiCards || []).map(c =>
+      c.id === editCard.id
+        ? { ...c, front: editFront.trim(), back: editBack.trim(), category: editCat, ...(editPronunciation.trim() ? { pronunciation: editPronunciation.trim() } : { pronunciation: undefined }) }
+        : c
+    )
+    try {
+      await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards })
+      setMyData(d => ({ ...d, aiCards: updatedAiCards }))
+      setEditCard(null)
+      setCardSaveStatus(lang === 'de' ? 'Karte gespeichert ✓' : 'Card saved ✓')
+      setTimeout(() => setCardSaveStatus(null), 2500)
+    } catch (e) { console.warn(e) }
+  }
+  const deleteEditCard = async () => {
+    const updatedAiCards = (myData?.aiCards || []).filter(c => c.id !== editCard.id)
+    try {
+      await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards })
+      setMyData(d => ({ ...d, aiCards: updatedAiCards }))
+      setEditCard(null)
+    } catch (e) { console.warn(e) }
+  }
+  const shareCardToPartner = async (card) => {
+    if (!myPartnerUID) return
+    const sharedCard = {
+      ...card,
+      id: `shared_${user.uid.slice(0, 6)}_${card.id}_${Date.now()}`,
+      sharedBy: firstName,
+      sharedAt: Date.now(),
+    }
+    try {
+      const pSnap = await getDoc(doc(db, 'users', myPartnerUID))
+      if (!pSnap.exists()) return
+      const existingShared = pSnap.data()?.sharedCards || []
+      await updateDoc(doc(db, 'users', myPartnerUID), { sharedCards: [...existingShared, sharedCard] })
+      setShareStatus(lang === 'de' ? `Mit ${myPartnerName} geteilt ✓` : `Shared with ${myPartnerName} ✓`)
+      setTimeout(() => setShareStatus(null), 3000)
+    } catch (e) { console.warn('Share failed:', e) }
+  }
 
   return (
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
@@ -1939,6 +2130,19 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
             <button key={key} style={s.themeBtn(theme === key, thm.accent)} onClick={() => onThemeChange(key)}>{thm.name}</button>
           ))}
         </div>
+      </div>
+      {/* ── TÄGLICHES LERNZIEL ── */}
+      <div style={s.card}>
+        <p style={{ ...s.cardLabel, marginBottom: '12px' }}>{lang === 'de' ? 'Tägliches Lernziel' : 'Daily learning goal'}</p>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {[5, 10, 15, 20].map(n => (
+            <button key={n}
+              onClick={async () => { await updateDoc(doc(db, 'users', user.uid), { dailyGoal: n }); setMyData(d => ({ ...d, dailyGoal: n })) }}
+              style={{ flex: 1, padding: '10px 0', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '0.9rem', background: (myData?.dailyGoal || 10) === n ? th.accent : 'transparent', color: (myData?.dailyGoal || 10) === n ? (th.btnTextColor || '#111') : th.sub, border: `1px solid ${(myData?.dailyGoal || 10) === n ? th.accent : th.border}` }}
+            >{n}</button>
+          ))}
+        </div>
+        <p style={{ color: th.sub, fontSize: '0.72rem', marginTop: '7px', marginBottom: 0 }}>{lang === 'de' ? 'Karten pro Tag' : 'Cards per day'}</p>
       </div>
       {uniqueTargetLangs.length > 0 && (
         <div style={s.card}>
@@ -2019,8 +2223,68 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
           {lang === 'de' ? 'Karte speichern' : 'Save card'}
         </button>
         {cardSaveStatus && <p style={{ color: th.accent, fontSize: '0.82rem', marginTop: '8px', textAlign: 'center' }}>{cardSaveStatus}</p>}
+        {/* ── LIVE VORSCHAU ── */}
+        {(newFront.trim() || newBack.trim()) && (
+          <div style={{ marginTop: '16px', background: th.bg, borderRadius: '14px', padding: '14px 16px', border: `1px solid ${th.border}` }}>
+            <p style={{ ...s.cardLabel, marginBottom: '10px' }}>{lang === 'de' ? 'Vorschau' : 'Preview'}</p>
+            <div style={{ position: 'relative', paddingTop: '4px' }}>
+              <div style={{ position: 'absolute', top: 0, right: 0, background: newCardCat === 'street' ? 'rgba(180,120,30,0.2)' : 'rgba(140,140,155,0.18)', color: newCardCat === 'street' ? '#C8922A' : '#8A8A9A', border: `1px solid ${newCardCat === 'street' ? 'rgba(180,120,30,0.35)' : 'rgba(140,140,155,0.28)'}`, borderRadius: '6px', padding: '2px 7px', fontSize: '9px', fontWeight: '600', letterSpacing: '0.5px', textTransform: 'uppercase', pointerEvents: 'none' }}>
+                {newCardCat === 'street' ? 'Slang' : 'Hochsprache'}
+              </div>
+              <p style={{ color: th.text, fontSize: '1rem', fontWeight: 'bold', margin: '0 0 10px 0', paddingRight: '76px' }}>{newFront || '…'}</p>
+              <div style={{ height: '1px', background: th.border, marginBottom: '10px' }} />
+              <p style={{ color: th.accent, fontSize: '1.2rem', fontWeight: 'bold', margin: 0 }}>{newBack || '…'}</p>
+            </div>
+          </div>
+        )}
       </div>
 
+      {/* ── KARTEN BEARBEITEN ── */}
+      {editCard && (
+        <div style={{ ...s.card, border: `1px solid ${th.accent}55` }}>
+          <p style={{ ...s.cardLabel, marginBottom: '14px' }}>{lang === 'de' ? 'Karte bearbeiten' : 'Edit card'}</p>
+          <input style={{ ...s.input, marginBottom: '8px' }} value={editFront} onChange={e => setEditFront(e.target.value)} placeholder={lang === 'de' ? 'Vorderseite' : 'Front'} />
+          <input style={{ ...s.input, marginBottom: '8px' }} value={editBack} onChange={e => setEditBack(e.target.value)} placeholder={lang === 'de' ? 'Rückseite' : 'Back'} />
+          <input style={{ ...s.input, marginBottom: '12px' }} value={editPronunciation} onChange={e => setEditPronunciation(e.target.value)} placeholder={lang === 'de' ? 'Aussprache (optional)' : 'Pronunciation (optional)'} />
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+            <button onClick={() => setEditCat('vocabulary')} style={{ flex: 1, padding: '8px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem', background: editCat !== 'street' ? 'rgba(140,140,155,0.25)' : 'transparent', color: editCat !== 'street' ? '#A0A0B8' : th.sub, border: `1px solid ${editCat !== 'street' ? 'rgba(140,140,155,0.45)' : th.border}` }}>Hochsprache</button>
+            <button onClick={() => setEditCat('street')} style={{ flex: 1, padding: '8px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem', background: editCat === 'street' ? 'rgba(180,120,30,0.2)' : 'transparent', color: editCat === 'street' ? '#C8922A' : th.sub, border: `1px solid ${editCat === 'street' ? 'rgba(180,120,30,0.4)' : th.border}` }}>Slang</button>
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button style={{ flex: 1, background: th.accent, color: th.btnTextColor || '#111', border: 'none', padding: '10px', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '0.9rem' }} onClick={saveEditCard}>{lang === 'de' ? 'Speichern' : 'Save'}</button>
+            <button style={{ flex: '0 0 auto', background: '#f4433618', color: '#e06c75', border: '1px solid #e06c75', padding: '10px 14px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.85rem' }} onClick={deleteEditCard}>{lang === 'de' ? 'Löschen' : 'Delete'}</button>
+            <button style={{ flex: '0 0 auto', background: 'transparent', color: th.sub, border: `1px solid ${th.border}`, padding: '10px 14px', borderRadius: '10px', cursor: 'pointer', fontSize: '0.85rem' }} onClick={() => setEditCard(null)}>✕</button>
+          </div>
+          {myPartnerUID && (
+            <button
+              onClick={() => shareCardToPartner(editCard)}
+              style={{ marginTop: '10px', width: '100%', background: 'transparent', border: `1px solid ${th.border}`, color: th.sub, padding: '9px', borderRadius: '10px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: '500' }}
+            >
+              🎁 {lang === 'de' ? `Mit ${myPartnerName} teilen` : `Share with ${myPartnerName}`}
+            </button>
+          )}
+          {shareStatus && <p style={{ color: th.accent, fontSize: '0.8rem', marginTop: '6px', textAlign: 'center', margin: '6px 0 0' }}>{shareStatus}</p>}
+        </div>
+      )}
+      {/* ── KARTEN LISTE ── */}
+      {(() => {
+        const userCards = (myData?.aiCards || []).filter(c => !/_r(_\d+)?$/.test(c.id))
+        if (!userCards.length) return null
+        return (
+          <div style={s.card}>
+            <p style={{ ...s.cardLabel, marginBottom: '12px' }}>{lang === 'de' ? `Meine Karten (${userCards.length})` : `My cards (${userCards.length})`}</p>
+            {userCards.map(card => (
+              <div key={card.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: `1px solid ${th.border}` }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ color: th.text, fontSize: '0.85rem', margin: 0, fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.front}</p>
+                  <p style={{ color: th.sub, fontSize: '0.75rem', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.back}</p>
+                </div>
+                <button onClick={() => openEditCard(card)} style={{ background: 'transparent', border: `1px solid ${th.border}`, color: th.sub, borderRadius: '8px', padding: '5px 10px', cursor: 'pointer', fontSize: '0.8rem', marginLeft: '10px', flexShrink: 0 }}>✏️</button>
+              </div>
+            ))}
+          </div>
+        )
+      })()}
       <div style={{ ...s.card, opacity: 0.4 }}>
         <p style={s.cardLabel}>{t.comingSoon}</p>
         <p style={s.noPartner}>Benachrichtigungen • Stumm-Modus</p>
@@ -2064,6 +2328,27 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
   const partnerProgress = partnerData?.cardProgress || {}
   const partnerMastered = Object.values(partnerProgress).filter(p => (p?.interval || 0) >= 7).length
   const partnerActive = Object.keys(partnerProgress).length
+
+  // Extended comparison stats
+  const myTotalLearned = sessionHistory.reduce((a, b) => a + (b.correct || 0), 0)
+  const partnerTotalLearned = partnerHistory.reduce((a, b) => a + (b.correct || 0), 0)
+  const myLongestStreak = calcLongestStreak(sessionHistory)
+  const partnerLongestStreak = calcLongestStreak(partnerHistory)
+  const currentWeekStr = getISOWeekStr()
+  const myWeekSessions = sessionHistory.filter(h => getISOWeekStr(new Date(...h.date.split('-').map((v,i) => i===1?v-1:+v))) === currentWeekStr).length
+  const partnerWeekSessions = partnerHistory.filter(h => getISOWeekStr(new Date(...h.date.split('-').map((v,i) => i===1?v-1:+v))) === currentWeekStr).length
+  const AREA_LABEL_MAP = { vocabulary: isMarkLang ? 'Worte' : 'Words', sentence: isMarkLang ? 'Sätze' : 'Sentences', street: isMarkLang ? 'Straße' : 'Street', home: isMarkLang ? 'Zuhause' : 'Home' }
+  const getFavArea = (progress) => {
+    const counts = {}
+    Object.keys(progress).forEach(id => {
+      const card = allCards.find(c => c.id === id)
+      if (card?.category) counts[card.category] = (counts[card.category] || 0) + 1
+    })
+    const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]
+    return top ? (AREA_LABEL_MAP[top[0]] || top[0]) : '—'
+  }
+  const myFavArea = getFavArea(cardProgress)
+  const partnerFavArea = getFavArea(partnerProgress)
 
   const myName = myData?.name?.split(' ')[0] || user.displayName?.split(' ')[0] || 'Ich'
   const partnerName = myData?.partnerName || partnerData?.name?.split(' ')[0] || 'Partner'
@@ -2128,10 +2413,14 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
           {compRow(isMarkLang ? 'Sessions heute' : 'Sessions today', todaySessions, partnerTodaySessions)}
           {compRow(isMarkLang ? 'Streak 🔥' : 'Streak 🔥', myStreak, partnerStreak)}
           {compRow(isMarkLang ? 'Gemeistert ✓' : 'Mastered ✓', myMastered, partnerMastered)}
+          {compRow(isMarkLang ? 'Aktive Karten' : 'Active cards', Object.keys(cardProgress).length, partnerActive)}
+          {compRow(isMarkLang ? 'Gesamt gelernt' : 'Total learned', myTotalLearned, partnerTotalLearned)}
+          {compRow(isMarkLang ? 'Längster Streak 🏆' : 'Best streak 🏆', myLongestStreak, partnerLongestStreak)}
+          {compRow(isMarkLang ? 'Lieblingsbereich' : 'Favourite area', myFavArea, partnerFavArea)}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0 0' }}>
-            <span style={{ color: th.text, fontWeight: '600', fontSize: '0.85rem', minWidth: '60px', textAlign: 'center' }}>{Object.keys(cardProgress).length}</span>
-            <span style={{ color: th.sub, fontSize: '0.75rem', flex: 1, textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{isMarkLang ? 'Aktive Karten' : 'Active cards'}</span>
-            <span style={{ color: th.text, fontWeight: '600', fontSize: '0.85rem', minWidth: '60px', textAlign: 'center' }}>{partnerActive}</span>
+            <span style={{ color: th.text, fontWeight: '600', fontSize: '0.85rem', minWidth: '60px', textAlign: 'center' }}>{myWeekSessions * 5} min</span>
+            <span style={{ color: th.sub, fontSize: '0.75rem', flex: 1, textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{isMarkLang ? 'Lernzeit Woche' : 'Study time week'}</span>
+            <span style={{ color: th.text, fontWeight: '600', fontSize: '0.85rem', minWidth: '60px', textAlign: 'center' }}>{partnerWeekSessions * 5} min</span>
           </div>
         </div>
       )}
@@ -2153,6 +2442,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const [currentSessionMode, setCurrentSessionMode] = useState('all')
   const [satzLoading, setSatzLoading] = useState(false)
   const [weekGoalCelebration, setWeekGoalCelebration] = useState(false)
+  const [monthlyUnlockNotification, setMonthlyUnlockNotification] = useState(false)
   const [weeklyGoals, setWeeklyGoals] = useState(() => {
     const currentWeek = getISOWeekStr()
     const stored = myData?.weeklyGoals
@@ -2166,11 +2456,29 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const sessionHistory = myData?.sessionHistory || []
   const partnerName = myData?.partnerName || partnerData?.name?.split(' ')[0] || 'Partner'
   const today = todayStr()
+  const yd = new Date(); yd.setDate(yd.getDate() - 1)
+  const yesterday = `${yd.getFullYear()}-${String(yd.getMonth() + 1).padStart(2, '0')}-${String(yd.getDate()).padStart(2, '0')}`
   const pausedLanguages = myData?.pausedLanguages || []
   const uniqueTargetLangs = [...new Set(allCards.map(c => c.targetLang).filter(Boolean))]
   const activeCards = pausedLanguages.length > 0
     ? allCards.filter(c => !pausedLanguages.includes(c.targetLang))
     : allCards
+
+  // ── STREAK STATUS ─────────────────────────────────────────
+  const sessionDates = [...new Set(sessionHistory.map(h => h.date))].sort()
+  const lastSessionDate = sessionDates[sessionDates.length - 1]
+  const streakStatus = !lastSessionDate ? null
+    : lastSessionDate >= today ? 'safe'
+    : lastSessionDate === yesterday ? 'warning'
+    : 'lost'
+
+  // ── DAILY GOAL ────────────────────────────────────────────
+  const todayCorrect = sessionHistory.filter(h => h.date === today).reduce((a, b) => a + (b.correct || 0), 0)
+  const dailyGoal = myData?.dailyGoal || 10
+
+  // ── PARTNER ONLINE STATUS ─────────────────────────────────
+  const partnerLastActive = partnerData?.lastActive
+  const partnerOnline = !!(partnerData && (partnerLastActive === today || partnerLastActive === yesterday))
 
   // ── MONTHLY TEST CHECK ────────────────────────────────────
   const testDue = !myData?.cefr || daysSince(myData?.lastTestDate) >= MONTHLY_TEST_DAYS
@@ -2319,11 +2627,24 @@ Return ONLY a valid JSON array with no markdown or explanation:
       const updated = { week: currentWeek, completed: [...base.completed, area] }
       updateDoc(doc(db, 'users', user.uid), { weeklyGoals: updated }).catch(() => {})
       if (updated.completed.length === 5) {
-        const newCount = (myData?.completedWeeks || 0) + 1
-        updateDoc(doc(db, 'users', user.uid), { completedWeeks: newCount }).catch(() => {})
-        setMyData(d => ({ ...d, completedWeeks: newCount, weeklyGoals: updated }))
+        const currentMonth = new Date().toISOString().slice(0, 7)
+        const storedMonthly = myData?.monthlyGoal || {}
+        const prevCompleted = storedMonthly.lastUnlock === currentMonth ? 0 : (storedMonthly.completedWeeks || 0)
+        const newWeekCount = prevCompleted + 1
         setWeekGoalCelebration(true)
         setTimeout(() => setWeekGoalCelebration(false), 4500)
+        if (newWeekCount >= 5) {
+          const newGimmicks = (myData?.unlockedGimmicks || 0) + 1
+          const newMonthly = { completedWeeks: 0, lastUnlock: currentMonth }
+          updateDoc(doc(db, 'users', user.uid), { monthlyGoal: newMonthly, unlockedGimmicks: newGimmicks, weeklyGoals: updated }).catch(() => {})
+          setMyData(d => ({ ...d, monthlyGoal: newMonthly, unlockedGimmicks: newGimmicks, weeklyGoals: updated }))
+          setMonthlyUnlockNotification(true)
+          setTimeout(() => setMonthlyUnlockNotification(false), 5000)
+        } else {
+          const newMonthly = { completedWeeks: newWeekCount, lastUnlock: storedMonthly.lastUnlock || null }
+          updateDoc(doc(db, 'users', user.uid), { monthlyGoal: newMonthly, weeklyGoals: updated }).catch(() => {})
+          setMyData(d => ({ ...d, monthlyGoal: newMonthly, weeklyGoals: updated }))
+        }
       } else {
         setMyData(d => ({ ...d, weeklyGoals: updated }))
       }
@@ -2361,6 +2682,8 @@ Return ONLY a valid JSON array with no markdown or explanation:
     for (const req of requests) {
       const knownList = knownFronts.slice(0, 80).join(' | ')
       const isSwahili = req.langA === 'sw'
+      const isEnglish = req.langA === 'en'
+      const needsPronunciation = isSwahili || isEnglish
       const prompt = `Generate exactly ${req.count} vocabulary flashcard${req.count > 1 ? 's' : ''} for a language learner.
 Front language: ${LANG_NAMES[req.langA]}
 Back language: ${LANG_NAMES[req.langB]}
@@ -2375,9 +2698,12 @@ Rules:
 - Add a "pronunciation" field with German-phonetic pronunciation guide for the Swahili front text
 - German phonetics only: "a" like German "Vater", "e" like "Bett", "i" like "mit", rolled "r"
 - No English sounds — never use "ay", "oh", "ee"; use "e", "o", "i" instead
-- Example: "habari" → "ha-BA-ri", "asante" → "a-SAN-te"` : ''}
+- Example: "habari" → "ha-BA-ri", "asante" → "a-SAN-te"` : ''}${isEnglish ? `
+- Add a "pronunciation" field with German-friendly phonetic spelling for the English front text
+- Use German phonetics: "ä" for short "e", "i" for "ee", "o" for "oh", syllable breaks with "-", stress with CAPS
+- Example: "weather" → "WE-dser", "thought" → "Ssot", "through" → "Ssru"` : ''}
 
-Format: [{"front":"...","back":"...","context":"...","category":"..."${isSwahili ? ',"pronunciation":"..."' : ''}}]`
+Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPronunciation ? ',"pronunciation":"..."' : ''}}]`
 
       try {
         const res = await fetch('/api/chat', {
@@ -2399,6 +2725,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${isSwahili
             langB: req.langB,
             source: 'ai-generated',
             createdAt: ts,
+            ...(card.pronunciation ? { pronunciation: card.pronunciation } : {}),
           })
         })
       } catch (e) {
@@ -2421,7 +2748,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${isSwahili
     }
   }
 
-  const handleFinish = async (finalProgress, correct, wrong) => {
+  const handleFinish = async (finalProgress, correct, wrong, easy, cardStats) => {
     let unlocked = false
     if (checkMastery(allCards, finalProgress, correct, correct + wrong)) {
       const newBatch = getNextNewCards(allCards, finalProgress, NEW_CARDS_BATCH)
@@ -2439,11 +2766,17 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${isSwahili
     const updatedHistory = await saveSessionHistory(user.uid, correct, correct + wrong, sessionHistory)
     setMyData(d => ({ ...d, sessionHistory: updatedHistory }))
     await clearSessionState(user.uid)
-    setResult({ correct, wrong }); setScreen('result')
+    const statsEntries = Object.entries(cardStats || {})
+    const weakestEntry = statsEntries.filter(([, v]) => v.wrongs > 0).sort((a, b) => b[1].wrongs - a[1].wrongs)[0]
+    const strongestEntry = statsEntries.filter(([, v]) => v.wrongs === 0 && v.fastestMs < Infinity).sort((a, b) => a[1].fastestMs - b[1].fastestMs)[0]
+    const weakestCard = weakestEntry ? session?.find(c => c.id === weakestEntry[0]) : null
+    const strongestCard = strongestEntry ? session?.find(c => c.id === strongestEntry[0]) : null
+    setResult({ correct, wrong, easy: easy || 0, weakestCard, strongestCard, originalSession: session })
+    setScreen('result')
   }
 
   if (screen === 'cards' && session) return <CardScreen session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} onSaveSessionProgress={saveSessionProgress} mode={currentSessionMode} startIndex={resumeStartIndex} startProgress={resumeStartProgress} />
-  if (screen === 'result') return <ResultScreen correct={result.correct} wrong={result.wrong} masteryUnlocked={masteryUnlocked} t={t} onBack={() => { setScreen('menu'); setSession(null) }} s={s} />
+  if (screen === 'result') return <ResultScreen correct={result.correct} wrong={result.wrong} easy={result.easy} weakestCard={result.weakestCard} strongestCard={result.strongestCard} masteryUnlocked={masteryUnlocked} t={t} lang={lang} onBack={() => { setScreen('menu'); setSession(null) }} onReplay={result.originalSession ? () => { setSession(result.originalSession); setResumeStartIndex(0); setResumeStartProgress(null); setScreen('cards') } : null} s={s} th={th} />
   if (screen === 'settings') return <SettingsScreen t={t} s={s} theme={theme} onThemeChange={onThemeChange} onBack={() => setScreen('menu')} user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} />
   if (screen === 'partner') return <PartnerScreen user={user} myData={myData} lang={lang} theme={theme} onBack={() => setScreen('menu')} onPartnerUpdate={(uid) => { onPartnerUpdate(uid); setScreen('menu') }} />
   if (screen === 'test') return <PlacementTest lang={lang} theme={theme} user={user} onBack={() => setScreen('menu')} onSaveCefr={onSaveCefr} />
@@ -2458,7 +2791,12 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${isSwahili
       {/* ── LOGO ── */}
       <div className="vocara-logo-section" style={{ textAlign: 'center', paddingTop: '20px', paddingBottom: '16px' }}>
         <h1 className="vocara-logo-title" style={{ ...s.title, fontSize: 'clamp(4rem, 17vw, 6.5rem)', lineHeight: 1, marginBottom: '10px' }}>Vocara</h1>
-        <p className="vocara-logo-greeting" style={{ ...s.greeting, marginBottom: uniqueTargetLangs.length > 0 ? '6px' : 0 }}>{t.hello}, {firstName}</p>
+        <p className="vocara-logo-greeting" style={{ ...s.greeting, marginBottom: uniqueTargetLangs.length > 0 ? '6px' : 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px' }}>
+          {t.hello}, {firstName}
+          {partnerData && (
+            <span title={partnerOnline ? `${partnerName} ist aktiv` : `${partnerName}`} style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: partnerOnline ? '#4CAF50' : '#444', flexShrink: 0, boxShadow: partnerOnline ? '0 0 5px #4CAF5099' : 'none', transition: 'background 0.4s' }} />
+          )}
+        </p>
         {uniqueTargetLangs.length > 0 && (
           <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
             {uniqueTargetLangs.map(l => {
@@ -2483,6 +2821,19 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${isSwahili
           </span>
           <span style={{ color: '#f44336' }}>→</span>
         </button>
+      )}
+
+      {/* ── STREAK WARNING ── */}
+      {streakStatus === 'warning' && (
+        <div style={{ background: 'rgba(255,165,0,0.1)', border: '1px solid rgba(255,165,0,0.4)', borderRadius: '12px', padding: '10px 14px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '1.1rem' }}>⚠️</span>
+          <span style={{ color: '#FFA500', fontWeight: '600', fontSize: '0.88rem' }}>{isMarkLang ? 'Dein Streak ist in Gefahr!' : 'Your streak is at risk!'}</span>
+        </div>
+      )}
+      {streakStatus === 'lost' && (
+        <div style={{ background: 'rgba(136,136,136,0.1)', border: `1px solid ${th.border}`, borderRadius: '12px', padding: '10px 14px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ color: th.sub, fontWeight: '600', fontSize: '0.88rem' }}>{isMarkLang ? 'Streak verloren — neu starten! 💪' : 'Streak lost — start fresh! 💪'}</span>
+        </div>
       )}
 
       {/* ── SESSION RESUME DIALOG ── */}
@@ -2535,6 +2886,19 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${isSwahili
         <button className="vocara-alle-btn" style={{ ...s.button, padding: '13px 28px', fontSize: '0.9rem', letterSpacing: '0.2px', marginBottom: 0, '--gleam-delay': '2.5s' }} onClick={() => startCategorySession('all')}>
           {t.menuAlle}
         </button>
+      </div>
+
+      {/* ── TÄGLICHES LERNZIEL ── */}
+      <div style={{ marginBottom: '14px', padding: '0 2px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+          <span style={{ color: th.sub, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{isMarkLang ? 'Tagesziel' : 'Daily goal'}</span>
+          <span style={{ color: todayCorrect >= dailyGoal ? th.accent : th.sub, fontSize: '0.7rem', fontWeight: todayCorrect >= dailyGoal ? '700' : '400' }}>
+            {todayCorrect >= dailyGoal ? '✓ ' : ''}{todayCorrect} / {dailyGoal}
+          </span>
+        </div>
+        <div style={{ height: '3px', background: th.border, borderRadius: '2px', overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${Math.min(100, (todayCorrect / dailyGoal) * 100)}%`, background: todayCorrect >= dailyGoal ? th.accent : th.gold, borderRadius: '2px', transition: 'width 0.5s ease' }} />
+        </div>
       </div>
 
       {/* ── WOCHENZIEL DOTS ── */}
@@ -2593,6 +2957,11 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${isSwahili
       {weekGoalCelebration && (
         <div style={{ position: 'fixed', bottom: '80px', left: '50%', background: th.accent, color: '#111', padding: '14px 28px', borderRadius: '28px', fontSize: '1rem', fontWeight: 'bold', zIndex: 1000, animation: 'vocaraCelebrate 4.5s ease both', whiteSpace: 'nowrap', pointerEvents: 'none', boxShadow: `0 6px 28px ${th.glowColor}AA` }}>
           {t.weekGoalDone}
+        </div>
+      )}
+      {monthlyUnlockNotification && (
+        <div style={{ position: 'fixed', bottom: '130px', left: '50%', background: '#FFD700', color: '#111', padding: '14px 28px', borderRadius: '28px', fontSize: '1rem', fontWeight: 'bold', zIndex: 1001, animation: 'vocaraCelebrate 5s ease both', whiteSpace: 'nowrap', pointerEvents: 'none', boxShadow: '0 6px 28px rgba(255,215,0,0.6)' }}>
+          🎉 {lang === 'de' ? 'Monatsbonus freigeschaltet!' : 'Monthly bonus unlocked!'}
         </div>
       )}
     </div></div>
@@ -2705,8 +3074,12 @@ function App() {
     await updateDoc(doc(db, 'users', user.uid), update)
     setMyData(d => ({ ...d, ...update }))
   }
-  const handleOnboardingDone = async () => {
-    await updateDoc(doc(db, 'users', user.uid), { onboardingDone: true })
+  const handleOnboardingDone = async (cityData = {}) => {
+    const update = { onboardingDone: true }
+    if (cityData.homeCity) update.homeCity = cityData.homeCity
+    if (cityData.partnerCity) update.partnerCity = cityData.partnerCity
+    await updateDoc(doc(db, 'users', user.uid), update)
+    setMyData(d => ({ ...d, ...update }))
     setNeedsOnboarding(false)
   }
 
@@ -2727,6 +3100,7 @@ function App() {
   const allCards = [
     ...(isElosy ? ALL_ELOSY_CARDS : ALL_MARK_CARDS),
     ...(myData?.aiCards || []).flatMap(buildCardPair),
+    ...(myData?.sharedCards || []),
   ].map(card => {
     const baseId = card.id.replace(/_r(_\d+)?$/, '')
     const aiCat = cardCategories[baseId]
