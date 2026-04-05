@@ -28,14 +28,14 @@ const THEMES = {
   },
   hamburg: {
     name: '🌊 Hamburg',
-    bg: '#0D1F33', card: '#162840', text: '#E8F4FF', sub: '#4A80A8', border: '#1B3A5C',
-    accent: '#8B3A2A', gold: '#C4704A', glowColor: '#2E6B9E', btnTextColor: '#E8F4FF',
-    bgGrad: 'radial-gradient(ellipse at 50% 30%, #1B3A5C 0%, #0D1F33 55%, #050D1A 100%)',
-    metalGrad: 'linear-gradient(145deg, #3A8CC0 0%, #1B3A5C 30%, #8B3A2A 52%, #1B3A5C 72%, #3A8CC0 100%)',
-    metalText: 'linear-gradient(90deg, #05111F 0%, #6BB8E0 16%, #2E6B9E 33%, #A8D8F0 50%, #05111F 66%, #6BB8E0 83%, #2E6B9E 100%)',
-    btnFaceGrad: 'linear-gradient(90deg, #05111F 0%, #3A8CC0 16%, #1B3A5C 33%, #3A8CC0 50%, #05111F 66%, #3A8CC0 83%, #1B3A5C 100%)',
-    shadow3d: '0 1px 0 rgba(120,200,255,0.25) inset, 0 -1px 0 rgba(0,0,0,0.5) inset, 0 4px 0 #8B3A2A, 0 6px 0 #6B2A1A, 0 8px 0 #3B1A0A, 0 10px 20px rgba(0,0,0,0.75)',
-    shadowPressed: '0 1px 0 rgba(120,200,255,0.1) inset, 0 -1px 0 rgba(0,0,0,0.4) inset, 0 1px 0 #6B2A1A, 0 3px 8px rgba(0,0,0,0.6)',
+    bg: '#050D18', card: '#0D1E30', text: '#E8F4FF', sub: '#5A9AC0', border: '#1B3A5C',
+    accent: '#2E6B9E', gold: '#7AB8E8', glowColor: '#2E6B9E', btnTextColor: '#FFFFFF',
+    bgGrad: 'radial-gradient(ellipse at 50% 25%, #1B3A5C 0%, #0A1828 50%, #050D18 100%)',
+    metalGrad: 'linear-gradient(145deg, #7AB8E8 0%, #2E6B9E 25%, #1B3A5C 50%, #2E6B9E 75%, #7AB8E8 100%)',
+    metalText: 'linear-gradient(90deg, #2E6B9E 0%, #7AB8E8 16%, #1B3A5C 33%, #A8D8F0 50%, #2E6B9E 66%, #7AB8E8 83%, #1B3A5C 100%)',
+    btnFaceGrad: 'linear-gradient(90deg, #1B3A5C 0%, #2E6B9E 16%, #4A8EC4 33%, #7AB8E8 50%, #1B3A5C 66%, #2E6B9E 83%, #4A8EC4 100%)',
+    shadow3d: '0 1px 0 rgba(160,220,255,0.3) inset, 0 -1px 0 rgba(0,0,0,0.5) inset, 0 4px 0 #1B3A5C, 0 6px 0 #0F2440, 0 8px 0 #081828, 0 10px 20px rgba(0,0,0,0.75)',
+    shadowPressed: '0 1px 0 rgba(160,220,255,0.15) inset, 0 -1px 0 rgba(0,0,0,0.4) inset, 0 1px 0 #1B3A5C, 0 3px 8px rgba(0,0,0,0.6)',
   },
   welt: {
     name: '🌍 Welt',
@@ -417,11 +417,26 @@ function autoCategory(front) {
   return words.length <= 2 ? 'vocabulary' : 'sentence'
 }
 
+const DE_VOCAB_WHITELIST = new Set([
+  'schließlich','jedoch','deshalb','trotzdem','eigentlich','vielleicht','natürlich',
+  'außerdem','dennoch','daher','folglich','inzwischen','mittlerweile','allerdings',
+  'meistens','manchmal','häufig','selten','bereits','wirklich','tatsächlich','leider',
+  'hoffentlich','wahrscheinlich','offensichtlich','übrigens','zumindest','sogar',
+  'vorher','nachher','seitdem','anschließend','zunächst','bisher','plötzlich',
+  'irgendwie','irgendwann','irgendwo','ungefähr','überhaupt','sowieso','ohnehin',
+  'jedenfalls','immerhin','schon','noch','wieder','weiterhin','gleichzeitig',
+  'ansonsten','andererseits','einerseits','insgesamt','grundsätzlich','tatsächlich',
+  'beispielsweise','beziehungsweise','normalerweise','üblicherweise','regelmäßig',
+  'gelegentlich','ständig','dauerhaft','vorwiegend','hauptsächlich','besonders',
+  'lediglich','ausschließlich','laut','gegenüber','entsprechend','bezüglich',
+])
 function ruleCategory(card) {
   const front = card.front || ''
   const back = card.back || ''
   const words = front.trim().split(/\s+/).filter(Boolean)
   const backWords = back.trim().split(/\s+/).filter(Boolean)
+  // Rule 0: German common-word whitelist → always vocabulary
+  if (words.length === 1 && DE_VOCAB_WHITELIST.has(front.trim().toLowerCase())) return 'vocabulary'
   // Rule 1: Swahili card, pronunciation field, or common Swahili words → street
   const swahiliRe = /\b(habari|yako|nzuri|asante|karibu|pole|sawa|jambo|mambo|rafiki|wewe|mimi|nina|hii|hilo|chakula|maji|nyumba|watoto|upendo)\b/i
   if (card.langA === 'sw' || card.pronunciation || swahiliRe.test(front)) return 'street'
