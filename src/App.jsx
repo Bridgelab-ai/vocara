@@ -612,6 +612,12 @@ const GLOBAL_CSS = `
   0%   { background-position: -250% center; }
   100% { background-position: 250% center; }
 }
+@keyframes logoSweep {
+  0%    { background-position: -250% center; }
+  25%   { background-position: 250% center; }
+  25.1% { background-position: -250% center; }
+  100%  { background-position: -250% center; }
+}
 @keyframes btnGleam {
   0%, 82%  { transform: translateX(-130%) skewX(-15deg); opacity: 0; }
   87%      { opacity: 1; }
@@ -683,7 +689,7 @@ function makeStyles(th) {
       background: th.metalText,
       WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
       backgroundSize: th.rainbow ? '400% auto' : '300% auto',
-      animation: th.rainbow ? 'metalShimmer 2.5s linear infinite' : 'metalShimmer 3s linear infinite',
+      animation: th.rainbow ? 'metalShimmer 2.5s linear infinite' : 'logoSweep 8s ease-in-out infinite',
       filter: `drop-shadow(0 0 10px ${th.glowColor}70)`,
     },
     slogan: { color: th.sub, fontSize: '1rem', marginBottom: '32px', lineHeight: '1.8' },
@@ -1874,6 +1880,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const [categorizingStatus, setCategorizingStatus] = useState(null)
   const [resumeDialog, setResumeDialog] = useState(null)
   const [currentSessionMode, setCurrentSessionMode] = useState('all')
+  const [satzLoading, setSatzLoading] = useState(false)
   const t = T[lang]; const th = THEMES[theme]; const s = makeStyles(th)
   const firstName = user.displayName?.split(' ')[0] || user.displayName
   const cardProgress = myData?.cardProgress || {}
@@ -1944,6 +1951,64 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
     if (sess.length === 0) return
     setCurrentSessionMode(category)
     setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+  }
+  const startSatzSession = async () => {
+    const LANG_NAMES = { en: 'English', de: 'German', sw: 'Swahili' }
+    const vocabCards = activeCards.filter(c =>
+      c.category === 'vocabulary' &&
+      !/_r(_\d+)?$/.test(c.id) &&
+      cardProgress[c.id] !== undefined
+    )
+    if (vocabCards.length < 5) {
+      setEmptyCategoryMsg(isMarkLang
+        ? 'Noch zu wenig bekannte Wörter — lerne mehr Vokabeln!'
+        : 'Not enough known words yet — learn more vocabulary first!')
+      setTimeout(() => setEmptyCategoryMsg(null), 3500)
+      return
+    }
+    setSatzLoading(true)
+    try {
+      const wordList = vocabCards.map(c => c.front).slice(0, 60).join(', ')
+      const toLangCode = isMarkLang ? 'de' : 'en'
+      const fromLangCode = isMarkLang ? 'en' : 'de'
+      const toLangName = LANG_NAMES[toLangCode]
+      const fromLangName = LANG_NAMES[fromLangCode]
+      const prompt = `You are a language learning assistant. Given this list of vocabulary words the learner knows in ${fromLangName}: ${wordList}
+
+Generate exactly 5 natural sentences in ${fromLangName} that use these known words creatively. Each sentence should combine 2-4 of the known words in a meaningful, everyday context.
+
+Return ONLY a valid JSON array with no markdown or explanation:
+[{"front":"<sentence in ${fromLangName}>","back":"<translation in ${toLangName}>","context":"<1 sentence explaining when you'd use this>"}]`
+
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 800, messages: [{ role: 'user', content: prompt }] }),
+      })
+      const data = await res.json()
+      const raw = data.content?.[0]?.text || ''
+      const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim())
+      const ts = Date.now()
+      const sessionCards = parsed.slice(0, 5).map((card, i) => ({
+        id: `satz_temp_${ts}_${i}`,
+        front: card.front,
+        back: card.back,
+        context: card.context || '',
+        category: 'sentence',
+        langA: fromLangCode,
+        langB: toLangCode,
+        targetLang: toLangCode,
+        source: 'satz-session',
+      }))
+      setCurrentSessionMode('sentence')
+      setSession(sessionCards); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+    } catch (e) {
+      console.warn('Satz session generation failed:', e)
+      setEmptyCategoryMsg(isMarkLang ? 'Fehler beim Generieren der Sätze.' : 'Failed to generate sentences.')
+      setTimeout(() => setEmptyCategoryMsg(null), 3500)
+    } finally {
+      setSatzLoading(false)
+    }
   }
   const continueSession = async () => {
     const { category, cards } = resumeDialog
@@ -2215,8 +2280,8 @@ Return ONLY one word: vocabulary, street, home, or sentence.
           <button style={{ ...s.catBtn, '--gleam-delay': '0s' }} onClick={() => startCategorySession('vocabulary')}>
             Meine<br />Worte
           </button>
-          <button style={{ ...s.catBtn, '--gleam-delay': '1.8s' }} onClick={() => startCategorySession('sentence')}>
-            werden<br />Sätze
+          <button style={{ ...s.catBtn, '--gleam-delay': '1.8s', opacity: satzLoading ? 0.6 : 1 }} onClick={startSatzSession} disabled={satzLoading}>
+            {satzLoading ? '...' : <><span>werden</span><br /><span>Sätze</span></>}
           </button>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
