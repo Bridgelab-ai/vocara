@@ -1724,7 +1724,21 @@ function ResultScreen({ correct, wrong, masteryUnlocked, t, onBack, s }) {
   )
 }
 
-function SettingsScreen({ t, s, theme, onThemeChange, onBack }) {
+function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setMyData, allCards }) {
+  const th = THEMES[theme]
+  const pausedLanguages = myData?.pausedLanguages || []
+  const uniqueTargetLangs = [...new Set(allCards.map(c => c.targetLang).filter(Boolean))]
+
+  const togglePause = async (langCode) => {
+    const newPaused = pausedLanguages.includes(langCode)
+      ? pausedLanguages.filter(l => l !== langCode)
+      : [...pausedLanguages, langCode]
+    try {
+      await updateDoc(doc(db, 'users', user.uid), { pausedLanguages: newPaused })
+      setMyData(d => ({ ...d, pausedLanguages: newPaused }))
+    } catch (e) { console.warn('Failed to save paused languages:', e) }
+  }
+
   return (
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
       <button style={s.backBtn} onClick={onBack}>← {t.back}</button>
@@ -1732,14 +1746,41 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack }) {
       <div style={s.card}>
         <p style={s.cardLabel}>{t.chooseTheme}</p>
         <div style={s.themeRow}>
-          {Object.entries(THEMES).map(([key, th]) => (
-            <button key={key} style={s.themeBtn(theme === key, th.accent)} onClick={() => onThemeChange(key)}>{th.name}</button>
+          {Object.entries(THEMES).map(([key, thm]) => (
+            <button key={key} style={s.themeBtn(theme === key, thm.accent)} onClick={() => onThemeChange(key)}>{thm.name}</button>
           ))}
         </div>
       </div>
+      {uniqueTargetLangs.length > 0 && (
+        <div style={s.card}>
+          <p style={{ ...s.cardLabel, marginBottom: '14px' }}>Sprachen</p>
+          {uniqueTargetLangs.map(langCode => {
+            const info = AVAILABLE_LANGS.find(l => l.code === langCode)
+            const paused = pausedLanguages.includes(langCode)
+            return (
+              <div key={langCode} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <span style={{ color: th.text, fontSize: '1rem' }}>{info?.flag} {info?.label || langCode}</span>
+                <button
+                  onClick={() => togglePause(langCode)}
+                  style={{
+                    background: paused ? 'transparent' : th.accent,
+                    color: paused ? th.sub : (th.btnTextColor || '#111'),
+                    border: `1px solid ${paused ? th.border : th.accent}`,
+                    borderRadius: '20px', padding: '5px 14px',
+                    fontSize: '0.8rem', cursor: 'pointer', fontWeight: '600',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  {paused ? 'Pausiert' : 'Aktiv'}
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
       <div style={{ ...s.card, opacity: 0.4 }}>
         <p style={s.cardLabel}>{t.comingSoon}</p>
-        <p style={s.noPartner}>Sprachen bearbeiten • Benachrichtigungen • Stumm-Modus</p>
+        <p style={s.noPartner}>Benachrichtigungen • Stumm-Modus</p>
       </div>
     </div></div>
   )
@@ -1785,6 +1826,11 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const partnerName = myData?.partnerName || partnerData?.name?.split(' ')[0] || 'Partner'
   const today = todayStr()
   const myTodaySessions = sessionHistory.filter(h => h.date === today).length
+  const pausedLanguages = myData?.pausedLanguages || []
+  const uniqueTargetLangs = [...new Set(allCards.map(c => c.targetLang).filter(Boolean))]
+  const activeCards = pausedLanguages.length > 0
+    ? allCards.filter(c => !pausedLanguages.includes(c.targetLang))
+    : allCards
   const partnerSessionHistory = partnerData?.sessionHistory || []
   const partnerTodaySessions = partnerSessionHistory.filter(h => h.date === today).length
 
@@ -1813,13 +1859,13 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   }, [screen])
 
   const startSession = () => {
-    const sess = buildSession(allCards, cardProgress)
+    const sess = buildSession(activeCards, cardProgress)
     setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
   }
   const startCategorySession = (category) => {
     const cards = category === 'all'
-      ? allCards
-      : allCards.filter(c => c.category === category)
+      ? activeCards
+      : activeCards.filter(c => c.category === category)
     if (cards.length === 0) {
       setEmptyCategoryMsg('Noch keine Karten in dieser Kategorie — füge welche hinzu!')
       setTimeout(() => setEmptyCategoryMsg(null), 3500)
@@ -1999,7 +2045,7 @@ Return ONLY one word: vocabulary, street, home, or sentence.
 
   if (screen === 'cards' && session) return <CardScreen session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} startIndex={resumeStartIndex} startProgress={resumeStartProgress} />
   if (screen === 'result') return <ResultScreen correct={result.correct} wrong={result.wrong} masteryUnlocked={masteryUnlocked} t={t} onBack={() => { setScreen('menu'); setSession(null) }} s={s} />
-  if (screen === 'settings') return <SettingsScreen t={t} s={s} theme={theme} onThemeChange={onThemeChange} onBack={() => setScreen('menu')} />
+  if (screen === 'settings') return <SettingsScreen t={t} s={s} theme={theme} onThemeChange={onThemeChange} onBack={() => setScreen('menu')} user={user} myData={myData} setMyData={setMyData} allCards={allCards} />
   if (screen === 'partner') return <PartnerScreen user={user} myData={myData} lang={lang} theme={theme} onBack={() => setScreen('menu')} onPartnerUpdate={(uid) => { onPartnerUpdate(uid); setScreen('menu') }} />
   if (screen === 'test') return <PlacementTest lang={lang} theme={theme} user={user} onBack={() => setScreen('menu')} onSaveCefr={onSaveCefr} />
   if (screen === 'impressum') return <ImpressumScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} />
@@ -2012,7 +2058,20 @@ Return ONLY one word: vocabulary, street, home, or sentence.
       {/* ── LOGO ── */}
       <div style={{ textAlign: 'center', paddingTop: '20px', paddingBottom: '16px' }}>
         <h1 style={{ ...s.title, fontSize: 'clamp(4rem, 17vw, 6.5rem)', lineHeight: 1, marginBottom: '10px' }}>Vocara</h1>
-        <p style={{ ...s.greeting, marginBottom: 0 }}>{t.hello}, {firstName}</p>
+        <p style={{ ...s.greeting, marginBottom: uniqueTargetLangs.length > 0 ? '6px' : 0 }}>{t.hello}, {firstName}</p>
+        {uniqueTargetLangs.length > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
+            {uniqueTargetLangs.map(l => {
+              const info = AVAILABLE_LANGS.find(a => a.code === l)
+              const paused = pausedLanguages.includes(l)
+              return (
+                <span key={l} title={info?.label || l} style={{ fontSize: '1.1rem', opacity: paused ? 0.25 : 1, filter: paused ? 'grayscale(1)' : 'none', transition: 'opacity 0.3s' }}>
+                  {info?.flag || l}
+                </span>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {/* ── MONTHLY TEST BANNER ── */}
