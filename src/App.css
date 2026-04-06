@@ -13,16 +13,3 @@ html, body, #root {
   width: 100%;
   background: #0a0a0a;
 }
-
-button {
-  background: linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04));
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255,255,255,0.2);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15);
-  border-radius: 20px;
-  color: white;
-  font-weight: 600;
-  cursor: pointer;
-  font-family: 'Inter', system-ui, sans-serif;
-}
