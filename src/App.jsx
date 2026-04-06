@@ -811,6 +811,9 @@ html, body, #root {
   from { opacity: 1; }
   to   { opacity: 0; }
 }
+@keyframes spin {
+  to { transform: translateY(-50%) rotate(360deg); }
+}
 @keyframes metalFlow {
   0%   { background-position: 0% center; }
   100% { background-position: 100% center; }
@@ -3594,37 +3597,93 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     // Deduplicate by front text
     allNewCards = allNewCards.filter(card => {
       const key = card.front.toLowerCase().trim()
-      if (knownFrontsSet.has(key)) { console.log('Card skipped (duplicate):', card.front); return false }
-      knownFrontsSet.add(key) // prevent intra-batch dupes
+      if (knownFrontsSet.has(key)) {
+        console.log('[generateAICards] Card skipped (duplicate front):', card.front)
+        return false
+      }
+      knownFrontsSet.add(key)
       return true
     })
-    if (allNewCards.length === 0) return
+    if (allNewCards.length === 0) {
+      console.log('[generateAICards] All cards were duplicates — nothing to save')
+      return
+    }
 
-    allNewCards.forEach(card => console.log('Card saved:', card.front))
+    console.log(`[generateAICards] Attempting to save ${allNewCards.length} cards:`, allNewCards.map(c => c.front))
 
-    const updatedAiCards = [...existingAI, ...allNewCards]
     const newProgressEntries = {}
     allNewCards.forEach(card => {
       newProgressEntries[card.id] = { interval: 0, consecutiveFast: 0, wrongSessions: 0, nextReview: todayStr() }
     })
-    try {
-      const currentProgress = myData?.cardProgress || {}
-      const updatedProgress = { ...currentProgress, ...newProgressEntries }
+
+    const doSave = async () => {
+      // Fetch FRESH data from Firestore to avoid race condition with onSaveProgress
+      const freshSnap = await getDoc(doc(db, 'users', user.uid))
+      const freshData = freshSnap.exists() ? freshSnap.data() : {}
+      const freshAiCards = freshData.aiCards || []
+      const freshProgress = freshData.cardProgress || {}
+
+      // Deduplicate again against current Firestore state (handles race with other tabs/saves)
+      const firestoreFronts = new Set(freshAiCards.map(c => (c.front || '').toLowerCase().trim()))
+      const cardsToSave = allNewCards.filter(c => {
+        const key = c.front.toLowerCase().trim()
+        if (firestoreFronts.has(key)) {
+          console.log('[generateAICards] Skipping (already in Firestore):', c.front)
+          return false
+        }
+        return true
+      })
+      if (cardsToSave.length === 0) {
+        console.log('[generateAICards] All cards already exist in Firestore — skipping write')
+        return { success: true, count: 0 }
+      }
+
+      const updatedAiCards = [...freshAiCards, ...cardsToSave]
+      // Merge fresh Firestore progress with new entries — never lose existing progress
+      const updatedProgress = { ...freshProgress, ...newProgressEntries }
+
+      cardsToSave.forEach(c => console.log('[generateAICards] Saving:', c.front, '| id:', c.id, '| category:', c.category))
       await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress })
-      // Force fresh state from Firestore so card list and progress are in sync
+      cardsToSave.forEach(c => console.log('[generateAICards] Saved successfully:', c.front))
+      return { success: true, count: cardsToSave.length, updatedAiCards, updatedProgress }
+    }
+
+    try {
+      let result = await doSave()
+      if (!result.success) throw new Error('Save returned unsuccessful')
+
+      // Retry once if something went wrong
+      if (result.count === 0) {
+        console.log('[generateAICards] No cards saved on first attempt — retrying once')
+        result = await doSave()
+      }
+
+      // Force re-fetch to ensure local state matches Firestore exactly
       const snap = await getDoc(doc(db, 'users', user.uid))
       const fresh = snap.exists() ? snap.data() : {}
-      setMyData(d => ({ ...d,
-        aiCards: fresh.aiCards || updatedAiCards,
-        cardProgress: fresh.cardProgress || updatedProgress,
+      console.log(`[generateAICards] Firestore now has ${fresh.aiCards?.length ?? 0} AI cards, ${Object.keys(fresh.cardProgress || {}).length} progress entries`)
+      setMyData(d => ({
+        ...d,
+        aiCards: fresh.aiCards || d.aiCards,
+        cardProgress: fresh.cardProgress || d.cardProgress,
       }))
-      const msg = isMarkLang
-        ? `✨ ${allNewCards.length} neue KI-Karten hinzugefügt!`
-        : `✨ ${allNewCards.length} new AI cards added!`
-      setAiNotification(msg)
-      setTimeout(() => setAiNotification(null), 4000)
+      if (result.count > 0) {
+        const msg = isMarkLang
+          ? `✨ ${result.count} neue KI-Karten hinzugefügt!`
+          : `✨ ${result.count} new AI cards added!`
+        setAiNotification(msg)
+        setTimeout(() => setAiNotification(null), 4000)
+      }
     } catch (e) {
-      console.warn('Failed to save AI cards:', e)
+      console.error('[generateAICards] Save failed:', e)
+      // One final retry
+      try {
+        console.log('[generateAICards] Final retry after error...')
+        await doSave()
+        console.log('[generateAICards] Final retry succeeded')
+      } catch (e2) {
+        console.error('[generateAICards] Final retry also failed:', e2)
+      }
     }
   }
 
@@ -4361,16 +4420,65 @@ function KarteErstellenScreen({ user, myData, setMyData, allCards, lang, theme, 
   const [forPartner, setForPartner] = useState(false)
   const [front, setFront] = useState('')
   const [back, setBack] = useState('')
+  const [backLoading, setBackLoading] = useState(false)
   const [cat, setCat] = useState('vocabulary')
   const [status, setStatus] = useState(null)
+  const translateTimerRef = useRef(null)
+  const lastTranslatedFront = useRef('')
   const myPartnerUID = myData?.partnerUID || (user.uid === MARK_UID ? ELOSY_UID : user.uid === ELOSY_UID ? MARK_UID : null)
   const partnerName = myData?.partnerName || (user.uid === MARK_UID ? 'Elosy' : user.uid === ELOSY_UID ? 'Mark' : null)
 
+  // Determine language pair: for Mark (de), front=EN, back=DE
+  const baseCard = (allCards || []).find(c => !/_r(_\d+)?$/.test(c.id))
+  const langA = baseCard?.langA || (lang === 'de' ? 'en' : 'de')
+  const langB = baseCard?.langB || lang
+  const LANG_NAMES = { en: 'Englisch', de: 'Deutsch', sw: 'Swahili', fr: 'Französisch', es: 'Spanisch', th: 'Thai' }
+  const LANG_NAMES_EN = { en: 'English', de: 'German', sw: 'Swahili', fr: 'French', es: 'Spanish', th: 'Thai' }
+  const fromLangName = LANG_NAMES_EN[langA] || langA
+  const toLangName = LANG_NAMES_EN[langB] || langB
+
+  const autoTranslate = async (text) => {
+    if (!text.trim() || text === lastTranslatedFront.current) return
+    setBackLoading(true)
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 60,
+          messages: [{ role: 'user', content: `Translate "${text}" from ${fromLangName} to ${toLangName} as a natural short phrase or word. Return ONLY the translation, nothing else, no quotes, no explanation.` }]
+        })
+      })
+      const data = await res.json()
+      const translation = (data.content?.[0]?.text || '').trim()
+      if (translation) {
+        setBack(translation)
+        lastTranslatedFront.current = text
+      }
+    } catch (e) {
+      console.warn('Auto-translate failed:', e)
+    }
+    setBackLoading(false)
+  }
+
+  const handleFrontChange = (val) => {
+    setFront(val)
+    if (translateTimerRef.current) clearTimeout(translateTimerRef.current)
+    if (val.trim().length >= 2) {
+      translateTimerRef.current = setTimeout(() => autoTranslate(val.trim()), 500)
+    }
+  }
+
+  const handleFrontBlur = () => {
+    if (front.trim().length >= 2) {
+      if (translateTimerRef.current) clearTimeout(translateTimerRef.current)
+      autoTranslate(front.trim())
+    }
+  }
+
   const save = async () => {
     if (!front.trim() || !back.trim()) return
-    const baseCard = (allCards || []).find(c => !/_r(_\d+)?$/.test(c.id))
-    const langA = baseCard?.langA || (lang === 'de' ? 'en' : 'de')
-    const langB = baseCard?.langB || lang
     const card = { id: `custom_${Date.now()}`, front: front.trim(), back: back.trim(), category: cat, langA, langB, source: 'custom', createdAt: Date.now() }
     try {
       if (forPartner && myPartnerUID) {
@@ -4384,7 +4492,7 @@ function KarteErstellenScreen({ user, myData, setMyData, allCards, lang, theme, 
         setMyData(d => ({ ...d, aiCards: updated }))
         setStatus(isDE ? 'Karte gespeichert ✓' : 'Card saved ✓')
       }
-      setFront(''); setBack(''); setCat('vocabulary')
+      setFront(''); setBack(''); setCat('vocabulary'); lastTranslatedFront.current = ''
       setTimeout(() => setStatus(null), 2500)
     } catch (e) { console.warn(e); setStatus(isDE ? 'Fehler' : 'Error') }
   }
@@ -4411,13 +4519,36 @@ function KarteErstellenScreen({ user, myData, setMyData, allCards, lang, theme, 
         </div>
       </div>
       <div style={s.card}>
-        <input style={{ ...s.input, marginBottom: '8px' }} placeholder={isDE ? 'Vorderseite (z.B. englisches Wort)' : 'Front (e.g. German word)'} value={front} onChange={e => setFront(e.target.value)} />
-        <input style={{ ...s.input, marginBottom: '12px' }} placeholder={isDE ? 'Rückseite (Übersetzung)' : 'Back (translation)'} value={back} onChange={e => setBack(e.target.value)} />
+        <p style={{ ...s.cardLabel, marginBottom: '6px' }}>
+          {LANG_NAMES[langA] || langA} → {LANG_NAMES[langB] || langB}
+        </p>
+        <input
+          style={{ ...s.input, marginBottom: '8px' }}
+          placeholder={isDE ? `${LANG_NAMES[langA] || langA} — Vorderseite` : `${LANG_NAMES_EN[langA] || langA} — front`}
+          value={front}
+          onChange={e => handleFrontChange(e.target.value)}
+          onBlur={handleFrontBlur}
+        />
+        {/* Back field with auto-translate indicator */}
+        <div style={{ position: 'relative', marginBottom: '12px' }}>
+          <input
+            style={{ ...s.input, marginBottom: 0, paddingRight: backLoading ? '36px' : undefined }}
+            placeholder={backLoading
+              ? (isDE ? 'KI übersetzt…' : 'AI translating…')
+              : (isDE ? `${LANG_NAMES[langB] || langB} — Rückseite (KI-Vorschlag)` : `${LANG_NAMES_EN[langB] || langB} — back (AI suggestion)`)
+            }
+            value={back}
+            onChange={e => { setBack(e.target.value); lastTranslatedFront.current = '' }}
+          />
+          {backLoading && (
+            <div style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', width: '16px', height: '16px', border: `2px solid ${th.gold}44`, borderTopColor: th.gold, borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+          )}
+        </div>
         <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
           <button onClick={() => setCat('vocabulary')} style={{ flex: 1, padding: '8px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem', background: cat !== 'street' ? 'rgba(140,140,155,0.25)' : 'transparent', color: cat !== 'street' ? '#A0A0B8' : th.sub, border: `1px solid ${cat !== 'street' ? 'rgba(140,140,155,0.45)' : th.border}` }}>Hochsprache</button>
           <button onClick={() => setCat('street')} style={{ flex: 1, padding: '8px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem', background: cat === 'street' ? 'rgba(180,120,30,0.2)' : 'transparent', color: cat === 'street' ? '#C8922A' : th.sub, border: `1px solid ${cat === 'street' ? 'rgba(180,120,30,0.4)' : th.border}` }}>Slang</button>
         </div>
-        <button style={{ ...s.button, marginBottom: 0, opacity: (!front.trim() || !back.trim()) ? 0.45 : 1 }} onClick={save} disabled={!front.trim() || !back.trim()}>
+        <button style={{ ...s.button, marginBottom: 0, opacity: (!front.trim() || !back.trim() || backLoading) ? 0.45 : 1 }} onClick={save} disabled={!front.trim() || !back.trim() || backLoading}>
           {forPartner && partnerName ? (isDE ? `🎁 An ${partnerName} senden` : `🎁 Send to ${partnerName}`) : (isDE ? 'Karte speichern' : 'Save card')}
         </button>
         {status && <p style={{ color: th.accent, fontSize: '0.82rem', marginTop: '8px', textAlign: 'center' }}>{status}</p>}
