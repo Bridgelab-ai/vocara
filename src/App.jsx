@@ -467,7 +467,8 @@ const ALL_MARK_CARDS_BASE = [
   { id: 'en_86', front: "I'll be there for you.", back: "Ich bin für dich da.", context: "I'll be there for you — über jeden Ozean, durch jede Zeitzone. Das ist das Versprechen hinter der Stimme.", langA: 'en', langB: 'de' },
 ]
 
-const VALID_CATEGORIES = ['vocabulary', 'sentence', 'street', 'home']
+const VALID_CATEGORIES = ['vocabulary', 'sentence', 'street', 'home', 'basics']
+const VALID_CATEGORY_SET = new Set(VALID_CATEGORIES)
 
 function autoCategory(front) {
   const words = front.trim().split(/\s+/).filter(Boolean)
@@ -520,7 +521,8 @@ function ruleCategory(card) {
 // DE→EN (reversed): split each " / " meaning into its own card
 function buildCardPair(card) {
   const targetLang = card.langA
-  const category = card.category || autoCategory(card.front)
+  const raw = card.category || ruleCategory(card)
+  const category = VALID_CATEGORY_SET.has(raw) ? raw : 'vocabulary'
   const forwardCard = { ...card, targetLang, category }
 
   const meanings = card.back.split(' / ').map(m => m.trim()).filter(Boolean)
@@ -836,7 +838,18 @@ html, body, #root {
 
 @media (max-width: 767px) {
   .vocara-logo-title {
-    filter: drop-shadow(0 0 5px rgba(200,200,255,0.2)) !important;
+    filter: drop-shadow(0 0 10px rgba(255,215,0,0.70)) drop-shadow(0 0 36px rgba(255,215,0,0.38)) drop-shadow(0 0 2px rgba(255,215,0,0.60)) !important;
+  }
+  button {
+    -webkit-backdrop-filter: blur(30px) saturate(220%) !important;
+    backdrop-filter: blur(30px) saturate(220%) !important;
+  }
+  .vocara-alle-btn, .vocara-nav-btn {
+    border-color: rgba(255,255,255,0.25) !important;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.20) !important;
+  }
+  .vocara-big-card {
+    box-shadow: inset 0 0 42px var(--card-glow, rgba(200,160,20,0.40)), inset 0 0 1px 1px var(--card-accent, rgba(200,160,20,0.70)), 0 0 36px var(--card-accent, rgba(200,160,20,0.28)), 0 10px 40px rgba(0,0,0,0.65) !important;
   }
 }
 @media (min-width: 768px) {
@@ -892,34 +905,43 @@ const WaterCanvas = () => {
     const ctx = canvas.getContext('2d');
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
-    const ripples = [];
-    const addRipple = () => {
-      ripples.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        radius: 0,
-        maxRadius: 150,
-        opacity: 0.07,
-        speed: 0.8
-      });
-      setTimeout(addRipple, 3000 + Math.random() * 4000);
+    const rings = [];
+
+    const addDrop = () => {
+      const ringCount = 2 + Math.floor(Math.random() * 4); // 2–5 rings
+      const maxRadius = 80 + Math.random() * 220;          // 80–300 px
+      const speed = 0.4 + Math.random() * 1.1;             // 0.4–1.5
+      const startOpacity = 0.12 + Math.random() * 0.06;    // 0.12–0.18
+      const x = Math.random() * canvas.width;
+      const y = Math.random() * canvas.height;
+      const spacing = maxRadius / (ringCount + 1);
+      for (let k = 0; k < ringCount; k++) {
+        rings.push({
+          x, y,
+          radius: k * spacing,
+          maxRadius,
+          opacity: startOpacity * Math.max(0.6, 1 - k * 0.12),
+          speed,
+          fadeRate: (startOpacity * 0.9) / (maxRadius / speed),
+        });
+      }
+      setTimeout(addDrop, 2000 + Math.random() * 3500);
     };
-    addRipple();
+
+    addDrop();
     const animate = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ripples.forEach((r, i) => {
+      for (let i = rings.length - 1; i >= 0; i--) {
+        const r = rings[i];
         r.radius += r.speed;
-        r.opacity -= 0.0003;
-        if (r.radius > r.maxRadius || r.opacity <= 0) {
-          ripples.splice(i, 1);
-          return;
-        }
+        r.opacity -= r.fadeRate;
+        if (r.radius > r.maxRadius || r.opacity <= 0) { rings.splice(i, 1); continue; }
         ctx.beginPath();
         ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(255,255,255,${r.opacity * 0.85})`;
-        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = `rgba(255,255,255,${r.opacity})`;
+        ctx.lineWidth = 1.2;
         ctx.stroke();
-      });
+      }
       requestAnimationFrame(animate);
     };
     animate();
@@ -975,7 +997,7 @@ const ParticleCanvas = ({ theme }) => {
 
 function makeStyles(th) {
   return {
-    container: { minHeight: '100vh', minHeight: '100dvh', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: th.bgGrad, backgroundColor: th.bg },
+    container: { minHeight: '100vh', minHeight: '100dvh', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: th.bgGrad, backgroundColor: th.bg, '--card-glow': th.glowColor + '55', '--card-accent': th.accent + '99' },
     homeBox: { textAlign: 'center', padding: '20px', width: '100%', maxWidth: '420px' },
     greeting: { color: th.sub, fontSize: '0.95rem', marginBottom: '2px' },
     title: {
@@ -2321,7 +2343,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
       <div style={{ width: '100%', marginBottom: '16px', perspective: '900px',
         animation: cardAnim ? `vocara${cardAnim.charAt(0).toUpperCase() + cardAnim.slice(1)} ${cardAnim === 'shake' ? '0.48s' : '0.35s'} ease forwards` : undefined,
       }}>
-        <div style={{
+        <div className="vocara-big-card" style={{
           ...s.bigCard,
           border: (newProgress[item.id]?.interval || 0) >= 14
             ? '1px solid rgba(255,215,0,0.48)'
@@ -3396,7 +3418,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
             front: card.front,
             back: card.back,
             context: card.context || '',
-            category: card.category || 'general',
+            category: VALID_CATEGORY_SET.has(card.category) ? card.category : 'vocabulary',
             langA: req.langA,
             langB: req.langB,
             source: 'ai-generated',
