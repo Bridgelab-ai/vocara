@@ -858,10 +858,11 @@ button:active {
 }
 `
 
-function WaterRippleCanvas({ color }) {
+function WaterRippleCanvas() {
   const canvasRef = useRef(null)
-  const ripplesRef = useRef([])
+  const dropsRef = useRef([])
   const rafRef = useRef(null)
+  const timerRef = useRef(null)
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -869,42 +870,50 @@ function WaterRippleCanvas({ color }) {
     const resize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight }
     resize()
     window.addEventListener('resize', resize)
-    const addRipple = () => {
-      ripplesRef.current.push({
+    const addDrop = () => {
+      if (dropsRef.current.length >= 4) return
+      dropsRef.current.push({
         x: Math.random() * canvas.width,
         y: Math.random() * canvas.height,
-        r: 0, maxR: 70 + Math.random() * 60,
-        opacity: 0.07 + Math.random() * 0.04,
-        speed: 0.35 + Math.random() * 0.25,
+        startTime: performance.now(),
+        duration: 2500,
+        rings: 4,
+        maxR: 120,
       })
     }
-    const timeouts = []
-    const scheduleNext = (delay) => {
-      const t = setTimeout(() => { addRipple(); scheduleNext(3000 + Math.random() * 4000) }, delay)
-      timeouts.push(t)
+    const schedule = () => {
+      timerRef.current = setTimeout(() => { addDrop(); schedule() }, 3500 + Math.random() * 1000)
     }
-    for (let i = 0; i < 3; i++) scheduleNext(i * 1800 + Math.random() * 1000)
-    const draw = () => {
+    addDrop()
+    schedule()
+    const draw = (now) => {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
-      ripplesRef.current = ripplesRef.current.filter(rp => rp.opacity > 0.003)
-      const hex = color.startsWith('#') ? color : '#ffffff'
-      for (const rp of ripplesRef.current) {
-        const alpha = Math.round(rp.opacity * 255).toString(16).padStart(2, '0')
-        ctx.beginPath(); ctx.arc(rp.x, rp.y, rp.r, 0, Math.PI * 2)
-        ctx.strokeStyle = hex + alpha; ctx.lineWidth = 1.2; ctx.stroke()
-        if (rp.r > 12) {
-          const a2 = Math.round(rp.opacity * 0.55 * 255).toString(16).padStart(2, '0')
-          ctx.beginPath(); ctx.arc(rp.x, rp.y, rp.r * 0.6, 0, Math.PI * 2)
-          ctx.strokeStyle = hex + a2; ctx.lineWidth = 0.7; ctx.stroke()
+      dropsRef.current = dropsRef.current.filter(d => now - d.startTime < d.duration)
+      for (const d of dropsRef.current) {
+        const t = (now - d.startTime) / d.duration
+        for (let i = 0; i < d.rings; i++) {
+          const ringT = t - i * 0.08
+          if (ringT <= 0) continue
+          const r = ringT * d.maxR
+          const alpha = (1 - ringT) * 0.06
+          if (alpha <= 0) continue
+          ctx.beginPath()
+          ctx.arc(d.x, d.y, r, 0, Math.PI * 2)
+          ctx.strokeStyle = `rgba(255,255,255,${alpha.toFixed(3)})`
+          ctx.lineWidth = 1
+          ctx.stroke()
         }
-        rp.r += rp.speed; rp.opacity *= 0.985
       }
       rafRef.current = requestAnimationFrame(draw)
     }
-    draw()
-    return () => { window.removeEventListener('resize', resize); timeouts.forEach(clearTimeout); cancelAnimationFrame(rafRef.current) }
-  }, [color])
-  return <canvas ref={canvasRef} style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 1 }} />
+    rafRef.current = requestAnimationFrame(draw)
+    return () => {
+      window.removeEventListener('resize', resize)
+      clearTimeout(timerRef.current)
+      cancelAnimationFrame(rafRef.current)
+    }
+  }, [])
+  return <canvas ref={canvasRef} style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 0 }} />
 }
 
 function makeStyles(th) {
@@ -4080,6 +4089,7 @@ function MainSelectionScreen({ lang, theme, firstName, uniqueTargetLangs, paused
     <div style={{ ...s.container, zIndex: 10 }} className="vocara-screen">
       <div style={{ ...s.homeBox, paddingTop: '24px' }}>
         <div style={{ textAlign: 'center', paddingBottom: '28px', paddingTop: '20px' }}>
+          <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 'clamp(1.4rem, 6vw, 2.2rem)', fontWeight: '700', letterSpacing: '0.12em', background: 'linear-gradient(135deg, #aaa 0%, #e0e0e0 40%, #888 70%, #ccc 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', marginBottom: '4px', opacity: 0.8 }}>Bridgelab</p>
           <h1 style={{ ...s.title, fontSize: 'clamp(3.5rem, 15vw, 5.5rem)', lineHeight: 1, marginBottom: '10px' }}>Vocara</h1>
           <p style={{ color: th.sub, fontSize: '0.95rem', marginBottom: '4px' }}>
             {isDE ? `Hallo, ${firstName}` : `Hello, ${firstName}`}
@@ -4094,7 +4104,7 @@ function MainSelectionScreen({ lang, theme, firstName, uniqueTargetLangs, paused
             </div>
           )}
         </div>
-        {glassBtn(onSprechen, '🗣️', isDE ? 'Sprechen' : 'Speak', isDE ? 'Wörter, Sätze & Gespräche' : 'Words, sentences & conversation', false)}
+        {glassBtn(onSprechen, '🗣️', isDE ? 'Sprache' : 'Language', isDE ? 'Wörter, Sätze & Gespräche' : 'Words, sentences & conversation', false)}
         {glassBtn(onEntdecken, '🔍', isDE ? 'Entdecken' : 'Discover', isDE ? 'Eigene Sets & KI-Karten' : 'Custom sets & AI cards', false)}
         {glassBtn(onHorizont, '🌐', isDE ? 'Horizont' : 'Horizon', isDE ? 'Kultur & Auswandern' : 'Culture & emigration', true)}
       </div>
@@ -4581,7 +4591,7 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <WaterRippleCanvas color={th.glowColor} />
+      <WaterRippleCanvas />
       {timeOverlay && <div style={{ position: 'fixed', inset: 0, background: timeOverlay, pointerEvents: 'none', zIndex: 2 }} />}
       {mainNav === 'main' && (
         <MainSelectionScreen
