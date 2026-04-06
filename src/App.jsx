@@ -818,6 +818,11 @@ html, body, #root {
   0%   { background-position: 0% center; }
   100% { background-position: 100% center; }
 }
+@keyframes goldShimmer {
+  0%   { box-shadow: 0 0 10px rgba(255,215,0,0.30), inset 0 0 14px rgba(255,215,0,0.10); }
+  50%  { box-shadow: 0 0 24px rgba(255,215,0,0.65), inset 0 0 28px rgba(255,215,0,0.22); }
+  100% { box-shadow: 0 0 10px rgba(255,215,0,0.30), inset 0 0 14px rgba(255,215,0,0.10); }
+}
 @keyframes vocaraCelebrate {
   0%   { opacity: 0; transform: translateX(-50%) scale(0.85) translateY(8px); }
   15%  { opacity: 1; transform: translateX(-50%) scale(1.05) translateY(0); }
@@ -2451,7 +2456,9 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
     cardStatsRef.current[cardId] = { ...st, fastestMs: Math.min(st.fastestMs, 500) }
     const prev = newProgress[cardId] || { interval: 0, consecutiveFast: 0, wrongSessions: 0 }
     const easyInterval = Math.max(7, (prev.interval || 0) + 3)
-    const updatedProgress = { ...prev, interval: easyInterval, consecutiveFast: 0, wrongSessions: Math.max(0, (prev.wrongSessions || 0) - 1), nextReview: getNextReview(easyInterval) }
+    const newCorrectCount = (prev.correctCount || 0) + 1
+    const isGolden = easyInterval >= 4 && newCorrectCount >= 5
+    const updatedProgress = { ...prev, interval: easyInterval, consecutiveFast: 0, wrongSessions: Math.max(0, (prev.wrongSessions || 0) - 1), nextReview: getNextReview(easyInterval), correctCount: newCorrectCount, isGolden }
     const finalProgress = { ...newProgress, [cardId]: updatedProgress }
     setNewProgress(finalProgress)
     const newCorrect = correct + 1; setCorrect(newCorrect)
@@ -2479,7 +2486,9 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
       const prev = newProgress[cardId] || { interval: 0, consecutiveFast: 0, wrongSessions: 0 }
       const newCF = speed === 'very_fast' ? (prev.consecutiveFast || 0) + 1 : 0
       const interval = getNewInterval(speed, { consecutiveFast: newCF })
-      const updatedProgress = { ...prev, interval, consecutiveFast: newCF, wrongSessions: Math.max(0, (prev.wrongSessions || 0) - 1), nextReview: getNextReview(interval) }
+      const newCorrectCount = (prev.correctCount || 0) + 1
+      const isGolden = interval >= 4 && newCorrectCount >= 5
+      const updatedProgress = { ...prev, interval, consecutiveFast: newCF, wrongSessions: Math.max(0, (prev.wrongSessions || 0) - 1), nextReview: getNextReview(interval), correctCount: newCorrectCount, isGolden }
       const finalProgress = { ...newProgress, [cardId]: updatedProgress }
       setNewProgress(finalProgress)
       const newCorrect = correct + 1; setCorrect(newCorrect)
@@ -2540,12 +2549,15 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
       }}>
         <div className="vocara-big-card" style={{
           ...s.bigCard,
-          border: (newProgress[item.id]?.interval || 0) >= 14
-            ? '1px solid rgba(255,215,0,0.48)'
+          border: (newProgress[item.id]?.isGolden || cardProgress[item.id]?.isGolden)
+            ? '1px solid rgba(255,215,0,0.60)'
             : revealed ? `1px solid ${s.progressFill.background}` : `1px solid ${s.progressBar.background}`,
-          boxShadow: (newProgress[item.id]?.interval || 0) >= 14
-            ? '0 0 22px rgba(255,215,0,0.16), inset 0 0 20px rgba(255,215,0,0.06), 0 6px 24px rgba(0,0,0,0.5)'
+          boxShadow: (newProgress[item.id]?.isGolden || cardProgress[item.id]?.isGolden)
+            ? undefined
             : s.bigCard.boxShadow,
+          animation: (newProgress[item.id]?.isGolden || cardProgress[item.id]?.isGolden) && !flipPhase
+            ? 'goldShimmer 2.4s ease-in-out infinite'
+            : undefined,
           transition: flipPhase ? 'transform 0.23s ease-in, border-color 0.3s ease' : 'transform 0.23s ease-out, border-color 0.3s ease',
           minHeight: '220px',
           transform: flipPhase
@@ -2572,8 +2584,8 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
           }}>
             {item.category === 'street' ? 'Slang' : 'Hochsprache'}
           </div>
-          {(newProgress[item.id]?.interval || 0) >= 14 && (
-            <div style={{ position: 'absolute', top: '8px', right: '10px', background: 'rgba(255,215,0,0.15)', color: '#FFD700', border: '1px solid rgba(255,215,0,0.40)', borderRadius: '6px', padding: '2px 7px', fontSize: '9px', fontWeight: '600', letterSpacing: '0.3px', pointerEvents: 'none' }}>
+          {(newProgress[item.id]?.isGolden || cardProgress[item.id]?.isGolden) && (
+            <div style={{ position: 'absolute', top: '8px', right: '10px', background: 'rgba(255,215,0,0.15)', color: '#FFD700', border: '1px solid rgba(255,215,0,0.40)', borderRadius: '6px', padding: '2px 7px', fontSize: '9px', fontWeight: '600', letterSpacing: '0.3px', pointerEvents: 'none', animation: 'goldShimmer 2.4s ease-in-out infinite' }}>
               ⭐ Gold
             </div>
           )}
@@ -3500,7 +3512,18 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
     console.log('[Vocara] startCategorySession:', category)
     const cards = category === 'all'
       ? activeCards
-      : activeCards.filter(c => c.category === category)
+      : activeCards.filter(c => {
+          if (c.category !== category) return false
+          // Runtime guard: never show multi-sentence cards in Meine Worte
+          if (category === 'vocabulary') {
+            const wc = (c.front || '').trim().split(/\s+/).filter(Boolean).length
+            if (wc >= 3) {
+              console.log(`[Meine Worte GUARD] excluded "${c.front}" (${wc} words, stored as vocabulary)`)
+              return false
+            }
+          }
+          return true
+        })
     if (category !== 'all') {
       const excluded = activeCards.filter(c => c.category !== category)
       console.log('[Vocara] cards in category:', cards.length, '| excluded:', excluded.length, '| total:', activeCards.length)
@@ -4211,13 +4234,13 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         })}
       </div>
 
-      {/* ── GOLDEN CARDS COUNT ── */}
+      {/* ── GOLDEN CARDS COUNT (#20) ── */}
       {(() => {
-        const goldenCount = Object.values(cardProgress).filter(p => (p?.interval || 0) >= 14).length
+        const goldenCount = Object.values(cardProgress).filter(p => p?.isGolden).length
         if (goldenCount === 0) return null
         return (
           <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-            <span style={{ color: 'rgba(255,215,0,0.7)', fontSize: '0.75rem', fontWeight: '600', letterSpacing: '0.3px' }}>
+            <span style={{ color: 'rgba(255,215,0,0.8)', fontSize: '0.78rem', fontWeight: '700', letterSpacing: '0.3px', animation: 'goldShimmer 2.4s ease-in-out infinite', display: 'inline-block', padding: '3px 10px', borderRadius: '20px', border: '1px solid rgba(255,215,0,0.28)', background: 'rgba(255,215,0,0.06)' }}>
               ⭐ {goldenCount} {isMarkLang ? 'goldene Karte' + (goldenCount !== 1 ? 'n' : '') + ' gemeistert' : `golden card${goldenCount !== 1 ? 's' : ''} mastered`}
             </span>
           </div>
@@ -4226,6 +4249,9 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
 
       {/* ── SECONDARY NAVIGATION ── */}
       <div className="vocara-nav-section" style={{ marginTop: '4px', marginBottom: '10px' }}>
+        <button className="vocara-nav-btn" style={{ ...s.navBtn, opacity: satzLoading ? 0.6 : 1 }} onClick={startSatzSession} disabled={satzLoading}>
+          ✍️ {satzLoading ? '…' : t.menuSatz}
+        </button>
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('ki')}>{t.menuKi}</button>
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('stats')}>
           {t.progressBtn}
@@ -4718,10 +4744,13 @@ function KarteErstellenScreen({ user, myData, setMyData, allCards, lang, theme, 
     const card = { id: `custom_${Date.now()}`, front: front.trim(), back: back.trim(), category: cat, langA, langB, source: 'custom', createdAt: Date.now() }
     try {
       if (forPartner && myPartnerUID) {
-        const pSnap = await getDoc(doc(db, 'users', myPartnerUID))
-        const existing = pSnap.exists() ? (pSnap.data().sharedCards || []) : []
-        await updateDoc(doc(db, 'users', myPartnerUID), { sharedCards: [...existing, { ...card, sharedBy: user.displayName?.split(' ')[0] || 'Partner', sharedAt: Date.now() }] })
-        setStatus(isDE ? `Mit ${partnerName} geteilt ✓` : `Shared with ${partnerName} ✓`)
+        const senderName = user.displayName?.split(' ')[0] || 'Partner'
+        // Write as daily surprise card — partner will see animated popup
+        await updateDoc(doc(db, 'users', myPartnerUID), {
+          surpriseCard: { ...card, sharedBy: senderName, sharedAt: Date.now() },
+          surpriseSeenDate: null // reset so partner sees it today
+        })
+        setStatus(isDE ? `🎁 Überraschungskarte an ${partnerName} gesendet ✓` : `🎁 Surprise card sent to ${partnerName} ✓`)
       } else {
         const updated = [...(myData?.aiCards || []), card]
         await updateDoc(doc(db, 'users', user.uid), { aiCards: updated })
@@ -5303,6 +5332,51 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
           </div>
         )}
 
+        {/* ── GEMEINSAME KARTEN-SAMMLUNG (#13) ── */}
+        {hasPartner && partnerData && (() => {
+          const myMasteredFronts = new Set(
+            (allCards || [])
+              .filter(c => !/_r(_\d+)?$/.test(c.id) && (cardProgress[c.id]?.interval || 0) >= 3)
+              .map(c => (c.front || '').trim().toLowerCase())
+          )
+          const partnerProgress = partnerData.cardProgress || {}
+          const sharedMastered = (allCards || []).filter(c => {
+            if (/_r(_\d+)?$/.test(c.id)) return false
+            const front = (c.front || '').trim().toLowerCase()
+            return myMasteredFronts.has(front) && (partnerProgress[c.id]?.interval || 0) >= 3
+          })
+          if (sharedMastered.length === 0) return null
+          return (
+            <div style={{ ...s.card, marginBottom: '18px', padding: '16px 18px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                <span style={{ fontSize: '1.3rem' }}>💑</span>
+                <p style={{ color: th.text, fontWeight: '700', fontSize: '0.95rem', margin: 0 }}>
+                  {isDE ? 'Unsere Karten' : 'Our Cards'}
+                </p>
+                <span style={{ marginLeft: 'auto', background: `${th.gold}18`, color: th.gold, border: `1px solid ${th.gold}44`, borderRadius: '12px', padding: '2px 10px', fontSize: '0.72rem', fontWeight: '700' }}>
+                  {sharedMastered.length}
+                </span>
+              </div>
+              <p style={{ color: th.sub, fontSize: '0.78rem', margin: '0 0 10px' }}>
+                {isDE ? `Beide gemeistert · ${partnerName} & Du` : `Both mastered · ${partnerName} & you`}
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '200px', overflowY: 'auto' }}>
+                {sharedMastered.slice(0, 20).map(c => (
+                  <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px', background: `${th.gold}08`, borderRadius: '10px', border: `1px solid ${th.gold}22` }}>
+                    <span style={{ color: th.text, fontSize: '0.82rem', fontWeight: '600', flex: 1 }}>{c.front}</span>
+                    <span style={{ color: th.sub, fontSize: '0.72rem' }}>→</span>
+                    <span style={{ color: th.accent, fontSize: '0.82rem', flex: 1, textAlign: 'right' }}>{c.back}</span>
+                    <span style={{ fontSize: '0.7rem', flexShrink: 0 }}>💑</span>
+                  </div>
+                ))}
+                {sharedMastered.length > 20 && (
+                  <p style={{ color: th.sub, fontSize: '0.72rem', textAlign: 'center', margin: '4px 0 0' }}>+{sharedMastered.length - 20} {isDE ? 'weitere' : 'more'}</p>
+                )}
+              </div>
+            </div>
+          )
+        })()}
+
         {/* ── SYNCHRONES LERNEN ── */}
         {hasPartner && coupleId && onLiveSession && (
           <button onClick={onLiveSession}
@@ -5629,7 +5703,10 @@ function App() {
                   continue
                 }
                 const isSwahiliCard = card.pronunciation || swahiliOverrideRe.test(front) || card.langA === 'sw'
+                // Auto-correct: any card stored as vocabulary with 3+ words in front is WRONG — reclassify
+                const isMislabeledSentence = current === 'vocabulary' && wordCount >= 3 && !DE_VOCAB_WHITELIST.has(front.trim().toLowerCase())
                 const needsRun =
+                  isMislabeledSentence ||
                   (wordCount === 1 && DE_VOCAB_WHITELIST.has(front.trim().toLowerCase()) && current !== 'vocabulary') ||
                   (isSwahiliCard && current !== 'street') ||
                   !current ||
@@ -5637,6 +5714,9 @@ function App() {
                   (current === 'vocabulary' && wordCount > 1) ||
                   (current === 'vocabulary' && wordCount === 1 && backWordCount >= 3)
                 if (!needsRun) continue
+                if (isMislabeledSentence) {
+                  console.log(`[category AUTO-FIX] "${front}" was 'vocabulary' but has ${wordCount} words → reclassifying`)
+                }
                 const newCat = ruleCategory(card)
                 if (current !== newCat) {
                   console.log(`[category] ${card.id} "${front}" : ${current || 'undefined'} → ${newCat}`)
@@ -5750,11 +5830,11 @@ function App() {
 
   const hour = new Date().getHours()
   const timeOverlay = hour >= 0 && hour < 6
-    ? 'rgba(0,0,20,0.22)'          // 00–06: very dark, deep blue-black
+    ? 'rgba(0,20,50,0.08)'         // 00–06: deep night blue (#46)
     : hour >= 6 && hour < 12
-      ? 'rgba(255,215,100,0.06)'   // 06–12: slightly warmer / brighter
+      ? 'rgba(255,200,50,0.04)'    // 06–12: warm golden morning (#46)
       : hour >= 18
-        ? 'rgba(160,50,0,0.10)'    // 18–24: darker, warm amber-red
+        ? 'rgba(255,100,0,0.05)'   // 18–24: deeper warm evening (#46)
         : null                     // 12–18: normal, no overlay
 
   const seasonOverlay = getSeasonOverlay(theme)

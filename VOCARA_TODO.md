@@ -15,7 +15,7 @@
 ## Liste B – Social/Gamification
 11. Paar-Challenge gemeinsam ✅
 12. Emoji-Reaktion auf Partner-Fortschritt ✅
-13. Gemeinsame Karten-Sammlung
+13. Gemeinsame Karten-Sammlung ✅
 14. Überraschungskarte vom Partner täglich ✅
 15. Dark/Light Mode ✅
 16. Kartengröße anpassbar ✅
@@ -91,7 +91,7 @@
 43. Buttons: Glassmorphism/Frosted Glass
 44. Gimmick-Freischalt-Fenster themenspezifisch
 45. Jahreszeiten-Themes (Hamburg Winter, Nairobi Regenzeit) ✅
-46. Tageszeit-Anpassung (morgens heller, abends wärmer)
+46. Tageszeit-Anpassung (morgens heller, abends wärmer) ✅
 47. Karten-Wegfliege-Animation bei richtig
 48. Haptisches Feedback (unterschiedlich für Richtig/Falsch) ✅
 49. Einstellungen als eigenes Menü
