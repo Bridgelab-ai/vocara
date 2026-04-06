@@ -791,10 +791,7 @@ html, body, #root {
   40%  { transform: scale(1.6); }
   100% { transform: scale(1); }
 }
-@keyframes rainbowBtnShift {
-  0%   { background-position: 0% 0%; }
-  100% { background-position: 0% 200%; }
-}
+
 @keyframes rainbowCardBorder {
   0%   { box-shadow: 0 0 0 2px #FF6B6B, 0 0 20px #FF6B6B55, inset 0 0 30px #FF6B6B18; }
   20%  { box-shadow: 0 0 0 2px #FFD93D, 0 0 20px #FFD93D55, inset 0 0 30px #FFD93D18; }
@@ -844,7 +841,7 @@ html, body, #root {
 }
 
 button {
-  transition: transform 0.07s ease, box-shadow 0.07s ease, filter 0.07s ease;
+  transition: transform 0.07s ease, box-shadow 0.07s ease;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
   font-family: 'Inter', system-ui, sans-serif;
@@ -854,7 +851,6 @@ button {
 button:active {
   transform: scale(0.97) translateY(2px) !important;
   box-shadow: 0 1px 8px rgba(0,0,0,0.5) !important;
-  filter: brightness(0.88) !important;
 }
 `
 
@@ -1064,8 +1060,6 @@ function makeStyles(th) {
       padding: '14px 10px', borderRadius: '20px', fontSize: '0.84rem', cursor: 'pointer',
       fontWeight: '700', flex: 1, lineHeight: '1.3', textAlign: 'center',
       boxShadow: th.shadow3d,
-      backgroundSize: '300% auto',
-      animation: 'metalFlow 6s linear infinite',
       fontFamily: "'Playfair Display', Georgia, serif",
       letterSpacing: '0.1px',
     },
