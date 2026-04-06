@@ -56,6 +56,28 @@ const THEMES = {
     shadow3d: '0 1px 0 rgba(255,255,255,0.3) inset, 0 -1px 0 rgba(0,0,0,0.5) inset, 0 4px 0 #9B3BFF, 0 6px 0 #7B1BDF, 0 8px 0 #3D008F, 0 10px 20px rgba(0,0,0,0.75)',
     shadowPressed: '0 1px 0 rgba(255,255,255,0.15) inset, 0 -1px 0 rgba(0,0,0,0.4) inset, 0 1px 0 #7B1BDF, 0 3px 8px rgba(0,0,0,0.6)',
   },
+  lyon: {
+    name: '🍷 Lyon',
+    bg: '#0D0000', card: '#1A0505', text: '#F5EDE0', sub: '#A0706A', border: '#3A1010',
+    accent: '#8B1A1A', gold: '#D4A017', glowColor: '#C0392B', btnTextColor: '#F5EDE0',
+    bgGrad: 'radial-gradient(ellipse at 50% 20%, #3A0808 0%, #1A0404 50%, #0D0000 100%)',
+    metalGrad: 'linear-gradient(145deg, #D4A017 0%, #8B1A1A 30%, #3D0C0C 52%, #8B1A1A 72%, #D4A017 100%)',
+    metalText: 'linear-gradient(90deg, #3D0C0C 0%, #D4A017 16%, #8B1A1A 33%, #D4A017 50%, #3D0C0C 66%, #D4A017 83%, #8B1A1A 100%)',
+    btnFaceGrad: 'linear-gradient(90deg, #3D0C0C 0%, #8B1A1A 20%, #B02020 40%, #D4A017 50%, #B02020 60%, #8B1A1A 80%, #3D0C0C 100%)',
+    shadow3d: '0 1px 0 rgba(212,160,23,0.4) inset, 0 -1px 0 rgba(0,0,0,0.5) inset, 0 4px 0 #5A0A0A, 0 6px 0 #3D0505, 0 8px 0 #200000, 0 10px 20px rgba(20,0,0,0.8)',
+    shadowPressed: '0 1px 0 rgba(212,160,23,0.2) inset, 0 -1px 0 rgba(0,0,0,0.4) inset, 0 1px 0 #5A0A0A, 0 3px 8px rgba(20,0,0,0.6)',
+  },
+  sevilla: {
+    name: '💃 Sevilla',
+    bg: '#0D0500', card: '#1A0A02', text: '#FFF0E0', sub: '#A07050', border: '#3A1800',
+    accent: '#C0392B', gold: '#F39C12', glowColor: '#E67E22', btnTextColor: '#FFF0E0',
+    bgGrad: 'radial-gradient(ellipse at 50% 20%, #3A1200 0%, #1A0700 50%, #0D0500 100%)',
+    metalGrad: 'linear-gradient(145deg, #F39C12 0%, #C0392B 30%, #6E1A0C 52%, #C0392B 72%, #F39C12 100%)',
+    metalText: 'linear-gradient(90deg, #6E1A0C 0%, #F39C12 16%, #C0392B 33%, #F39C12 50%, #6E1A0C 66%, #F39C12 83%, #C0392B 100%)',
+    btnFaceGrad: 'linear-gradient(90deg, #6E1A0C 0%, #C0392B 20%, #D45030 40%, #F39C12 50%, #D45030 60%, #C0392B 80%, #6E1A0C 100%)',
+    shadow3d: '0 1px 0 rgba(243,156,18,0.4) inset, 0 -1px 0 rgba(0,0,0,0.5) inset, 0 4px 0 #7A1500, 0 6px 0 #560E00, 0 8px 0 #300500, 0 10px 20px rgba(20,5,0,0.8)',
+    shadowPressed: '0 1px 0 rgba(243,156,18,0.2) inset, 0 -1px 0 rgba(0,0,0,0.4) inset, 0 1px 0 #7A1500, 0 3px 8px rgba(20,5,0,0.6)',
+  },
 }
 
 const AVAILABLE_LANGS = [
@@ -735,6 +757,23 @@ html, body, #root {
   50%  { opacity: 0.5; transform: scale(1.25); }
   100% { opacity: 1; transform: scale(1); }
 }
+@keyframes vocaraFlyRight {
+  0%   { opacity: 1; transform: translateX(0) rotate(0deg); }
+  100% { opacity: 0; transform: translateX(130%) rotate(18deg); }
+}
+@keyframes vocaraFlyUp {
+  0%   { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-80%) scale(0.85); }
+}
+@keyframes vocaraShake {
+  0%,100% { transform: translateX(0); }
+  15%  { transform: translateX(-10px); }
+  30%  { transform: translateX(10px); }
+  45%  { transform: translateX(-8px); }
+  60%  { transform: translateX(8px); }
+  75%  { transform: translateX(-4px); }
+  90%  { transform: translateX(4px); }
+}
 @keyframes dotPop {
   0%   { transform: scale(1); }
   40%  { transform: scale(1.6); }
@@ -801,11 +840,60 @@ button {
   overflow: hidden;
 }
 button:active {
-  transform: translateY(6px) !important;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.7) !important;
-  filter: brightness(0.8) !important;
+  transform: scale(0.97) translateY(2px) !important;
+  box-shadow: 0 1px 8px rgba(0,0,0,0.5) !important;
+  filter: brightness(0.88) !important;
 }
 `
+
+function WaterRippleCanvas({ color }) {
+  const canvasRef = useRef(null)
+  const ripplesRef = useRef([])
+  const rafRef = useRef(null)
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    const resize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight }
+    resize()
+    window.addEventListener('resize', resize)
+    const addRipple = () => {
+      ripplesRef.current.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        r: 0, maxR: 70 + Math.random() * 60,
+        opacity: 0.07 + Math.random() * 0.04,
+        speed: 0.35 + Math.random() * 0.25,
+      })
+    }
+    const timeouts = []
+    const scheduleNext = (delay) => {
+      const t = setTimeout(() => { addRipple(); scheduleNext(3000 + Math.random() * 4000) }, delay)
+      timeouts.push(t)
+    }
+    for (let i = 0; i < 3; i++) scheduleNext(i * 1800 + Math.random() * 1000)
+    const draw = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      ripplesRef.current = ripplesRef.current.filter(rp => rp.opacity > 0.003)
+      const hex = color.startsWith('#') ? color : '#ffffff'
+      for (const rp of ripplesRef.current) {
+        const alpha = Math.round(rp.opacity * 255).toString(16).padStart(2, '0')
+        ctx.beginPath(); ctx.arc(rp.x, rp.y, rp.r, 0, Math.PI * 2)
+        ctx.strokeStyle = hex + alpha; ctx.lineWidth = 1.2; ctx.stroke()
+        if (rp.r > 12) {
+          const a2 = Math.round(rp.opacity * 0.55 * 255).toString(16).padStart(2, '0')
+          ctx.beginPath(); ctx.arc(rp.x, rp.y, rp.r * 0.6, 0, Math.PI * 2)
+          ctx.strokeStyle = hex + a2; ctx.lineWidth = 0.7; ctx.stroke()
+        }
+        rp.r += rp.speed; rp.opacity *= 0.985
+      }
+      rafRef.current = requestAnimationFrame(draw)
+    }
+    draw()
+    return () => { window.removeEventListener('resize', resize); timeouts.forEach(clearTimeout); cancelAnimationFrame(rafRef.current) }
+  }, [color])
+  return <canvas ref={canvasRef} style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 1 }} />
+}
 
 function makeStyles(th) {
   return {
@@ -851,12 +939,12 @@ function makeStyles(th) {
     progressBar: { height: '4px', background: th.border, borderRadius: '2px', marginTop: '4px', overflow: 'hidden' },
     progressFill: { height: '100%', borderRadius: '2px', transition: 'width 0.5s ease', background: th.accent },
     button: {
-      background: th.btnFaceGrad, color: th.btnTextColor, border: 'none',
+      background: `linear-gradient(135deg, ${th.accent}30, ${th.accent}18)`,
+      color: th.text, border: `1px solid ${th.accent}55`,
       padding: '13px 28px', borderRadius: '50px', fontSize: '1rem', cursor: 'pointer',
       fontWeight: '700', width: '100%', marginBottom: '8px',
-      boxShadow: th.shadow3d,
-      backgroundSize: '300% auto',
-      animation: 'metalFlow 6s linear infinite',
+      backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
+      boxShadow: `0 4px 24px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.12), 0 0 0 1px ${th.accent}22`,
     },
     menuBtn: {
       background: th.card, color: th.text, border: `1px solid ${th.border}`,
@@ -893,30 +981,32 @@ function makeStyles(th) {
       return { background: bg, color: th.text, border, padding: '12px 16px', borderRadius: '12px', fontSize: '0.9rem', cursor: revealed ? 'default' : 'pointer', width: '100%', marginBottom: '8px', textAlign: 'left', boxShadow: shadow }
     },
     revealBtn: {
-      background: th.btnFaceGrad, color: th.btnTextColor, border: 'none',
+      background: `linear-gradient(135deg, ${th.accent}35, ${th.accent}20)`,
+      color: th.text, border: `1px solid ${th.accent}60`,
       padding: '12px 28px', borderRadius: '50px', fontSize: '1rem', cursor: 'pointer', fontWeight: '700',
-      boxShadow: th.shadow3d,
-      backgroundSize: '300% auto',
-      animation: 'metalFlow 6s linear infinite',
+      backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
+      boxShadow: `0 4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.14)`,
     },
     answerRow: { display: 'flex', gap: '10px', width: '100%' },
     wrongBtn: {
-      flex: 1, background: th.card, color: '#e06c75', border: '2px solid #e06c75',
+      flex: 1, background: 'rgba(224,108,117,0.12)', color: '#e06c75', border: '1px solid rgba(224,108,117,0.4)',
       padding: '12px', borderRadius: '50px', fontSize: '1rem', cursor: 'pointer', fontWeight: 'bold',
-      boxShadow: '0 4px 0 #8b1c24, 0 6px 12px rgba(0,0,0,0.35)',
+      backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
+      boxShadow: '0 4px 16px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)',
     },
     easyBtn: {
-      flex: '0 0 auto', background: th.gold + '18', color: th.gold, border: `2px solid ${th.gold}`,
+      flex: '0 0 auto', background: `rgba(255,255,255,0.06)`, color: th.gold, border: `1px solid ${th.gold}55`,
       padding: '8px 14px', borderRadius: '50px', fontSize: '0.8rem', cursor: 'pointer',
       fontWeight: 'bold', alignSelf: 'center',
-      boxShadow: `0 3px 0 ${th.sub}, 0 5px 10px rgba(0,0,0,0.3)`,
+      backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
+      boxShadow: '0 3px 12px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.08)',
     },
     rightBtn: {
-      flex: 1, background: th.btnFaceGrad, color: th.btnTextColor, border: 'none',
+      flex: 1, background: `linear-gradient(135deg, ${th.accent}35, ${th.accent}18)`,
+      color: th.text, border: `1px solid ${th.accent}55`,
       padding: '12px', borderRadius: '50px', fontSize: '1rem', cursor: 'pointer', fontWeight: 'bold',
-      boxShadow: th.shadow3d,
-      backgroundSize: '300% auto',
-      animation: 'metalFlow 6s linear infinite',
+      backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
+      boxShadow: '0 4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.12)',
     },
     stopBtn: {
       background: 'transparent', color: '#f44336', border: '1px solid #f44336',
@@ -924,10 +1014,11 @@ function makeStyles(th) {
       boxShadow: '0 2px 0 #8b0000',
     },
     logoutBtn: {
-      background: 'transparent', color: th.sub, border: `1px solid ${th.border}`,
+      background: 'rgba(255,255,255,0.05)', color: th.sub, border: `1px solid rgba(255,255,255,0.1)`,
       padding: '10px 24px', borderRadius: '50px', fontSize: '0.85rem', cursor: 'pointer',
       width: '100%', marginTop: '4px',
-      boxShadow: `0 2px 0 ${th.border}`,
+      backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+      boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
     },
     legalBtn: {
       background: 'transparent', color: th.sub, border: 'none',
@@ -1851,6 +1942,11 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
   const [micState, setMicState] = useState('idle') // 'idle' | 'listening' | 'done' | 'unsupported'
   const [micResult, setMicResult] = useState(null) // { score, total, words: [{word, correct}] }
   const [phoneticCache, setPhoneticCache] = useState({})
+  const [cardAnim, setCardAnim] = useState(null) // null | 'flyRight' | 'flyUp' | 'shake'
+  const [kiExplanation, setKiExplanation] = useState(null) // null | 'loading' | string
+  const [noteOpen, setNoteOpen] = useState(false)
+  const [noteText, setNoteText] = useState('')
+  const animLock = useRef(false)
   const startTime = useRef(Date.now())
   const answeredIds = useRef(new Set())
   const easyCountRef = useRef(0)
@@ -1922,6 +2018,21 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
     }).catch(() => {})
   }, [revealed, index])
 
+  // Load note for current card
+  useEffect(() => {
+    setNoteText(cardProgress[item.id]?._note || '')
+    setNoteOpen(false)
+    setKiExplanation(null)
+    setMicState('idle'); setMicResult(null)
+  }, [index])
+
+  const triggerAnim = (anim, delay, cb) => {
+    if (animLock.current) return
+    animLock.current = true
+    setCardAnim(anim)
+    setTimeout(() => { setCardAnim(null); animLock.current = false; cb() }, delay)
+  }
+
   const handleReveal = () => {
     startTime.current = Date.now()
     setRevealed(true)
@@ -1982,6 +2093,27 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
       onSaveState?.(queue, index + 1, finalProgress)
     }
   }
+
+  const handleAnswerAnimated = (isCorrect) => {
+    if (animLock.current) return
+    if (!isCorrect) {
+      // Fetch KI explanation
+      setKiExplanation('loading')
+      fetch('/api/chat', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 100,
+          messages: [{ role: 'user', content: `The user got this card wrong. Front: "${item.front}" Back: "${item.back}". In 1-2 short sentences in ${fromLang === 'de' ? 'German' : 'English'}, explain the grammar rule or memory trick that helps remember this. Be brief and encouraging.` }]
+        })
+      }).then(r => r.json()).then(d => setKiExplanation(d.content?.[0]?.text?.trim() || null)).catch(() => setKiExplanation(null))
+    }
+    const anim = isCorrect ? 'flyRight' : 'shake'
+    const delay = isCorrect ? 350 : 480
+    triggerAnim(anim, delay, () => handleAnswer(isCorrect))
+  }
+  const handleEasyAnimated = () => {
+    triggerAnim('flyUp', 320, () => handleEasy())
+  }
+
   return (
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
       <div style={s.cardHeader}>
@@ -2002,7 +2134,9 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
         )
       })()}
       {/* ── FLIP CARD ── */}
-      <div style={{ width: '100%', marginBottom: '16px', perspective: '900px' }}>
+      <div style={{ width: '100%', marginBottom: '16px', perspective: '900px',
+        animation: cardAnim ? `vocara${cardAnim.charAt(0).toUpperCase() + cardAnim.slice(1)} ${cardAnim === 'shake' ? '0.48s' : '0.35s'} ease forwards` : undefined,
+      }}>
         <div style={{
           ...s.bigCard,
           border: revealed ? `1px solid ${s.progressFill.background}` : `1px solid ${s.progressBar.background}`,
@@ -2078,15 +2212,40 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
                 <p style={{ ...s.cardPronunciation, fontStyle: 'italic', marginTop: '2px' }}>🗣 /{phoneticCache[item.id]}/</p>
               )}
               {item.context && <p style={s.cardContext}>„{item.context}"</p>}
+              {noteText && <p style={{ color: '#8A8A9A', fontSize: '0.75rem', fontStyle: 'italic', marginTop: '6px', maxWidth: '300px', textAlign: 'center' }}>📝 {noteText}</p>}
+              <button onClick={() => setNoteOpen(o => !o)} style={{ background: 'transparent', border: 'none', color: '#8A8A9A', fontSize: '0.7rem', cursor: 'pointer', padding: '4px', marginTop: '4px', opacity: 0.7 }}>📝 {noteOpen ? 'Schließen' : 'Notiz'}</button>
             </div>
           )}
         </div>
       </div>
+      {noteOpen && (
+        <div style={{ width: '100%', marginBottom: '8px', display: 'flex', gap: '8px' }}>
+          <input
+            value={noteText}
+            onChange={e => setNoteText(e.target.value)}
+            placeholder="Persönliche Notiz…"
+            style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '10px', padding: '8px 12px', color: '#ccc', fontSize: '0.85rem', backdropFilter: 'blur(8px)' }}
+          />
+          <button onClick={async () => {
+            const updated = { ...newProgress, [item.id]: { ...(newProgress[item.id] || {}), _note: noteText } }
+            setNewProgress(updated); setNoteOpen(false)
+            await onSaveState?.(queue, index, updated)
+          }} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '10px', padding: '8px 12px', color: '#ccc', fontSize: '0.85rem', cursor: 'pointer' }}>✓</button>
+        </div>
+      )}
+      {kiExplanation && (
+        <div style={{ width: '100%', marginBottom: '8px', background: 'rgba(76,175,80,0.1)', border: '1px solid rgba(76,175,80,0.25)', borderRadius: '12px', padding: '10px 14px' }}>
+          {kiExplanation === 'loading'
+            ? <p style={{ color: '#8A8A9A', fontSize: '0.78rem', margin: 0 }}>💡 KI erklärt…</p>
+            : <p style={{ color: '#81c784', fontSize: '0.78rem', margin: 0, lineHeight: 1.5 }}>💡 {kiExplanation}</p>
+          }
+        </div>
+      )}
       {revealed && (
         <div style={{ ...s.answerRow, alignItems: 'flex-end' }}>
-          <button style={s.wrongBtn} onClick={() => handleAnswer(false)}>✗ {t.wrong}</button>
-          <button style={s.easyBtn} onClick={handleEasy}>{t.easy}</button>
-          <button style={s.rightBtn} onClick={() => handleAnswer(true)}>✓ {t.correct}</button>
+          <button style={s.wrongBtn} onClick={() => handleAnswerAnimated(false)}>✗ {t.wrong}</button>
+          <button style={s.easyBtn} onClick={handleEasyAnimated}>{t.easy}</button>
+          <button style={s.rightBtn} onClick={() => handleAnswerAnimated(true)}>✓ {t.correct}</button>
         </div>
       )}
     </div></div>
@@ -2258,6 +2417,35 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
     } catch (e) { console.warn('Share failed:', e) }
   }
 
+  const sendSurpriseCard = async (card) => {
+    if (!myPartnerUID) return
+    const surprise = { ...card, id: `surprise_${Date.now()}`, sharedBy: firstName, sharedAt: Date.now() }
+    try {
+      await updateDoc(doc(db, 'users', myPartnerUID), { surpriseCard: surprise })
+      setShareStatus(lang === 'de' ? `🎁 Überraschung gesendet an ${myPartnerName} ✓` : `🎁 Surprise sent to ${myPartnerName} ✓`)
+      setTimeout(() => setShareStatus(null), 3000)
+    } catch (e) { console.warn('Surprise send failed:', e) }
+  }
+
+  // Streak freeze helpers
+  const currentMonth = new Date().toISOString().slice(0, 7) // "2026-04"
+  const freeze = myData?.streakFreeze || {}
+  const freezeAvailable = freeze.lastReset !== currentMonth ? true : (freeze.available ?? false)
+  const handleStreakFreeze = async () => {
+    const update = { streakFreeze: { available: false, lastReset: currentMonth, usedAt: todayStr() } }
+    try {
+      await updateDoc(doc(db, 'users', user.uid), update)
+      setMyData(d => ({ ...d, ...update }))
+    } catch (e) { console.warn('Streak freeze failed:', e) }
+  }
+  const handleResetFreeze = async () => {
+    if (freeze.lastReset !== currentMonth) {
+      const update = { streakFreeze: { available: true, lastReset: currentMonth } }
+      await updateDoc(doc(db, 'users', user.uid), update).catch(() => {})
+      setMyData(d => ({ ...d, ...update }))
+    }
+  }
+
   return (
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
       <button style={s.backBtn} onClick={onBack}>← {t.back}</button>
@@ -2424,6 +2612,68 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
           </div>
         )
       })()}
+      {/* ── STREAK FREEZE ── */}
+      <div style={s.card}>
+        <p style={{ ...s.cardLabel, marginBottom: '12px' }}>🧊 Streak-Schutz</p>
+        {(() => {
+          const isAvail = freezeAvailable || (freeze.lastReset !== currentMonth)
+          return (
+            <>
+              <p style={{ color: th.text, fontSize: '0.9rem', marginBottom: '8px' }}>
+                Verfügbar diesen Monat: <strong style={{ color: isAvail ? '#4CAF50' : th.sub }}>{isAvail ? '1x ✓' : 'verwendet'}</strong>
+              </p>
+              {isAvail && (
+                <button
+                  onClick={() => { if (window.confirm('Streak Freeze jetzt verwenden? (1x pro Monat)')) handleStreakFreeze() }}
+                  style={{ ...s.logoutBtn, marginTop: 0, color: '#81c784', border: '1px solid rgba(76,175,80,0.35)' }}
+                >
+                  🧊 Freeze aktivieren
+                </button>
+              )}
+              {freeze.usedAt && !isAvail && <p style={{ color: th.sub, fontSize: '0.75rem', marginTop: '4px' }}>Verwendet am {freeze.usedAt}</p>}
+            </>
+          )
+        })()}
+      </div>
+
+      {/* ── GESPERRTE PREMIUM FEATURES ── */}
+      <div style={s.card}>
+        <p style={{ ...s.cardLabel, marginBottom: '12px' }}>🌍 Sprachen</p>
+        {[{ code: 'es', flag: '🇪🇸', label: 'Spanisch' }, { code: 'fr', flag: '🇫🇷', label: 'Französisch' }].map(l => (
+          <div key={l.code} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', opacity: 0.6 }}>
+            <span style={{ color: th.text, fontSize: '0.9rem' }}>{l.flag} {l.label}</span>
+            <span style={{ background: `${th.gold}18`, color: th.gold, border: `1px solid ${th.gold}44`, borderRadius: '12px', padding: '3px 10px', fontSize: '0.72rem', fontWeight: '600' }}>🔒 Premium</span>
+          </div>
+        ))}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', opacity: 0.6 }}>
+          <span style={{ color: th.text, fontSize: '0.9rem' }}>🔑 Hauptsprache ändern</span>
+          <span style={{ background: `${th.gold}18`, color: th.gold, border: `1px solid ${th.gold}44`, borderRadius: '12px', padding: '3px 10px', fontSize: '0.72rem', fontWeight: '600' }}>🔒 Premium</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.6 }}>
+          <span style={{ color: th.text, fontSize: '0.9rem' }}>➕ Weitere Lernsprache</span>
+          <span style={{ background: `${th.gold}18`, color: th.gold, border: `1px solid ${th.gold}44`, borderRadius: '12px', padding: '3px 10px', fontSize: '0.72rem', fontWeight: '600' }}>🔒 Premium</span>
+        </div>
+      </div>
+
+      {/* ── ÜBERRASCHUNGSKARTE ── */}
+      {myPartnerUID && (
+        <div style={s.card}>
+          <p style={{ ...s.cardLabel, marginBottom: '10px' }}>🎁 Überraschungskarte senden</p>
+          <p style={{ color: th.sub, fontSize: '0.8rem', marginBottom: '12px' }}>Sende dem Partner eine Überraschungskarte — sie sehen sie beim nächsten App-Start.</p>
+          {(() => {
+            const userCards = (myData?.aiCards || []).filter(c => !/_r(_\d+)?$/.test(c.id))
+            if (!userCards.length) return <p style={{ color: th.sub, fontSize: '0.8rem' }}>Keine eigenen Karten vorhanden.</p>
+            return userCards.slice(0, 5).map(card => (
+              <div key={card.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 0', borderBottom: `1px solid ${th.border}` }}>
+                <span style={{ color: th.text, fontSize: '0.82rem', flex: 1 }}>{card.front} → {card.back}</span>
+                <button onClick={() => sendSurpriseCard(card)} style={{ background: 'transparent', border: `1px solid ${th.border}`, color: th.gold, borderRadius: '8px', padding: '4px 10px', cursor: 'pointer', fontSize: '0.75rem', marginLeft: '8px' }}>🎁</button>
+              </div>
+            ))
+          })()}
+          {shareStatus && <p style={{ color: th.accent, fontSize: '0.8rem', marginTop: '8px', textAlign: 'center' }}>{shareStatus}</p>}
+        </div>
+      )}
+
       <div style={{ ...s.card, opacity: 0.4 }}>
         <p style={s.cardLabel}>{t.comingSoon}</p>
         <p style={s.noPartner}>Benachrichtigungen • Stumm-Modus</p>
@@ -2571,13 +2821,14 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
   )
 }
 
-function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSaveProgress, theme, onThemeChange, onPartnerUpdate, onSaveCefr }) {
+function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSaveProgress, theme, onThemeChange, onPartnerUpdate, onSaveCefr, onBack }) {
   const [screen, setScreen] = useState('menu')
   const [session, setSession] = useState(null)
   const [result, setResult] = useState(null)
   const [masteryUnlocked, setMasteryUnlocked] = useState(false)
   const [aiNotification, setAiNotification] = useState(null)
   const [stopToast, setStopToast] = useState(null)
+  const [surpriseCard, setSurpriseCard] = useState(null) // {front, back, sharedBy, ...}
   const [pendingSession, setPendingSession] = useState(null)
   const [resumeStartIndex, setResumeStartIndex] = useState(0)
   const [resumeStartProgress, setResumeStartProgress] = useState(null)
@@ -2594,6 +2845,28 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   })
   const VALID_SCREENS = new Set(['menu','cards','result','settings','partner','test','impressum','stats','ki','satz'])
   if (!VALID_SCREENS.has(screen)) { setScreen('menu'); return null }
+
+  // Check for surprise card from partner on mount
+  useEffect(() => {
+    const sc = myData?.surpriseCard
+    if (!sc) return
+    const seenToday = myData?.surpriseSeenDate === todayStr()
+    if (!seenToday) setSurpriseCard(sc)
+  }, [])
+
+  const dismissSurprise = async (addToDeck) => {
+    if (addToDeck && surpriseCard) {
+      const card = { ...surpriseCard, id: `surprise_deck_${Date.now()}`, source: 'surprise' }
+      const updated = [...(myData?.aiCards || []), card]
+      await updateDoc(doc(db, 'users', user.uid), { aiCards: updated, surpriseSeenDate: todayStr() }).catch(() => {})
+      setMyData(d => ({ ...d, aiCards: updated, surpriseSeenDate: todayStr() }))
+    } else {
+      await updateDoc(doc(db, 'users', user.uid), { surpriseSeenDate: todayStr() }).catch(() => {})
+      setMyData(d => ({ ...d, surpriseSeenDate: todayStr() }))
+    }
+    setSurpriseCard(null)
+  }
+
   const homeFloat = (
     <button onClick={() => setScreen('menu')} title="Zurück zur Startseite" style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999, background: 'rgba(0,0,0,0.55)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '50%', width: '46px', height: '46px', fontSize: '1.3rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }}>🏠</button>
   )
@@ -2970,8 +3243,11 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
             <span title={partnerOnline ? `${partnerName} ist aktiv` : `${partnerName}`} style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: partnerOnline ? '#4CAF50' : '#444', flexShrink: 0, boxShadow: partnerOnline ? '0 0 5px #4CAF5099' : 'none', transition: 'background 0.4s' }} />
           )}
         </p>
-        {uniqueTargetLangs.length > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
+        {(onBack || uniqueTargetLangs.length > 0) && (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', position: 'relative' }}>
+            {onBack && (
+              <button onClick={onBack} style={{ position: 'absolute', left: 0, background: 'transparent', border: 'none', color: th.sub, cursor: 'pointer', fontSize: '0.82rem', padding: '4px 0', fontWeight: '600', WebkitTapHighlightColor: 'transparent' }}>← Zurück</button>
+            )}
             {uniqueTargetLangs.map(l => {
               const info = AVAILABLE_LANGS.find(a => a.code === l)
               const paused = pausedLanguages.includes(l)
@@ -3147,7 +3423,377 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           🎉 {lang === 'de' ? 'Monatsbonus freigeschaltet!' : 'Monthly bonus unlocked!'}
         </div>
       )}
+
+      {/* ── ÜBERRASCHUNGSKARTE POPUP ── */}
+      {surpriseCard && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', backdropFilter: 'blur(6px)' }}>
+          <div style={{ background: th.card, border: `2px solid ${th.gold}66`, borderRadius: '24px', padding: '28px 24px', maxWidth: '360px', width: '100%', textAlign: 'center', boxShadow: `0 0 40px ${th.glowColor}44`, animation: 'vocaraFadeIn 0.4s ease both' }}>
+            <p style={{ fontSize: '2.5rem', margin: '0 0 8px' }}>🎁</p>
+            <p style={{ color: th.gold, fontWeight: 'bold', fontSize: '1.1rem', marginBottom: '6px' }}>Überraschung von {surpriseCard.sharedBy}!</p>
+            <div style={{ background: th.bg, borderRadius: '14px', padding: '18px', margin: '14px 0', border: `1px solid ${th.border}` }}>
+              <p style={{ color: th.text, fontWeight: 'bold', fontSize: '1.1rem', margin: '0 0 8px' }}>{surpriseCard.front}</p>
+              <div style={{ height: '1px', background: th.border, margin: '8px 0' }} />
+              <p style={{ color: th.accent, fontWeight: 'bold', fontSize: '1.3rem', margin: 0 }}>{surpriseCard.back}</p>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+              <button onClick={() => dismissSurprise(true)} style={{ flex: 1, background: `${th.accent}25`, color: th.text, border: `1px solid ${th.accent}55`, borderRadius: '14px', padding: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '0.9rem', backdropFilter: 'blur(8px)' }}>
+                ➕ Zum Deck hinzufügen
+              </button>
+              <button onClick={() => dismissSurprise(false)} style={{ flex: '0 0 auto', background: 'rgba(255,255,255,0.06)', color: th.sub, border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', padding: '12px 16px', cursor: 'pointer', fontSize: '0.9rem', backdropFilter: 'blur(8px)' }}>
+                ✕
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div></div>
+  )
+}
+
+function MainSelectionScreen({ lang, theme, firstName, uniqueTargetLangs, pausedLanguages, onSprechen, onEntdecken, onHorizont }) {
+  const th = THEMES[theme]; const s = makeStyles(th)
+  const isDE = lang === 'de'
+  const glassBtn = (onClick, icon, title, sub, disabled) => (
+    <button
+      onClick={disabled ? undefined : onClick}
+      style={{
+        background: disabled ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.04)',
+        backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+        border: `1px solid ${disabled ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.12)'}`,
+        borderRadius: '24px',
+        boxShadow: disabled ? 'none' : `0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1), 0 0 0 1px ${th.accent}15`,
+        padding: '28px 20px 24px',
+        cursor: disabled ? 'default' : 'pointer',
+        width: '100%', marginBottom: '14px',
+        textAlign: 'center', color: disabled ? th.sub : th.text,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
+        opacity: disabled ? 0.45 : 1,
+        WebkitTapHighlightColor: 'transparent',
+      }}
+    >
+      <span style={{ fontSize: '2rem', marginBottom: '2px' }}>{icon}</span>
+      <span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '1.4rem', fontWeight: '700', letterSpacing: '0.5px', color: disabled ? th.sub : th.text }}>{title}</span>
+      <span style={{ fontSize: '0.8rem', color: th.sub, lineHeight: 1.4 }}>{sub}</span>
+      {disabled && (
+        <span style={{ marginTop: '6px', background: `${th.gold}18`, color: th.gold, border: `1px solid ${th.gold}44`, borderRadius: '20px', padding: '3px 14px', fontSize: '0.72rem', fontWeight: '700' }}>
+          {isDE ? 'Bald verfügbar' : 'Coming soon'}
+        </span>
+      )}
+    </button>
+  )
+  return (
+    <div style={{ ...s.container, zIndex: 10 }} className="vocara-screen">
+      <div style={{ ...s.homeBox, paddingTop: '24px' }}>
+        <div style={{ textAlign: 'center', paddingBottom: '28px', paddingTop: '20px' }}>
+          <h1 style={{ ...s.title, fontSize: 'clamp(3.5rem, 15vw, 5.5rem)', lineHeight: 1, marginBottom: '10px' }}>Vocara</h1>
+          <p style={{ color: th.sub, fontSize: '0.95rem', marginBottom: '4px' }}>
+            {isDE ? `Hallo, ${firstName}` : `Hello, ${firstName}`}
+          </p>
+          {uniqueTargetLangs.length > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '6px', marginTop: '4px' }}>
+              {uniqueTargetLangs.map(l => {
+                const info = AVAILABLE_LANGS.find(a => a.code === l)
+                const paused = pausedLanguages.includes(l)
+                return <span key={l} style={{ fontSize: '1.1rem', opacity: paused ? 0.25 : 1, filter: paused ? 'grayscale(1)' : 'none' }}>{info?.flag || l}</span>
+              })}
+            </div>
+          )}
+        </div>
+        {glassBtn(onSprechen, '🗣️', isDE ? 'Sprechen' : 'Speak', isDE ? 'Wörter, Sätze & Gespräche' : 'Words, sentences & conversation', false)}
+        {glassBtn(onEntdecken, '🔍', isDE ? 'Entdecken' : 'Discover', isDE ? 'Eigene Sets & KI-Karten' : 'Custom sets & AI cards', false)}
+        {glassBtn(onHorizont, '🌐', isDE ? 'Horizont' : 'Horizon', isDE ? 'Kultur & Auswandern' : 'Culture & emigration', true)}
+      </div>
+    </div>
+  )
+}
+
+function HorizontScreen({ lang, theme, onBack }) {
+  const th = THEMES[theme]; const s = makeStyles(th)
+  const isDE = lang === 'de'
+  return (
+    <div style={s.container} className="vocara-screen">
+      <div style={{ ...s.homeBox, paddingTop: '24px' }}>
+        <button style={s.backBtn} onClick={onBack}>← {isDE ? 'Zurück' : 'Back'}</button>
+        <div style={{ textAlign: 'center', marginTop: '60px' }}>
+          <span style={{ fontSize: '3rem' }}>🌐</span>
+          <h2 style={{ color: th.text, fontSize: '1.8rem', fontFamily: "'Playfair Display', Georgia, serif", margin: '16px 0 10px', fontWeight: '700' }}>{isDE ? 'Horizont' : 'Horizon'}</h2>
+          <p style={{ color: th.sub, fontSize: '0.95rem', marginBottom: '24px', lineHeight: 1.6 }}>{isDE ? 'Kultur & Auswandern' : 'Culture & emigration'}</p>
+          <div style={{ background: `${th.gold}12`, border: `1px solid ${th.gold}33`, borderRadius: '20px', padding: '20px 24px', display: 'inline-block' }}>
+            <p style={{ color: th.gold, fontWeight: '700', fontSize: '1rem', margin: 0 }}>{isDE ? 'Bald verfügbar' : 'Coming soon'}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SetsScreen({ user, myData, setMyData, lang, theme, allCards, cardProgress, onBack }) {
+  const th = THEMES[theme]; const s = makeStyles(th)
+  const isDE = lang === 'de'
+  const [innerScreen, setInnerScreen] = useState('list') // 'list' | 'create' | 'set'
+  const [activeSet, setActiveSet] = useState(null)
+  const [setAction, setSetAction] = useState(null) // 'manual' | 'ki' | null
+  const [newSetName, setNewSetName] = useState('')
+  const [newSetIcon, setNewSetIcon] = useState('📚')
+  const [cardFront, setCardFront] = useState('')
+  const [cardBack, setCardBack] = useState('')
+  const [kiTopic, setKiTopic] = useState('')
+  const [kiLoading, setKiLoading] = useState(false)
+  const [importLoading, setImportLoading] = useState(false)
+  const [status, setStatus] = useState(null)
+  const fileRef = useRef(null)
+
+  const sets = myData?.cardSets || []
+  const FREE_LIMIT = 2
+
+  const iconOptions = ['📚','🎯','✈️','🍽️','💼','🏠','🎵','🌿','🏋️','🧠','💬','🛒','❤️','🌍','🎓']
+
+  const saveSet = async (updatedSets) => {
+    try {
+      await updateDoc(doc(db, 'users', user.uid), { cardSets: updatedSets })
+      setMyData(d => ({ ...d, cardSets: updatedSets }))
+    } catch (e) { console.warn('saveSet failed:', e) }
+  }
+
+  const createSet = async () => {
+    if (!newSetName.trim()) return
+    if (sets.length >= FREE_LIMIT) return
+    const newSet = { id: `set_${Date.now()}`, name: newSetName.trim(), icon: newSetIcon, cards: [], createdAt: Date.now() }
+    const updated = [...sets, newSet]
+    await saveSet(updated)
+    setNewSetName(''); setNewSetIcon('📚')
+    setActiveSet(newSet); setInnerScreen('set')
+  }
+
+  const addCardToSet = async () => {
+    if (!cardFront.trim() || !cardBack.trim() || !activeSet) return
+    const card = { id: `sc_${Date.now()}`, front: cardFront.trim(), back: cardBack.trim() }
+    const updatedSet = { ...activeSet, cards: [...(activeSet.cards || []), card] }
+    const updated = sets.map(s => s.id === activeSet.id ? updatedSet : s)
+    await saveSet(updated)
+    setActiveSet(updatedSet); setCardFront(''); setCardBack('')
+    setStatus(isDE ? 'Karte hinzugefügt ✓' : 'Card added ✓')
+    setTimeout(() => setStatus(null), 2000)
+  }
+
+  const deleteCardFromSet = async (cardId) => {
+    const updatedSet = { ...activeSet, cards: activeSet.cards.filter(c => c.id !== cardId) }
+    const updated = sets.map(s => s.id === activeSet.id ? updatedSet : s)
+    await saveSet(updated); setActiveSet(updatedSet)
+  }
+
+  const deleteSet = async (setId) => {
+    if (!window.confirm(isDE ? 'Set wirklich löschen?' : 'Delete this set?')) return
+    const updated = sets.filter(s => s.id !== setId)
+    await saveSet(updated); setInnerScreen('list'); setActiveSet(null)
+  }
+
+  const generateKiCards = async () => {
+    if (!kiTopic.trim() || !activeSet) return
+    setKiLoading(true)
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001', max_tokens: 800,
+          messages: [{ role: 'user', content: `Create exactly 10 flashcards about: "${kiTopic.trim()}". Return ONLY a JSON array, no markdown:\n[{"front":"<term or question>","back":"<translation or answer>"}]` }]
+        })
+      })
+      const data = await res.json()
+      const raw = data.content?.[0]?.text?.trim() || '[]'
+      const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim())
+      const ts = Date.now()
+      const newCards = parsed.slice(0, 10).map((c, i) => ({ id: `sc_ki_${ts}_${i}`, front: c.front, back: c.back }))
+      const updatedSet = { ...activeSet, cards: [...(activeSet.cards || []), ...newCards] }
+      const updated = sets.map(s => s.id === activeSet.id ? updatedSet : s)
+      await saveSet(updated); setActiveSet(updatedSet); setKiTopic('')
+      setStatus(isDE ? `${newCards.length} KI-Karten hinzugefügt ✓` : `${newCards.length} AI cards added ✓`)
+      setTimeout(() => setStatus(null), 3000)
+    } catch (e) {
+      setStatus(isDE ? 'Fehler bei KI-Generierung' : 'AI generation failed')
+      setTimeout(() => setStatus(null), 3000)
+    } finally { setKiLoading(false); setSetAction(null) }
+  }
+
+  const handleImport = async (file) => {
+    if (!file || !activeSet) return
+    setImportLoading(true)
+    try {
+      const text = await file.text()
+      const res = await fetch('/api/chat', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001', max_tokens: 1200,
+          messages: [{ role: 'user', content: `Parse this text into flashcard pairs. Each line or entry should become one card. Return ONLY a JSON array, no markdown:\n[{"front":"...","back":"..."}]\n\nText:\n${text.slice(0, 3000)}` }]
+        })
+      })
+      const data = await res.json()
+      const raw = data.content?.[0]?.text?.trim() || '[]'
+      const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim())
+      const ts = Date.now()
+      const newCards = parsed.slice(0, 50).map((c, i) => ({ id: `sc_imp_${ts}_${i}`, front: c.front, back: c.back }))
+      const updatedSet = { ...activeSet, cards: [...(activeSet.cards || []), ...newCards] }
+      const updated = sets.map(s => s.id === activeSet.id ? updatedSet : s)
+      await saveSet(updated); setActiveSet(updatedSet)
+      setStatus(isDE ? `${newCards.length} Karten importiert ✓` : `${newCards.length} cards imported ✓`)
+      setTimeout(() => setStatus(null), 3000)
+    } catch (e) {
+      setStatus(isDE ? 'Import fehlgeschlagen' : 'Import failed')
+      setTimeout(() => setStatus(null), 3000)
+    } finally { setImportLoading(false); setSetAction(null) }
+  }
+
+  const shareSetWithPartner = async (set) => {
+    if (!myData?.partnerUID) return
+    try {
+      const pSnap = await getDoc(doc(db, 'users', myData.partnerUID))
+      if (!pSnap.exists()) return
+      const existing = pSnap.data()?.cardSets || []
+      const shared = { ...set, id: `set_shared_${Date.now()}`, sharedBy: user.displayName?.split(' ')[0] || 'Partner', sharedAt: Date.now() }
+      await updateDoc(doc(db, 'users', myData.partnerUID), { cardSets: [...existing, shared] })
+      setStatus(isDE ? 'Set geteilt ✓' : 'Set shared ✓'); setTimeout(() => setStatus(null), 2500)
+    } catch (e) { setStatus(isDE ? 'Teilen fehlgeschlagen' : 'Share failed'); setTimeout(() => setStatus(null), 2500) }
+  }
+
+  // ── SET detail view ──
+  if (innerScreen === 'set' && activeSet) {
+    return (
+      <div style={s.container} className="vocara-screen">
+        <div style={{ ...s.homeBox, paddingTop: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
+            <button style={s.backBtn} onClick={() => { setInnerScreen('list'); setActiveSet(null); setSetAction(null) }}>← {isDE ? 'Zurück' : 'Back'}</button>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+            <span style={{ fontSize: '1.8rem' }}>{activeSet.icon}</span>
+            <div style={{ flex: 1, textAlign: 'left' }}>
+              <h2 style={{ color: th.text, fontSize: '1.2rem', fontWeight: '700', margin: 0 }}>{activeSet.name}</h2>
+              <p style={{ color: th.sub, fontSize: '0.8rem', margin: 0 }}>{activeSet.cards?.length || 0} {isDE ? 'Karten' : 'cards'}</p>
+            </div>
+            {myData?.partnerUID && (
+              <button onClick={() => shareSetWithPartner(activeSet)} style={{ background: 'transparent', border: `1px solid ${th.border}`, color: th.gold, borderRadius: '10px', padding: '6px 12px', cursor: 'pointer', fontSize: '0.75rem' }}>↗ {isDE ? 'Teilen' : 'Share'}</button>
+            )}
+          </div>
+
+          {/* ── Action buttons ── */}
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
+            <button onClick={() => setSetAction(a => a === 'manual' ? null : 'manual')} style={{ flex: 1, padding: '10px 6px', borderRadius: '12px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: '600', background: setAction === 'manual' ? `${th.accent}25` : 'transparent', color: setAction === 'manual' ? th.text : th.sub, border: `1px solid ${setAction === 'manual' ? th.accent : th.border}` }}>+ {isDE ? 'Manuell' : 'Manual'}</button>
+            <button onClick={() => setSetAction(a => a === 'ki' ? null : 'ki')} style={{ flex: 1, padding: '10px 6px', borderRadius: '12px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: '600', background: setAction === 'ki' ? `${th.accent}25` : 'transparent', color: setAction === 'ki' ? th.text : th.sub, border: `1px solid ${setAction === 'ki' ? th.accent : th.border}` }}>🤖 {isDE ? 'KI' : 'AI'}</button>
+            <button onClick={() => fileRef.current?.click()} style={{ flex: 1, padding: '10px 6px', borderRadius: '12px', cursor: importLoading ? 'default' : 'pointer', fontSize: '0.78rem', fontWeight: '600', background: 'transparent', color: importLoading ? th.sub : th.sub, border: `1px solid ${th.border}` }}>
+              {importLoading ? '...' : `📄 ${isDE ? 'Import' : 'Import'}`}
+            </button>
+            <input ref={fileRef} type="file" accept=".txt,.csv" style={{ display: 'none' }} onChange={e => { if (e.target.files[0]) handleImport(e.target.files[0]); e.target.value = '' }} />
+          </div>
+
+          {setAction === 'manual' && (
+            <div style={{ ...s.card, marginBottom: '12px' }}>
+              <input style={{ ...s.input, marginBottom: '8px' }} placeholder={isDE ? 'Vorderseite' : 'Front'} value={cardFront} onChange={e => setCardFront(e.target.value)} />
+              <input style={{ ...s.input, marginBottom: '10px' }} placeholder={isDE ? 'Rückseite' : 'Back'} value={cardBack} onChange={e => setCardBack(e.target.value)} />
+              <button style={{ ...s.button, marginBottom: 0 }} onClick={addCardToSet}>{isDE ? 'Karte hinzufügen' : 'Add card'}</button>
+            </div>
+          )}
+
+          {setAction === 'ki' && (
+            <div style={{ ...s.card, marginBottom: '12px' }}>
+              <input style={{ ...s.input, marginBottom: '10px' }} placeholder={isDE ? 'Thema (z.B. Farben auf Spanisch)' : 'Topic (e.g. Colors in Spanish)'} value={kiTopic} onChange={e => setKiTopic(e.target.value)} />
+              <button style={{ ...s.button, marginBottom: 0, opacity: kiLoading ? 0.6 : 1 }} onClick={generateKiCards} disabled={kiLoading}>{kiLoading ? '...' : isDE ? '10 Karten generieren' : 'Generate 10 cards'}</button>
+            </div>
+          )}
+
+          {status && <p style={{ color: th.accent, fontSize: '0.85rem', textAlign: 'center', marginBottom: '10px' }}>{status}</p>}
+
+          {/* ── Card list ── */}
+          {(activeSet.cards || []).length === 0 ? (
+            <div style={{ ...s.card, textAlign: 'center', padding: '28px' }}>
+              <p style={{ color: th.sub, fontSize: '0.9rem', margin: 0 }}>{isDE ? 'Noch keine Karten — füge welche hinzu!' : 'No cards yet — add some!'}</p>
+            </div>
+          ) : (
+            <div style={s.card}>
+              {(activeSet.cards || []).map(c => (
+                <div key={c.id} style={{ display: 'flex', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${th.border}` }}>
+                  <div style={{ flex: 1, textAlign: 'left' }}>
+                    <span style={{ color: th.text, fontSize: '0.85rem', fontWeight: '600' }}>{c.front}</span>
+                    <span style={{ color: th.sub, fontSize: '0.82rem' }}> → </span>
+                    <span style={{ color: th.accent, fontSize: '0.85rem' }}>{c.back}</span>
+                  </div>
+                  <button onClick={() => deleteCardFromSet(c.id)} style={{ background: 'transparent', border: 'none', color: '#f4433666', cursor: 'pointer', fontSize: '1rem', padding: '4px 8px' }}>✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+          <button onClick={() => deleteSet(activeSet.id)} style={{ ...s.logoutBtn, marginTop: '16px', color: '#f44336', borderColor: '#f4433644' }}>{isDE ? 'Set löschen' : 'Delete set'}</button>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Create set view ──
+  if (innerScreen === 'create') {
+    return (
+      <div style={s.container} className="vocara-screen">
+        <div style={{ ...s.homeBox, paddingTop: '16px' }}>
+          <button style={s.backBtn} onClick={() => setInnerScreen('list')}>← {isDE ? 'Zurück' : 'Back'}</button>
+          <h2 style={{ color: th.text, fontSize: '1.2rem', fontWeight: '700', marginBottom: '20px', textAlign: 'left' }}>{isDE ? 'Neues Set' : 'New set'}</h2>
+          <div style={s.card}>
+            <input style={{ ...s.input, marginBottom: '12px' }} placeholder={isDE ? 'Name des Sets' : 'Set name'} value={newSetName} onChange={e => setNewSetName(e.target.value)} />
+            <p style={{ ...s.cardLabel, marginBottom: '10px' }}>{isDE ? 'Symbol wählen' : 'Pick an icon'}</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+              {iconOptions.map(ic => (
+                <button key={ic} onClick={() => setNewSetIcon(ic)} style={{ padding: '8px', borderRadius: '10px', cursor: 'pointer', fontSize: '1.3rem', background: newSetIcon === ic ? `${th.accent}22` : 'transparent', border: `1px solid ${newSetIcon === ic ? th.accent : th.border}` }}>{ic}</button>
+              ))}
+            </div>
+            <button style={s.button} onClick={createSet}>{isDE ? 'Set erstellen' : 'Create set'}</button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Set list view ──
+  return (
+    <div style={s.container} className="vocara-screen">
+      <div style={{ ...s.homeBox, paddingTop: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '18px' }}>
+          <button style={{ ...s.backBtn, marginBottom: 0, marginRight: '8px' }} onClick={onBack}>← {isDE ? 'Zurück' : 'Back'}</button>
+          <h2 style={{ color: th.text, fontSize: '1.2rem', fontWeight: '700', flex: 1, textAlign: 'center', margin: 0 }}>{isDE ? 'Entdecken' : 'Discover'}</h2>
+        </div>
+
+        {sets.length === 0 ? (
+          <div style={{ ...s.card, textAlign: 'center', padding: '36px 20px' }}>
+            <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: '12px' }}>📚</span>
+            <p style={{ color: th.sub, fontSize: '0.9rem', margin: 0 }}>{isDE ? 'Noch keine Sets — erstelle dein erstes!' : 'No sets yet — create your first one!'}</p>
+          </div>
+        ) : (
+          sets.map((set, idx) => {
+            const isLocked = idx >= FREE_LIMIT
+            return (
+              <button key={set.id} onClick={isLocked ? undefined : () => { setActiveSet(set); setInnerScreen('set') }}
+                style={{ ...s.card, display: 'flex', alignItems: 'center', gap: '14px', width: '100%', cursor: isLocked ? 'default' : 'pointer', opacity: isLocked ? 0.5 : 1, marginBottom: '10px', padding: '16px', textAlign: 'left' }}>
+                <span style={{ fontSize: '1.8rem', flexShrink: 0 }}>{set.icon}</span>
+                <div style={{ flex: 1 }}>
+                  <p style={{ color: th.text, fontWeight: '700', margin: '0 0 2px', fontSize: '0.95rem' }}>{set.name}</p>
+                  <p style={{ color: th.sub, fontSize: '0.78rem', margin: 0 }}>{set.cards?.length || 0} {isDE ? 'Karten' : 'cards'}</p>
+                </div>
+                {isLocked ? (
+                  <span style={{ background: `${th.gold}18`, color: th.gold, border: `1px solid ${th.gold}44`, borderRadius: '12px', padding: '3px 10px', fontSize: '0.72rem', fontWeight: '600', flexShrink: 0 }}>🔒 Premium</span>
+                ) : (
+                  <span style={{ color: th.sub, fontSize: '1rem' }}>›</span>
+                )}
+              </button>
+            )
+          })
+        )}
+
+        {sets.length < FREE_LIMIT ? (
+          <button style={{ ...s.button, marginTop: '8px' }} onClick={() => setInnerScreen('create')}>+ {isDE ? 'Neues Set erstellen' : 'Create new set'}</button>
+        ) : (
+          <div style={{ ...s.card, opacity: 0.55, marginTop: '8px', textAlign: 'center', padding: '14px' }}>
+            <p style={{ color: th.sub, fontSize: '0.82rem', margin: 0 }}>🔒 {isDE ? `Mehr als ${FREE_LIMIT} Sets — Premium` : `More than ${FREE_LIMIT} sets — Premium`}</p>
+          </div>
+        )}
+
+        {status && <p style={{ color: th.accent, fontSize: '0.85rem', textAlign: 'center', marginTop: '10px' }}>{status}</p>}
+      </div>
+    </div>
   )
 }
 
@@ -3178,6 +3824,7 @@ function App() {
   const [theme, setTheme] = useState('nairobi')
   const [needsLangSetup, setNeedsLangSetup] = useState(false)
   const [needsOnboarding, setNeedsOnboarding] = useState(false)
+  const [mainNav, setMainNav] = useState('main') // 'main' | 'sprechen' | 'entdecken' | 'horizont'
 
   useEffect(() => {
     const id = 'vocara-global-css'
@@ -3324,13 +3971,47 @@ function App() {
     return aiCat ? { ...card, category: aiCat } : card
   })
 
+  const hour = new Date().getHours()
+  const timeOverlay = hour >= 0 && hour < 6
+    ? 'rgba(0,0,15,0.10)'
+    : hour >= 6 && hour < 12
+      ? 'rgba(255,220,140,0.04)'
+      : hour >= 18
+        ? 'rgba(160,60,0,0.06)'
+        : null
+
+  const uniqueTargetLangsAll = [...new Set(allCards.map(c => c.targetLang).filter(Boolean))]
+  const firstNameAll = user?.displayName?.split(' ')[0] || user?.displayName || ''
+
   return (
     <ErrorBoundary>
-      <MenuScreen user={user} myData={myData} setMyData={setMyData} partnerData={partnerData}
-        allCards={allCards}
-        lang={lang} onSaveProgress={saveProgress}
-        theme={theme} onThemeChange={handleThemeChange}
-        onPartnerUpdate={handlePartnerUpdate} onSaveCefr={handleSaveCefr} />
+      <WaterRippleCanvas color={th.glowColor} />
+      {timeOverlay && <div style={{ position: 'fixed', inset: 0, background: timeOverlay, pointerEvents: 'none', zIndex: 2 }} />}
+      {mainNav === 'main' && (
+        <MainSelectionScreen
+          lang={lang} theme={theme} firstName={firstNameAll}
+          uniqueTargetLangs={uniqueTargetLangsAll} pausedLanguages={myData?.pausedLanguages || []}
+          onSprechen={() => setMainNav('sprechen')}
+          onEntdecken={() => setMainNav('entdecken')}
+          onHorizont={() => setMainNav('horizont')}
+        />
+      )}
+      {mainNav === 'sprechen' && (
+        <MenuScreen user={user} myData={myData} setMyData={setMyData} partnerData={partnerData}
+          allCards={allCards}
+          lang={lang} onSaveProgress={saveProgress}
+          theme={theme} onThemeChange={handleThemeChange}
+          onPartnerUpdate={handlePartnerUpdate} onSaveCefr={handleSaveCefr}
+          onBack={() => setMainNav('main')} />
+      )}
+      {mainNav === 'entdecken' && (
+        <SetsScreen user={user} myData={myData} setMyData={setMyData}
+          lang={lang} theme={theme} allCards={allCards} cardProgress={myData?.cardProgress || {}}
+          onBack={() => setMainNav('main')} />
+      )}
+      {mainNav === 'horizont' && (
+        <HorizontScreen lang={lang} theme={theme} onBack={() => setMainNav('main')} />
+      )}
     </ErrorBoundary>
   )
 }
