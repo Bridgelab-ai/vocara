@@ -17,7 +17,7 @@
 12. Emoji-Reaktion auf Partner-Fortschritt ✅
 13. Gemeinsame Karten-Sammlung
 14. Überraschungskarte vom Partner täglich
-15. Dark/Light Mode
+15. Dark/Light Mode (Placeholder ✅ — toggle in Einstellungen, bald verfügbar)
 16. Kartengröße anpassbar
 17. Animierte Karten-Übergänge
 18. Tägliche Miniaufgabe
@@ -62,6 +62,13 @@
 - Goldene seltene Karten: interval ≥ 14, gold border + ⭐ badge + Home-Counter (#20) ✅
 - Haptisches Feedback: correct=50ms, wrong=[100,100,100], easy=[30,40,30,40,30] (#48) ✅
 - Streak Freeze: 🧊 Button inline im Streak-Warning-Block (#8) ✅
+- Navigation: 🃏 Karte-Button + Submenu (Meine Karten / Erstellen / Geschenkkarte) ✅
+- Einstellungen bereinigt: nur Theme, Tagesziel, Sprachen, Dark/Light, Streak, Partner, Premium, Abmelden ✅
+- Geschenkkarte: Gemeisterte Karte + Nachricht an Partner senden → users/{uid}.pendingGift ✅ (#neu)
+- Meine Karten Übersicht: Liste, Sterne, Gold-Badge, Suche, Filter, Edit, Löschen ✅
+- Einstellungen Sprachen: Premium-Modal mit Sprachliste + Upgrade-Placeholder (#5) ✅
+- Wochenziel Dots: 22px Kreis, ✓ bei erledigt, Tooltip per Tap ✅ (#16 teilweise)
+- Partner Aktivitäts-Anzeige: 🟢 lernt gerade / 🟡 heute aktiv / ⚪ gestern aktiv ✅
 
 ## Liste E – Paar/Design/Business
 38. Gemeinsames Tagebuch (täglich 1 Satz in Zielsprache)

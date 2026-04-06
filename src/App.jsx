@@ -1153,11 +1153,11 @@ const T = {
 }
 
 const WEEK_AREAS = [
-  { key: 'vocabulary', labelDe: 'Meine Worte', labelEn: 'My Words' },
-  { key: 'sentence', labelDe: 'werden Sätze', labelEn: 'become Sentences' },
-  { key: 'street', labelDe: 'Auf der Straße', labelEn: 'On the Street' },
-  { key: 'home', labelDe: 'und zu Hause', labelEn: 'and at Home' },
-  { key: 'satztraining', labelDe: 'Satztraining', labelEn: 'Sentence training' },
+  { key: 'vocabulary', labelDe: 'Wörter', labelEn: 'Words', tipDe: 'Meine Worte – diese Woche noch nicht geübt', tipEn: 'My Words – not practiced this week' },
+  { key: 'sentence', labelDe: 'Sätze', labelEn: 'Sentences', tipDe: 'Sätze – diese Woche noch nicht geübt', tipEn: 'Sentences – not practiced this week' },
+  { key: 'street', labelDe: 'Straße', labelEn: 'Street', tipDe: 'Auf der Straße – diese Woche noch nicht geübt', tipEn: 'On the Street – not practiced this week' },
+  { key: 'home', labelDe: 'Zuhause', labelEn: 'Home', tipDe: 'Zu Hause – diese Woche noch nicht geübt', tipEn: 'At Home – not practiced this week' },
+  { key: 'satztraining', labelDe: 'Training', labelEn: 'Training', tipDe: 'Satztraining – diese Woche noch nicht geübt', tipEn: 'Sentence Training – not practiced this week' },
 ]
 
 // ── ONBOARDING SCREEN ─────────────────────────────────────────
@@ -2374,47 +2374,12 @@ function ResultScreen({ correct, wrong, easy, weakestCard, strongestCard, master
   )
 }
 
-function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setMyData, allCards, lang }) {
+function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setMyData, allCards, lang, onPartner }) {
   const th = THEMES[theme]
   const pausedLanguages = myData?.pausedLanguages || []
-  const uniqueTargetLangs = [...new Set(allCards.map(c => c.targetLang).filter(Boolean))]
-  const [newFront, setNewFront] = useState('')
-  const [newBack, setNewBack] = useState('')
-  const [newCardCat, setNewCardCat] = useState('vocabulary')
-  const [cardSaveStatus, setCardSaveStatus] = useState(null)
-  const [catUserOverride, setCatUserOverride] = useState(false)
-  const [editCard, setEditCard] = useState(null)
-  const [editFront, setEditFront] = useState('')
-  const [editBack, setEditBack] = useState('')
-  const [editCat, setEditCat] = useState('vocabulary')
-  const [editPronunciation, setEditPronunciation] = useState('')
-  const [shareStatus, setShareStatus] = useState(null)
-  const myPartnerUID = myData?.partnerUID || (user.uid === MARK_UID ? ELOSY_UID : user.uid === ELOSY_UID ? MARK_UID : null)
-  const myPartnerName = myData?.partnerName || (user.uid === MARK_UID ? 'Elosy' : user.uid === ELOSY_UID ? 'Mark' : null)
-  const firstName = user.displayName?.split(' ')[0] || 'Partner'
-
-  useEffect(() => {
-    if (catUserOverride) return
-    const fw = newFront.trim().split(/\s+/).filter(Boolean).length
-    const bw = newBack.trim().split(/\s+/).filter(Boolean).length
-    if (newFront.trim() && newBack.trim() && fw === 1 && bw >= 3) {
-      setNewCardCat('street')
-    } else if (!catUserOverride) {
-      setNewCardCat('vocabulary')
-    }
-  }, [newFront, newBack])
-
-  const catAutoHint = (() => {
-    if (!newFront.trim() || !newBack.trim()) return null
-    const fw = newFront.trim().split(/\s+/).filter(Boolean).length
-    const bw = newBack.trim().split(/\s+/).filter(Boolean).length
-    if (fw === 1 && bw >= 3) {
-      return lang === 'de'
-        ? "Dieses Wort wird in der Übersetzung zu einem Satz — wir sortieren es unter 'Auf der Straße' ein."
-        : "This word becomes a phrase in translation — we'll place it under 'On the Street'."
-    }
-    return null
-  })()
+  const uniqueTargetLangs = [...new Set((allCards || []).map(c => c.targetLang).filter(Boolean))]
+  const isDE = lang === 'de'
+  const [premiumModal, setPremiumModal] = useState(false)
 
   const togglePause = async (langCode) => {
     const newPaused = pausedLanguages.includes(langCode)
@@ -2426,90 +2391,7 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
     } catch (e) { console.warn('Failed to save paused languages:', e) }
   }
 
-  const saveCustomCard = async () => {
-    if (!newFront.trim() || !newBack.trim()) return
-    const baseCard = allCards.find(c => !/_r(_\d+)?$/.test(c.id))
-    const langA = baseCard?.langA || (lang === 'de' ? 'en' : 'de')
-    const langB = baseCard?.langB || lang
-    const ts = Date.now()
-    const card = {
-      id: `custom_${ts}`,
-      front: newFront.trim(),
-      back: newBack.trim(),
-      category: newCardCat,
-      langA, langB,
-      source: 'custom',
-      createdAt: ts,
-    }
-    const updatedAiCards = [...(myData?.aiCards || []), card]
-    try {
-      await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards })
-      setMyData(d => ({ ...d, aiCards: updatedAiCards }))
-      setNewFront(''); setNewBack(''); setNewCardCat('vocabulary'); setCatUserOverride(false)
-      setCardSaveStatus('Gespeichert ✓')
-      setTimeout(() => setCardSaveStatus(null), 2500)
-    } catch (e) {
-      setCardSaveStatus('Fehler beim Speichern')
-      setTimeout(() => setCardSaveStatus(null), 3000)
-    }
-  }
-  const openEditCard = (card) => {
-    setEditCard(card); setEditFront(card.front); setEditBack(card.back)
-    setEditCat(card.category || 'vocabulary'); setEditPronunciation(card.pronunciation || '')
-  }
-  const saveEditCard = async () => {
-    if (!editFront.trim() || !editBack.trim()) return
-    const updatedAiCards = (myData?.aiCards || []).map(c =>
-      c.id === editCard.id
-        ? { ...c, front: editFront.trim(), back: editBack.trim(), category: editCat, ...(editPronunciation.trim() ? { pronunciation: editPronunciation.trim() } : { pronunciation: undefined }) }
-        : c
-    )
-    try {
-      await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards })
-      setMyData(d => ({ ...d, aiCards: updatedAiCards }))
-      setEditCard(null)
-      setCardSaveStatus(lang === 'de' ? 'Karte gespeichert ✓' : 'Card saved ✓')
-      setTimeout(() => setCardSaveStatus(null), 2500)
-    } catch (e) { console.warn(e) }
-  }
-  const deleteEditCard = async () => {
-    const updatedAiCards = (myData?.aiCards || []).filter(c => c.id !== editCard.id)
-    try {
-      await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards })
-      setMyData(d => ({ ...d, aiCards: updatedAiCards }))
-      setEditCard(null)
-    } catch (e) { console.warn(e) }
-  }
-  const shareCardToPartner = async (card) => {
-    if (!myPartnerUID) return
-    const sharedCard = {
-      ...card,
-      id: `shared_${user.uid.slice(0, 6)}_${card.id}_${Date.now()}`,
-      sharedBy: firstName,
-      sharedAt: Date.now(),
-    }
-    try {
-      const pSnap = await getDoc(doc(db, 'users', myPartnerUID))
-      if (!pSnap.exists()) return
-      const existingShared = pSnap.data()?.sharedCards || []
-      await updateDoc(doc(db, 'users', myPartnerUID), { sharedCards: [...existingShared, sharedCard] })
-      setShareStatus(lang === 'de' ? `Mit ${myPartnerName} geteilt ✓` : `Shared with ${myPartnerName} ✓`)
-      setTimeout(() => setShareStatus(null), 3000)
-    } catch (e) { console.warn('Share failed:', e) }
-  }
-
-  const sendSurpriseCard = async (card) => {
-    if (!myPartnerUID) return
-    const surprise = { ...card, id: `surprise_${Date.now()}`, sharedBy: firstName, sharedAt: Date.now() }
-    try {
-      await updateDoc(doc(db, 'users', myPartnerUID), { surpriseCard: surprise })
-      setShareStatus(lang === 'de' ? `🎁 Überraschung gesendet an ${myPartnerName} ✓` : `🎁 Surprise sent to ${myPartnerName} ✓`)
-      setTimeout(() => setShareStatus(null), 3000)
-    } catch (e) { console.warn('Surprise send failed:', e) }
-  }
-
-  // Streak freeze helpers
-  const currentMonth = new Date().toISOString().slice(0, 7) // "2026-04"
+  const currentMonth = new Date().toISOString().slice(0, 7)
   const freeze = myData?.streakFreeze || {}
   const freezeAvailable = freeze.lastReset !== currentMonth ? true : (freeze.available ?? false)
   const handleStreakFreeze = async () => {
@@ -2519,18 +2401,13 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
       setMyData(d => ({ ...d, ...update }))
     } catch (e) { console.warn('Streak freeze failed:', e) }
   }
-  const handleResetFreeze = async () => {
-    if (freeze.lastReset !== currentMonth) {
-      const update = { streakFreeze: { available: true, lastReset: currentMonth } }
-      await updateDoc(doc(db, 'users', user.uid), update).catch(() => {})
-      setMyData(d => ({ ...d, ...update }))
-    }
-  }
 
   return (
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
       <button style={s.backBtn} onClick={onBack}>← {t.back}</button>
-      <h2 style={{ color: s.lang.color, marginBottom: '20px', fontSize: '1.3rem' }}>⚙️ {t.settingsTitle}</h2>
+      <h2 style={{ color: th.text, marginBottom: '20px', fontSize: '1.3rem' }}>⚙️ {t.settingsTitle}</h2>
+
+      {/* ── THEME ── */}
       <div style={s.card}>
         <p style={s.cardLabel}>{t.chooseTheme}</p>
         <div style={s.themeRow}>
@@ -2539,9 +2416,10 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
           ))}
         </div>
       </div>
-      {/* ── TÄGLICHES LERNZIEL ── */}
+
+      {/* ── TAGESZIEL ── */}
       <div style={s.card}>
-        <p style={{ ...s.cardLabel, marginBottom: '12px' }}>{lang === 'de' ? 'Tägliches Lernziel' : 'Daily learning goal'}</p>
+        <p style={{ ...s.cardLabel, marginBottom: '12px' }}>{isDE ? 'Tägliches Lernziel' : 'Daily learning goal'}</p>
         <div style={{ display: 'flex', gap: '8px' }}>
           {[5, 10, 15, 20].map(n => (
             <button key={n}
@@ -2550,215 +2428,110 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
             >{n}</button>
           ))}
         </div>
-        <p style={{ color: th.sub, fontSize: '0.72rem', marginTop: '7px', marginBottom: 0 }}>{lang === 'de' ? 'Karten pro Tag' : 'Cards per day'}</p>
+        <p style={{ color: th.sub, fontSize: '0.72rem', marginTop: '7px', marginBottom: 0 }}>{isDE ? 'Karten pro Tag' : 'Cards per day'}</p>
       </div>
+
+      {/* ── SPRACHE PAUSIEREN ── */}
       {uniqueTargetLangs.length > 0 && (
         <div style={s.card}>
-          <p style={{ ...s.cardLabel, marginBottom: '14px' }}>Sprachen</p>
+          <p style={{ ...s.cardLabel, marginBottom: '14px' }}>{isDE ? 'Sprachen' : 'Languages'}</p>
           {uniqueTargetLangs.map(langCode => {
             const info = AVAILABLE_LANGS.find(l => l.code === langCode)
             const paused = pausedLanguages.includes(langCode)
             return (
               <div key={langCode} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <span style={{ color: th.text, fontSize: '1rem' }}>{info?.flag} {info?.label || langCode}</span>
-                <button
-                  onClick={() => togglePause(langCode)}
-                  style={{
-                    background: paused ? 'transparent' : th.accent,
-                    color: paused ? th.sub : (th.btnTextColor || '#111'),
-                    border: `1px solid ${paused ? th.border : th.accent}`,
-                    borderRadius: '20px', padding: '5px 14px',
-                    fontSize: '0.8rem', cursor: 'pointer', fontWeight: '600',
-                    transition: 'all 0.2s',
-                  }}
-                >
-                  {paused ? 'Pausiert' : 'Aktiv'}
+                <button onClick={() => togglePause(langCode)}
+                  style={{ background: paused ? 'transparent' : th.accent, color: paused ? th.sub : (th.btnTextColor || '#111'), border: `1px solid ${paused ? th.border : th.accent}`, borderRadius: '20px', padding: '5px 14px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: '600', transition: 'all 0.2s' }}>
+                  {paused ? (isDE ? 'Pausiert' : 'Paused') : (isDE ? 'Aktiv' : 'Active')}
                 </button>
               </div>
             )
           })}
         </div>
       )}
-      {/* ── NEUE KARTE ── */}
+
+      {/* ── DARK/LIGHT MODE ── */}
       <div style={s.card}>
-        <p style={{ ...s.cardLabel, marginBottom: '14px' }}>{lang === 'de' ? 'Neue Karte' : 'New Card'}</p>
-        <input
-          style={{ ...s.input, marginBottom: '8px' }}
-          placeholder={lang === 'de' ? 'Vorderseite (z.B. englisches Wort)' : 'Front (e.g. German word)'}
-          value={newFront}
-          onChange={e => setNewFront(e.target.value)}
-        />
-        <input
-          style={{ ...s.input, marginBottom: '12px' }}
-          placeholder={lang === 'de' ? 'Rückseite (Übersetzung)' : 'Back (translation)'}
-          value={newBack}
-          onChange={e => setNewBack(e.target.value)}
-        />
-        <div style={{ display: 'flex', gap: '8px', marginBottom: catAutoHint ? '8px' : '12px' }}>
-          <button
-            onClick={() => { setNewCardCat('vocabulary'); setCatUserOverride(true) }}
-            style={{
-              flex: 1, padding: '8px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem',
-              background: newCardCat === 'vocabulary' ? 'rgba(140,140,155,0.25)' : 'transparent',
-              color: newCardCat === 'vocabulary' ? '#A0A0B8' : th.sub,
-              border: `1px solid ${newCardCat === 'vocabulary' ? 'rgba(140,140,155,0.45)' : th.border}`,
-            }}
-          >
-            Hochsprache
-          </button>
-          <button
-            onClick={() => { setNewCardCat('street'); setCatUserOverride(true) }}
-            style={{
-              flex: 1, padding: '8px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem',
-              background: newCardCat === 'street' ? 'rgba(180,120,30,0.2)' : 'transparent',
-              color: newCardCat === 'street' ? '#C8922A' : th.sub,
-              border: `1px solid ${newCardCat === 'street' ? 'rgba(180,120,30,0.4)' : th.border}`,
-            }}
-          >
-            Slang / Umgangs&shy;sprachlich
-          </button>
-        </div>
-        {catAutoHint && (
-          <p style={{ fontSize: '0.75rem', color: th.sub, margin: '0 0 12px 0', lineHeight: 1.4, padding: '6px 8px', background: `${th.border}88`, borderRadius: '8px' }}>
-            💡 {catAutoHint}
-          </p>
-        )}
-        <button
-          style={{ ...s.button, marginBottom: 0, opacity: (!newFront.trim() || !newBack.trim()) ? 0.45 : 1 }}
-          onClick={saveCustomCard}
-          disabled={!newFront.trim() || !newBack.trim()}
-        >
-          {lang === 'de' ? 'Karte speichern' : 'Save card'}
-        </button>
-        {cardSaveStatus && <p style={{ color: th.accent, fontSize: '0.82rem', marginTop: '8px', textAlign: 'center' }}>{cardSaveStatus}</p>}
-        {/* ── LIVE VORSCHAU ── */}
-        {(newFront.trim() || newBack.trim()) && (
-          <div style={{ marginTop: '16px', background: th.bg, borderRadius: '14px', padding: '14px 16px', border: `1px solid ${th.border}` }}>
-            <p style={{ ...s.cardLabel, marginBottom: '10px' }}>{lang === 'de' ? 'Vorschau' : 'Preview'}</p>
-            <div style={{ position: 'relative', paddingTop: '4px' }}>
-              <div style={{ position: 'absolute', top: 0, right: 0, background: newCardCat === 'street' ? 'rgba(180,120,30,0.2)' : 'rgba(140,140,155,0.18)', color: newCardCat === 'street' ? '#C8922A' : '#8A8A9A', border: `1px solid ${newCardCat === 'street' ? 'rgba(180,120,30,0.35)' : 'rgba(140,140,155,0.28)'}`, borderRadius: '6px', padding: '2px 7px', fontSize: '9px', fontWeight: '600', letterSpacing: '0.5px', textTransform: 'uppercase', pointerEvents: 'none' }}>
-                {newCardCat === 'street' ? 'Slang' : 'Hochsprache'}
-              </div>
-              <p style={{ color: th.text, fontSize: '1rem', fontWeight: 'bold', margin: '0 0 10px 0', paddingRight: '76px' }}>{newFront || '…'}</p>
-              <div style={{ height: '1px', background: th.border, marginBottom: '10px' }} />
-              <p style={{ color: th.accent, fontSize: '1.2rem', fontWeight: 'bold', margin: 0 }}>{newBack || '…'}</p>
-            </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <p style={{ ...s.cardLabel, marginBottom: '2px' }}>Dark / Light Mode</p>
+            <p style={{ color: th.sub, fontSize: '0.75rem', margin: 0 }}>{isDE ? 'Bald verfügbar' : 'Coming soon'}</p>
           </div>
-        )}
+          <span style={{ background: `${th.gold}18`, color: th.gold, border: `1px solid ${th.gold}44`, borderRadius: '20px', padding: '3px 14px', fontSize: '0.72rem', fontWeight: '700', flexShrink: 0 }}>{isDE ? 'Bald' : 'Soon'}</span>
+        </div>
       </div>
 
-      {/* ── KARTEN BEARBEITEN ── */}
-      {editCard && (
-        <div style={{ ...s.card, border: `1px solid ${th.accent}55` }}>
-          <p style={{ ...s.cardLabel, marginBottom: '14px' }}>{lang === 'de' ? 'Karte bearbeiten' : 'Edit card'}</p>
-          <input style={{ ...s.input, marginBottom: '8px' }} value={editFront} onChange={e => setEditFront(e.target.value)} placeholder={lang === 'de' ? 'Vorderseite' : 'Front'} />
-          <input style={{ ...s.input, marginBottom: '8px' }} value={editBack} onChange={e => setEditBack(e.target.value)} placeholder={lang === 'de' ? 'Rückseite' : 'Back'} />
-          <input style={{ ...s.input, marginBottom: '12px' }} value={editPronunciation} onChange={e => setEditPronunciation(e.target.value)} placeholder={lang === 'de' ? 'Aussprache (optional)' : 'Pronunciation (optional)'} />
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-            <button onClick={() => setEditCat('vocabulary')} style={{ flex: 1, padding: '8px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem', background: editCat !== 'street' ? 'rgba(140,140,155,0.25)' : 'transparent', color: editCat !== 'street' ? '#A0A0B8' : th.sub, border: `1px solid ${editCat !== 'street' ? 'rgba(140,140,155,0.45)' : th.border}` }}>Hochsprache</button>
-            <button onClick={() => setEditCat('street')} style={{ flex: 1, padding: '8px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem', background: editCat === 'street' ? 'rgba(180,120,30,0.2)' : 'transparent', color: editCat === 'street' ? '#C8922A' : th.sub, border: `1px solid ${editCat === 'street' ? 'rgba(180,120,30,0.4)' : th.border}` }}>Slang</button>
-          </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button style={{ flex: 1, background: th.accent, color: th.btnTextColor || '#111', border: 'none', padding: '10px', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '0.9rem' }} onClick={saveEditCard}>{lang === 'de' ? 'Speichern' : 'Save'}</button>
-            <button style={{ flex: '0 0 auto', background: '#f4433618', color: '#e06c75', border: '1px solid #e06c75', padding: '10px 14px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.85rem' }} onClick={deleteEditCard}>{lang === 'de' ? 'Löschen' : 'Delete'}</button>
-            <button style={{ flex: '0 0 auto', background: 'transparent', color: th.sub, border: `1px solid ${th.border}`, padding: '10px 14px', borderRadius: '10px', cursor: 'pointer', fontSize: '0.85rem' }} onClick={() => setEditCard(null)}>✕</button>
-          </div>
-          {myPartnerUID && (
-            <button
-              onClick={() => shareCardToPartner(editCard)}
-              style={{ marginTop: '10px', width: '100%', background: 'transparent', border: `1px solid ${th.border}`, color: th.sub, padding: '9px', borderRadius: '10px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: '500' }}
-            >
-              🎁 {lang === 'de' ? `Mit ${myPartnerName} teilen` : `Share with ${myPartnerName}`}
-            </button>
-          )}
-          {shareStatus && <p style={{ color: th.accent, fontSize: '0.8rem', marginTop: '6px', textAlign: 'center', margin: '6px 0 0' }}>{shareStatus}</p>}
-        </div>
-      )}
-      {/* ── KARTEN LISTE ── */}
-      {(() => {
-        const userCards = (myData?.aiCards || []).filter(c => !/_r(_\d+)?$/.test(c.id))
-        if (!userCards.length) return null
-        return (
-          <div style={s.card}>
-            <p style={{ ...s.cardLabel, marginBottom: '12px' }}>{lang === 'de' ? `Meine Karten (${userCards.length})` : `My cards (${userCards.length})`}</p>
-            {userCards.map(card => (
-              <div key={card.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: `1px solid ${th.border}` }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ color: th.text, fontSize: '0.85rem', margin: 0, fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.front}</p>
-                  <p style={{ color: th.sub, fontSize: '0.75rem', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.back}</p>
-                </div>
-                <button onClick={() => openEditCard(card)} style={{ background: 'transparent', border: `1px solid ${th.border}`, color: th.sub, borderRadius: '8px', padding: '5px 10px', cursor: 'pointer', fontSize: '0.8rem', marginLeft: '10px', flexShrink: 0 }}>✏️</button>
-              </div>
-            ))}
-          </div>
-        )
-      })()}
       {/* ── STREAK FREEZE ── */}
       <div style={s.card}>
-        <p style={{ ...s.cardLabel, marginBottom: '12px' }}>🧊 Streak-Schutz</p>
+        <p style={{ ...s.cardLabel, marginBottom: '12px' }}>🧊 {isDE ? 'Streak-Schutz' : 'Streak Protection'}</p>
         {(() => {
           const isAvail = freezeAvailable || (freeze.lastReset !== currentMonth)
           return (
             <>
               <p style={{ color: th.text, fontSize: '0.9rem', marginBottom: '8px' }}>
-                Verfügbar diesen Monat: <strong style={{ color: isAvail ? '#4CAF50' : th.sub }}>{isAvail ? '1x ✓' : 'verwendet'}</strong>
+                {isDE ? 'Verfügbar diesen Monat:' : 'Available this month:'} <strong style={{ color: isAvail ? '#4CAF50' : th.sub }}>{isAvail ? '1x ✓' : (isDE ? 'verwendet' : 'used')}</strong>
               </p>
               {isAvail && (
-                <button
-                  onClick={() => { if (window.confirm('Streak Freeze jetzt verwenden? (1x pro Monat)')) handleStreakFreeze() }}
-                  style={{ ...s.logoutBtn, marginTop: 0, color: '#81c784', border: '1px solid rgba(76,175,80,0.35)' }}
-                >
-                  🧊 Freeze aktivieren
+                <button onClick={() => { if (window.confirm(isDE ? 'Streak Freeze jetzt verwenden? (1x pro Monat)' : 'Use Streak Freeze now? (1x/month)')) handleStreakFreeze() }}
+                  style={{ ...s.logoutBtn, marginTop: 0, color: '#81c784', border: '1px solid rgba(76,175,80,0.35)' }}>
+                  🧊 {isDE ? 'Freeze aktivieren' : 'Activate Freeze'}
                 </button>
               )}
-              {freeze.usedAt && !isAvail && <p style={{ color: th.sub, fontSize: '0.75rem', marginTop: '4px' }}>Verwendet am {freeze.usedAt}</p>}
+              {freeze.usedAt && !isAvail && <p style={{ color: th.sub, fontSize: '0.75rem', marginTop: '4px' }}>{isDE ? `Verwendet am ${freeze.usedAt}` : `Used on ${freeze.usedAt}`}</p>}
             </>
           )
         })()}
       </div>
 
-      {/* ── GESPERRTE PREMIUM FEATURES ── */}
+      {/* ── PARTNER VERBINDEN ── */}
+      <button style={{ ...s.card, cursor: 'pointer', width: '100%', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+        onClick={onPartner}>
+        <span style={{ color: th.text, fontSize: '0.9rem' }}>🤝 {isDE ? 'Partner verbinden' : 'Connect partner'}</span>
+        <span style={{ color: th.sub }}>→</span>
+      </button>
+
+      {/* ── WEITERE SPRACHEN (PREMIUM) ── */}
       <div style={s.card}>
-        <p style={{ ...s.cardLabel, marginBottom: '12px' }}>🌍 Sprachen</p>
-        {[{ code: 'es', flag: '🇪🇸', label: 'Spanisch' }, { code: 'fr', flag: '🇫🇷', label: 'Französisch' }].map(l => (
-          <div key={l.code} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', opacity: 0.6 }}>
-            <span style={{ color: th.text, fontSize: '0.9rem' }}>{l.flag} {l.label}</span>
-            <span style={{ background: `${th.gold}18`, color: th.gold, border: `1px solid ${th.gold}44`, borderRadius: '12px', padding: '3px 10px', fontSize: '0.72rem', fontWeight: '600' }}>🔒 Premium</span>
-          </div>
-        ))}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', opacity: 0.6 }}>
-          <span style={{ color: th.text, fontSize: '0.9rem' }}>🔑 Hauptsprache ändern</span>
-          <span style={{ background: `${th.gold}18`, color: th.gold, border: `1px solid ${th.gold}44`, borderRadius: '12px', padding: '3px 10px', fontSize: '0.72rem', fontWeight: '600' }}>🔒 Premium</span>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.6 }}>
-          <span style={{ color: th.text, fontSize: '0.9rem' }}>➕ Weitere Lernsprache</span>
-          <span style={{ background: `${th.gold}18`, color: th.gold, border: `1px solid ${th.gold}44`, borderRadius: '12px', padding: '3px 10px', fontSize: '0.72rem', fontWeight: '600' }}>🔒 Premium</span>
-        </div>
+        <p style={{ ...s.cardLabel, marginBottom: '12px' }}>🌍 {isDE ? 'Weitere Sprachen' : 'More languages'}</p>
+        <button onClick={() => setPremiumModal(true)}
+          style={{ width: '100%', background: `${th.gold}0E`, border: `1px solid ${th.gold}33`, borderRadius: '12px', padding: '12px 14px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ color: th.text, fontSize: '0.88rem' }}>🔒 {isDE ? 'Hauptsprache · Weitere Sprache' : 'Main language · More language'}</span>
+          <span style={{ background: `${th.gold}18`, color: th.gold, border: `1px solid ${th.gold}44`, borderRadius: '12px', padding: '2px 10px', fontSize: '0.72rem', fontWeight: '700', flexShrink: 0, marginLeft: '8px' }}>Premium</span>
+        </button>
       </div>
 
-      {/* ── ÜBERRASCHUNGSKARTE ── */}
-      {myPartnerUID && (
-        <div style={s.card}>
-          <p style={{ ...s.cardLabel, marginBottom: '10px' }}>🎁 Überraschungskarte senden</p>
-          <p style={{ color: th.sub, fontSize: '0.8rem', marginBottom: '12px' }}>Sende dem Partner eine Überraschungskarte — sie sehen sie beim nächsten App-Start.</p>
-          {(() => {
-            const userCards = (myData?.aiCards || []).filter(c => !/_r(_\d+)?$/.test(c.id))
-            if (!userCards.length) return <p style={{ color: th.sub, fontSize: '0.8rem' }}>Keine eigenen Karten vorhanden.</p>
-            return userCards.slice(0, 5).map(card => (
-              <div key={card.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 0', borderBottom: `1px solid ${th.border}` }}>
-                <span style={{ color: th.text, fontSize: '0.82rem', flex: 1 }}>{card.front} → {card.back}</span>
-                <button onClick={() => sendSurpriseCard(card)} style={{ background: 'transparent', border: `1px solid ${th.border}`, color: th.gold, borderRadius: '8px', padding: '4px 10px', cursor: 'pointer', fontSize: '0.75rem', marginLeft: '8px' }}>🎁</button>
-              </div>
-            ))
-          })()}
-          {shareStatus && <p style={{ color: th.accent, fontSize: '0.8rem', marginTop: '8px', textAlign: 'center' }}>{shareStatus}</p>}
+      {/* ── ABMELDEN ── */}
+      <button style={{ ...s.logoutBtn, marginTop: '8px', color: '#e06c75', border: '1px solid rgba(224,108,117,0.35)' }}
+        onClick={() => { if (window.confirm(isDE ? 'Wirklich abmelden?' : 'Sign out?')) signOut(auth) }}>
+        {isDE ? 'Abmelden' : 'Sign out'}
+      </button>
+
+      {/* ── PREMIUM MODAL ── */}
+      {premiumModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 9500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', backdropFilter: 'blur(6px)' }}
+          onClick={() => setPremiumModal(false)}>
+          <div style={{ background: th.card, border: `1px solid ${th.gold}44`, borderRadius: '24px', padding: '28px 24px', maxWidth: '340px', width: '100%', textAlign: 'center', boxShadow: `0 0 40px ${th.gold}22`, animation: 'vocaraFadeIn 0.3s ease both' }}
+            onClick={e => e.stopPropagation()}>
+            <p style={{ fontSize: '2rem', margin: '0 0 10px' }}>🌍</p>
+            <p style={{ color: th.text, fontWeight: '700', fontSize: '1.1rem', marginBottom: '8px' }}>{isDE ? 'Mehr Sprachen mit Premium' : 'More languages with Premium'}</p>
+            <p style={{ color: th.sub, fontSize: '0.88rem', marginBottom: '20px', lineHeight: 1.5 }}>
+              {isDE ? 'Mit Premium kannst du Spanisch, Französisch, Thai und mehr lernen.' : 'With Premium you can learn Spanish, French, Thai and more.'}
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center', marginBottom: '20px' }}>
+              {['🇪🇸 Español', '🇫🇷 Français', '🇹🇭 ภาษาไทย', '🇵🇹 Português', '🇹🇷 Türkçe'].map(l => (
+                <span key={l} style={{ background: `${th.gold}12`, color: th.text, border: `1px solid ${th.gold}33`, borderRadius: '20px', padding: '4px 12px', fontSize: '0.82rem' }}>{l}</span>
+              ))}
+            </div>
+            <button style={{ ...s.button, marginBottom: '8px', background: `linear-gradient(135deg, ${th.gold}40, ${th.gold}20)`, color: th.text, border: `1px solid ${th.gold}66` }}>
+              ✨ {isDE ? 'Premium freischalten' : 'Unlock Premium'}
+            </button>
+            <button onClick={() => setPremiumModal(false)} style={{ background: 'transparent', border: 'none', color: th.sub, cursor: 'pointer', fontSize: '0.82rem', padding: '4px 8px' }}>
+              {isDE ? 'Schließen' : 'Close'}
+            </button>
+          </div>
         </div>
       )}
-
-      <div style={{ ...s.card, opacity: 0.4 }}>
-        <p style={s.cardLabel}>{t.comingSoon}</p>
-        <p style={s.noPartner}>Benachrichtigungen • Stumm-Modus</p>
-      </div>
     </div></div>
   )
 }
@@ -2932,7 +2705,10 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const [reactionPrompt, setReactionPrompt] = useState(null) // {name, count}
   const [floatingReaction, setFloatingReaction] = useState(null) // emoji string
   const [freezeAvailable, setFreezeAvailable] = useState(true)
-  const VALID_SCREENS = new Set(['menu','cards','result','settings','partner','test','impressum','stats','ki','satz','diary'])
+  const [karteMenu, setKarteMenu] = useState(false)
+  const [dotTooltip, setDotTooltip] = useState(null) // area key
+  const [pendingGift, setPendingGift] = useState(null) // gift object
+  const VALID_SCREENS = new Set(['menu','cards','result','settings','partner','test','impressum','stats','ki','satz','diary','meinekarten','geschenkkarte','karteerstellen'])
   if (!VALID_SCREENS.has(screen)) { setScreen('menu'); return null }
 
   // Check for surprise card from partner on mount
@@ -2949,6 +2725,13 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
     const month = new Date().toISOString().slice(0, 7)
     setFreezeAvailable(freeze.lastReset !== month ? true : (freeze.available ?? true))
   }, [myData?.streakFreeze])
+
+  // ── PENDING GIFT CHECK ────────────────────────────────────
+  useEffect(() => {
+    const gift = myData?.pendingGift
+    if (!gift || myData?.pendingGiftSeenDate === todayStr()) return
+    setPendingGift(gift)
+  }, [])
 
   // ── DAILY CARD ────────────────────────────────────────────
   useEffect(() => {
@@ -3100,6 +2883,16 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   // ── PARTNER ONLINE STATUS ─────────────────────────────────
   const partnerLastActive = partnerData?.lastActive
   const partnerOnline = !!(partnerData && (partnerLastActive === today || partnerLastActive === yesterday))
+  const partnerActivityStatus = (() => {
+    if (!partnerData || !partnerLastActive) return null
+    const lastActiveMs = new Date(partnerLastActive).getTime()
+    const nowMs = Date.now()
+    const diffMin = (nowMs - lastActiveMs) / 60000
+    if (diffMin <= 30) return { label: isMarkLang ? `${partnerName} lernt gerade` : `${partnerName} is learning now`, color: '#4CAF50', dot: '🟢' }
+    if (partnerLastActive === today) return { label: isMarkLang ? `${partnerName} war heute aktiv` : `${partnerName} was active today`, color: '#FFC107', dot: '🟡' }
+    if (partnerLastActive === yesterday) return { label: isMarkLang ? `${partnerName} war gestern aktiv` : `${partnerName} was active yesterday`, color: th.sub, dot: '⚪' }
+    return { label: isMarkLang ? `${partnerName} zuletzt: ${partnerLastActive}` : `${partnerName} last seen: ${partnerLastActive}`, color: th.sub, dot: '⚪' }
+  })()
 
   // ── CEFR PROGRESS ─────────────────────────────────────────
   const myMasteredCount = Object.values(cardProgress).filter(p => (p?.interval || 0) >= 7).length
@@ -3453,7 +3246,10 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
 
   if (screen === 'cards' && session) return <>{homeFloat}<CardScreen session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} onSaveSessionProgress={saveSessionProgress} onStop={handleSessionStop} mode={currentSessionMode} startIndex={resumeStartIndex} startProgress={resumeStartProgress} /></>
   if (screen === 'result') return <>{homeFloat}<ResultScreen correct={result.correct} wrong={result.wrong} easy={result.easy} weakestCard={result.weakestCard} strongestCard={result.strongestCard} masteryUnlocked={masteryUnlocked} t={t} lang={lang} onBack={() => { setScreen('menu'); setSession(null) }} onReplay={result.originalSession ? () => { setSession(result.originalSession); setResumeStartIndex(0); setResumeStartProgress(null); setScreen('cards') } : null} s={s} th={th} /></>
-  if (screen === 'settings') return <>{homeFloat}<SettingsScreen t={t} s={s} theme={theme} onThemeChange={onThemeChange} onBack={() => setScreen('menu')} user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} /></>
+  if (screen === 'settings') return <>{homeFloat}<SettingsScreen t={t} s={s} theme={theme} onThemeChange={onThemeChange} onBack={() => setScreen('menu')} user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} onPartner={() => setScreen('partner')} /></>
+  if (screen === 'meinekarten') return <>{homeFloat}<MeineKartenScreen user={user} myData={myData} setMyData={setMyData} allCards={allCards} cardProgress={cardProgress} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
+  if (screen === 'geschenkkarte') return <>{homeFloat}<GeschenkkarteScreen user={user} myData={myData} lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} /></>
+  if (screen === 'karteerstellen') return <>{homeFloat}<KarteErstellenScreen user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
   if (screen === 'partner') return <>{homeFloat}<PartnerScreen user={user} myData={myData} lang={lang} theme={theme} onBack={() => setScreen('menu')} onPartnerUpdate={(uid) => { onPartnerUpdate(uid); setScreen('menu') }} /></>
   if (screen === 'test') return <>{homeFloat}<PlacementTest lang={lang} theme={theme} user={user} onBack={() => setScreen('menu')} onSaveCefr={onSaveCefr} /></>
   if (screen === 'impressum') return <>{homeFloat}<ImpressumScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
@@ -3470,8 +3266,10 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         <h1 className="vocara-logo-title" style={{ ...s.title, fontSize: 'clamp(4rem, 17vw, 6.5rem)', lineHeight: 1, marginBottom: '10px' }}>Vocara</h1>
         <p className="vocara-logo-greeting" style={{ ...s.greeting, marginBottom: uniqueTargetLangs.length > 0 ? '6px' : 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px' }}>
           {t.hello}, {firstName}
-          {partnerData && (
-            <span title={partnerOnline ? `${partnerName} ist aktiv` : `${partnerName}`} style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: partnerOnline ? '#4CAF50' : '#444', flexShrink: 0, boxShadow: partnerOnline ? '0 0 5px #4CAF5099' : 'none', transition: 'background 0.4s' }} />
+          {partnerActivityStatus && (
+            <span style={{ fontSize: '0.72rem', color: partnerActivityStatus.color, fontWeight: '500', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+              {partnerActivityStatus.dot} {partnerActivityStatus.label}
+            </span>
           )}
         </p>
         {(onBack || uniqueTargetLangs.length > 0) && (
@@ -3593,6 +3391,26 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         </button>
       </div>
 
+      {/* ── KARTE BUTTON ── */}
+      <button style={{ ...s.navBtn, marginBottom: karteMenu ? '2px' : '12px', fontSize: '0.9rem', fontWeight: '600', textAlign: 'center' }}
+        onClick={() => setKarteMenu(m => !m)}>
+        🃏 {isMarkLang ? 'Karte' : 'Card'} {karteMenu ? '▲' : '▼'}
+      </button>
+      {karteMenu && (
+        <div style={{ background: th.card, border: `1px solid ${th.border}`, borderRadius: '14px', padding: '4px', marginBottom: '12px', animation: 'vocaraFadeIn 0.2s ease both' }}>
+          <button style={{ ...s.navBtn, marginBottom: '2px', textAlign: 'left', paddingLeft: '16px' }} onClick={() => { setKarteMenu(false); setScreen('meinekarten') }}>
+            📋 {isMarkLang ? 'Meine Karten' : 'My Cards'}
+          </button>
+          <button style={{ ...s.navBtn, marginBottom: '2px', textAlign: 'left', paddingLeft: '16px' }} onClick={() => { setKarteMenu(false); setScreen('karteerstellen') }}>
+            ✏️ {isMarkLang ? 'Karte erstellen' : 'Create card'}
+          </button>
+          <button style={{ ...s.navBtn, marginBottom: 0, textAlign: 'left', paddingLeft: '16px', opacity: myData?.partnerUID ? 1 : 0.4 }}
+            onClick={() => { if (!myData?.partnerUID) return; setKarteMenu(false); setScreen('geschenkkarte') }}>
+            🎁 {isMarkLang ? 'Geschenkkarte senden' : 'Send gift card'}
+          </button>
+        </div>
+      )}
+
       {/* ── TÄGLICHES LERNZIEL ── */}
       <div style={{ marginBottom: '14px', padding: '0 2px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
@@ -3645,21 +3463,33 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
       )}
 
       {/* ── WOCHENZIEL DOTS ── */}
-      <div className="vocara-dots-row" style={{ display: 'flex', justifyContent: 'center', gap: '14px', marginBottom: '20px', alignItems: 'flex-start' }}>
+      <div className="vocara-dots-row" style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginBottom: '20px', alignItems: 'flex-start' }}>
         {WEEK_AREAS.map(area => {
           const done = weeklyGoals.completed.includes(area.key)
+          const active = dotTooltip === area.key
           return (
-            <div key={area.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
+            <div key={area.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
+              onClick={() => setDotTooltip(active ? null : area.key)}>
               <div style={{
-                width: '10px', height: '10px', borderRadius: '50%',
-                background: done ? th.accent : th.border,
-                transition: 'background 0.35s ease',
-                boxShadow: done ? `0 0 7px ${th.glowColor}` : 'none',
+                width: '22px', height: '22px', borderRadius: '50%',
+                background: done ? th.accent : 'transparent',
+                border: done ? 'none' : `2px solid ${th.border}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'all 0.3s ease',
+                boxShadow: done ? `0 0 10px ${th.glowColor}66` : 'none',
                 animation: done ? 'dotPop 0.4s ease both' : 'none',
-              }} />
-              <span style={{ fontSize: '8px', color: done ? th.accent : th.sub, fontWeight: done ? '600' : '400', textAlign: 'center', lineHeight: 1.2, maxWidth: '46px', transition: 'color 0.35s ease' }}>
+                flexShrink: 0,
+              }}>
+                {done && <span style={{ color: th.btnTextColor || '#111', fontSize: '11px', fontWeight: '900', lineHeight: 1 }}>✓</span>}
+              </div>
+              <span style={{ fontSize: '8px', color: done ? th.accent : th.sub, fontWeight: done ? '700' : '400', textAlign: 'center', lineHeight: 1.2, maxWidth: '46px', transition: 'color 0.3s ease' }}>
                 {lang === 'de' ? area.labelDe : area.labelEn}
               </span>
+              {active && (
+                <span style={{ fontSize: '7.5px', color: done ? '#4CAF50' : th.sub, textAlign: 'center', maxWidth: '60px', lineHeight: 1.3, padding: '3px 6px', background: th.card, border: `1px solid ${th.border}`, borderRadius: '6px', marginTop: '2px', animation: 'vocaraFadeIn 0.2s ease both' }}>
+                  {done ? (isMarkLang ? '✓ Diese Woche geübt' : '✓ Practiced this week') : (lang === 'de' ? area.tipDe : area.tipEn)}
+                </span>
+              )}
             </div>
           )
         })}
@@ -3767,6 +3597,42 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
       {floatingReaction && (
         <div style={{ position: 'fixed', top: '22%', left: '50%', transform: 'translateX(-50%)', fontSize: '4rem', zIndex: 9100, pointerEvents: 'none', animation: 'vocaraCelebrate 3.5s ease both' }}>
           {floatingReaction}
+        </div>
+      )}
+
+      {/* ── GESCHENKKARTE POPUP ── */}
+      {pendingGift && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', backdropFilter: 'blur(6px)' }}>
+          <div style={{ background: th.card, border: `2px solid ${th.gold}66`, borderRadius: '24px', padding: '28px 24px', maxWidth: '360px', width: '100%', textAlign: 'center', boxShadow: `0 0 40px ${th.glowColor}44`, animation: 'vocaraFadeIn 0.4s ease both' }}>
+            <p style={{ fontSize: '2.5rem', margin: '0 0 8px' }}>🎁</p>
+            <p style={{ color: th.gold, fontWeight: 'bold', fontSize: '1.1rem', marginBottom: '6px' }}>{isMarkLang ? `Geschenk von ${pendingGift.fromName}!` : `Gift from ${pendingGift.fromName}!`}</p>
+            {pendingGift.message && <p style={{ color: th.sub, fontSize: '0.85rem', marginBottom: '10px', fontStyle: 'italic' }}>„{pendingGift.message}"</p>}
+            <div style={{ background: th.bg, borderRadius: '14px', padding: '16px', margin: '10px 0', border: `1px solid ${th.border}` }}>
+              <p style={{ color: th.text, fontWeight: 'bold', fontSize: '1.1rem', margin: '0 0 8px' }}>{pendingGift.front}</p>
+              <div style={{ height: '1px', background: th.border, margin: '8px 0' }} />
+              <p style={{ color: th.accent, fontWeight: 'bold', fontSize: '1.3rem', margin: 0 }}>{pendingGift.back}</p>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+              <button
+                onClick={async () => {
+                  const giftCard = { id: `gift_${Date.now()}`, front: pendingGift.front, back: pendingGift.back, category: pendingGift.category || 'vocabulary', langA: pendingGift.langA || 'de', langB: pendingGift.langB || 'en', source: 'gift', sharedBy: pendingGift.fromName }
+                  const updated = [...(myData?.aiCards || []), giftCard]
+                  await updateDoc(doc(db, 'users', user.uid), { aiCards: updated, pendingGift: null, pendingGiftSeenDate: todayStr() }).catch(() => {})
+                  setMyData(d => ({ ...d, aiCards: updated, pendingGift: null, pendingGiftSeenDate: todayStr() }))
+                  setPendingGift(null)
+                }}
+                style={{ flex: 1, background: `${th.accent}25`, color: th.text, border: `1px solid ${th.accent}55`, borderRadius: '14px', padding: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '0.9rem' }}>
+                ➕ {isMarkLang ? 'Zum Deck' : 'Add to deck'}
+              </button>
+              <button
+                onClick={async () => {
+                  await updateDoc(doc(db, 'users', user.uid), { pendingGift: null, pendingGiftSeenDate: todayStr() }).catch(() => {})
+                  setMyData(d => ({ ...d, pendingGift: null, pendingGiftSeenDate: todayStr() }))
+                  setPendingGift(null)
+                }}
+                style={{ flex: '0 0 auto', background: 'rgba(255,255,255,0.06)', color: th.sub, border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', padding: '12px 16px', cursor: 'pointer', fontSize: '0.9rem' }}>✕</button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -3912,6 +3778,270 @@ function DiaryScreen({ user, myData, setMyData, partnerData, lang, theme, onBack
         )}
       </div>
     </div>
+  )
+}
+
+function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, lang, theme, onBack }) {
+  const th = THEMES[theme]; const s = makeStyles(th)
+  const isDE = lang === 'de'
+  const [search, setSearch] = useState('')
+  const [filterCat, setFilterCat] = useState('all')
+  const [editCard, setEditCard] = useState(null)
+  const [editFront, setEditFront] = useState('')
+  const [editBack, setEditBack] = useState('')
+  const [editCat, setEditCat] = useState('vocabulary')
+  const [saveStatus, setSaveStatus] = useState(null)
+
+  const userCards = (myData?.aiCards || []).filter(c => !/_r(_\d+)?$/.test(c.id))
+
+  const masteryStars = (id) => {
+    const interval = cardProgress[id]?.interval || 0
+    if (interval >= 14) return 5
+    if (interval >= 7) return 4
+    if (interval >= 3) return 3
+    if (interval >= 1) return 2
+    return 0
+  }
+
+  const filtered = userCards.filter(c => {
+    const matchSearch = !search.trim() || c.front.toLowerCase().includes(search.toLowerCase()) || c.back.toLowerCase().includes(search.toLowerCase())
+    const matchCat = filterCat === 'all' || c.category === filterCat
+    return matchSearch && matchCat
+  })
+
+  const openEdit = (card) => { setEditCard(card); setEditFront(card.front); setEditBack(card.back); setEditCat(card.category || 'vocabulary') }
+
+  const saveEdit = async () => {
+    if (!editFront.trim() || !editBack.trim()) return
+    const updated = (myData?.aiCards || []).map(c => c.id === editCard.id ? { ...c, front: editFront.trim(), back: editBack.trim(), category: editCat } : c)
+    try {
+      await updateDoc(doc(db, 'users', user.uid), { aiCards: updated })
+      setMyData(d => ({ ...d, aiCards: updated }))
+      setEditCard(null)
+      setSaveStatus(isDE ? 'Gespeichert ✓' : 'Saved ✓')
+      setTimeout(() => setSaveStatus(null), 2000)
+    } catch (e) { console.warn(e) }
+  }
+
+  const deleteCard = async (card) => {
+    if (!window.confirm(isDE ? `„${card.front}" löschen?` : `Delete "${card.front}"?`)) return
+    const updated = (myData?.aiCards || []).filter(c => c.id !== card.id)
+    try {
+      await updateDoc(doc(db, 'users', user.uid), { aiCards: updated })
+      setMyData(d => ({ ...d, aiCards: updated }))
+      if (editCard?.id === card.id) setEditCard(null)
+    } catch (e) { console.warn(e) }
+  }
+
+  return (
+    <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
+      <button style={s.backBtn} onClick={onBack}>← {isDE ? 'Zurück' : 'Back'}</button>
+      <h2 style={{ color: th.text, marginBottom: '16px', fontSize: '1.2rem', fontFamily: "'Playfair Display', Georgia, serif" }}>
+        📋 {isDE ? `Meine Karten (${userCards.length})` : `My Cards (${userCards.length})`}
+      </h2>
+      <input style={{ ...s.input, marginBottom: '8px' }} placeholder={isDE ? 'Suchen…' : 'Search…'} value={search} onChange={e => setSearch(e.target.value)} />
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap' }}>
+        {[['all', isDE ? 'Alle' : 'All'], ['vocabulary', 'Hochsprache'], ['street', 'Slang'], ['sentence', isDE ? 'Sätze' : 'Sentences'], ['home', isDE ? 'Zuhause' : 'Home']].map(([key, label]) => (
+          <button key={key} onClick={() => setFilterCat(key)}
+            style={{ padding: '4px 11px', borderRadius: '20px', fontSize: '0.75rem', cursor: 'pointer', fontWeight: filterCat === key ? '700' : '400', background: filterCat === key ? th.accent : 'transparent', color: filterCat === key ? (th.btnTextColor || '#111') : th.sub, border: `1px solid ${filterCat === key ? th.accent : th.border}` }}>
+            {label}
+          </button>
+        ))}
+      </div>
+      {editCard && (
+        <div style={{ ...s.card, border: `1px solid ${th.accent}55`, marginBottom: '12px', animation: 'vocaraFadeIn 0.2s ease both' }}>
+          <p style={{ ...s.cardLabel, marginBottom: '12px' }}>{isDE ? 'Karte bearbeiten' : 'Edit card'}</p>
+          <input style={{ ...s.input, marginBottom: '8px' }} value={editFront} onChange={e => setEditFront(e.target.value)} placeholder={isDE ? 'Vorderseite' : 'Front'} />
+          <input style={{ ...s.input, marginBottom: '12px' }} value={editBack} onChange={e => setEditBack(e.target.value)} placeholder={isDE ? 'Rückseite' : 'Back'} />
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+            <button onClick={() => setEditCat('vocabulary')} style={{ flex: 1, padding: '7px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '0.78rem', background: editCat !== 'street' ? 'rgba(140,140,155,0.25)' : 'transparent', color: editCat !== 'street' ? '#A0A0B8' : th.sub, border: `1px solid ${editCat !== 'street' ? 'rgba(140,140,155,0.45)' : th.border}` }}>Hochsprache</button>
+            <button onClick={() => setEditCat('street')} style={{ flex: 1, padding: '7px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '0.78rem', background: editCat === 'street' ? 'rgba(180,120,30,0.2)' : 'transparent', color: editCat === 'street' ? '#C8922A' : th.sub, border: `1px solid ${editCat === 'street' ? 'rgba(180,120,30,0.4)' : th.border}` }}>Slang</button>
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button style={{ flex: 1, background: th.accent, color: th.btnTextColor || '#111', border: 'none', padding: '9px', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '0.88rem' }} onClick={saveEdit}>{isDE ? 'Speichern' : 'Save'}</button>
+            <button style={{ flex: '0 0 auto', background: '#f4433618', color: '#e06c75', border: '1px solid rgba(224,108,117,0.5)', padding: '9px 14px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.82rem' }} onClick={() => deleteCard(editCard)}>{isDE ? 'Löschen' : 'Delete'}</button>
+            <button style={{ flex: '0 0 auto', background: 'transparent', color: th.sub, border: `1px solid ${th.border}`, padding: '9px 12px', borderRadius: '10px', cursor: 'pointer', fontSize: '0.85rem' }} onClick={() => setEditCard(null)}>✕</button>
+          </div>
+          {saveStatus && <p style={{ color: th.accent, fontSize: '0.8rem', marginTop: '8px', textAlign: 'center' }}>{saveStatus}</p>}
+        </div>
+      )}
+      {filtered.length === 0 ? (
+        <div style={{ ...s.card, textAlign: 'center', padding: '32px 20px' }}>
+          <span style={{ fontSize: '2rem', display: 'block', marginBottom: '8px' }}>📋</span>
+          <p style={{ color: th.sub, fontSize: '0.88rem', margin: 0 }}>{isDE ? 'Keine Karten gefunden.' : 'No cards found.'}</p>
+        </div>
+      ) : (
+        <div style={s.card}>
+          {filtered.map((card, i) => {
+            const interval = cardProgress[card.id]?.interval || 0
+            const stars = masteryStars(card.id)
+            const isGold = interval >= 14
+            return (
+              <div key={card.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 0', borderBottom: i < filtered.length - 1 ? `1px solid ${th.border}` : 'none' }}>
+                <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => openEdit(card)}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '2px' }}>
+                    <p style={{ color: th.text, fontSize: '0.88rem', margin: 0, fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.front}</p>
+                    {isGold && <span style={{ fontSize: '0.68rem', flexShrink: 0 }}>⭐</span>}
+                  </div>
+                  <p style={{ color: th.sub, fontSize: '0.77rem', margin: '0 0 3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.back}</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ background: card.category === 'street' ? 'rgba(180,120,30,0.2)' : 'rgba(140,140,155,0.15)', color: card.category === 'street' ? '#C8922A' : '#8A8A9A', borderRadius: '4px', padding: '1px 6px', fontSize: '8px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.4px', flexShrink: 0 }}>
+                      {card.category === 'street' ? 'Slang' : 'Hochsprache'}
+                    </span>
+                    <span style={{ fontSize: '0.68rem', letterSpacing: '1px', color: isGold ? '#FFD700' : stars > 0 ? th.accent : th.border }}>
+                      {'★'.repeat(Math.max(0, stars))}{'☆'.repeat(Math.max(0, 5 - stars))}
+                    </span>
+                  </div>
+                </div>
+                <button onClick={() => deleteCard(card)} style={{ background: 'transparent', border: '1px solid rgba(224,108,117,0.3)', color: '#e06c75', borderRadius: '8px', padding: '5px 8px', cursor: 'pointer', fontSize: '0.75rem', flexShrink: 0, opacity: 0.75 }}>✕</button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div></div>
+  )
+}
+
+function KarteErstellenScreen({ user, myData, setMyData, allCards, lang, theme, onBack }) {
+  const th = THEMES[theme]; const s = makeStyles(th)
+  const isDE = lang === 'de'
+  const [forPartner, setForPartner] = useState(false)
+  const [front, setFront] = useState('')
+  const [back, setBack] = useState('')
+  const [cat, setCat] = useState('vocabulary')
+  const [status, setStatus] = useState(null)
+  const myPartnerUID = myData?.partnerUID || (user.uid === MARK_UID ? ELOSY_UID : user.uid === ELOSY_UID ? MARK_UID : null)
+  const partnerName = myData?.partnerName || (user.uid === MARK_UID ? 'Elosy' : user.uid === ELOSY_UID ? 'Mark' : null)
+
+  const save = async () => {
+    if (!front.trim() || !back.trim()) return
+    const baseCard = (allCards || []).find(c => !/_r(_\d+)?$/.test(c.id))
+    const langA = baseCard?.langA || (lang === 'de' ? 'en' : 'de')
+    const langB = baseCard?.langB || lang
+    const card = { id: `custom_${Date.now()}`, front: front.trim(), back: back.trim(), category: cat, langA, langB, source: 'custom', createdAt: Date.now() }
+    try {
+      if (forPartner && myPartnerUID) {
+        const pSnap = await getDoc(doc(db, 'users', myPartnerUID))
+        const existing = pSnap.exists() ? (pSnap.data().sharedCards || []) : []
+        await updateDoc(doc(db, 'users', myPartnerUID), { sharedCards: [...existing, { ...card, sharedBy: user.displayName?.split(' ')[0] || 'Partner', sharedAt: Date.now() }] })
+        setStatus(isDE ? `Mit ${partnerName} geteilt ✓` : `Shared with ${partnerName} ✓`)
+      } else {
+        const updated = [...(myData?.aiCards || []), card]
+        await updateDoc(doc(db, 'users', user.uid), { aiCards: updated })
+        setMyData(d => ({ ...d, aiCards: updated }))
+        setStatus(isDE ? 'Karte gespeichert ✓' : 'Card saved ✓')
+      }
+      setFront(''); setBack(''); setCat('vocabulary')
+      setTimeout(() => setStatus(null), 2500)
+    } catch (e) { console.warn(e); setStatus(isDE ? 'Fehler' : 'Error') }
+  }
+
+  return (
+    <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
+      <button style={s.backBtn} onClick={onBack}>← {isDE ? 'Zurück' : 'Back'}</button>
+      <h2 style={{ color: th.text, marginBottom: '16px', fontSize: '1.2rem', fontFamily: "'Playfair Display', Georgia, serif" }}>
+        ✏️ {isDE ? 'Neue Karte' : 'New Card'}
+      </h2>
+      <div style={{ ...s.card, marginBottom: '10px' }}>
+        <p style={{ ...s.cardLabel, marginBottom: '10px' }}>{isDE ? 'Für wen?' : 'For whom?'}</p>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={() => setForPartner(false)}
+            style={{ flex: 1, padding: '9px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.85rem', background: !forPartner ? th.accent : 'transparent', color: !forPartner ? (th.btnTextColor || '#111') : th.sub, border: `1px solid ${!forPartner ? th.accent : th.border}` }}>
+            {isDE ? 'Für mich' : 'For me'}
+          </button>
+          {myPartnerUID && (
+            <button onClick={() => setForPartner(true)}
+              style={{ flex: 1, padding: '9px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.85rem', background: forPartner ? th.accent : 'transparent', color: forPartner ? (th.btnTextColor || '#111') : th.sub, border: `1px solid ${forPartner ? th.accent : th.border}` }}>
+              🎁 {isDE ? `Für ${partnerName}` : `For ${partnerName}`}
+            </button>
+          )}
+        </div>
+      </div>
+      <div style={s.card}>
+        <input style={{ ...s.input, marginBottom: '8px' }} placeholder={isDE ? 'Vorderseite (z.B. englisches Wort)' : 'Front (e.g. German word)'} value={front} onChange={e => setFront(e.target.value)} />
+        <input style={{ ...s.input, marginBottom: '12px' }} placeholder={isDE ? 'Rückseite (Übersetzung)' : 'Back (translation)'} value={back} onChange={e => setBack(e.target.value)} />
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+          <button onClick={() => setCat('vocabulary')} style={{ flex: 1, padding: '8px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem', background: cat !== 'street' ? 'rgba(140,140,155,0.25)' : 'transparent', color: cat !== 'street' ? '#A0A0B8' : th.sub, border: `1px solid ${cat !== 'street' ? 'rgba(140,140,155,0.45)' : th.border}` }}>Hochsprache</button>
+          <button onClick={() => setCat('street')} style={{ flex: 1, padding: '8px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem', background: cat === 'street' ? 'rgba(180,120,30,0.2)' : 'transparent', color: cat === 'street' ? '#C8922A' : th.sub, border: `1px solid ${cat === 'street' ? 'rgba(180,120,30,0.4)' : th.border}` }}>Slang</button>
+        </div>
+        <button style={{ ...s.button, marginBottom: 0, opacity: (!front.trim() || !back.trim()) ? 0.45 : 1 }} onClick={save} disabled={!front.trim() || !back.trim()}>
+          {forPartner && partnerName ? (isDE ? `🎁 An ${partnerName} senden` : `🎁 Send to ${partnerName}`) : (isDE ? 'Karte speichern' : 'Save card')}
+        </button>
+        {status && <p style={{ color: th.accent, fontSize: '0.82rem', marginTop: '8px', textAlign: 'center' }}>{status}</p>}
+      </div>
+    </div></div>
+  )
+}
+
+function GeschenkkarteScreen({ user, myData, lang, theme, onBack, allCards, cardProgress }) {
+  const th = THEMES[theme]; const s = makeStyles(th)
+  const isDE = lang === 'de'
+  const [selectedCard, setSelectedCard] = useState(null)
+  const [message, setMessage] = useState('')
+  const [status, setStatus] = useState(null)
+  const [sending, setSending] = useState(false)
+  const myPartnerUID = myData?.partnerUID || (user.uid === MARK_UID ? ELOSY_UID : user.uid === ELOSY_UID ? MARK_UID : null)
+  const partnerName = myData?.partnerName || (user.uid === MARK_UID ? 'Elosy' : user.uid === ELOSY_UID ? 'Mark' : null)
+  const fromName = user.displayName?.split(' ')[0] || 'Partner'
+
+  const masteredCards = (allCards || []).filter(c => !/_r(_\d+)?$/.test(c.id) && (cardProgress[c.id]?.interval || 0) >= 7).slice(0, 20)
+
+  const send = async () => {
+    if (!selectedCard || !myPartnerUID) return
+    setSending(true)
+    try {
+      const gift = { front: selectedCard.front, back: selectedCard.back, category: selectedCard.category, langA: selectedCard.langA, langB: selectedCard.langB, message: message.trim().slice(0, 100), fromName, sentAt: Date.now(), date: todayStr() }
+      await updateDoc(doc(db, 'users', myPartnerUID), { pendingGift: gift })
+      setStatus(isDE ? `🎁 Geschenkt an ${partnerName} ✓` : `🎁 Gifted to ${partnerName} ✓`)
+      setSelectedCard(null); setMessage('')
+      setTimeout(() => { setStatus(null); onBack() }, 2000)
+    } catch (e) { console.warn(e); setStatus(isDE ? 'Fehler beim Senden' : 'Error sending') }
+    finally { setSending(false) }
+  }
+
+  if (!myPartnerUID) return (
+    <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
+      <button style={s.backBtn} onClick={onBack}>← {isDE ? 'Zurück' : 'Back'}</button>
+      <div style={{ textAlign: 'center', marginTop: '60px' }}>
+        <p style={{ fontSize: '2.5rem', marginBottom: '12px' }}>🤝</p>
+        <p style={{ color: th.sub }}>{isDE ? 'Verbinde zuerst deinen Partner.' : 'Connect a partner first.'}</p>
+      </div>
+    </div></div>
+  )
+
+  return (
+    <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
+      <button style={s.backBtn} onClick={onBack}>← {isDE ? 'Zurück' : 'Back'}</button>
+      <h2 style={{ color: th.text, marginBottom: '16px', fontSize: '1.2rem', fontFamily: "'Playfair Display', Georgia, serif" }}>
+        🎁 {isDE ? `Geschenk für ${partnerName}` : `Gift for ${partnerName}`}
+      </h2>
+      <div style={s.card}>
+        <p style={{ ...s.cardLabel, marginBottom: '12px' }}>{isDE ? 'Wähle eine gemeisterte Karte:' : 'Choose a mastered card:'}</p>
+        {masteredCards.length === 0 ? (
+          <p style={{ color: th.sub, fontSize: '0.85rem' }}>{isDE ? 'Noch keine gemeisterten Karten.' : 'No mastered cards yet.'}</p>
+        ) : masteredCards.map(card => (
+          <button key={card.id} onClick={() => setSelectedCard(selectedCard?.id === card.id ? null : card)}
+            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', padding: '9px 12px', marginBottom: '6px', borderRadius: '10px', cursor: 'pointer', background: selectedCard?.id === card.id ? `${th.accent}22` : 'transparent', border: `1px solid ${selectedCard?.id === card.id ? th.accent : th.border}`, textAlign: 'left' }}>
+            <span style={{ color: th.text, fontSize: '0.85rem', fontWeight: '500' }}>{card.front}</span>
+            <span style={{ color: th.sub, fontSize: '0.78rem', marginLeft: '8px', flexShrink: 0 }}>→ {card.back}</span>
+          </button>
+        ))}
+      </div>
+      {selectedCard && (
+        <div style={{ ...s.card, animation: 'vocaraFadeIn 0.2s ease both' }}>
+          <p style={{ ...s.cardLabel, marginBottom: '10px' }}>{isDE ? 'Persönliche Nachricht (optional):' : 'Personal message (optional):'}</p>
+          <input style={{ ...s.input, marginBottom: '0' }}
+            placeholder={isDE ? 'z.B. „Dieses Wort gefällt mir für dich…"' : 'e.g. "I thought you\'d like this word…"'}
+            value={message} maxLength={100} onChange={e => setMessage(e.target.value)} />
+          <p style={{ color: th.sub, fontSize: '0.7rem', textAlign: 'right', margin: '4px 0 12px' }}>{message.length}/100</p>
+          <button style={{ ...s.button, marginBottom: 0, opacity: sending ? 0.6 : 1 }} onClick={send} disabled={sending}>
+            {sending ? '…' : (isDE ? `🎁 An ${partnerName} senden` : `🎁 Send to ${partnerName}`)}
+          </button>
+          {status && <p style={{ color: th.accent, fontSize: '0.82rem', marginTop: '8px', textAlign: 'center' }}>{status}</p>}
+        </div>
+      )}
+    </div></div>
   )
 }
 
