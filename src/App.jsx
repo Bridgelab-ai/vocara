@@ -17,14 +17,14 @@ const MONTHLY_TEST_DAYS = 30
 const THEMES = {
   nairobi: {
     name: '🌙 Nairobi',
-    bg: '#0f0a05', card: '#1a1208', text: '#fff', sub: '#B8860B', border: '#2a1f10',
-    accent: '#FFD700', gold: '#FFF0A0', glowColor: '#FFD700', btnTextColor: '#111',
-    bgGrad: 'radial-gradient(ellipse at 50% 30%, #201508 0%, #0f0a05 55%, #080502 100%)',
-    metalGrad: 'linear-gradient(145deg, #FFF0A0 0%, #FFD700 30%, #B8860B 52%, #D4AF37 72%, #FFF0A0 100%)',
-    metalText: 'linear-gradient(90deg, #5C4008 0%, #FFF8D0 16%, #8B6914 33%, #FFF0A0 50%, #5C4008 66%, #FFF8D0 83%, #8B6914 100%)',
-    btnFaceGrad: 'linear-gradient(90deg, #3A2004 0%, #FFD700 16%, #8B6914 33%, #FFE566 50%, #3A2004 66%, #FFD700 83%, #8B6914 100%)',
-    shadow3d: '0 1px 0 rgba(255,255,200,0.35) inset, 0 -1px 0 rgba(0,0,0,0.5) inset, 0 4px 0 #B8860B, 0 6px 0 #8B6914, 0 8px 0 #5A4008, 0 10px 20px rgba(0,0,0,0.75)',
-    shadowPressed: '0 1px 0 rgba(255,255,200,0.15) inset, 0 -1px 0 rgba(0,0,0,0.4) inset, 0 1px 0 #8B6914, 0 3px 8px rgba(0,0,0,0.6)',
+    bg: '#0D0800', card: '#1A0F00', text: '#FFF5E0', sub: '#C8860A', border: '#3A2800',
+    accent: '#C8860A', gold: '#F5C842', glowColor: '#F5C842', btnTextColor: '#1A0800',
+    bgGrad: 'radial-gradient(ellipse at 50% 20%, #3A2200 0%, #1A0D00 50%, #0D0800 100%)',
+    metalGrad: 'linear-gradient(145deg, #F5C842 0%, #C8860A 30%, #7A4F00 52%, #C8860A 72%, #F5C842 100%)',
+    metalText: 'linear-gradient(90deg, #7A4F00 0%, #F5D060 16%, #C8860A 33%, #F5C842 50%, #7A4F00 66%, #F5D060 83%, #C8860A 100%)',
+    btnFaceGrad: 'linear-gradient(90deg, #7A4F00 0%, #C8860A 20%, #E8A020 40%, #F5C842 50%, #E8A020 60%, #C8860A 80%, #7A4F00 100%)',
+    shadow3d: '0 1px 0 rgba(245,200,66,0.4) inset, 0 -1px 0 rgba(0,0,0,0.5) inset, 0 4px 0 #7A4F00, 0 6px 0 #5A3800, 0 8px 0 #3A2000, 0 10px 20px rgba(20,10,0,0.8)',
+    shadowPressed: '0 1px 0 rgba(245,200,66,0.2) inset, 0 -1px 0 rgba(0,0,0,0.4) inset, 0 1px 0 #7A4F00, 0 3px 8px rgba(20,10,0,0.6)',
   },
   hamburg: {
     name: '🌊 Hamburg',
@@ -122,7 +122,7 @@ async function speakSyllable(text, langCode) {
       u.lang = effectiveLang; u.rate = 0.9
       if (effectiveVoice) u.voice = effectiveVoice
       window.speechSynthesis.speak(u)
-    }, i * 500)
+    }, i * 400)
   })
 }
 
@@ -729,6 +729,11 @@ html, body, #root {
   15%  { opacity: 1; transform: translateX(-50%) scale(1.05) translateY(0); }
   80%  { opacity: 1; transform: translateX(-50%) scale(1.0) translateY(0); }
   100% { opacity: 0; transform: translateX(-50%) scale(0.95) translateY(-4px); }
+}
+@keyframes vocaraPulse {
+  0%   { opacity: 1; transform: scale(1); }
+  50%  { opacity: 0.5; transform: scale(1.25); }
+  100% { opacity: 1; transform: scale(1); }
 }
 @keyframes dotPop {
   0%   { transform: scale(1); }
@@ -1843,6 +1848,9 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
   const [newProgress, setNewProgress] = useState(startProgress || { ...cardProgress })
   const [cardTilt, setCardTilt] = useState({ x: 0, y: 0 })
   const [ttsMode, setTtsMode] = useState(0)
+  const [micState, setMicState] = useState('idle') // 'idle' | 'listening' | 'done' | 'unsupported'
+  const [micResult, setMicResult] = useState(null) // { score, total, words: [{word, correct}] }
+  const [phoneticCache, setPhoneticCache] = useState({})
   const startTime = useRef(Date.now())
   const answeredIds = useRef(new Set())
   const easyCountRef = useRef(0)
@@ -1866,16 +1874,58 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
   const toLang = item.langB
   const showPronunciation = item.pronunciation
   // Always speak the back (toLang) text in its language
-  const speakBack = () => {
-    if (ttsMode === 1) speakSyllable(item.back, item.langB)
+  const speakBack = (mode = ttsMode) => {
+    if (mode === 1) speakSyllable(item.back, item.langB)
     else speak(item.back, item.langB)
   }
   const cycleTtsMode = () => setTtsMode(m => (m + 1) % 2)
+  const handleSpeakerTap = () => { speakBack(ttsMode); cycleTtsMode() }
+
+  const handleMic = () => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (!SR) { setMicState('unsupported'); return }
+    setMicState('listening'); setMicResult(null)
+    const rec = new SR()
+    rec.lang = SPEECH_LANGS[item.langB] || 'en-GB'
+    rec.interimResults = false; rec.maxAlternatives = 1
+    const timeout = setTimeout(() => { try { rec.stop() } catch(e) {} }, 4000)
+    rec.onresult = (e) => {
+      clearTimeout(timeout)
+      const transcript = e.results[0][0].transcript.trim()
+      const expWords = item.back.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(Boolean)
+      const gotWords = transcript.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(Boolean)
+      const words = expWords.map((w, i) => ({ word: item.back.split(/\s+/)[i] || w, correct: gotWords.includes(w) }))
+      const score = words.filter(w => w.correct).length
+      setMicResult({ score, total: expWords.length, words })
+      setMicState('done')
+    }
+    rec.onerror = () => { clearTimeout(timeout); setMicState('idle') }
+    rec.onend = () => { clearTimeout(timeout); setMicState(s => s === 'listening' ? 'idle' : s) }
+    rec.start()
+  }
+
+  useEffect(() => {
+    if (!revealed) { setMicState('idle'); setMicResult(null); return }
+    if (fromLang !== 'de' || toLang !== 'en') return
+    if (phoneticCache[item.id] !== undefined) return
+    setPhoneticCache(c => ({ ...c, [item.id]: '' })) // mark as loading
+    fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001', max_tokens: 60,
+        messages: [{ role: 'user', content: `Give ONLY the German-phonetic pronunciation guide for this English word or short phrase: "${item.back}". Output only the phonetic spelling (how a German speaker would read it to sound like English), nothing else. Examples: swamped→swompt, through→thruu, though→dhoo, world→wörld, knight→nait` }]
+      })
+    }).then(r => r.json()).then(d => {
+      const ph = d.content?.[0]?.text?.trim() || ''
+      setPhoneticCache(c => ({ ...c, [item.id]: ph }))
+    }).catch(() => {})
+  }, [revealed, index])
 
   const handleReveal = () => {
     startTime.current = Date.now()
     setRevealed(true)
-    speakBack()
+    speakBack(ttsMode)
   }
   const handleStop = () => {
     onSaveState?.(queue, index, newProgress)
@@ -1995,10 +2045,27 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center' }}>
                 <p style={{ ...s.cardBack, margin: 0 }}>{answer}</p>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-                  <button onClick={speakBack} style={{ background: 'transparent', border: 'none', fontSize: '1.3rem', cursor: 'pointer', padding: '4px', opacity: 0.8 }}>🔊</button>
-                  <button onClick={cycleTtsMode} style={{ background: 'transparent', border: `1px solid rgba(140,140,155,0.35)`, borderRadius: '4px', fontSize: '0.58rem', cursor: 'pointer', padding: '1px 5px', color: '#8A8A9A', fontFamily: "'Inter', system-ui, sans-serif", letterSpacing: '0.3px' }}>{ttsMode === 1 ? 'Silbe' : 'Satz'}</button>
+                  <button onClick={handleSpeakerTap} style={{ background: 'transparent', border: 'none', fontSize: '1.3rem', cursor: 'pointer', padding: '4px', opacity: 0.8 }}>🔊</button>
+                  <span style={{ background: 'transparent', border: `1px solid rgba(140,140,155,0.35)`, borderRadius: '4px', fontSize: '0.58rem', padding: '1px 5px', color: '#8A8A9A', fontFamily: "'Inter', system-ui, sans-serif", letterSpacing: '0.3px', userSelect: 'none' }}>{ttsMode === 0 ? 'Satz' : 'Silbe'}</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                  <button onClick={handleMic} style={{ background: 'transparent', border: 'none', fontSize: '1.3rem', cursor: 'pointer', padding: '4px', opacity: micState === 'listening' ? 1 : 0.7, animation: micState === 'listening' ? 'vocaraPulse 0.8s infinite' : 'none' }}>🎤</button>
+                  <span style={{ fontSize: '0.58rem', color: micState === 'listening' ? '#e53935' : '#8A8A9A', fontFamily: "'Inter', system-ui, sans-serif", letterSpacing: '0.3px' }}>{micState === 'listening' ? '…' : micState === 'done' ? `${micResult?.score}/${micResult?.total}` : 'Mic'}</span>
                 </div>
               </div>
+              {micState === 'unsupported' && (
+                <p style={{ color: '#ff9800', fontSize: '0.75rem', fontStyle: 'italic', marginTop: '6px', textAlign: 'center' }}>Dein Browser unterstützt keine Spracherkennung — bitte Chrome verwenden</p>
+              )}
+              {micResult && (
+                <div style={{ marginTop: '8px', textAlign: 'center' }}>
+                  <p style={{ fontSize: '0.78rem', color: '#8A8A9A', marginBottom: '4px' }}>Aussprache: {micResult.score}/{micResult.total} Wörter korrekt</p>
+                  <p style={{ fontSize: '1rem', letterSpacing: '2px' }}>
+                    {micResult.words.map((w, i) => (
+                      <span key={i} style={{ color: w.correct ? '#4CAF50' : '#e53935', marginRight: '4px' }}>{w.word}</span>
+                    ))}
+                  </p>
+                </div>
+              )}
               {showPronunciation && (
                 <p style={s.cardPronunciation}>
                   🔊 {t.pronunciation}:{' '}
@@ -2006,6 +2073,9 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
                     ? <ThaiColorPronunciation text={item.pronunciation} />
                     : item.pronunciation}
                 </p>
+              )}
+              {fromLang === 'de' && toLang === 'en' && phoneticCache[item.id] && (
+                <p style={{ ...s.cardPronunciation, fontStyle: 'italic', marginTop: '2px' }}>🗣 /{phoneticCache[item.id]}/</p>
               )}
               {item.context && <p style={s.cardContext}>„{item.context}"</p>}
             </div>
