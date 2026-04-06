@@ -2931,6 +2931,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const [miniTaskLoading, setMiniTaskLoading] = useState(false)
   const [reactionPrompt, setReactionPrompt] = useState(null) // {name, count}
   const [floatingReaction, setFloatingReaction] = useState(null) // emoji string
+  const [freezeAvailable, setFreezeAvailable] = useState(true)
   const VALID_SCREENS = new Set(['menu','cards','result','settings','partner','test','impressum','stats','ki','satz','diary'])
   if (!VALID_SCREENS.has(screen)) { setScreen('menu'); return null }
 
@@ -2941,6 +2942,13 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
     const seenToday = myData?.surpriseSeenDate === todayStr()
     if (!seenToday) setSurpriseCard(sc)
   }, [])
+
+  // ── STREAK FREEZE ─────────────────────────────────────────
+  useEffect(() => {
+    const freeze = myData?.streakFreeze || {}
+    const month = new Date().toISOString().slice(0, 7)
+    setFreezeAvailable(freeze.lastReset !== month ? true : (freeze.available ?? true))
+  }, [myData?.streakFreeze])
 
   // ── DAILY CARD ────────────────────────────────────────────
   useEffect(() => {
@@ -3307,6 +3315,16 @@ Return ONLY a valid JSON array with no markdown or explanation:
       setMyData(d => ({ ...d, miniTask: updated }))
     } catch (e) { console.warn('miniTask submit failed:', e) }
     finally { setMiniTaskLoading(false) }
+  }
+
+  const handleStreakFreeze = async () => {
+    const month = new Date().toISOString().slice(0, 7)
+    const update = { streakFreeze: { available: false, lastReset: month, usedAt: todayStr() } }
+    try {
+      await updateDoc(doc(db, 'users', user.uid), update)
+      setMyData(d => ({ ...d, ...update }))
+      setFreezeAvailable(false)
+    } catch (e) { console.warn('Streak freeze failed:', e) }
   }
 
   const handleSaveState = async (queue, index, newProgress) => { await saveSessionState(user.uid, queue, index, newProgress) }
