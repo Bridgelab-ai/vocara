@@ -50,6 +50,13 @@
 - Entdecken-Screen: Karten-Sets mit erstellen, manuell hinzufügen, KI-generieren, importieren, teilen
 - Lyon Theme (Français): #8B1A1A Burgunder, #D4A017 Gold
 - Sevilla Theme (Español): #C0392B Flamenco-Rot, #F39C12 Orange
+- Onboarding Beziehungstyp: Paar/Freunde/Familie/Kollegen (#new) → users/{uid}.relationshipType ✅
+- Tages-Karte je Beziehungstyp (KI, städtebasiert, Partner-sync) (#39) ✅
+- Tägliche Miniaufgabe: Mastered-Wort in Satz benutzen, KI-Feedback (#18) ✅
+- Karte falsch → KI erklärt, kollabierbar (#7) ✅
+- Level-Namen: Hafen-Neuling → Vocara-Meister nach Karten-Count (#19) ✅
+- Gemeinsames Tagebuch: täglich 1 Satz, KI-Feedback, Timeline (#38) ✅
+- Tageszeit-Anpassung: 4 Zeitslots mit Overlay (#46) ✅
 
 ## Liste E – Paar/Design/Business
 38. Gemeinsames Tagebuch (täglich 1 Satz in Zielsprache)

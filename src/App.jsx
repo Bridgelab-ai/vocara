@@ -278,6 +278,18 @@ const CEFR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
 const CEFR_COLORS = { A1: '#81c784', A2: '#4CAF50', B1: '#29b6f6', B2: '#1976d2', C1: '#ab47bc', C2: '#e53935' }
 // Cards mastered needed to REACH that level
 const CEFR_MASTERY_REQ = { A1: 0, A2: 30, B1: 70, B2: 150, C1: 260, C2: 400 }
+const LEVEL_NAMES = [
+  { upTo: 20,  de: 'Hafen-Neuling',   en: 'Harbor Newcomer' },
+  { upTo: 50,  de: 'Elbe-Entdecker',  en: 'Elbe Explorer'   },
+  { upTo: 100, de: 'Swahili-Freund',  en: 'Swahili Friend'  },
+  { upTo: 200, de: 'Nairobi-Kenner',  en: 'Nairobi Expert'  },
+  { upTo: 300, de: 'Brücken-Bauer',   en: 'Bridge Builder'  },
+  { upTo: Infinity, de: 'Vocara-Meister', en: 'Vocara Master' },
+]
+function getLevelName(masteredCount, lang) {
+  const lv = LEVEL_NAMES.find(l => masteredCount <= l.upTo) || LEVEL_NAMES[LEVEL_NAMES.length - 1]
+  return lang === 'de' ? lv.de : lv.en
+}
 const CEFR_DESC = {
   de: { A1: 'Anfänger', A2: 'Grundlagen', B1: 'Mittelstufe', B2: 'Fortgeschritten', C1: 'Kompetent', C2: 'Meister' },
   en: { A1: 'Beginner', A2: 'Elementary', B1: 'Intermediate', B2: 'Upper-Intermediate', C1: 'Advanced', C2: 'Mastery' },
@@ -1199,12 +1211,56 @@ function OnboardingScreen({ lang, theme, onDone }) {
   const slides = lang === 'de' ? ONBOARDING_SLIDES_DE : ONBOARDING_SLIDES_EN
   const [index, setIndex] = useState(0)
   const [showCities, setShowCities] = useState(false)
+  const [showRelType, setShowRelType] = useState(false)
   const [homeCity, setHomeCity] = useState('')
   const [partnerCity, setPartnerCity] = useState('')
+  const [pendingCityData, setPendingCityData] = useState({})
   const isLast = index === slides.length - 1
   const slide = slides[index]
 
   const inputStyle = { width: '100%', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '10px', padding: '12px 14px', color: '#fff', fontSize: '1rem', outline: 'none', boxSizing: 'border-box', marginBottom: '12px' }
+  const relBtnStyle = (active) => ({
+    width: '100%', padding: '14px 16px', borderRadius: '14px', cursor: 'pointer', fontSize: '1rem',
+    fontWeight: active ? '700' : '500', marginBottom: '10px',
+    background: active ? `${th.accent}25` : 'rgba(255,255,255,0.05)',
+    color: active ? th.text : th.sub,
+    border: `1px solid ${active ? th.accent : 'rgba(255,255,255,0.1)'}`,
+    textAlign: 'left', display: 'flex', alignItems: 'center', gap: '12px',
+    backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+  })
+
+  if (showRelType) {
+    const REL_OPTIONS = [
+      { key: 'couple',     emoji: '💑', de: 'Romantisches Paar',  en: 'Romantic couple'     },
+      { key: 'friends',    emoji: '👫', de: 'Freunde',             en: 'Friends'             },
+      { key: 'family',     emoji: '👨‍👩‍👧', de: 'Familie',             en: 'Family'             },
+      { key: 'colleagues', emoji: '👔', de: 'Kollegen / Business', en: 'Colleagues / Business'},
+    ]
+    return (
+      <div style={{ minHeight: '100vh', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: th.bg }} className="vocara-screen">
+        <div style={{ textAlign: 'center', padding: '32px 24px', width: '100%', maxWidth: '420px', animation: 'vocaraFadeIn 0.3s ease both' }}>
+          <p style={{ fontSize: '3.5rem', margin: '0 0 16px 0' }}>🤝</p>
+          <h2 style={{ color: th.gold, fontSize: '1.5rem', fontWeight: 'bold', margin: '0 0 10px 0' }}>
+            {lang === 'de' ? 'Was verbindet euch?' : 'What connects you?'}
+          </h2>
+          <p style={{ color: th.sub, fontSize: '0.9rem', lineHeight: '1.6', margin: '0 0 24px 0' }}>
+            {lang === 'de' ? 'Das beeinflusst den Ton eurer täglichen Karten.' : 'This shapes the tone of your daily cards.'}
+          </p>
+          {REL_OPTIONS.map(opt => (
+            <button key={opt.key} style={relBtnStyle(false)}
+              onClick={() => onDone({ ...pendingCityData, relationshipType: opt.key })}>
+              <span style={{ fontSize: '1.5rem' }}>{opt.emoji}</span>
+              <span>{lang === 'de' ? opt.de : opt.en}</span>
+            </button>
+          ))}
+          <button style={{ background: 'transparent', color: th.sub, border: 'none', padding: '8px', fontSize: '0.85rem', cursor: 'pointer', width: '100%', marginTop: '4px' }}
+            onClick={() => onDone(pendingCityData)}>
+            {lang === 'de' ? 'Überspringen' : 'Skip'}
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   if (showCities) {
     return (
@@ -1233,9 +1289,13 @@ function OnboardingScreen({ lang, theme, onDone }) {
           />
           <button
             style={{ background: th.accent, color: '#fff', border: 'none', padding: '14px 28px', borderRadius: '10px', fontSize: '1rem', cursor: 'pointer', fontWeight: 'bold', width: '100%', marginBottom: '12px' }}
-            onClick={() => onDone({ homeCity: homeCity.trim() || undefined, partnerCity: partnerCity.trim() || undefined })}
+            onClick={() => {
+              const cityData = { homeCity: homeCity.trim() || undefined, partnerCity: partnerCity.trim() || undefined }
+              setPendingCityData(cityData)
+              setShowRelType(true)
+            }}
           >
-            {lang === 'de' ? 'Level-Check starten →' : 'Start level check →'}
+            {lang === 'de' ? 'Weiter →' : 'Next →'}
           </button>
           <button
             style={{ background: 'transparent', color: th.sub, border: 'none', padding: '8px', fontSize: '0.85rem', cursor: 'pointer', width: '100%' }}
@@ -2234,11 +2294,16 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
         </div>
       )}
       {kiExplanation && (
-        <div style={{ width: '100%', marginBottom: '8px', background: 'rgba(76,175,80,0.1)', border: '1px solid rgba(76,175,80,0.25)', borderRadius: '12px', padding: '10px 14px' }}>
-          {kiExplanation === 'loading'
-            ? <p style={{ color: '#8A8A9A', fontSize: '0.78rem', margin: 0 }}>💡 KI erklärt…</p>
-            : <p style={{ color: '#81c784', fontSize: '0.78rem', margin: 0, lineHeight: 1.5 }}>💡 {kiExplanation}</p>
-          }
+        <div style={{ width: '100%', marginBottom: '8px', background: 'rgba(76,175,80,0.08)', border: '1px solid rgba(76,175,80,0.22)', borderRadius: '12px', padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+          <div style={{ flex: 1 }}>
+            {kiExplanation === 'loading'
+              ? <p style={{ color: '#8A8A9A', fontSize: '0.78rem', margin: 0 }}>💡 {lang === 'de' ? 'KI erklärt…' : 'AI explaining…'}</p>
+              : <p style={{ color: '#81c784', fontSize: '0.78rem', margin: 0, lineHeight: 1.5 }}>💡 {kiExplanation}</p>
+            }
+          </div>
+          {kiExplanation !== 'loading' && (
+            <button onClick={() => setKiExplanation(null)} style={{ background: 'transparent', border: 'none', color: '#8A8A9A', cursor: 'pointer', fontSize: '0.9rem', padding: '0 2px', lineHeight: 1, flexShrink: 0 }}>✕</button>
+          )}
         </div>
       )}
       {revealed && (
@@ -2843,7 +2908,12 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
     const stored = myData?.weeklyGoals
     return stored?.week === currentWeek ? stored : { week: currentWeek, completed: [] }
   })
-  const VALID_SCREENS = new Set(['menu','cards','result','settings','partner','test','impressum','stats','ki','satz'])
+  const [dailyCard, setDailyCard] = useState(null)
+  const [dailyCardDismissed, setDailyCardDismissed] = useState(false)
+  const [miniTask, setMiniTask] = useState(null)
+  const [miniTaskInput, setMiniTaskInput] = useState('')
+  const [miniTaskLoading, setMiniTaskLoading] = useState(false)
+  const VALID_SCREENS = new Set(['menu','cards','result','settings','partner','test','impressum','stats','ki','satz','diary'])
   if (!VALID_SCREENS.has(screen)) { setScreen('menu'); return null }
 
   // Check for surprise card from partner on mount
@@ -2853,6 +2923,76 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
     const seenToday = myData?.surpriseSeenDate === todayStr()
     if (!seenToday) setSurpriseCard(sc)
   }, [])
+
+  // ── DAILY CARD ────────────────────────────────────────────
+  useEffect(() => {
+    if (screen !== 'menu') return
+    const todayD = todayStr()
+    const stored = myData?.dailyCard
+    if (stored?.date === todayD) { setDailyCard(stored); return }
+    const loadDailyCard = async () => {
+      try {
+        // Try partner's card first
+        if (myData?.partnerUID) {
+          try {
+            const pSnap = await getDoc(doc(db, 'users', myData.partnerUID))
+            if (pSnap.exists() && pSnap.data()?.dailyCard?.date === todayD) {
+              const pc = pSnap.data().dailyCard
+              setDailyCard(pc)
+              await updateDoc(doc(db, 'users', user.uid), { dailyCard: pc }).catch(() => {})
+              setMyData(d => ({ ...d, dailyCard: pc }))
+              return
+            }
+          } catch (e) {}
+        }
+        const relType = myData?.relationshipType || 'couple'
+        const homeCity = myData?.homeCity || (isMarkLang ? 'Hamburg' : 'Nairobi')
+        const partnerCity = myData?.partnerCity || (isMarkLang ? 'Nairobi' : 'Hamburg')
+        const toneMap = {
+          couple:     `romantic and warm, for a couple connecting ${homeCity} and ${partnerCity}`,
+          friends:    `fun, casual and friendly`,
+          family:     `warm, family-oriented and caring`,
+          colleagues: `professional, motivating and workplace-relevant`,
+        }
+        const tone = toneMap[relType] || toneMap.couple
+        const langPair = isMarkLang ? 'German/English' : 'English/German'
+        const res = await fetch('/api/chat', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'claude-haiku-4-5-20251001', max_tokens: 150,
+            messages: [{ role: 'user', content: `Create ONE short phrase card for language learning (${langPair}). Tone: ${tone}. Return ONLY JSON (no markdown): {"front":"<phrase in source lang>","back":"<translation>","context":"<1 short line: when you'd say this>"}` }]
+          })
+        })
+        const data = await res.json()
+        const raw = data.content?.[0]?.text?.trim() || '{}'
+        const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim())
+        if (parsed.front && parsed.back) {
+          const card = { front: parsed.front, back: parsed.back, context: parsed.context || '', date: todayD, relType }
+          setDailyCard(card)
+          await updateDoc(doc(db, 'users', user.uid), { dailyCard: card }).catch(() => {})
+          setMyData(d => ({ ...d, dailyCard: card }))
+        }
+      } catch (e) { console.warn('Daily card failed:', e) }
+    }
+    loadDailyCard()
+  }, [screen])
+
+  // ── MINI TASK ─────────────────────────────────────────────
+  useEffect(() => {
+    if (screen !== 'menu') return
+    const todayD = todayStr()
+    const stored = myData?.miniTask
+    if (stored?.date === todayD) { setMiniTask(stored); return }
+    const masteredCards = allCards.filter(c =>
+      !/_r(_\d+)?$/.test(c.id) && (cardProgress[c.id]?.interval || 0) >= 7
+    )
+    if (masteredCards.length === 0) return
+    const picked = masteredCards[Math.floor(Math.random() * masteredCards.length)]
+    const task = { word: picked.back, front: picked.front, date: todayD, done: false }
+    setMiniTask(task)
+    updateDoc(doc(db, 'users', user.uid), { miniTask: task }).catch(() => {})
+    setMyData(d => ({ ...d, miniTask: task }))
+  }, [screen])
 
   const dismissSurprise = async (addToDeck) => {
     if (addToDeck && surpriseCard) {
@@ -3097,6 +3237,27 @@ Return ONLY a valid JSON array with no markdown or explanation:
       return updated
     })
   }
+  const submitMiniTask = async () => {
+    if (!miniTaskInput.trim() || !miniTask) return
+    setMiniTaskLoading(true)
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001', max_tokens: 80,
+          messages: [{ role: 'user', content: `The user was asked to use "${miniTask.word}" in a sentence. They wrote: "${miniTaskInput.trim()}". In 1 short sentence in ${isMarkLang ? 'German' : 'English'}, give brief encouraging grammar feedback. Be kind and very concise.` }]
+        })
+      })
+      const data = await res.json()
+      const feedback = data.content?.[0]?.text?.trim() || ''
+      const updated = { ...miniTask, done: true, answer: miniTaskInput.trim(), feedback }
+      setMiniTask(updated); setMiniTaskInput('')
+      await updateDoc(doc(db, 'users', user.uid), { miniTask: updated }).catch(() => {})
+      setMyData(d => ({ ...d, miniTask: updated }))
+    } catch (e) { console.warn('miniTask submit failed:', e) }
+    finally { setMiniTaskLoading(false) }
+  }
+
   const handleSaveState = async (queue, index, newProgress) => { await saveSessionState(user.uid, queue, index, newProgress) }
   const saveSessionProgress = async (cardIds, mode) => {
     const sp = { cardIds, mode, timestamp: Date.now() }
@@ -3230,6 +3391,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
   if (screen === 'stats') return <>{homeFloat}<StatsScreen user={user} myData={myData} partnerData={partnerData} allCards={allCards} lang={lang} theme={theme} onBack={() => setScreen('menu')} cardProgress={cardProgress} /></>
   if (screen === 'ki') return <>{homeFloat}<KiGespraechScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} userName={user.displayName?.split(' ')[0] || 'du'} /></>
   if (screen === 'satz') return <>{homeFloat}<SatzTrainingScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} userName={user.displayName?.split(' ')[0] || 'du'} /></>
+  if (screen === 'diary') return <>{homeFloat}<DiaryScreen user={user} myData={myData} setMyData={setMyData} partnerData={partnerData} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
 
   return (
     <div style={s.container} className="vocara-screen vocara-home-outer"><div style={{ ...s.homeBox, paddingTop: '12px' }} className="vocara-home-box">
@@ -3284,6 +3446,25 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           <span style={{ color: th.sub, fontWeight: '600', fontSize: '0.88rem' }}>{isMarkLang ? 'Streak verloren — neu starten! 💪' : 'Streak lost — start fresh! 💪'}</span>
         </div>
       )}
+
+      {/* ── TAGES-KARTE ── */}
+      {(() => {
+        if (!dailyCard || dailyCardDismissed) return null
+        const relEmoji = { couple: '💑', friends: '👫', family: '👨‍👩‍👧', colleagues: '👔' }[dailyCard.relType] || '✨'
+        return (
+          <div style={{ background: `${th.gold}0D`, border: `1px solid ${th.gold}2E`, borderRadius: '16px', padding: '13px 15px', marginBottom: '12px', animation: 'vocaraFadeIn 0.4s ease both', position: 'relative' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '7px' }}>
+              <span style={{ color: th.gold, fontSize: '0.68rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+                {relEmoji} {isMarkLang ? 'Karte des Tages' : 'Card of the day'}
+              </span>
+              <button onClick={() => setDailyCardDismissed(true)} style={{ background: 'transparent', border: 'none', color: th.sub, cursor: 'pointer', fontSize: '0.9rem', padding: '0 2px', lineHeight: 1 }}>✕</button>
+            </div>
+            <p style={{ color: th.text, fontWeight: '700', margin: '0 0 3px', fontSize: '0.92rem' }}>{dailyCard.front}</p>
+            <p style={{ color: th.accent, fontWeight: '600', margin: '0 0 3px', fontSize: '1rem' }}>{dailyCard.back}</p>
+            {dailyCard.context && <p style={{ color: th.sub, fontSize: '0.75rem', fontStyle: 'italic', margin: 0, lineHeight: 1.4 }}>„{dailyCard.context}"</p>}
+          </div>
+        )
+      })()}
 
       {/* ── SESSION RESUME DIALOG ── */}
       {resumeDialog && (
@@ -3350,6 +3531,44 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         </div>
       </div>
 
+      {/* ── TÄGLICHE MINIAUFGABE ── */}
+      {miniTask && (
+        <div style={{ background: th.card, border: `1px solid ${th.border}`, borderRadius: '14px', padding: '11px 13px', marginBottom: '14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '6px' }}>
+            <span style={{ fontSize: '0.68rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', color: miniTask.done ? '#4CAF50' : th.gold }}>
+              {miniTask.done ? '✅' : '⚡'} {isMarkLang ? 'Aufgabe des Tages' : 'Task of the day'}
+            </span>
+          </div>
+          {!miniTask.done ? (
+            <>
+              <p style={{ color: th.text, fontSize: '0.85rem', margin: '0 0 7px', lineHeight: 1.4 }}>
+                {isMarkLang ? `Benutze „${miniTask.word}" in einem Satz:` : `Use "${miniTask.word}" in a sentence:`}
+              </p>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <input
+                  style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: `1px solid ${th.border}`, borderRadius: '10px', padding: '8px 12px', color: th.text, fontSize: '0.83rem', outline: 'none', fontFamily: "'Inter', system-ui, sans-serif" }}
+                  placeholder={isMarkLang ? 'Schreib deinen Satz…' : 'Write your sentence…'}
+                  value={miniTaskInput}
+                  onChange={e => setMiniTaskInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && submitMiniTask()}
+                />
+                <button
+                  onClick={submitMiniTask}
+                  disabled={!miniTaskInput.trim() || miniTaskLoading}
+                  style={{ background: `${th.accent}22`, border: `1px solid ${th.accent}55`, color: th.text, borderRadius: '10px', padding: '8px 14px', cursor: miniTaskInput.trim() && !miniTaskLoading ? 'pointer' : 'default', fontSize: '0.82rem', fontWeight: '600', opacity: miniTaskLoading ? 0.6 : 1 }}
+                >{miniTaskLoading ? '…' : '→'}</button>
+              </div>
+              {miniTask.feedback && <p style={{ color: '#81c784', fontSize: '0.75rem', margin: '6px 0 0', lineHeight: 1.4 }}>💡 {miniTask.feedback}</p>}
+            </>
+          ) : (
+            <div>
+              <p style={{ color: '#4CAF50', fontSize: '0.85rem', margin: 0, fontStyle: 'italic' }}>„{miniTask.answer}"</p>
+              {miniTask.feedback && <p style={{ color: th.sub, fontSize: '0.75rem', margin: '4px 0 0', lineHeight: 1.4 }}>💡 {miniTask.feedback}</p>}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── WOCHENZIEL DOTS ── */}
       <div className="vocara-dots-row" style={{ display: 'flex', justifyContent: 'center', gap: '14px', marginBottom: '20px', alignItems: 'flex-start' }}>
         {WEEK_AREAS.map(area => {
@@ -3376,11 +3595,17 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('ki')}>{t.menuKi}</button>
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('stats')}>
           {t.progressBtn}
+          <span style={{ marginLeft: '6px', fontSize: '0.76rem', color: th.gold }}>
+            {getLevelName(myMasteredCount, lang)}
+          </span>
           {cefr && (
-            <span style={{ marginLeft: '6px', fontFamily: 'monospace', fontSize: '0.78rem', color: CEFR_COLORS[cefr] || th.accent, letterSpacing: '0px' }}>
-              {cefr} {cefrBar} {cefrPct}%{nextCefr ? ` → ${nextCefr}` : ''}
+            <span style={{ marginLeft: '4px', fontFamily: 'monospace', fontSize: '0.75rem', color: CEFR_COLORS[cefr] || th.accent }}>
+              · {cefr} {cefrBar} {cefrPct}%
             </span>
           )}
+        </button>
+        <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('diary')}>
+          📔 {isMarkLang ? 'Tagebuch' : 'Diary'}
         </button>
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('partner')}>
           {myData?.partnerUID ? `${t.menuPartnerLabel}: ${partnerName}` : t.menuPartnerConnect}
@@ -3447,6 +3672,125 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         </div>
       )}
     </div></div>
+  )
+}
+
+function DiaryScreen({ user, myData, setMyData, partnerData, lang, theme, onBack }) {
+  const th = THEMES[theme]; const s = makeStyles(th)
+  const isDE = lang === 'de'
+  const [myEntry, setMyEntry] = useState('')
+  const [feedback, setFeedback] = useState(null)
+  const [feedbackLoading, setFeedbackLoading] = useState(false)
+  const today = todayStr()
+
+  const diaryEntries = myData?.diaryEntries || []
+  const todayMyEntry = diaryEntries.find(e => e.date === today)
+  const partnerEntries = partnerData?.diaryEntries || []
+  const hasPartner = !!(myData?.partnerUID || partnerData)
+  const partnerName = myData?.partnerName || partnerData?.name?.split(' ')[0] || 'Partner'
+  const myFirstName = user.displayName?.split(' ')[0] || 'Ich'
+
+  const saveEntry = async () => {
+    if (!myEntry.trim()) return
+    const entry = { date: today, text: myEntry.trim() }
+    const updated = [...diaryEntries.filter(e => e.date !== today), entry]
+    await updateDoc(doc(db, 'users', user.uid), { diaryEntries: updated }).catch(() => {})
+    setMyData(d => ({ ...d, diaryEntries: updated }))
+    const saved = myEntry.trim(); setMyEntry('')
+    setFeedbackLoading(true)
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001', max_tokens: 80,
+          messages: [{ role: 'user', content: `The user wrote this sentence in ${isDE ? 'German' : 'English'}: "${saved}". In 1 very short sentence in ${isDE ? 'German' : 'English'}, give kind grammar feedback or encouragement. Be concise.` }]
+        })
+      })
+      const data = await res.json()
+      setFeedback(data.content?.[0]?.text?.trim() || null)
+    } catch (e) {}
+    finally { setFeedbackLoading(false) }
+  }
+
+  const allDates = [...new Set([...diaryEntries.map(e => e.date), ...partnerEntries.map(e => e.date)])]
+    .sort().reverse().slice(0, 7)
+
+  return (
+    <div style={s.container} className="vocara-screen">
+      <div style={{ ...s.homeBox, paddingTop: '16px' }}>
+        <button style={s.backBtn} onClick={onBack}>← {isDE ? 'Zurück' : 'Back'}</button>
+        <div style={{ textAlign: 'left', marginBottom: '18px' }}>
+          <h2 style={{ color: th.text, fontFamily: "'Playfair Display', Georgia, serif", fontSize: '1.3rem', fontWeight: '700', margin: '0 0 4px' }}>
+            📔 {isDE ? 'Gemeinsames Tagebuch' : 'Shared Diary'}
+          </h2>
+          <p style={{ color: th.sub, fontSize: '0.8rem', margin: 0 }}>
+            {isDE ? 'Ein Satz pro Tag in eurer Zielsprache.' : 'One sentence per day in your target language.'}
+          </p>
+        </div>
+
+        {/* Today's entry */}
+        <div style={{ ...s.card, marginBottom: '14px' }}>
+          <p style={{ ...s.cardLabel, marginBottom: '10px' }}>{isDE ? 'Heute' : 'Today'} — {today}</p>
+          {todayMyEntry ? (
+            <p style={{ color: th.accent, fontWeight: '600', fontSize: '0.92rem', margin: 0, fontStyle: 'italic' }}>„{todayMyEntry.text}"</p>
+          ) : (
+            <>
+              <input
+                style={{ ...s.input, marginBottom: '8px' }}
+                placeholder={isDE ? `Dein Satz auf ${isDE ? 'Englisch' : 'Deutsch'}…` : 'Your sentence in German…'}
+                value={myEntry}
+                onChange={e => setMyEntry(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && saveEntry()}
+              />
+              <button style={{ ...s.button, marginBottom: 0 }} onClick={saveEntry}>{isDE ? 'Eintragen' : 'Save'}</button>
+            </>
+          )}
+          {feedbackLoading && <p style={{ color: th.sub, fontSize: '0.75rem', margin: '8px 0 0' }}>💡 …</p>}
+          {feedback && <p style={{ color: '#81c784', fontSize: '0.75rem', margin: '8px 0 0', lineHeight: 1.4 }}>💡 {feedback}</p>}
+        </div>
+
+        {/* Timeline */}
+        {allDates.length > 0 && (
+          <div style={s.card}>
+            {hasPartner && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <span style={{ color: th.accent, fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase' }}>{myFirstName}</span>
+                <span style={{ color: th.gold, fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase' }}>{partnerName}</span>
+              </div>
+            )}
+            {allDates.map(date => {
+              const my = diaryEntries.find(e => e.date === date)
+              const partner = partnerEntries.find(e => e.date === date)
+              return (
+                <div key={date} style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: `1px solid ${th.border}` }}>
+                  <p style={{ color: th.sub, fontSize: '0.68rem', fontWeight: '600', margin: '0 0 5px', letterSpacing: '0.4px' }}>{date}</p>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ flex: 1 }}>
+                      {my
+                        ? <p style={{ color: th.text, fontSize: '0.82rem', margin: 0, fontStyle: 'italic' }}>„{my.text}"</p>
+                        : <p style={{ color: th.border, fontSize: '0.75rem', margin: 0 }}>—</p>}
+                    </div>
+                    {hasPartner && (
+                      <div style={{ flex: 1 }}>
+                        {partner
+                          ? <p style={{ color: th.gold, fontSize: '0.82rem', margin: 0, fontStyle: 'italic' }}>„{partner.text}"</p>
+                          : <p style={{ color: th.border, fontSize: '0.75rem', margin: 0 }}>—</p>}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+        {allDates.length === 0 && (
+          <div style={{ ...s.card, textAlign: 'center', padding: '36px 20px' }}>
+            <span style={{ fontSize: '2rem', display: 'block', marginBottom: '10px' }}>📔</span>
+            <p style={{ color: th.sub, fontSize: '0.88rem', margin: 0 }}>{isDE ? 'Noch keine Einträge — schreib den ersten!' : 'No entries yet — write the first one!'}</p>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -3942,6 +4286,7 @@ function App() {
     const update = { onboardingDone: true }
     if (cityData.homeCity) update.homeCity = cityData.homeCity
     if (cityData.partnerCity) update.partnerCity = cityData.partnerCity
+    if (cityData.relationshipType) update.relationshipType = cityData.relationshipType
     await updateDoc(doc(db, 'users', user.uid), update)
     setMyData(d => ({ ...d, ...update }))
     setNeedsOnboarding(false)
@@ -3973,12 +4318,12 @@ function App() {
 
   const hour = new Date().getHours()
   const timeOverlay = hour >= 0 && hour < 6
-    ? 'rgba(0,0,15,0.10)'
+    ? 'rgba(0,0,20,0.22)'          // 00–06: very dark, deep blue-black
     : hour >= 6 && hour < 12
-      ? 'rgba(255,220,140,0.04)'
+      ? 'rgba(255,215,100,0.06)'   // 06–12: slightly warmer / brighter
       : hour >= 18
-        ? 'rgba(160,60,0,0.06)'
-        : null
+        ? 'rgba(160,50,0,0.10)'    // 18–24: darker, warm amber-red
+        : null                     // 12–18: normal, no overlay
 
   const uniqueTargetLangsAll = [...new Set(allCards.map(c => c.targetLang).filter(Boolean))]
   const firstNameAll = user?.displayName?.split(' ')[0] || user?.displayName || ''
