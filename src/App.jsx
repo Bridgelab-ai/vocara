@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Component } from 'react'
 import { auth, db } from './firebase'
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
 import { doc, setDoc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore'
@@ -30,12 +30,12 @@ const THEMES = {
     name: '🌊 Hamburg',
     bg: '#050D18', card: '#0D1E30', text: '#E8F4FF', sub: '#5A9AC0', border: '#1B3A5C',
     accent: '#2E6B9E', gold: '#7AB8E8', glowColor: '#2E6B9E', btnTextColor: '#FFFFFF',
-    bgGrad: 'radial-gradient(ellipse at 50% 25%, #1B3A5C 0%, #0A1828 50%, #050D18 100%)',
-    metalGrad: 'linear-gradient(145deg, #7AB8E8 0%, #2E6B9E 25%, #1B3A5C 50%, #2E6B9E 75%, #7AB8E8 100%)',
-    metalText: 'linear-gradient(90deg, #2E6B9E 0%, #7AB8E8 16%, #1B3A5C 33%, #A8D8F0 50%, #2E6B9E 66%, #7AB8E8 83%, #1B3A5C 100%)',
-    btnFaceGrad: 'linear-gradient(90deg, #1B3A5C 0%, #2E6B9E 16%, #4A8EC4 33%, #7AB8E8 50%, #1B3A5C 66%, #2E6B9E 83%, #4A8EC4 100%)',
-    shadow3d: '0 1px 0 rgba(160,220,255,0.3) inset, 0 -1px 0 rgba(0,0,0,0.5) inset, 0 4px 0 #1B3A5C, 0 6px 0 #0F2440, 0 8px 0 #081828, 0 10px 20px rgba(0,0,0,0.75)',
-    shadowPressed: '0 1px 0 rgba(160,220,255,0.15) inset, 0 -1px 0 rgba(0,0,0,0.4) inset, 0 1px 0 #1B3A5C, 0 3px 8px rgba(0,0,0,0.6)',
+    bgGrad: 'radial-gradient(ellipse at 50% 15%, #2E6B9E 0%, #112440 45%, #050D18 100%)',
+    metalGrad: 'linear-gradient(145deg, #A8D8F0 0%, #4A8EC4 20%, #2E6B9E 40%, #1B3A5C 60%, #2E6B9E 80%, #A8D8F0 100%)',
+    metalText: 'linear-gradient(90deg, #4A8EC4 0%, #A8D8F0 16%, #2E6B9E 33%, #E0F4FF 50%, #4A8EC4 66%, #A8D8F0 83%, #2E6B9E 100%)',
+    btnFaceGrad: 'linear-gradient(90deg, #1B3A5C 0%, #2E6B9E 20%, #4A8EC4 40%, #7AB8E8 50%, #4A8EC4 60%, #2E6B9E 80%, #1B3A5C 100%)',
+    shadow3d: '0 1px 0 rgba(168,216,240,0.4) inset, 0 -1px 0 rgba(0,0,0,0.5) inset, 0 4px 0 #1B3A5C, 0 6px 0 #112440, 0 8px 0 #081828, 0 10px 20px rgba(0,20,60,0.8)',
+    shadowPressed: '0 1px 0 rgba(168,216,240,0.2) inset, 0 -1px 0 rgba(0,0,0,0.4) inset, 0 1px 0 #1B3A5C, 0 3px 8px rgba(0,20,60,0.6)',
   },
   welt: {
     name: '🌍 Welt',
@@ -88,7 +88,13 @@ async function speak(text, langCode) {
     || voices.find(v => v.lang === langTag && !v.localService)
     || voices.find(v => v.lang.startsWith(langTag.split('-')[0]) && v.name.toLowerCase().includes('google'))
     || voices.find(v => v.lang.startsWith(langTag.split('-')[0]))
-  if (preferred) u.voice = preferred
+  if (preferred) { u.voice = preferred }
+  else if (langTag === 'sw-KE') {
+    // No Swahili voice available — fall back to en-US to avoid system default (e.g. de-DE)
+    const enFallback = voices.find(v => v.lang === 'en-US') || voices.find(v => v.lang.startsWith('en-'))
+    if (enFallback) u.voice = enFallback
+    u.lang = 'en-US'
+  }
   window.speechSynthesis.speak(u)
 }
 async function speakSyllable(text, langCode) {
@@ -104,12 +110,17 @@ async function speakSyllable(text, langCode) {
     || voices.find(v => v.lang === langTag && !v.localService)
     || voices.find(v => v.lang.startsWith(langTag.split('-')[0]) && v.name.toLowerCase().includes('google'))
     || voices.find(v => v.lang.startsWith(langTag.split('-')[0]))
+  const swFallback = (!preferred && langTag === 'sw-KE')
+    ? (voices.find(v => v.lang === 'en-US') || voices.find(v => v.lang.startsWith('en-')))
+    : null
+  const effectiveLang = swFallback ? 'en-US' : langTag
+  const effectiveVoice = preferred || swFallback || null
   const words = text.trim().split(/\s+/).filter(Boolean)
   words.forEach((word, i) => {
     setTimeout(() => {
       const u = new SpeechSynthesisUtterance(word)
-      u.lang = langTag; u.rate = 0.9
-      if (preferred) u.voice = preferred
+      u.lang = effectiveLang; u.rate = 0.9
+      if (effectiveVoice) u.voice = effectiveVoice
       window.speechSynthesis.speak(u)
     }, i * 500)
   })
@@ -1632,7 +1643,14 @@ function PlacementTest({ lang, theme, user, onBack, onSaveCefr }) {
     const newStreak = isCorrect ? 0 : wrongStreak + 1
     setTimeout(() => {
       if (newStreak >= 3 || index + 1 >= questions.length) {
-        const level = calcLevel(newScores); setFinalLevel(level); setDone(true); setStopped(newStreak >= 3); onSaveCefr(level)
+        try {
+          const level = calcLevel(newScores)
+          try { onSaveCefr(level) } catch(e) { console.warn('[Vocara] onSaveCefr error:', e) }
+          window.location.reload()
+        } catch(completionErr) {
+          console.error('[Vocara] test completion crashed:', completionErr)
+          window.location.reload()
+        }
       } else { setWrongStreak(newStreak); setIndex(i => i + 1); setSelected(null); setRevealed(false) }
     }, 1200)
   }
@@ -1659,7 +1677,7 @@ function PlacementTest({ lang, theme, user, onBack, onSaveCefr }) {
             <span style={s.lang}>{t.testScore}</span><span style={s.langPct}>{totalCorrect}/{totalQ}</span>
           </div>
         </div>
-        <button style={s.button} onClick={onBack}>{t.testBack}</button>
+        <button style={s.button} onClick={onBack}>← Zurück zur Startseite</button>
       </div></div>
     )
   }
@@ -1816,7 +1834,7 @@ function PartnerScreen({ user, myData, lang, theme, onBack, onPartnerUpdate }) {
   )
 }
 
-function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveState, onSaveSessionProgress, mode = 'all', startIndex = 0, startProgress = null }) {
+function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveState, onSaveSessionProgress, onStop, mode = 'all', startIndex = 0, startProgress = null }) {
   const [index, setIndex] = useState(startIndex)
   const [queue, setQueue] = useState(session)
   const [revealed, setRevealed] = useState(false)
@@ -1861,10 +1879,14 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
   }
   const handleStop = () => {
     onSaveState?.(queue, index, newProgress)
-    if (answeredIds.current.size > 0) {
-      onSaveSessionProgress?.(Array.from(answeredIds.current), mode)
+    if (onStop) {
+      onStop(newProgress, answeredIds.current.size)
+    } else {
+      if (answeredIds.current.size > 0) {
+        onSaveSessionProgress?.(Array.from(answeredIds.current), mode)
+      }
+      onBack()
     }
-    onBack()
   }
   const handleEasy = () => {
     const cardId = item.id
@@ -2485,6 +2507,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const [result, setResult] = useState(null)
   const [masteryUnlocked, setMasteryUnlocked] = useState(false)
   const [aiNotification, setAiNotification] = useState(null)
+  const [stopToast, setStopToast] = useState(null)
   const [pendingSession, setPendingSession] = useState(null)
   const [resumeStartIndex, setResumeStartIndex] = useState(0)
   const [resumeStartProgress, setResumeStartProgress] = useState(null)
@@ -2499,6 +2522,12 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
     const stored = myData?.weeklyGoals
     return stored?.week === currentWeek ? stored : { week: currentWeek, completed: [] }
   })
+  const VALID_SCREENS = new Set(['menu','cards','result','settings','partner','test','impressum','stats','ki','satz'])
+  if (!VALID_SCREENS.has(screen)) { setScreen('menu'); return null }
+  const homeFloat = (
+    <button onClick={() => setScreen('menu')} title="Zurück zur Startseite" style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999, background: 'rgba(0,0,0,0.55)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '50%', width: '46px', height: '46px', fontSize: '1.3rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }}>🏠</button>
+  )
+
   const t = T[lang]; const th = THEMES[theme]; const s = makeStyles(th)
   const firstName = user.displayName?.split(' ')[0] || user.displayName
   const cardProgress = myData?.cardProgress || {}
@@ -2539,7 +2568,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const cefrTo = nextCefr ? CEFR_MASTERY_REQ[nextCefr] : cefrFrom
   const cefrPct = cefrTo > cefrFrom ? Math.min(100, Math.round(((myMasteredCount - cefrFrom) / (cefrTo - cefrFrom)) * 100)) : 100
   const cefrBar = (() => {
-    const filled = Math.round(cefrPct / 20); const empty = 5 - filled
+    const filled = Math.max(0, Math.min(5, Math.round(cefrPct / 20))); const empty = Math.max(0, 5 - filled)
     return '▓'.repeat(filled) + '░'.repeat(empty)
   })()
 
@@ -2682,6 +2711,17 @@ Return ONLY a valid JSON array with no markdown or explanation:
     setResumeStartProgress(pendingSession.newProgress || null); setPendingSession(null); setScreen('cards')
   }
   const discardSession = async () => { await clearSessionState(user.uid); setPendingSession(null) }
+  const handleSessionStop = async (finalProgress, answeredCount) => {
+    setScreen('menu'); setSession(null)
+    if (answeredCount > 0) {
+      try {
+        await onSaveProgress(finalProgress)
+        const msg = `${answeredCount} Karte${answeredCount !== 1 ? 'n' : ''} gespeichert ✓`
+        setStopToast(msg)
+        setTimeout(() => setStopToast(null), 3000)
+      } catch(e) { console.warn('handleSessionStop save failed:', e) }
+    }
+  }
   const markAreaDone = (area) => {
     const currentWeek = getISOWeekStr()
     setWeeklyGoals(prev => {
@@ -2838,15 +2878,15 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     setScreen('result')
   }
 
-  if (screen === 'cards' && session) return <CardScreen session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} onSaveSessionProgress={saveSessionProgress} mode={currentSessionMode} startIndex={resumeStartIndex} startProgress={resumeStartProgress} />
-  if (screen === 'result') return <ResultScreen correct={result.correct} wrong={result.wrong} easy={result.easy} weakestCard={result.weakestCard} strongestCard={result.strongestCard} masteryUnlocked={masteryUnlocked} t={t} lang={lang} onBack={() => { setScreen('menu'); setSession(null) }} onReplay={result.originalSession ? () => { setSession(result.originalSession); setResumeStartIndex(0); setResumeStartProgress(null); setScreen('cards') } : null} s={s} th={th} />
-  if (screen === 'settings') return <SettingsScreen t={t} s={s} theme={theme} onThemeChange={onThemeChange} onBack={() => setScreen('menu')} user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} />
-  if (screen === 'partner') return <PartnerScreen user={user} myData={myData} lang={lang} theme={theme} onBack={() => setScreen('menu')} onPartnerUpdate={(uid) => { onPartnerUpdate(uid); setScreen('menu') }} />
-  if (screen === 'test') return <PlacementTest lang={lang} theme={theme} user={user} onBack={() => setScreen('menu')} onSaveCefr={onSaveCefr} />
-  if (screen === 'impressum') return <ImpressumScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} />
-  if (screen === 'stats') return <StatsScreen user={user} myData={myData} partnerData={partnerData} allCards={allCards} lang={lang} theme={theme} onBack={() => setScreen('menu')} cardProgress={cardProgress} />
-  if (screen === 'ki') return <KiGespraechScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} userName={user.displayName?.split(' ')[0] || 'du'} />
-  if (screen === 'satz') return <SatzTrainingScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} userName={user.displayName?.split(' ')[0] || 'du'} />
+  if (screen === 'cards' && session) return <>{homeFloat}<CardScreen session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} onSaveSessionProgress={saveSessionProgress} onStop={handleSessionStop} mode={currentSessionMode} startIndex={resumeStartIndex} startProgress={resumeStartProgress} /></>
+  if (screen === 'result') return <>{homeFloat}<ResultScreen correct={result.correct} wrong={result.wrong} easy={result.easy} weakestCard={result.weakestCard} strongestCard={result.strongestCard} masteryUnlocked={masteryUnlocked} t={t} lang={lang} onBack={() => { setScreen('menu'); setSession(null) }} onReplay={result.originalSession ? () => { setSession(result.originalSession); setResumeStartIndex(0); setResumeStartProgress(null); setScreen('cards') } : null} s={s} th={th} /></>
+  if (screen === 'settings') return <>{homeFloat}<SettingsScreen t={t} s={s} theme={theme} onThemeChange={onThemeChange} onBack={() => setScreen('menu')} user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} /></>
+  if (screen === 'partner') return <>{homeFloat}<PartnerScreen user={user} myData={myData} lang={lang} theme={theme} onBack={() => setScreen('menu')} onPartnerUpdate={(uid) => { onPartnerUpdate(uid); setScreen('menu') }} /></>
+  if (screen === 'test') return <>{homeFloat}<PlacementTest lang={lang} theme={theme} user={user} onBack={() => setScreen('menu')} onSaveCefr={onSaveCefr} /></>
+  if (screen === 'impressum') return <>{homeFloat}<ImpressumScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
+  if (screen === 'stats') return <>{homeFloat}<StatsScreen user={user} myData={myData} partnerData={partnerData} allCards={allCards} lang={lang} theme={theme} onBack={() => setScreen('menu')} cardProgress={cardProgress} /></>
+  if (screen === 'ki') return <>{homeFloat}<KiGespraechScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} userName={user.displayName?.split(' ')[0] || 'du'} /></>
+  if (screen === 'satz') return <>{homeFloat}<SatzTrainingScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} userName={user.displayName?.split(' ')[0] || 'du'} /></>
 
   return (
     <div style={s.container} className="vocara-screen vocara-home-outer"><div style={{ ...s.homeBox, paddingTop: '12px' }} className="vocara-home-box">
@@ -3012,6 +3052,11 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         🇩🇪 Made in Germany
       </button>
 
+      {stopToast && (
+        <div style={{ position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)', background: '#2e7d32', color: '#fff', padding: '10px 20px', borderRadius: '20px', fontSize: '0.9rem', fontWeight: 'bold', zIndex: 1001, animation: 'vocaraFadeIn 0.3s ease both', whiteSpace: 'nowrap', pointerEvents: 'none' }}>
+          {stopToast}
+        </div>
+      )}
       {aiNotification && (
         <div style={{ position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)', background: th.accent, color: '#111', padding: '10px 20px', borderRadius: '20px', fontSize: '0.9rem', fontWeight: 'bold', zIndex: 1000, animation: 'vocaraFadeIn 0.3s ease both', whiteSpace: 'nowrap', pointerEvents: 'none' }}>
           {aiNotification}
@@ -3036,6 +3081,25 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
   )
 }
 
+class ErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { hasError: false } }
+  static getDerivedStateFromError() { return { hasError: true } }
+  componentDidCatch(err, info) {
+    console.error('[Vocara] render crash — message:', err?.message)
+    console.error('[Vocara] render crash — stack:', err?.stack)
+    console.error('[Vocara] component stack:', info?.componentStack)
+  }
+  render() {
+    if (this.state.hasError) return (
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#0a0a0a', color: '#fff', gap: '20px', padding: '24px', textAlign: 'center' }}>
+        <p style={{ fontSize: '1.1rem', color: '#aaa' }}>Etwas ist schiefgelaufen.</p>
+        <button onClick={() => { try { localStorage.clear(); sessionStorage.clear() } catch(e) {} window.location.reload() }} style={{ background: '#1a1a1a', color: '#fff', border: '1px solid #444', borderRadius: '14px', padding: '14px 28px', fontSize: '1rem', cursor: 'pointer' }}>🏠 Zur Startseite</button>
+      </div>
+    )
+    return this.props.children
+  }
+}
+
 function App() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -3055,67 +3119,80 @@ function App() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
-      if (u) {
-        const userRef = doc(db, 'users', u.uid)
-        await setDoc(userRef, { name: u.displayName, email: u.email, lastActive: todayStr() }, { merge: true })
-        const code = u.uid.slice(0, 8).toUpperCase()
-        await setDoc(doc(db, 'inviteCodes', code), { uid: u.uid }, { merge: true })
-        const snap = await getDoc(userRef)
-        if (snap.exists()) {
-          const data = snap.data()
-          if (data.theme) setTheme(data.theme)
-          // ── Rule-based categorization on load ──────────────────
-          const baseCards = u.uid === ELOSY_UID ? ALL_ELOSY_CARDS_BASE : ALL_MARK_CARDS_BASE
-          const aiCards = data.aiCards || []
-          const existingCats = data.cardCategories || {}
-          const newCats = { ...existingCats }
-          let catChanged = false
-          const swahiliOverrideRe = /\b(habari|yako|nzuri|asante|karibu|pole|sawa|jambo|mambo|rafiki|wewe|mimi|nina|hii|hilo|chakula|maji|nyumba|watoto|upendo)\b/i
-          for (const card of [...baseCards, ...aiCards]) {
-            const front = card.front || ''
-            const back = card.back || ''
-            const wordCount = front.trim().split(/\s+/).filter(Boolean).length
-            const backWordCount = back.trim().split(/\s+/).filter(Boolean).length
-            const current = newCats[card.id]
-            const isSwahiliCard = card.pronunciation || swahiliOverrideRe.test(front) || card.langA === 'sw'
-            const needsRun =
-              (isSwahiliCard && current !== 'street') ||
-              !current ||
-              current === '' ||
-              (current === 'vocabulary' && wordCount > 1) ||
-              (current === 'vocabulary' && wordCount === 1 && backWordCount >= 3)
-            if (!needsRun) continue
-            const newCat = ruleCategory(card)
-            if (current !== newCat) {
-              console.log(`[category] ${card.id} "${front}" : ${current || 'undefined'} → ${newCat}`)
-              newCats[card.id] = newCat
-              catChanged = true
+      try {
+        if (u) {
+          const userRef = doc(db, 'users', u.uid)
+          await setDoc(userRef, { name: u.displayName, email: u.email, lastActive: todayStr() }, { merge: true })
+          const code = u.uid.slice(0, 8).toUpperCase()
+          await setDoc(doc(db, 'inviteCodes', code), { uid: u.uid }, { merge: true })
+          const snap = await getDoc(userRef)
+          if (snap.exists()) {
+            const data = snap.data()
+            if (data.theme) setTheme(data.theme)
+            // ── Rule-based categorization on load ──────────────────
+            try {
+              const baseCards = u.uid === ELOSY_UID ? ALL_ELOSY_CARDS_BASE : ALL_MARK_CARDS_BASE
+              const aiCards = data.aiCards || []
+              const existingCats = data.cardCategories || {}
+              const newCats = { ...existingCats }
+              let catChanged = false
+              const swahiliOverrideRe = /\b(habari|yako|nzuri|asante|karibu|pole|sawa|jambo|mambo|rafiki|wewe|mimi|nina|hii|hilo|chakula|maji|nyumba|watoto|upendo)\b/i
+              for (const card of [...baseCards, ...aiCards]) {
+                const front = card.front || ''
+                const back = card.back || ''
+                const wordCount = front.trim().split(/\s+/).filter(Boolean).length
+                const backWordCount = back.trim().split(/\s+/).filter(Boolean).length
+                const current = newCats[card.id]
+                const isSwahiliCard = card.pronunciation || swahiliOverrideRe.test(front) || card.langA === 'sw'
+                const needsRun =
+                  (wordCount === 1 && DE_VOCAB_WHITELIST.has(front.trim().toLowerCase()) && current !== 'vocabulary') ||
+                  (isSwahiliCard && current !== 'street') ||
+                  !current ||
+                  current === '' ||
+                  (current === 'vocabulary' && wordCount > 1) ||
+                  (current === 'vocabulary' && wordCount === 1 && backWordCount >= 3)
+                if (!needsRun) continue
+                const newCat = ruleCategory(card)
+                if (current !== newCat) {
+                  console.log(`[category] ${card.id} "${front}" : ${current || 'undefined'} → ${newCat}`)
+                  newCats[card.id] = newCat
+                  catChanged = true
+                }
+              }
+              if (catChanged) {
+                data.cardCategories = newCats
+                updateDoc(userRef, { cardCategories: newCats }).catch(e => console.warn('Category save failed:', e))
+                console.log('[category] Saved', Object.keys(newCats).length, 'categories to Firestore')
+              } else {
+                console.log('[category] All cards already correctly categorized')
+              }
+            } catch (catErr) {
+              console.error('[Vocara] category init failed, skipping:', catErr)
             }
-          }
-          if (catChanged) {
-            data.cardCategories = newCats
-            updateDoc(userRef, { cardCategories: newCats }).catch(e => console.warn('Category save failed:', e))
-            console.log('[category] Saved', Object.keys(newCats).length, 'categories to Firestore')
-          } else {
-            console.log('[category] All cards already correctly categorized')
-          }
-          setMyData(data)
-          const isKnown = u.uid === MARK_UID || u.uid === ELOSY_UID
-          if (!isKnown) {
-            if (!data.onboardingDone) setNeedsOnboarding(true)
-            if (!data.languages || data.languages.length === 0) setNeedsLangSetup(true)
-          }
-          if (data.partnerUID) {
-            const pSnap = await getDoc(doc(db, 'users', data.partnerUID))
-            if (pSnap.exists()) setPartnerData(pSnap.data())
-          } else {
-            const partnerUID = u.uid === MARK_UID ? ELOSY_UID : u.uid === ELOSY_UID ? MARK_UID : null
-            if (partnerUID) {
-              const pSnap = await getDoc(doc(db, 'users', partnerUID))
-              if (pSnap.exists()) setPartnerData(pSnap.data())
+            setMyData(data)
+            const isKnown = u.uid === MARK_UID || u.uid === ELOSY_UID
+            if (!isKnown) {
+              if (!data.onboardingDone) setNeedsOnboarding(true)
+              if (!data.languages || data.languages.length === 0) setNeedsLangSetup(true)
+            }
+            try {
+              if (data.partnerUID) {
+                const pSnap = await getDoc(doc(db, 'users', data.partnerUID))
+                if (pSnap.exists()) setPartnerData(pSnap.data())
+              } else {
+                const partnerUID = u.uid === MARK_UID ? ELOSY_UID : u.uid === ELOSY_UID ? MARK_UID : null
+                if (partnerUID) {
+                  const pSnap = await getDoc(doc(db, 'users', partnerUID))
+                  if (pSnap.exists()) setPartnerData(pSnap.data())
+                }
+              }
+            } catch (partnerErr) {
+              console.error('[Vocara] partner load failed, skipping:', partnerErr)
             }
           }
         }
+      } catch (initErr) {
+        console.error('[Vocara] app init failed, falling back to defaults:', initErr)
       }
       setUser(u); setLoading(false)
     })
@@ -3138,9 +3215,11 @@ function App() {
     else setPartnerData(null)
   }
   const handleSaveCefr = async (level) => {
-    const update = { cefr: level, lastTestDate: todayStr() }
-    await updateDoc(doc(db, 'users', user.uid), update)
-    setMyData(d => ({ ...d, ...update }))
+    try {
+      const update = { cefr: level, lastTestDate: todayStr() }
+      await updateDoc(doc(db, 'users', user.uid), update)
+      setMyData(d => ({ ...d, ...update }))
+    } catch(e) { console.warn('saveCefr failed:', e) }
   }
   const handleOnboardingDone = async (cityData = {}) => {
     const update = { onboardingDone: true }
@@ -3176,11 +3255,13 @@ function App() {
   })
 
   return (
-    <MenuScreen user={user} myData={myData} setMyData={setMyData} partnerData={partnerData}
-      allCards={allCards}
-      lang={lang} onSaveProgress={saveProgress}
-      theme={theme} onThemeChange={handleThemeChange}
-      onPartnerUpdate={handlePartnerUpdate} onSaveCefr={handleSaveCefr} />
+    <ErrorBoundary>
+      <MenuScreen user={user} myData={myData} setMyData={setMyData} partnerData={partnerData}
+        allCards={allCards}
+        lang={lang} onSaveProgress={saveProgress}
+        theme={theme} onThemeChange={handleThemeChange}
+        onPartnerUpdate={handlePartnerUpdate} onSaveCefr={handleSaveCefr} />
+    </ErrorBoundary>
   )
 }
 
