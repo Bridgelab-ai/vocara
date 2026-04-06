@@ -39,7 +39,7 @@
 30. Wort des Tages in alle 5 Bereiche einweben
 31. Sprachrhythmus-Training via KI
 32. Kontextwechsel: gleiche Karte formell/informell/romantisch
-33. Fehler-Muster Analyse durch KI
+33. Fehler-Muster Analyse durch KI ✅
 34. Spanisch + Französisch implementieren
 35. KI-generierte Aussprache für alle Sprachen
 36. KI-Aussprache für bestehende Karten nachrüsten
@@ -78,6 +78,9 @@
 - Bridgelab-Wortsprache: "Heute gebaut.", "Brücke gebaut. ✓", "Verbindung braucht dich." ✅
 - Statistik Lerntage gesamt: beide User in StatsScreen ✅
 - Thai (TH) Sprache + Chiang Mai Theme implementiert ✅
+- Fehler-Muster Analyse: nach 10 Fehlern → KI erkennt Muster, zeigt Tipp (#33) ✅
+- Bridgelab-Wortsprache v2: "Heute. Gut gemacht.", "Deine Stimme wächst.", "Heute: vollständig. ✓", "Hier wartet noch nichts…" ✅
+- Coaching Banner v2: Wochenziel-Fortschritt in Prompt, Gold-Italic Styling, bessere Varianz ✅
 
 ## Liste E – Paar/Design/Business
 38. Gemeinsames Tagebuch (täglich 1 Satz in Zielsprache)
