@@ -1,3 +1,4 @@
+// Build timestamp: 2026-04-06T18:00
 import React, { useState, useEffect, useRef, Component } from 'react'
 import { auth, db } from './firebase'
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
@@ -902,7 +903,7 @@ const WaterCanvas = () => {
 
 function makeStyles(th) {
   return {
-    container: { minHeight: '100vh', minHeight: '100dvh', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: th.bgGrad, backgroundColor: th.bg },
+    container: { minHeight: '100vh', minHeight: '100dvh', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', position: 'relative', zIndex: 1 },
     homeBox: { textAlign: 'center', padding: '20px', width: '100%', maxWidth: '420px' },
     greeting: { color: th.sub, fontSize: '0.95rem', marginBottom: '2px' },
     title: {
@@ -2615,7 +2616,7 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
   )
 
   return (
-    <div style={{ minHeight: '100vh', minHeight: '100dvh', width: '100%', background: th.bgGrad, backgroundColor: th.bg, display: 'flex', flexDirection: 'column', alignItems: 'center' }} className="vocara-screen">
+    <div style={{ minHeight: '100vh', minHeight: '100dvh', width: '100%', background: 'transparent', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', zIndex: 1 }} className="vocara-screen">
       {/* ── FIXED BACK BAR ── */}
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, background: th.bg, borderBottom: `1px solid ${th.border}`, display: 'flex', alignItems: 'center', padding: '0 16px', minHeight: '52px' }}>
         <button
@@ -4598,6 +4599,7 @@ function App() {
 
   return (
     <ErrorBoundary>
+      <div style={{ position: 'fixed', inset: 0, background: th.bgGrad, backgroundColor: th.bg, zIndex: -1 }} />
       <WaterCanvas />
       {timeOverlay && <div style={{ position: 'fixed', inset: 0, background: timeOverlay, pointerEvents: 'none', zIndex: 2 }} />}
       {mainNav === 'main' && (
