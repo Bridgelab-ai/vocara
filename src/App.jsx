@@ -3510,20 +3510,28 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   }
   const startCategorySession = (category) => {
     console.log('[Vocara] startCategorySession:', category)
+    // ── MEINE WORTE HARD FILTER ─────────────────────────────────
+    // Only single-word or max 2-word fronts are allowed in vocabulary.
+    // basics are always excluded. Any sentence slipping through is rejected here.
+    const vocabGuard = (c) => {
+      if (c.category === 'basics') return false
+      return (
+        c.category === 'vocabulary' && !c.front?.trim().includes(' ')
+      ) || (
+        c.category === 'vocabulary' && c.front?.trim().split(' ').length <= 2
+      )
+    }
     const cards = category === 'all'
       ? activeCards
-      : activeCards.filter(c => {
-          if (c.category !== category) return false
-          // Runtime guard: never show multi-sentence cards in Meine Worte
-          if (category === 'vocabulary') {
-            const wc = (c.front || '').trim().split(/\s+/).filter(Boolean).length
-            if (wc >= 3) {
-              console.log(`[Meine Worte GUARD] excluded "${c.front}" (${wc} words, stored as vocabulary)`)
-              return false
+      : category === 'vocabulary'
+        ? activeCards.filter(c => {
+            const pass = vocabGuard(c)
+            if (!pass && c.category === 'vocabulary') {
+              console.log(`[Meine Worte GUARD] silently rejected: "${c.front}" (${c.front?.trim().split(' ').length} words)`)
             }
-          }
-          return true
-        })
+            return pass
+          })
+        : activeCards.filter(c => c.category === category)
     if (category !== 'all') {
       const excluded = activeCards.filter(c => c.category !== category)
       console.log('[Vocara] cards in category:', cards.length, '| excluded:', excluded.length, '| total:', activeCards.length)
@@ -5679,60 +5687,71 @@ function App() {
             if (data.theme) setTheme(data.theme)
             if (data.lightMode !== undefined) setLightMode(!!data.lightMode)
             if (data.cardSize) setCardSize(data.cardSize)
-            // ── Rule-based categorization on load ──────────────────
+            // ── BATCH CATEGORY FIX: vocabulary + 3+ words → sentence ─
+            // Runs on EVERY app load. Direct rule, no ruleCategory needed.
+            // After any changes: awaits a fresh Firestore re-fetch.
             try {
               const baseCards = u.uid === ELOSY_UID ? ALL_ELOSY_CARDS_BASE : ALL_MARK_CARDS_BASE
               const aiCards = data.aiCards || []
               const existingCats = data.cardCategories || {}
               const newCats = { ...existingCats }
-              let catChanged = false
-              const swahiliOverrideRe = /\b(habari|yako|nzuri|asante|karibu|pole|sawa|jambo|mambo|rafiki|wewe|mimi|nina|hii|hilo|chakula|maji|nyumba|watoto|upendo)\b/i
+              let batchChanged = false
+
               for (const card of [...baseCards, ...aiCards]) {
                 const front = card.front || ''
-                const back = card.back || ''
-                const wordCount = front.trim().split(/\s+/).filter(Boolean).length
-                const backWordCount = back.trim().split(/\s+/).filter(Boolean).length
+                const wordCount = front.trim().split(' ').filter(Boolean).length
                 const current = newCats[card.id]
-                // Protect basics cards — never reclassify via ruleCategory
+
+                // basics are untouchable
                 if (card.category === 'basics' || card.source === 'ai-basics') {
                   if (current !== 'basics') {
-                    console.log(`[category] ${card.id} "${front}" : ${current || 'undefined'} → basics (protected)`)
+                    console.log('Reclassified:', front, '→ basics (protected)')
                     newCats[card.id] = 'basics'
-                    catChanged = true
+                    batchChanged = true
                   }
                   continue
                 }
-                const isSwahiliCard = card.pronunciation || swahiliOverrideRe.test(front) || card.langA === 'sw'
-                // Auto-correct: any card stored as vocabulary with 3+ words in front is WRONG — reclassify
-                const isMislabeledSentence = current === 'vocabulary' && wordCount >= 3 && !DE_VOCAB_WHITELIST.has(front.trim().toLowerCase())
-                const needsRun =
-                  isMislabeledSentence ||
+
+                // DIRECT RULE: vocabulary + 3+ words = sentence, always
+                if (current === 'vocabulary' && wordCount >= 3 && !DE_VOCAB_WHITELIST.has(front.trim().toLowerCase())) {
+                  console.log('Reclassified:', front, '→ sentence')
+                  newCats[card.id] = 'sentence'
+                  batchChanged = true
+                  continue
+                }
+
+                // Run ruleCategory for anything else that looks wrong
+                const back = card.back || ''
+                const backWordCount = back.trim().split(/\s+/).filter(Boolean).length
+                const swahiliRe = /\b(habari|yako|nzuri|asante|karibu|pole|sawa|jambo|mambo|rafiki|wewe|mimi|nina|hii|hilo|chakula|maji|nyumba|watoto|upendo)\b/i
+                const isSwahiliCard = card.pronunciation || swahiliRe.test(front) || card.langA === 'sw'
+                const needsRun = !current || current === '' ||
                   (wordCount === 1 && DE_VOCAB_WHITELIST.has(front.trim().toLowerCase()) && current !== 'vocabulary') ||
                   (isSwahiliCard && current !== 'street') ||
-                  !current ||
-                  current === '' ||
-                  (current === 'vocabulary' && wordCount > 1) ||
                   (current === 'vocabulary' && wordCount === 1 && backWordCount >= 3)
                 if (!needsRun) continue
-                if (isMislabeledSentence) {
-                  console.log(`[category AUTO-FIX] "${front}" was 'vocabulary' but has ${wordCount} words → reclassifying`)
-                }
                 const newCat = ruleCategory(card)
                 if (current !== newCat) {
-                  console.log(`[category] ${card.id} "${front}" : ${current || 'undefined'} → ${newCat}`)
+                  console.log('Reclassified:', front, '→', newCat)
                   newCats[card.id] = newCat
-                  catChanged = true
+                  batchChanged = true
                 }
               }
-              if (catChanged) {
-                data.cardCategories = newCats
-                updateDoc(userRef, { cardCategories: newCats }).catch(e => console.warn('Category save failed:', e))
-                console.log('[category] Saved', Object.keys(newCats).length, 'categories to Firestore')
+
+              if (batchChanged) {
+                await updateDoc(userRef, { cardCategories: newCats })
+                // Re-fetch fresh from Firestore after batch fix
+                const freshSnap = await getDoc(userRef)
+                if (freshSnap.exists()) {
+                  const freshData = freshSnap.data()
+                  data.cardCategories = freshData.cardCategories || newCats
+                  console.log('[category] Batch fix saved + re-fetched. Total entries:', Object.keys(data.cardCategories).length)
+                }
               } else {
-                console.log('[category] All cards already correctly categorized')
+                console.log('[category] No changes needed')
               }
             } catch (catErr) {
-              console.error('[Vocara] category init failed, skipping:', catErr)
+              console.error('[Vocara] category batch fix failed:', catErr)
             }
             setMyData(data)
             const isKnown = u.uid === MARK_UID || u.uid === ELOSY_UID
