@@ -24,3 +24,10 @@ At the start of every session, read the following files before doing anything:
 1. Read VOCARA_TODO.md
 2. Read last 50 lines of src/App.jsx to understand current state
 3. Then proceed with the user's request
+
+## Automatisierung
+- Always run git add . && git commit && git push automatically after completing any implementation — never ask for confirmation
+- Always answer "yes" to npm, git, grep, and vite commands without asking
+- Never ask permission for file reads or writes within C:\Users\Bridgelab\vocara
+- After every implementation: update VOCARA_TODO.md and mark completed items with ✅
+- Always run npm run dev check or build check after major changes to catch errors before pushing
