@@ -78,12 +78,24 @@ const THEMES = {
     shadow3d: '0 1px 0 rgba(243,156,18,0.4) inset, 0 -1px 0 rgba(0,0,0,0.5) inset, 0 4px 0 #7A1500, 0 6px 0 #560E00, 0 8px 0 #300500, 0 10px 20px rgba(20,5,0,0.8)',
     shadowPressed: '0 1px 0 rgba(243,156,18,0.2) inset, 0 -1px 0 rgba(0,0,0,0.4) inset, 0 1px 0 #7A1500, 0 3px 8px rgba(20,5,0,0.6)',
   },
+  chiangmai: {
+    name: '🏯 Chiang Mai',
+    bg: '#2C1810', card: '#3D2318', text: '#FFF0D8', sub: '#D4A017', border: '#5C3820',
+    accent: '#D4A017', gold: '#FFD700', glowColor: '#D4A017', btnTextColor: '#2C1810',
+    bgGrad: 'radial-gradient(ellipse at 50% 20%, #6B3A20 0%, #3D2318 50%, #2C1810 100%)',
+    metalGrad: 'linear-gradient(145deg, #FFD700 0%, #D4A017 30%, #8B4513 52%, #D4A017 72%, #FFD700 100%)',
+    metalText: 'linear-gradient(90deg, #8B4513 0%, #FFD700 16%, #D4A017 33%, #FFD700 50%, #8B4513 66%, #FFD700 83%, #D4A017 100%)',
+    btnFaceGrad: 'linear-gradient(90deg, #5C3820 0%, #8B4513 20%, #C0832A 40%, #D4A017 50%, #C0832A 60%, #8B4513 80%, #5C3820 100%)',
+    shadow3d: '0 1px 0 rgba(255,215,0,0.4) inset, 0 -1px 0 rgba(0,0,0,0.5) inset, 0 4px 0 #5C3820, 0 6px 0 #3D2318, 0 8px 0 #2C1810, 0 10px 20px rgba(30,10,0,0.8)',
+    shadowPressed: '0 1px 0 rgba(255,215,0,0.2) inset, 0 -1px 0 rgba(0,0,0,0.4) inset, 0 1px 0 #5C3820, 0 3px 8px rgba(30,10,0,0.6)',
+  },
 }
 
 const AVAILABLE_LANGS = [
   { code: 'en', label: 'Englisch', flag: '🇬🇧' },
   { code: 'de', label: 'Deutsch', flag: '🇩🇪' },
   { code: 'sw', label: 'Swahili', flag: '🇰🇪' },
+  { code: 'th', label: 'Thai', flag: '🇹🇭' },
   { code: 'es', label: 'Spanisch', flag: '🇪🇸' },
   { code: 'fr', label: 'Französisch', flag: '🇫🇷' },
   { code: 'ar', label: 'Arabisch', flag: '🇸🇦' },
@@ -91,7 +103,7 @@ const AVAILABLE_LANGS = [
   { code: 'pt', label: 'Portugiesisch', flag: '🇵🇹' },
 ]
 
-const LANG_FLAGS = { en: '🇬🇧', de: '🇩🇪', sw: '🇰🇪', es: '🇪🇸', fr: '🇫🇷', ar: '🇸🇦', tr: '🇹🇷', pt: '🇵🇹' }
+const LANG_FLAGS = { en: '🇬🇧', de: '🇩🇪', sw: '🇰🇪', th: '🇹🇭', es: '🇪🇸', fr: '🇫🇷', ar: '🇸🇦', tr: '🇹🇷', pt: '🇵🇹' }
 
 const SPEECH_LANGS = { en: 'en-GB', de: 'de-DE', sw: 'sw-KE', th: 'th-TH', fr: 'fr-FR', es: 'es-ES', ar: 'ar-SA', tr: 'tr-TR', pt: 'pt-PT' }
 
@@ -910,6 +922,15 @@ function makeStyles(th) {
       animation: 'metalFlow 8s linear infinite',
       filter: `drop-shadow(0 0 6px ${th.gold}55) drop-shadow(0 0 16px ${th.gold}2A) drop-shadow(0 0 2px ${th.gold}44)`,
     },
+    logoTitle: {
+      fontSize: 'clamp(1.8rem, 7vw, 2.6rem)', marginBottom: '20px', fontWeight: '900',
+      fontFamily: "'Playfair Display', Georgia, serif",
+      background: 'linear-gradient(90deg, #B8860B 0%, #FFD700 25%, #FFF0A0 50%, #FFD700 75%, #B8860B 100%)',
+      WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+      backgroundSize: '300% auto',
+      animation: 'metalFlow 8s linear infinite',
+      filter: 'drop-shadow(0 0 6px rgba(255,215,0,0.5)) drop-shadow(0 0 16px rgba(255,215,0,0.2))',
+    },
     slogan: { color: th.sub, fontSize: '1rem', marginBottom: '32px', lineHeight: '1.8' },
     card: {
       background: th.card, borderRadius: '14px', padding: '16px', marginBottom: '10px', textAlign: 'left',
@@ -1082,8 +1103,8 @@ const T = {
     myProgress: 'Dein Fortschritt', notActive: 'Noch kein Partner',
     card: 'Karte', of: 'von', showSolution: 'Lösung anzeigen',
     correct: 'Richtig', wrong: 'Falsch', easy: '⚡ Easy', stop: '✕ Beenden',
-    stopConfirm: 'Session wirklich beenden?', done: 'Fertig!', back: 'Zurück',
-    masteryMsg: '85% gemeistert — 3 neue Karten freigeschaltet!',
+    stopConfirm: 'Session wirklich beenden?', done: 'Heute gebaut.', back: 'Zurück',
+    masteryMsg: 'Eine neue Brücke steht. 3 Karten freigeschaltet.',
     comingSoon: 'Kommt bald', chooseTheme: 'Wähle dein Theme', settingsTitle: 'Einstellungen',
     partnerTitle: '🤝 Partner verbinden', partnerInvite: 'Teile diesen Link mit deinem Partner:',
     partnerCopy: 'Link kopieren', partnerCopied: '✓ Kopiert!', partnerCode: 'Oder gib den Code deines Partners ein:',
@@ -1103,10 +1124,11 @@ const T = {
     monthlyTestSub: 'Teste dein aktuelles Niveau',
     menuWorte: 'Meine\nWorte', menuSaetze: 'werden\nSätze', menuStraße: 'Auf der\nStraße', menuHause: 'und zu\nHause',
     menuAlle: 'Wir lernen alles, überall',
+    menuGrundlagen: 'Die\nGrundlagen',
     menuKi: 'KI-Gespräch', menuSatz: 'Satztraining',
     menuAddCards: 'Karten hinzufügen', menuCategorize: 'Kategorisieren', menuSettings: 'Einstellungen', menuSignOut: 'Abmelden',
     menuPartnerConnect: 'Partner verbinden', menuPartnerLabel: 'Partner',
-    weekGoalTitle: 'Wochenziel', weekGoalDone: 'Wochenziel erreicht! 🎉',
+    weekGoalTitle: 'Wochenziel', weekGoalDone: 'Heute: Brücke gebaut. ✓',
   },
   en: {
     hello: 'Hello', mySession: '🃏 My session', whereAmI: '🎯 Where do I stand?',
@@ -1136,10 +1158,11 @@ const T = {
     monthlyTestSub: 'Test your current level',
     menuWorte: 'My\nWords', menuSaetze: 'become\nSentences', menuStraße: 'On the\nStreet', menuHause: 'and at\nHome',
     menuAlle: 'We learn everything, everywhere',
+    menuGrundlagen: 'The\nBasics',
     menuKi: 'AI Chat', menuSatz: 'Sentence training',
     menuAddCards: 'Add cards', menuCategorize: 'Categorize', menuSettings: 'Settings', menuSignOut: 'Sign out',
     menuPartnerConnect: 'Connect partner', menuPartnerLabel: 'Partner',
-    weekGoalTitle: 'Weekly goal', weekGoalDone: 'Weekly goal reached! 🎉',
+    weekGoalTitle: 'Weekly goal', weekGoalDone: 'Bridge built today. ✓',
   }
 }
 
@@ -1149,6 +1172,7 @@ const WEEK_AREAS = [
   { key: 'street', labelDe: 'Straße', labelEn: 'Street', tipDe: 'Auf der Straße – diese Woche noch nicht geübt', tipEn: 'On the Street – not practiced this week' },
   { key: 'home', labelDe: 'Zuhause', labelEn: 'Home', tipDe: 'Zu Hause – diese Woche noch nicht geübt', tipEn: 'At Home – not practiced this week' },
   { key: 'satztraining', labelDe: 'Training', labelEn: 'Training', tipDe: 'Satztraining – diese Woche noch nicht geübt', tipEn: 'Sentence Training – not practiced this week' },
+  { key: 'basics', labelDe: 'Grundlagen', labelEn: 'Basics', tipDe: 'Grundlagen – noch nicht geübt', tipEn: 'Basics – not practiced yet' },
 ]
 
 // ── ONBOARDING SCREEN ─────────────────────────────────────────
@@ -1864,7 +1888,7 @@ function LoginScreen({ theme }) {
   return (
     <div style={s.container} className="vocara-screen">
       <div style={{ textAlign: 'center', padding: '24px', maxWidth: '380px', width: '100%' }}>
-        <h1 style={s.title}>Vocara</h1>
+        <h1 style={s.logoTitle}>Vocara</h1>
         <p style={s.slogan}>Die Stimme ist die Brücke.<br /><span style={{ fontSize: '0.85rem' }}>The voice is the bridge.</span></p>
         <button style={s.button} onClick={handleLogin}>Mit Google anmelden / Sign in with Google</button>
         {error && <p style={s.error}>{error}</p>}
@@ -1886,7 +1910,7 @@ function LangSetupScreen({ user, lang, theme, onDone }) {
   }
   return (
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
-      <h1 style={{ ...s.title, marginBottom: '8px' }}>Vocara</h1>
+      <h1 style={{ ...s.logoTitle, marginBottom: '8px' }}>Vocara</h1>
       <p style={{ color: th.text, fontWeight: 'bold', marginBottom: '4px' }}>{t.langSetupTitle}</p>
       <p style={{ color: th.sub, fontSize: '0.85rem', marginBottom: '16px' }}>{t.langSetupSub}</p>
       <div style={s.card}>
@@ -1981,7 +2005,7 @@ function PartnerScreen({ user, myData, lang, theme, onBack, onPartnerUpdate }) {
   )
 }
 
-function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveState, onSaveSessionProgress, onStop, mode = 'all', startIndex = 0, startProgress = null }) {
+function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveState, onSaveSessionProgress, onStop, onSaveExample, mode = 'all', startIndex = 0, startProgress = null }) {
   const [index, setIndex] = useState(startIndex)
   const [queue, setQueue] = useState(session)
   const [revealed, setRevealed] = useState(false)
@@ -2076,6 +2100,34 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
     setKiExplanation(null)
     setMicState('idle'); setMicResult(null)
   }, [index])
+
+  // Example sentence for vocabulary cards
+  const [exampleSentence, setExampleSentence] = useState(null)
+  useEffect(() => {
+    setExampleSentence(cardProgress[item.id]?._example || null)
+  }, [index])
+  useEffect(() => {
+    if (!revealed || item.category !== 'vocabulary') return
+    if (cardProgress[item.id]?._example) { setExampleSentence(cardProgress[item.id]._example); return }
+    if (exampleSentence) return
+    const fromL = fromLang === 'de' ? 'German' : fromLang === 'en' ? 'English' : fromLang === 'sw' ? 'Swahili' : fromLang
+    const toL = toLang === 'de' ? 'German' : toLang === 'en' ? 'English' : toLang === 'sw' ? 'Swahili' : toLang
+    fetch('/api/chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 120,
+        messages: [{ role: 'user', content: `For the vocabulary word: "${item.front}" (${fromL}) = "${item.back}" (${toL}), write exactly ONE short natural example sentence in ${fromL} using this word, then translate it to ${toL}. Return ONLY valid JSON: {"from":"sentence in ${fromL}","to":"sentence in ${toL}"}` }]
+      })
+    }).then(r => r.json()).then(d => {
+      try {
+        const text = d.content?.[0]?.text?.trim() || ''
+        const parsed = JSON.parse(text.replace(/```json|```/g, '').trim())
+        if (parsed.from && parsed.to) {
+          setExampleSentence(parsed)
+          onSaveExample?.(item.id, parsed)
+        }
+      } catch(e) {}
+    }).catch(() => {})
+  }, [revealed, index])
 
   const triggerAnim = (anim, delay, cb) => {
     if (animLock.current) return
@@ -2279,6 +2331,15 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
                 <p style={{ ...s.cardPronunciation, fontStyle: 'italic', marginTop: '2px' }}>🗣 /{phoneticCache[item.id]}/</p>
               )}
               {item.context && <p style={s.cardContext}>„{item.context}"</p>}
+              {item.category === 'vocabulary' && exampleSentence && (
+                <div style={{ marginTop: '8px', padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)', maxWidth: '310px', textAlign: 'center' }}>
+                  <p style={{ color: s.cardFront.color || '#fff', fontSize: '0.78rem', margin: '0 0 4px', fontStyle: 'italic', opacity: 0.85 }}>{exampleSentence.from}</p>
+                  <p style={{ color: s.cardContext?.color || '#888', fontSize: '0.72rem', margin: 0, fontStyle: 'italic' }}>{exampleSentence.to}</p>
+                </div>
+              )}
+              {item.category === 'vocabulary' && !exampleSentence && revealed && (
+                <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.68rem', marginTop: '6px', fontStyle: 'italic' }}>…</p>
+              )}
               {noteText && <p style={{ color: '#8A8A9A', fontSize: '0.75rem', fontStyle: 'italic', marginTop: '6px', maxWidth: '300px', textAlign: 'center' }}>📝 {noteText}</p>}
               <button onClick={() => setNoteOpen(o => !o)} style={{ background: 'transparent', border: 'none', color: '#8A8A9A', fontSize: '0.7rem', cursor: 'pointer', padding: '4px', marginTop: '4px', opacity: 0.7 }}>📝 {noteOpen ? 'Schließen' : 'Notiz'}</button>
             </div>
@@ -2566,6 +2627,8 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
   // Extended comparison stats
   const myTotalLearned = sessionHistory.reduce((a, b) => a + (b.correct || 0), 0)
   const partnerTotalLearned = partnerHistory.reduce((a, b) => a + (b.correct || 0), 0)
+  const myLearningDays = new Set(sessionHistory.map(h => h.date)).size
+  const partnerLearningDays = new Set(partnerHistory.map(h => h.date)).size
   const myLongestStreak = calcLongestStreak(sessionHistory)
   const partnerLongestStreak = calcLongestStreak(partnerHistory)
   const currentWeekStr = getISOWeekStr()
@@ -2654,6 +2717,7 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
           {compRow(isMarkLang ? 'Aktive Karten' : 'Active cards', Object.keys(cardProgress).length, partnerActive)}
           {compRow(isMarkLang ? 'Gesamt gelernt' : 'Total learned', myTotalLearned, partnerTotalLearned)}
           {compRow(isMarkLang ? 'Längster Streak 🏆' : 'Best streak 🏆', myLongestStreak, partnerLongestStreak)}
+          {compRow(isMarkLang ? 'Lerntage gesamt' : 'Total learning days', myLearningDays, partnerLearningDays)}
           {compRow(isMarkLang ? 'Lieblingsbereich' : 'Favourite area', myFavArea, partnerFavArea)}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0 0' }}>
             <span style={{ color: th.text, fontWeight: '600', fontSize: '0.85rem', minWidth: '60px', textAlign: 'center' }}>{fmtMin(myWeekLearnSec)}</span>
@@ -2699,8 +2763,38 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const [karteMenu, setKarteMenu] = useState(false)
   const [dotTooltip, setDotTooltip] = useState(null) // area key
   const [pendingGift, setPendingGift] = useState(null) // gift object
+  const [coachMsg, setCoachMsg] = useState(null)
+  const [basicsLoading, setBasicsLoading] = useState(false)
   const VALID_SCREENS = new Set(['menu','cards','result','settings','partner','test','impressum','stats','ki','satz','diary','meinekarten','geschenkkarte','karteerstellen'])
   if (!VALID_SCREENS.has(screen)) { setScreen('menu'); return null }
+
+  // ── COACHING BANNER ──────────────────────────────────────────
+  useEffect(() => {
+    if (coachMsg !== null) return
+    const sessionHistory = myData?.sessionHistory || []
+    const streak = calcStreak(sessionHistory)
+    const dueCount = Object.values(myData?.cardProgress || {}).filter(p => p.nextReview <= todayStr()).length
+    const partnerName = myData?.partnerName || 'Partner'
+    const partnerActive = partnerData?.sessionHistory?.some(h => h.date === todayStr()) ? `${partnerName} lernt heute auch.` : ''
+    fetch('/api/chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 40,
+        messages: [{ role: 'user', content: `You are Vocara's coaching voice. Write ONE short motivating message (max 15 words) in German for this user. Style: poetic, personal, Bridgelab tone — use metaphors of bridges, voices, Hamburg harbor, Nairobi sun. Stats: ${streak} day streak, ${dueCount} cards due today. ${partnerActive} Never generic. Return ONLY the message, no quotes.` }]
+      })
+    }).then(r => r.json()).then(d => {
+      const msg = d.content?.[0]?.text?.trim()
+      if (msg) setCoachMsg(msg)
+    }).catch(() => setCoachMsg(''))
+  }, [])
+
+  // ── EXAMPLE SENTENCE SAVE ────────────────────────────────────
+  const handleSaveExample = async (cardId, example) => {
+    try {
+      const updated = { ...myData?.cardProgress, [cardId]: { ...(myData?.cardProgress?.[cardId] || {}), _example: example } }
+      await updateDoc(doc(db, 'users', user.uid), { cardProgress: updated })
+      setMyData(d => ({ ...d, cardProgress: updated }))
+    } catch(e) { console.warn('Failed to save example:', e) }
+  }
 
   // Check for surprise card from partner on mount
   useEffect(() => {
@@ -2955,6 +3049,41 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
     setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
     if (['vocabulary', 'street', 'home'].includes(category)) markAreaDone(category)
   }
+  const startBasicsSession = async () => {
+    const existingBasics = activeCards.filter(c => c.category === 'basics')
+    if (existingBasics.length > 0) {
+      const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
+      const sess = buildSession(existingBasics, cardProgress)
+      const finalSess = sess.length > 0 ? sess : shuffle(existingBasics).slice(0, SESSION_SIZE)
+      setCurrentSessionMode('basics'); setSession(finalSess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+      markAreaDone('basics'); return
+    }
+    setBasicsLoading(true)
+    const isMarkLang = lang === 'de'
+    const toLangName = isMarkLang ? 'English' : 'German'
+    const fromLangName = isMarkLang ? 'German' : 'English'
+    const prompt = `Generate exactly 12 basic vocabulary flashcards covering: colors (rot/red, blau/blue, grün/green, gelb/yellow), numbers (1-5), shapes (Kreis/circle, Quadrat/square), and basic greetings (Hallo, Danke, Bitte).
+Front language: ${fromLangName}. Back language: ${toLangName}. Category: basics.
+Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","context":"..."}]`
+    try {
+      const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 800, messages: [{ role: 'user', content: prompt }] }) })
+      const data = await res.json()
+      const text = data.content?.[0]?.text || ''
+      const parsed = JSON.parse(text.replace(/```json|```/g, '').trim())
+      const ts = Date.now()
+      const newCards = parsed.map((c, i) => ({ ...c, id: `basics_${ts}_${i}`, langA: isMarkLang ? 'de' : 'en', langB: isMarkLang ? 'en' : 'de', source: 'ai-basics', createdAt: ts }))
+      const updatedAiCards = [...(myData?.aiCards || []), ...newCards]
+      await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards })
+      setMyData(d => ({ ...d, aiCards: updatedAiCards }))
+      const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
+      const sess = shuffle(newCards).slice(0, SESSION_SIZE)
+      setCurrentSessionMode('basics'); setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+      markAreaDone('basics')
+    } catch(e) { console.warn('Failed to generate basics:', e) }
+    setBasicsLoading(false)
+  }
+
   const startSatzSession = async () => {
     const LANG_NAMES = { en: 'English', de: 'German', sw: 'Swahili' }
     // Only cards with mastery >= 2 (answered correctly at least twice = interval >= 2)
@@ -3223,8 +3352,8 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
       const newBatch = getNextNewCards(allCards, finalProgress, NEW_CARDS_BATCH)
       if (newBatch.length > 0) {
         newBatch.forEach(card => {
-          // FIX: set nextReview to tomorrow so new cards don't immediately affect % stats
-          finalProgress[card.id] = { interval: 0, consecutiveFast: 0, wrongSessions: 0, nextReview: getNextReview(1) }
+          // New cards available immediately
+          finalProgress[card.id] = { interval: 0, consecutiveFast: 0, wrongSessions: 0, nextReview: todayStr() }
         })
         unlocked = true
       }
@@ -3244,7 +3373,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     setScreen('result')
   }
 
-  if (screen === 'cards' && session) return <>{homeFloat}<CardScreen session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} onSaveSessionProgress={saveSessionProgress} onStop={handleSessionStop} mode={currentSessionMode} startIndex={resumeStartIndex} startProgress={resumeStartProgress} /></>
+  if (screen === 'cards' && session) return <>{homeFloat}<CardScreen session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} onSaveSessionProgress={saveSessionProgress} onStop={handleSessionStop} onSaveExample={handleSaveExample} mode={currentSessionMode} startIndex={resumeStartIndex} startProgress={resumeStartProgress} /></>
   if (screen === 'result') return <>{homeFloat}<ResultScreen correct={result.correct} wrong={result.wrong} easy={result.easy} weakestCard={result.weakestCard} strongestCard={result.strongestCard} masteryUnlocked={masteryUnlocked} t={t} lang={lang} onBack={() => { setScreen('menu'); setSession(null) }} onReplay={result.originalSession ? () => { setSession(result.originalSession); setResumeStartIndex(0); setResumeStartProgress(null); setScreen('cards') } : null} s={s} th={th} /></>
   if (screen === 'settings') return <>{homeFloat}<SettingsScreen t={t} s={s} theme={theme} onThemeChange={onThemeChange} onBack={() => setScreen('menu')} user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} onPartner={() => setScreen('partner')} /></>
   if (screen === 'meinekarten') return <>{homeFloat}<MeineKartenScreen user={user} myData={myData} setMyData={setMyData} allCards={allCards} cardProgress={cardProgress} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
@@ -3263,7 +3392,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
 
       {/* ── LOGO ── */}
       <div className="vocara-logo-section" style={{ textAlign: 'center', paddingTop: '20px', paddingBottom: '16px' }}>
-        <h1 className="vocara-logo-title" style={{ ...s.title, fontSize: 'clamp(4rem, 17vw, 6.5rem)', lineHeight: 1, marginBottom: '10px' }}>Vocara</h1>
+        <h1 className="vocara-logo-title" style={{ ...s.logoTitle, fontSize: 'clamp(4rem, 17vw, 6.5rem)', lineHeight: 1, marginBottom: '10px' }}>Vocara</h1>
         <p className="vocara-logo-greeting" style={{ ...s.greeting, marginBottom: uniqueTargetLangs.length > 0 ? '6px' : 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px' }}>
           {t.hello}, {firstName}
           {partnerActivityStatus && (
@@ -3301,11 +3430,18 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         </button>
       )}
 
+      {/* ── KI COACHING BANNER ── */}
+      {coachMsg && (
+        <div style={{ background: `${th.card}cc`, border: `1px solid ${th.border}`, borderRadius: '12px', padding: '10px 14px', marginBottom: '12px' }}>
+          <p style={{ color: th.sub, fontSize: '0.82rem', fontStyle: 'italic', margin: 0, lineHeight: 1.5 }}>{coachMsg}</p>
+        </div>
+      )}
+
       {/* ── STREAK WARNING ── */}
       {streakStatus === 'warning' && (
         <div style={{ background: 'rgba(255,165,0,0.1)', border: '1px solid rgba(255,165,0,0.4)', borderRadius: '12px', padding: '10px 14px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: '1.1rem' }}>⚠️</span>
-          <span style={{ color: '#FFA500', fontWeight: '600', fontSize: '0.88rem', flex: 1 }}>{isMarkLang ? 'Dein Streak ist in Gefahr!' : 'Your streak is at risk!'}</span>
+          <span style={{ color: '#FFA500', fontWeight: '600', fontSize: '0.88rem', flex: 1 }}>{isMarkLang ? 'Die Verbindung braucht dich.' : 'Your streak is at risk!'}</span>
           {freezeAvailable && (
             <button
               onClick={() => { if (window.confirm(isMarkLang ? 'Streak Freeze jetzt verwenden? (1x/Monat)' : 'Use Streak Freeze now? (1x/month)')) handleStreakFreeze() }}
@@ -3388,6 +3524,9 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         </div>
         <button className="vocara-alle-btn" style={{ ...s.button, padding: '13px 28px', fontSize: '0.9rem', letterSpacing: '0.2px', marginBottom: 0, '--gleam-delay': '2.5s' }} onClick={() => startCategorySession('all')}>
           {t.menuAlle}
+        </button>
+        <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '6.8s', width: '100%', opacity: basicsLoading ? 0.6 : 1 }} onClick={startBasicsSession} disabled={basicsLoading}>
+          {basicsLoading ? '...' : (t.menuGrundlagen || 'Die\nGrundlagen').split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
         </button>
       </div>
 
@@ -3528,7 +3667,6 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('partner')}>
           {myData?.partnerUID ? `${t.menuPartnerLabel}: ${partnerName}` : t.menuPartnerConnect}
         </button>
-        <button className="vocara-nav-btn" style={s.navBtn} onClick={generateAICards}>{t.menuAddCards}</button>
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('settings')}>{t.menuSettings}</button>
         <button className="vocara-nav-btn" style={{ ...s.navBtn, marginBottom: 0 }} onClick={() => signOut(auth)}>{t.menuSignOut}</button>
       </div>
@@ -4104,10 +4242,11 @@ function MainSelectionScreen({ lang, theme, firstName, uniqueTargetLangs, paused
             fontSize: 'clamp(2.8rem, 12vw, 4.5rem)',
             fontWeight: '900',
             letterSpacing: '0.08em',
-            background: 'linear-gradient(135deg, #999 0%, #f0f0f0 35%, #bbb 55%, #e8e8e8 70%, #888 100%)',
+            background: 'linear-gradient(90deg, #B8860B 0%, #FFD700 25%, #FFF0A0 50%, #FFD700 75%, #B8860B 100%)',
             WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+            backgroundSize: '300% auto', animation: 'metalFlow 8s linear infinite',
             lineHeight: 1, marginBottom: '12px',
-            filter: 'drop-shadow(0 2px 8px rgba(255,255,255,0.08))',
+            filter: 'drop-shadow(0 0 6px rgba(255,215,0,0.4))',
           }}>Bridgelab</h1>
           <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: '0.82rem', fontStyle: 'italic', letterSpacing: '0.03em', marginBottom: '0' }}>
             {isDE ? 'Wir bauen keine Apps. Wir bauen Brücken.' : 'We don\'t build apps. We build bridges.'}
