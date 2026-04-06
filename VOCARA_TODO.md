@@ -9,8 +9,8 @@
 6. Monatsziel Gimmick-Inhalte (Sounds)
 7. Karte falsch → KI erklärt warum
 8. Streak Freeze 1x/Monat ✅
-9. PWA Push Notifications
-10. Karten-Kommentar/Notiz
+9. PWA Push Notifications ✅
+10. Karten-Kommentar/Notiz ✅
 
 ## Liste B – Social/Gamification
 11. Paar-Challenge gemeinsam ✅
@@ -37,8 +37,8 @@
 
 ## Liste D – Neue Ideen Lern-Mechanik
 30. Wort des Tages in alle 5 Bereiche einweben ✅
-31. Sprachrhythmus-Training via KI
-32. Kontextwechsel: gleiche Karte formell/informell/romantisch
+31. Sprachrhythmus-Training via KI ✅
+32. Kontextwechsel: gleiche Karte formell/informell/romantisch ✅
 33. Fehler-Muster Analyse durch KI ✅
 34. Spanisch + Französisch implementieren
 35. KI-generierte Aussprache für alle Sprachen

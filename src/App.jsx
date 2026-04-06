@@ -886,6 +886,14 @@ html, body, #root {
   .vocara-logo-title {
     filter: drop-shadow(0 0 10px rgba(255,215,0,0.70)) drop-shadow(0 0 36px rgba(255,215,0,0.38)) drop-shadow(0 0 2px rgba(255,215,0,0.60)) !important;
   }
+  .vocara-bridgelab-title {
+    font-size: clamp(3.2rem, 14vw, 5.5rem) !important;
+    letter-spacing: 0.10em !important;
+    filter: drop-shadow(0 0 20px rgba(255,215,0,0.70)) drop-shadow(0 0 50px rgba(255,215,0,0.40)) drop-shadow(0 0 4px rgba(255,215,0,0.80)) !important;
+    -webkit-background-clip: text !important;
+    background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+  }
   button {
     -webkit-backdrop-filter: blur(30px) saturate(220%) !important;
     backdrop-filter: blur(30px) saturate(220%) !important;
@@ -2143,6 +2151,123 @@ function PartnerScreen({ user, myData, lang, theme, onBack, onPartnerUpdate }) {
   )
 }
 
+// ── SPRACHRHYTHMUS-TRAINING (#31) ──────────────────────────────
+function RhythmusScreen({ lang, theme, onBack, allCards, cardProgress }) {
+  const th = THEMES[theme]; const s = makeStyles(th)
+  const isDE = lang === 'de'
+  const [sentence, setSentence] = useState(null)
+  const [micState, setMicState] = useState('idle') // idle | listening | done
+  const [transcript, setTranscript] = useState('')
+  const [score, setScore] = useState(null) // { correct, total }
+  const [loading, setLoading] = useState(true)
+
+  // Pick a mastered sentence card
+  useEffect(() => {
+    const sentenceCards = (allCards || []).filter(c => {
+      const cat = c.category || 'vocabulary'
+      const interval = cardProgress[c.id]?.interval || 0
+      return (cat === 'sentence' || cat === 'home') && interval >= 3 && c.front && c.back
+    })
+    if (sentenceCards.length === 0) {
+      setSentence(null); setLoading(false); return
+    }
+    const dayIdx = Math.floor(Date.now() / 86400000)
+    setSentence(sentenceCards[dayIdx % sentenceCards.length])
+    setLoading(false)
+  }, [])
+
+  const speak = (text) => {
+    if (!text || !window.speechSynthesis) return
+    const utt = new SpeechSynthesisUtterance(text)
+    const voices = window.speechSynthesis.getVoices()
+    const goog = voices.find(v => v.name.toLowerCase().includes('google') && !v.name.includes('UK'))
+    if (goog) utt.voice = goog
+    utt.rate = 0.85; utt.pitch = 1
+    window.speechSynthesis.speak(utt)
+  }
+
+  const startMic = () => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (!SR) { setMicState('unsupported'); return }
+    const rec = new SR()
+    rec.lang = sentence?.langB === 'de' ? 'de-DE' : sentence?.langB === 'sw' ? 'sw-KE' : 'en-US'
+    rec.interimResults = false; rec.maxAlternatives = 1
+    setMicState('listening'); setTranscript(''); setScore(null)
+    rec.onresult = (e) => {
+      const heard = e.results[0][0].transcript.toLowerCase().trim()
+      setTranscript(heard)
+      const target = (sentence?.back || '').toLowerCase()
+      const tWords = target.split(/\s+/)
+      const hWords = heard.split(/\s+/)
+      const correct = tWords.filter(w => hWords.some(h => h.includes(w) || w.includes(h))).length
+      setScore({ correct, total: tWords.length })
+      setMicState('done')
+    }
+    rec.onerror = () => setMicState('idle')
+    rec.start()
+  }
+
+  if (loading) return <div style={s.container}><div style={s.homeBox}><p style={{ color: th.sub, textAlign: 'center', marginTop: '40px' }}>…</p></div></div>
+
+  return (
+    <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
+      <button style={s.backBtn} onClick={onBack}>← {isDE ? 'Zurück' : 'Back'}</button>
+      <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+        <p style={{ color: th.gold, fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', margin: '0 0 6px' }}>🎵 {isDE ? 'Sprachrhythmus' : 'Speech Rhythm'}</p>
+        <p style={{ color: th.sub, fontSize: '0.82rem', margin: 0 }}>{isDE ? 'Höre zu — dann sprich nach' : 'Listen — then repeat'}</p>
+      </div>
+      {!sentence ? (
+        <div style={s.card}>
+          <p style={{ color: th.sub, textAlign: 'center', fontSize: '0.88rem' }}>{isDE ? 'Lerne mehr Satz-Karten, um Rhythmus-Training freizuschalten.' : 'Learn more sentence cards to unlock rhythm training.'}</p>
+        </div>
+      ) : (
+        <>
+          <div style={{ ...s.card, textAlign: 'center', position: 'relative' }}>
+            <p style={{ color: th.sub, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 10px' }}>{isDE ? 'Spreche nach:' : 'Repeat after me:'}</p>
+            <p style={{ color: th.text, fontSize: '1.15rem', fontWeight: '600', margin: '0 0 14px', lineHeight: 1.4 }}>{sentence.back}</p>
+            <p style={{ color: th.sub, fontSize: '0.82rem', fontStyle: 'italic', margin: '0 0 16px' }}>{sentence.front}</p>
+            <button onClick={() => speak(sentence.back)} style={{ background: 'transparent', border: `1px solid ${th.border}`, borderRadius: '12px', padding: '8px 18px', color: th.sub, fontSize: '0.82rem', cursor: 'pointer' }}>
+              🔊 {isDE ? 'Anhören' : 'Listen'}
+            </button>
+          </div>
+
+          <div style={{ ...s.card, textAlign: 'center' }}>
+            {micState === 'idle' && (
+              <button onClick={startMic} style={{ ...s.button, background: `linear-gradient(135deg, ${th.accent}40, ${th.accent}20)`, border: `1px solid ${th.accent}66`, color: th.text, width: '100%' }}>
+                🎤 {isDE ? 'Jetzt sprechen' : 'Speak now'}
+              </button>
+            )}
+            {micState === 'listening' && (
+              <p style={{ color: th.gold, fontSize: '0.9rem', animation: 'vocaraPulse 0.8s infinite' }}>🎤 {isDE ? 'Zuhören…' : 'Listening…'}</p>
+            )}
+            {micState === 'unsupported' && (
+              <p style={{ color: '#ff9800', fontSize: '0.82rem' }}>{isDE ? 'Bitte Chrome verwenden' : 'Please use Chrome'}</p>
+            )}
+            {micState === 'done' && score && (
+              <div style={{ animation: 'vocaraFadeIn 0.3s ease both' }}>
+                <p style={{ color: th.sub, fontSize: '0.78rem', marginBottom: '8px' }}>{isDE ? 'Du hast gesagt:' : 'You said:'} <em style={{ color: th.text }}>{transcript}</em></p>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '4px', marginBottom: '12px' }}>
+                  {(sentence.back || '').split(/\s+/).map((w, i) => {
+                    const heard = transcript.split(/\s+/)
+                    const hit = heard.some(h => h.includes(w.toLowerCase()) || w.toLowerCase().includes(h))
+                    return <span key={i} style={{ color: hit ? '#4CAF50' : '#e53935', fontSize: '1rem', fontWeight: '600' }}>{w}</span>
+                  })}
+                </div>
+                <p style={{ color: score.correct === score.total ? '#4CAF50' : th.gold, fontSize: '0.9rem', fontWeight: '700', margin: '0 0 12px' }}>
+                  {score.correct}/{score.total} {isDE ? 'Wörter korrekt' : 'words correct'}
+                </p>
+                <button onClick={() => { setMicState('idle'); setTranscript(''); setScore(null) }} style={{ background: 'transparent', border: `1px solid ${th.border}`, borderRadius: '10px', padding: '7px 16px', color: th.sub, fontSize: '0.82rem', cursor: 'pointer' }}>
+                  🔄 {isDE ? 'Nochmal' : 'Try again'}
+                </button>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </div></div>
+  )
+}
+
 function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveState, onSaveSessionProgress, onStop, onSaveExample, mode = 'all', startIndex = 0, startProgress = null }) {
   const [index, setIndex] = useState(startIndex)
   const [queue, setQueue] = useState(session)
@@ -2162,6 +2287,8 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
   const [kiExplanation, setKiExplanation] = useState(null) // null | 'loading' | string
   const [noteOpen, setNoteOpen] = useState(false)
   const [noteText, setNoteText] = useState('')
+  const [kontextVariation, setKontextVariation] = useState(null) // null | 'loading' | {formal,informal,romantic}
+  const [kontextOpen, setKontextOpen] = useState(false)
   const animLock = useRef(false)
   const startTime = useRef(Date.now())
   const answeredIds = useRef(new Set())
@@ -2239,6 +2366,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
     setNoteText(cardProgress[item.id]?._note || '')
     setNoteOpen(false)
     setKiExplanation(null)
+    setKontextVariation(null); setKontextOpen(false)
     setMicState('idle'); setMicResult(null)
   }, [index])
 
@@ -2454,6 +2582,10 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
               🎁 {item.sharedBy}
             </div>
           )}
+          {/* Note icon — bottom-right of card */}
+          <button onClick={() => setNoteOpen(o => !o)} style={{ position: 'absolute', bottom: '8px', right: '10px', background: noteText ? 'rgba(255,255,255,0.10)' : 'transparent', border: noteText ? '1px solid rgba(255,255,255,0.18)' : 'none', borderRadius: '8px', padding: '3px 7px', color: noteText ? '#e0c060' : '#8A8A9A', fontSize: '0.75rem', cursor: 'pointer', opacity: 0.85, lineHeight: 1, zIndex: 2 }}>
+            📝
+          </button>
           <p style={s.dirLabel}>{LANG_FLAGS[fromLang]} → {LANG_FLAGS[toLang]}</p>
           <p style={s.cardFront}>{question}</p>
           {!revealed && (
@@ -2507,24 +2639,41 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
                 <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.68rem', marginTop: '6px', fontStyle: 'italic' }}>…</p>
               )}
               {noteText && <p style={{ color: '#8A8A9A', fontSize: '0.75rem', fontStyle: 'italic', marginTop: '6px', maxWidth: '300px', textAlign: 'center' }}>📝 {noteText}</p>}
-              <button onClick={() => setNoteOpen(o => !o)} style={{ background: 'transparent', border: 'none', color: '#8A8A9A', fontSize: '0.7rem', cursor: 'pointer', padding: '4px', marginTop: '4px', opacity: 0.7 }}>📝 {noteOpen ? 'Schließen' : 'Notiz'}</button>
             </div>
           )}
         </div>
       </div>
       {noteOpen && (
-        <div style={{ width: '100%', marginBottom: '8px', display: 'flex', gap: '8px' }}>
-          <input
-            value={noteText}
-            onChange={e => setNoteText(e.target.value)}
-            placeholder="Persönliche Notiz…"
-            style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '10px', padding: '8px 12px', color: '#ccc', fontSize: '0.85rem', backdropFilter: 'blur(8px)' }}
-          />
-          <button onClick={async () => {
-            const updated = { ...newProgress, [item.id]: { ...(newProgress[item.id] || {}), _note: noteText } }
-            setNewProgress(updated); setNoteOpen(false)
-            await onSaveState?.(queue, index, updated)
-          }} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '10px', padding: '8px 12px', color: '#ccc', fontSize: '0.85rem', cursor: 'pointer' }}>✓</button>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 8800, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: '0 16px 40px' }}
+          onClick={() => setNoteOpen(false)}>
+          <div style={{ width: '100%', maxWidth: '440px', background: 'rgba(20,20,28,0.96)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '20px', padding: '18px 16px', animation: 'vocaraFadeIn 0.2s ease both' }}
+            onClick={e => e.stopPropagation()}>
+            <p style={{ color: '#8A8A9A', fontSize: '0.75rem', marginBottom: '10px', letterSpacing: '0.3px' }}>📝 {lang === 'de' ? 'Persönliche Notiz' : 'Personal note'}</p>
+            <textarea
+              value={noteText}
+              onChange={e => setNoteText(e.target.value)}
+              maxLength={150}
+              rows={3}
+              placeholder={lang === 'de' ? 'Notiz zu dieser Karte…' : 'Note about this card…'}
+              style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '12px', padding: '10px 12px', color: '#ccc', fontSize: '0.88rem', backdropFilter: 'blur(8px)', resize: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+              autoFocus
+            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
+              <span style={{ color: '#8A8A9A', fontSize: '0.7rem' }}>{noteText.length}/150</span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={() => setNoteOpen(false)} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '10px', padding: '7px 14px', color: '#8A8A9A', fontSize: '0.82rem', cursor: 'pointer' }}>
+                  {lang === 'de' ? 'Abbrechen' : 'Cancel'}
+                </button>
+                <button onClick={async () => {
+                  const updated = { ...newProgress, [item.id]: { ...(newProgress[item.id] || {}), _note: noteText } }
+                  setNewProgress(updated); setNoteOpen(false)
+                  await onSaveState?.(queue, index, updated)
+                }} style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '10px', padding: '7px 16px', color: '#e0e0e0', fontSize: '0.82rem', cursor: 'pointer', fontWeight: '600' }}>
+                  ✓ {lang === 'de' ? 'Speichern' : 'Save'}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
       {kiExplanation && (
@@ -2552,6 +2701,47 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
           </div>
           {patternTip !== 'loading' && (
             <button onClick={() => setPatternTip(null)} style={{ background: 'transparent', border: 'none', color: '#8A8A9A', cursor: 'pointer', fontSize: '0.9rem', padding: '0 2px', lineHeight: 1, flexShrink: 0 }}>✕</button>
+          )}
+        </div>
+      )}
+      {/* ── KONTEXT-WECHSEL (#32) — mastered cards only ── */}
+      {revealed && (newProgress[item.id]?.interval || cardProgress[item.id]?.interval || 0) >= 3 && (
+        <div style={{ width: '100%', marginBottom: '8px' }}>
+          {!kontextVariation && (
+            <button onClick={async () => {
+              setKontextVariation('loading')
+              try {
+                const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+                  model: 'claude-haiku-4-5-20251001', max_tokens: 180,
+                  messages: [{ role: 'user', content: `For the phrase "${item.front}" (meaning: "${item.back}"), give 3 very short context variants in ${item.langA === 'de' ? 'German' : 'English'}:\n1. Formal (1 example sentence)\n2. Informal (1 example sentence)\n3. Romantic (1 example sentence)\nFormat: formal: ...\ninformal: ...\nromantic: ...` }]
+                })})
+                const text = (await res.json()).content?.[0]?.text?.trim() || ''
+                const formal = text.match(/formal:\s*(.+)/i)?.[1]?.trim() || ''
+                const informal = text.match(/informal:\s*(.+)/i)?.[1]?.trim() || ''
+                const romantic = text.match(/romantic:\s*(.+)/i)?.[1]?.trim() || ''
+                setKontextVariation({ formal, informal, romantic })
+                setKontextOpen(true)
+              } catch { setKontextVariation(null) }
+            }} style={{ background: 'rgba(100,120,255,0.08)', border: '1px solid rgba(100,120,255,0.22)', borderRadius: '10px', padding: '6px 12px', color: '#9A9AFF', fontSize: '0.72rem', cursor: 'pointer', fontWeight: '600', letterSpacing: '0.3px' }}>
+              🔄 {lang === 'de' ? 'Kontext' : 'Context'}
+            </button>
+          )}
+          {kontextVariation === 'loading' && <p style={{ color: '#9A9AFF', fontSize: '0.72rem', margin: '4px 0' }}>🔄 {lang === 'de' ? 'Kontext wird geladen…' : 'Loading context…'}</p>}
+          {kontextVariation && kontextVariation !== 'loading' && (
+            <div style={{ background: 'rgba(100,120,255,0.07)', border: '1px solid rgba(100,120,255,0.20)', borderRadius: '12px', padding: '10px 14px', animation: 'vocaraFadeIn 0.3s ease both' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <p style={{ color: '#9A9AFF', fontSize: '0.7rem', fontWeight: '700', margin: 0, textTransform: 'uppercase', letterSpacing: '0.6px' }}>🔄 {lang === 'de' ? 'Kontextvarianten' : 'Context variants'}</p>
+                <button onClick={() => { setKontextVariation(null); setKontextOpen(false) }} style={{ background: 'transparent', border: 'none', color: '#8A8A9A', cursor: 'pointer', fontSize: '0.9rem', padding: '0 2px' }}>✕</button>
+              </div>
+              {kontextOpen && (
+                <>
+                  <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.72rem', margin: '0 0 3px' }}><span style={{ color: '#9A9AFF', fontWeight: '600' }}>Formell:</span> {kontextVariation.formal}</p>
+                  <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.72rem', margin: '0 0 3px' }}><span style={{ color: '#9A9AFF', fontWeight: '600' }}>Informell:</span> {kontextVariation.informal}</p>
+                  <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.72rem', margin: 0 }}><span style={{ color: '#e88aff', fontWeight: '600' }}>Romantisch:</span> {kontextVariation.romantic}</p>
+                </>
+              )}
+              {!kontextOpen && <button onClick={() => setKontextOpen(true)} style={{ background: 'transparent', border: 'none', color: '#9A9AFF', fontSize: '0.72rem', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>{lang === 'de' ? 'anzeigen' : 'show'}</button>}
+            </div>
           )}
         </div>
       )}
@@ -2760,6 +2950,46 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
           <span style={{ background: `${th.gold}18`, color: th.gold, border: `1px solid ${th.gold}44`, borderRadius: '12px', padding: '2px 10px', fontSize: '0.72rem', fontWeight: '700', flexShrink: 0, marginLeft: '8px' }}>Premium</span>
         </button>
       </div>
+
+      {/* ── PUSH NOTIFICATIONS (#9) ── */}
+      {(() => {
+        const times = ['off', '08:00', '12:00', '18:00', '20:00']
+        const currentTime = myData?.notificationTime || 'off'
+        const hasSupport = 'Notification' in window
+        return (
+          <div style={s.card}>
+            <p style={{ ...s.cardLabel, marginBottom: '12px' }}>🔔 {isDE ? 'Tägliche Erinnerung' : 'Daily reminder'}</p>
+            {!hasSupport ? (
+              <p style={{ color: th.sub, fontSize: '0.8rem' }}>{isDE ? 'Nicht unterstützt in diesem Browser' : 'Not supported in this browser'}</p>
+            ) : (
+              <>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
+                  {times.map(t => (
+                    <button key={t} onClick={async () => {
+                      if (t !== 'off' && Notification.permission === 'default') {
+                        const perm = await Notification.requestPermission()
+                        if (perm !== 'granted') return
+                      }
+                      const updated = { ...myData, notificationTime: t }
+                      setMyData(updated)
+                      await updateDoc(doc(db, 'users', user.uid), { notificationTime: t })
+                    }}
+                      style={{ padding: '6px 12px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.78rem', background: currentTime === t ? th.accent : 'transparent', color: currentTime === t ? (th.btnTextColor || '#111') : th.sub, border: `1px solid ${currentTime === t ? th.accent : th.border}`, transition: 'all 0.2s' }}>
+                      {t === 'off' ? (isDE ? 'Aus' : 'Off') : t}
+                    </button>
+                  ))}
+                </div>
+                {Notification.permission === 'granted' && currentTime !== 'off' && (
+                  <p style={{ color: '#4CAF50', fontSize: '0.72rem', margin: 0 }}>✓ {isDE ? `Erinnerung um ${currentTime} Uhr` : `Reminder at ${currentTime}`}</p>
+                )}
+                {Notification.permission === 'denied' && (
+                  <p style={{ color: '#e06c75', fontSize: '0.72rem', margin: 0 }}>{isDE ? 'Benachrichtigungen blockiert — bitte in Browser-Einstellungen erlauben' : 'Notifications blocked — enable in browser settings'}</p>
+                )}
+              </>
+            )}
+          </div>
+        )
+      })()}
 
       {/* ── ABMELDEN ── */}
       <button style={{ ...s.logoutBtn, marginTop: '8px', color: '#e06c75', border: '1px solid rgba(224,108,117,0.35)' }}
@@ -3711,10 +3941,16 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     const weakestCard = weakestEntry ? session?.find(c => c.id === weakestEntry[0]) : null
     const strongestCard = strongestEntry ? session?.find(c => c.id === strongestEntry[0]) : null
     setResult({ correct, wrong, easy: easy || 0, weakestCard, strongestCard, originalSession: session })
-    setScreen('result')
+    // #31 After sentence session, offer rhythm training before result
+    if (currentSessionMode === 'sentence') {
+      setScreen('rhythmus')
+    } else {
+      setScreen('result')
+    }
   }
 
   if (screen === 'cards' && session) return <>{homeFloat}<CardScreen session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} onSaveSessionProgress={saveSessionProgress} onStop={handleSessionStop} onSaveExample={handleSaveExample} mode={currentSessionMode} startIndex={resumeStartIndex} startProgress={resumeStartProgress} /></>
+  if (screen === 'rhythmus') return <>{homeFloat}<RhythmusScreen lang={lang} theme={theme} onBack={() => { setScreen('result') }} allCards={allCards} cardProgress={cardProgress} /></>
   if (screen === 'result') return <>{homeFloat}<ResultScreen correct={result.correct} wrong={result.wrong} easy={result.easy} weakestCard={result.weakestCard} strongestCard={result.strongestCard} masteryUnlocked={masteryUnlocked} t={t} lang={lang} onBack={() => { setScreen('menu'); setSession(null) }} onReplay={result.originalSession ? () => { setSession(result.originalSession); setResumeStartIndex(0); setResumeStartProgress(null); setScreen('cards') } : null} s={s} th={th} /></>
   if (screen === 'settings') return <>{homeFloat}<SettingsScreen t={t} s={s} theme={theme} onThemeChange={onThemeChange} onBack={() => setScreen('menu')} user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} onPartner={() => setScreen('partner')} onLightModeChange={onLightModeChange} onCardSizeChange={onCardSizeChange} /></>
   if (screen === 'meinekarten') return <>{homeFloat}<MeineKartenScreen user={user} myData={myData} setMyData={setMyData} allCards={allCards} cardProgress={cardProgress} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
@@ -4682,7 +4918,7 @@ function MainSelectionScreen({ lang, theme, firstName, uniqueTargetLangs, paused
     <div style={{ ...s.container, position: 'relative', zIndex: 10 }} className="vocara-screen">
       <div style={{ ...s.homeBox, paddingTop: '24px', position: 'relative', zIndex: 1 }}>
         <div style={{ textAlign: 'center', paddingBottom: '32px', paddingTop: '24px' }}>
-          <h1 style={{
+          <h1 className="vocara-bridgelab-title" style={{
             fontFamily: "'Playfair Display', Georgia, serif",
             fontSize: 'clamp(2.8rem, 12vw, 4.5rem)',
             fontWeight: '900',
@@ -4691,7 +4927,7 @@ function MainSelectionScreen({ lang, theme, firstName, uniqueTargetLangs, paused
             WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
             backgroundSize: '300% auto', animation: 'metalFlow 8s linear infinite',
             lineHeight: 1, marginBottom: '12px',
-            filter: 'drop-shadow(0 0 6px rgba(255,215,0,0.4))',
+            filter: 'drop-shadow(0 0 8px rgba(255,215,0,0.55)) drop-shadow(0 0 22px rgba(255,215,0,0.28))',
           }}>Bridgelab</h1>
           <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: '0.82rem', fontStyle: 'italic', letterSpacing: '0.03em', marginBottom: '0' }}>
             {isDE ? 'Wir bauen keine Apps. Wir bauen Brücken.' : 'We don\'t build apps. We build bridges.'}
@@ -5339,6 +5575,21 @@ function App() {
       document.head.appendChild(el)
     }
   }, [])
+
+  // #9 Schedule daily notification based on notificationTime setting
+  useEffect(() => {
+    if (!myData?.notificationTime || myData.notificationTime === 'off') return
+    if (!('Notification' in window) || Notification.permission !== 'granted') return
+    const [hStr, mStr] = myData.notificationTime.split(':')
+    const now = new Date()
+    const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), parseInt(hStr), parseInt(mStr), 0)
+    if (target <= now) target.setDate(target.getDate() + 1) // schedule for tomorrow if time already passed
+    const ms = target - now
+    const tid = setTimeout(() => {
+      new Notification('Vocara', { body: 'Zeit zum Lernen! 🌍 Deine Karten warten.', icon: '/vite.svg' })
+    }, ms)
+    return () => clearTimeout(tid)
+  }, [myData?.notificationTime])
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
