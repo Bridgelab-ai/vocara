@@ -3163,7 +3163,13 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
     const cards = category === 'all'
       ? activeCards
       : activeCards.filter(c => c.category === category)
-    console.log('[Vocara] cards in category:', cards.length, 'activeCards total:', activeCards.length)
+    if (category !== 'all') {
+      const excluded = activeCards.filter(c => c.category !== category)
+      console.log('[Vocara] cards in category:', cards.length, '| excluded:', excluded.length, '| total:', activeCards.length)
+      excluded.slice(0, 20).forEach(c => console.log(`  [filtered out] "${c.front}" → category:${c.category} id:${c.id}`))
+    } else {
+      console.log('[Vocara] cards (all):', cards.length)
+    }
     if (cards.length === 0) {
       setEmptyCategoryMsg(isMarkLang ? 'Hier wartet noch nichts — aber das ändert sich.' : 'Nothing here yet — but that changes now.')
       setTimeout(() => setEmptyCategoryMsg(null), 3500)
@@ -4441,7 +4447,7 @@ function HorizontScreen({ lang, theme, onBack }) {
   )
 }
 
-function SetsScreen({ user, myData, setMyData, lang, theme, allCards, cardProgress, onBack }) {
+function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCards, cardProgress, onBack }) {
   const th = THEMES[theme]; const s = makeStyles(th)
   const isDE = lang === 'de'
   const [innerScreen, setInnerScreen] = useState('list') // 'list' | 'create' | 'set'
@@ -4455,10 +4461,47 @@ function SetsScreen({ user, myData, setMyData, lang, theme, allCards, cardProgre
   const [kiLoading, setKiLoading] = useState(false)
   const [importLoading, setImportLoading] = useState(false)
   const [status, setStatus] = useState(null)
+  const [challengeInput, setChallengeInput] = useState('')
+  const [challengeSaving, setChallengeSaving] = useState(false)
   const fileRef = useRef(null)
 
   const sets = myData?.cardSets || []
   const FREE_LIMIT = 2
+
+  // ── PAAR-CHALLENGE helpers ──────────────────────────────────
+  const weekStr = getISOWeekStr()
+  const weekFilter = (h) => {
+    try { return getISOWeekStr(new Date(...h.date.split('-').map((v, i) => i === 1 ? v - 1 : +v))) === weekStr }
+    catch(e) { return false }
+  }
+  const myChallenge = myData?.weekChallenge?.week === weekStr ? myData.weekChallenge : null
+  const partnerChallenge = partnerData?.weekChallenge?.week === weekStr ? partnerData.weekChallenge : null
+  const myWeekCards = (myData?.sessionHistory || []).filter(weekFilter).reduce((a, b) => a + (b.correct || 0), 0)
+  const partnerWeekCards = (partnerData?.sessionHistory || []).filter(weekFilter).reduce((a, b) => a + (b.correct || 0), 0)
+  const hasPartner = !!(myData?.partnerUID || partnerData)
+  const partnerName = myData?.partnerName || partnerData?.name?.split(' ')[0] || 'Partner'
+  const myName = user?.displayName?.split(' ')[0] || 'Du'
+  const challengeTarget = myChallenge?.target || partnerChallenge?.target || 0
+  const myPct = challengeTarget > 0 ? Math.min(100, Math.round(myWeekCards / challengeTarget * 100)) : 0
+  const partnerPct = challengeTarget > 0 ? Math.min(100, Math.round(partnerWeekCards / challengeTarget * 100)) : 0
+  const bothDone = challengeTarget > 0 && myWeekCards >= challengeTarget && partnerWeekCards >= challengeTarget
+
+  const saveChallenge = async () => {
+    const target = parseInt(challengeInput, 10)
+    if (!target || target < 1) return
+    setChallengeSaving(true)
+    const challenge = { week: weekStr, target }
+    try {
+      await updateDoc(doc(db, 'users', user.uid), { weekChallenge: challenge })
+      setMyData(d => ({ ...d, weekChallenge: challenge }))
+      // Also write to partner if connected so they see the same target
+      if (myData?.partnerUID) {
+        await updateDoc(doc(db, 'users', myData.partnerUID), { weekChallenge: challenge }).catch(() => {})
+      }
+    } catch(e) { console.warn('saveChallenge failed:', e) }
+    setChallengeSaving(false)
+    setChallengeInput('')
+  }
 
   const iconOptions = ['📚','🎯','✈️','🍽️','💼','🏠','🎵','🌿','🏋️','🧠','💬','🛒','❤️','🌍','🎓']
 
@@ -4671,6 +4714,81 @@ function SetsScreen({ user, myData, setMyData, lang, theme, allCards, cardProgre
           <h2 style={{ color: th.text, fontSize: '1.2rem', fontWeight: '700', flex: 1, textAlign: 'center', margin: 0 }}>{isDE ? 'Entdecken' : 'Discover'}</h2>
         </div>
 
+        {/* ── PAAR-CHALLENGE ── */}
+        {hasPartner && (
+          <div style={{ ...s.card, marginBottom: '18px', padding: '16px 18px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+              <span style={{ fontSize: '1.3rem' }}>🤝</span>
+              <p style={{ color: th.text, fontWeight: '700', fontSize: '0.95rem', margin: 0 }}>
+                {isDE ? 'Diese Woche zusammen' : 'This week together'}
+              </p>
+              {bothDone && <span style={{ marginLeft: 'auto', fontSize: '1.2rem' }}>🎉</span>}
+            </div>
+            {challengeTarget > 0 ? (
+              <>
+                {/* My progress */}
+                <div style={{ marginBottom: '10px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <span style={{ color: th.sub, fontSize: '0.78rem' }}>{myName}</span>
+                    <span style={{ color: myWeekCards >= challengeTarget ? th.gold : th.text, fontSize: '0.78rem', fontWeight: '600' }}>{myWeekCards} / {challengeTarget}</span>
+                  </div>
+                  <div style={{ height: '6px', background: `${th.border}`, borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${myPct}%`, background: myWeekCards >= challengeTarget ? th.gold : th.accent, borderRadius: '4px', transition: 'width 0.4s ease' }} />
+                  </div>
+                </div>
+                {/* Partner progress */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <span style={{ color: th.sub, fontSize: '0.78rem' }}>{partnerName}</span>
+                    <span style={{ color: partnerWeekCards >= challengeTarget ? th.gold : th.text, fontSize: '0.78rem', fontWeight: '600' }}>{partnerWeekCards} / {challengeTarget}</span>
+                  </div>
+                  <div style={{ height: '6px', background: `${th.border}`, borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${partnerPct}%`, background: partnerWeekCards >= challengeTarget ? th.gold : `${th.accent}99`, borderRadius: '4px', transition: 'width 0.4s ease' }} />
+                  </div>
+                </div>
+                {bothDone && (
+                  <p style={{ color: th.gold, fontSize: '0.82rem', fontWeight: '700', textAlign: 'center', marginTop: '10px', marginBottom: 0 }}>
+                    {isDE ? '✓ Beide Ziele erreicht!' : '✓ Both goals reached!'}
+                  </p>
+                )}
+                <button onClick={() => setChallengeInput(String(challengeTarget))}
+                  style={{ background: 'transparent', border: 'none', color: th.sub, fontSize: '0.72rem', cursor: 'pointer', padding: '6px 0 0', WebkitTapHighlightColor: 'transparent' }}>
+                  {isDE ? 'Ziel ändern' : 'Change goal'}
+                </button>
+              </>
+            ) : (
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <input
+                  type="number" min="1" max="500"
+                  placeholder={isDE ? 'Ziel (z.B. 50)' : 'Goal (e.g. 50)'}
+                  value={challengeInput}
+                  onChange={e => setChallengeInput(e.target.value)}
+                  style={{ ...s.input, flex: 1, marginBottom: 0, fontSize: '0.9rem', padding: '10px 12px' }}
+                />
+                <button onClick={saveChallenge} disabled={challengeSaving || !challengeInput}
+                  style={{ ...s.button, padding: '10px 16px', fontSize: '0.85rem', marginBottom: 0, opacity: (!challengeInput || challengeSaving) ? 0.5 : 1 }}>
+                  {isDE ? 'Setzen' : 'Set'}
+                </button>
+              </div>
+            )}
+            {challengeInput && challengeTarget > 0 && (
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '8px' }}>
+                <input
+                  type="number" min="1" max="500"
+                  placeholder={isDE ? 'Neues Ziel' : 'New goal'}
+                  value={challengeInput}
+                  onChange={e => setChallengeInput(e.target.value)}
+                  style={{ ...s.input, flex: 1, marginBottom: 0, fontSize: '0.9rem', padding: '10px 12px' }}
+                />
+                <button onClick={saveChallenge} disabled={challengeSaving}
+                  style={{ ...s.button, padding: '10px 16px', fontSize: '0.85rem', marginBottom: 0 }}>
+                  ✓
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         {sets.length === 0 ? (
           <div style={{ ...s.card, textAlign: 'center', padding: '36px 20px' }}>
             <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: '12px' }}>📚</span>
@@ -4774,6 +4892,15 @@ function App() {
                 const wordCount = front.trim().split(/\s+/).filter(Boolean).length
                 const backWordCount = back.trim().split(/\s+/).filter(Boolean).length
                 const current = newCats[card.id]
+                // Protect basics cards — never reclassify via ruleCategory
+                if (card.category === 'basics' || card.source === 'ai-basics') {
+                  if (current !== 'basics') {
+                    console.log(`[category] ${card.id} "${front}" : ${current || 'undefined'} → basics (protected)`)
+                    newCats[card.id] = 'basics'
+                    catChanged = true
+                  }
+                  continue
+                }
                 const isSwahiliCard = card.pronunciation || swahiliOverrideRe.test(front) || card.langA === 'sw'
                 const needsRun =
                   (wordCount === 1 && DE_VOCAB_WHITELIST.has(front.trim().toLowerCase()) && current !== 'vocabulary') ||
@@ -4921,7 +5048,7 @@ function App() {
           onBack={() => setMainNav('main')} />
       )}
       {mainNav === 'entdecken' && (
-        <SetsScreen user={user} myData={myData} setMyData={setMyData}
+        <SetsScreen user={user} myData={myData} setMyData={setMyData} partnerData={partnerData}
           lang={lang} theme={theme} allCards={allCards} cardProgress={myData?.cardProgress || {}}
           onBack={() => setMainNav('main')} />
       )}

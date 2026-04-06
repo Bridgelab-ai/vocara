@@ -13,15 +13,15 @@
 10. Karten-Kommentar/Notiz
 
 ## Liste B – Social/Gamification
-11. Paar-Challenge gemeinsam
+11. Paar-Challenge gemeinsam ✅
 12. Emoji-Reaktion auf Partner-Fortschritt ✅
 13. Gemeinsame Karten-Sammlung
-14. Überraschungskarte vom Partner täglich
+14. Überraschungskarte vom Partner täglich ✅
 15. Dark/Light Mode (Placeholder ✅ — toggle in Einstellungen, bald verfügbar)
 16. Kartengröße anpassbar
 17. Animierte Karten-Übergänge
 18. Tägliche Miniaufgabe
-19. Level-Namen (Hafen-Anfänger → Elbe-Experte)
+19. Level-Namen (Hafen-Anfänger → Elbe-Experte) ✅
 20. Goldene seltene Karten ✅
 
 ## Liste C – Unbestätigt/Design
