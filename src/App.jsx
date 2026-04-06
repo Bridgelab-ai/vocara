@@ -1195,8 +1195,8 @@ const T = {
     myProgress: 'Dein Fortschritt', notActive: 'Noch kein Partner',
     card: 'Karte', of: 'von', showSolution: 'Lösung anzeigen',
     correct: 'Richtig', wrong: 'Falsch', easy: '⚡ Easy', stop: '✕ Beenden',
-    stopConfirm: 'Session wirklich beenden?', done: 'Heute gebaut.', back: 'Zurück',
-    masteryMsg: 'Eine neue Brücke steht. 3 Karten freigeschaltet.',
+    stopConfirm: 'Session wirklich beenden?', done: 'Heute. Gut gemacht.', back: 'Zurück',
+    masteryMsg: 'Deine Stimme wächst. 3 neue Karten.',
     comingSoon: 'Kommt bald', chooseTheme: 'Wähle dein Theme', settingsTitle: 'Einstellungen',
     partnerTitle: '🤝 Partner verbinden', partnerInvite: 'Teile diesen Link mit deinem Partner:',
     partnerCopy: 'Link kopieren', partnerCopied: '✓ Kopiert!', partnerCode: 'Oder gib den Code deines Partners ein:',
@@ -1220,7 +1220,7 @@ const T = {
     menuKi: 'KI-Gespräch', menuSatz: 'Satztraining',
     menuAddCards: 'Karten hinzufügen', menuCategorize: 'Kategorisieren', menuSettings: 'Einstellungen', menuSignOut: 'Abmelden',
     menuPartnerConnect: 'Partner verbinden', menuPartnerLabel: 'Partner',
-    weekGoalTitle: 'Wochenziel', weekGoalDone: 'Heute: Brücke gebaut. ✓',
+    weekGoalTitle: 'Wochenziel', weekGoalDone: 'Heute: vollständig. ✓',
   },
   en: {
     hello: 'Hello', mySession: '🃏 My session', whereAmI: '🎯 Where do I stand?',
@@ -1229,8 +1229,8 @@ const T = {
     myProgress: 'Your progress', notActive: 'No partner yet',
     card: 'Card', of: 'of', showSolution: 'Show answer',
     correct: 'Correct', wrong: 'Wrong', easy: '⚡ Easy', stop: '✕ Stop',
-    stopConfirm: 'Stop this session?', done: 'Done!', back: 'Back',
-    masteryMsg: '85% mastered — 3 new cards unlocked!',
+    stopConfirm: 'Stop this session?', done: 'Well done.', back: 'Back',
+    masteryMsg: 'Your voice is growing. 3 new cards.',
     comingSoon: 'Coming soon', chooseTheme: 'Choose your theme', settingsTitle: 'Settings',
     partnerTitle: '🤝 Connect partner', partnerInvite: 'Share this link with your partner:',
     partnerCopy: 'Copy link', partnerCopied: '✓ Copied!', partnerCode: "Or enter your partner's code:",
@@ -1254,7 +1254,7 @@ const T = {
     menuKi: 'AI Chat', menuSatz: 'Sentence training',
     menuAddCards: 'Add cards', menuCategorize: 'Categorize', menuSettings: 'Settings', menuSignOut: 'Sign out',
     menuPartnerConnect: 'Connect partner', menuPartnerLabel: 'Partner',
-    weekGoalTitle: 'Weekly goal', weekGoalDone: 'Bridge built today. ✓',
+    weekGoalTitle: 'Weekly goal', weekGoalDone: 'Today: complete. ✓',
   }
 }
 
@@ -2111,6 +2111,8 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
   const [phoneticCache, setPhoneticCache] = useState({})
   const [cardAnim, setCardAnim] = useState(null) // null | 'flyRight' | 'flyUp' | 'shake'
   const [flipPhase, setFlipPhase] = useState(false) // true = mid-flip (card turned sideways)
+  const [patternTip, setPatternTip] = useState(null) // null | 'loading' | string
+  const wrongCardsRef = useRef([]) // accumulates wrong cards for pattern analysis
   const [kiExplanation, setKiExplanation] = useState(null) // null | 'loading' | string
   const [noteOpen, setNoteOpen] = useState(false)
   const [noteText, setNoteText] = useState('')
@@ -2193,6 +2195,24 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
     setKiExplanation(null)
     setMicState('idle'); setMicResult(null)
   }, [index])
+
+  // ── FEHLER-MUSTER ANALYSE (#33) ──────────────────────────────
+  useEffect(() => {
+    if (wrong < 10 || patternTip !== null) return
+    setPatternTip('loading')
+    const cards = wrongCardsRef.current.slice(0, 10)
+    const cardList = cards.map(c => `"${c.front}" → "${c.back}"`).join('; ')
+    const tipLang = lang === 'de' ? 'German' : 'English'
+    fetch('/api/chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 100,
+        messages: [{ role: 'user', content: `A language learner answered these ${cards.length} cards incorrectly: ${cardList}. In exactly 1 sentence in ${tipLang}, name one specific grammar pattern or memory tip connecting these mistakes. Be concrete and brief, not generic.` }]
+      })
+    }).then(r => r.json()).then(d => {
+      const tip = d.content?.[0]?.text?.trim()
+      setPatternTip(tip || null)
+    }).catch(() => setPatternTip(null))
+  }, [wrong])
 
   // Example sentence for vocabulary cards
   const [exampleSentence, setExampleSentence] = useState(null)
@@ -2277,6 +2297,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
       const updatedProgress = { ...prev, interval: 0, consecutiveFast: 0, wrongSessions: 3, nextReview: todayStr() }
       const finalNewProgress = { ...newProgress, [cardId]: updatedProgress }
       const newQueue = [...queue]; newQueue.splice(index, 1); newQueue.push({ ...item })
+      wrongCardsRef.current.push({ front: item.front, back: item.back })
       setQueue(newQueue); setNewProgress(finalNewProgress); setWrong(w => w + 1); setRevealed(false)
       onSaveState?.(newQueue, index, finalNewProgress)
     } else {
@@ -2473,6 +2494,21 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
           )}
         </div>
       )}
+      {patternTip && (
+        <div style={{ width: '100%', marginBottom: '8px', background: 'rgba(255,200,50,0.07)', border: '1px solid rgba(255,200,50,0.24)', borderRadius: '12px', padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: '8px', animation: 'vocaraFadeIn 0.4s ease both' }}>
+          <div style={{ flex: 1 }}>
+            <p style={{ color: s.easyBtn.color, fontSize: '0.7rem', fontWeight: '700', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
+              {patternTip === 'loading' ? `💡 ${lang === 'de' ? 'KI analysiert Muster…' : 'AI analysing pattern…'}` : `💡 ${lang === 'de' ? 'KI hat ein Muster erkannt' : 'AI spotted a pattern'}`}
+            </p>
+            {patternTip !== 'loading' && (
+              <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.78rem', margin: 0, lineHeight: 1.5 }}>{patternTip}</p>
+            )}
+          </div>
+          {patternTip !== 'loading' && (
+            <button onClick={() => setPatternTip(null)} style={{ background: 'transparent', border: 'none', color: '#8A8A9A', cursor: 'pointer', fontSize: '0.9rem', padding: '0 2px', lineHeight: 1, flexShrink: 0 }}>✕</button>
+          )}
+        </div>
+      )}
       {revealed && (
         <div style={{ ...s.answerRow, alignItems: 'flex-end' }}>
           <button style={s.wrongBtn} onClick={() => handleAnswerAnimated(false)}>✗ {t.wrong}</button>
@@ -2519,7 +2555,7 @@ function ResultScreen({ correct, wrong, easy, weakestCard, strongestCard, master
         </button>
       )}
       <button style={{ background: 'transparent', color: th?.sub || '#888', border: `1px solid ${th?.border || '#333'}`, padding: '12px 28px', borderRadius: '50px', fontSize: '0.95rem', cursor: 'pointer', fontWeight: '600', width: '100%' }} onClick={onBack}>
-        {isMarkLang ? 'Fertig' : 'Done'}
+        {isMarkLang ? 'Weiter' : 'Continue'}
       </button>
     </div></div>
   )
@@ -2873,12 +2909,15 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
     const sessionHistory = myData?.sessionHistory || []
     const streak = calcStreak(sessionHistory)
     const dueCount = Object.values(myData?.cardProgress || {}).filter(p => p.nextReview <= todayStr()).length
+    const weeklyDone = weeklyGoals?.completed?.length || 0
+    const weeklyTotal = WEEK_AREAS.length
     const partnerName = myData?.partnerName || 'Partner'
-    const partnerActive = partnerData?.sessionHistory?.some(h => h.date === todayStr()) ? `${partnerName} lernt heute auch.` : ''
+    const partnerTodayActive = partnerData?.sessionHistory?.some(h => h.date === todayStr())
+    const partnerCtx = partnerTodayActive ? `${partnerName} lernt gerade auch.` : ''
     fetch('/api/chat', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 40,
-        messages: [{ role: 'user', content: `You are Vocara's coaching voice. Write ONE short motivating message (max 15 words) in German for this user. Style: poetic, personal, Bridgelab tone — use metaphors of bridges, voices, Hamburg harbor, Nairobi sun. Stats: ${streak} day streak, ${dueCount} cards due today. ${partnerActive} Never generic. Return ONLY the message, no quotes.` }]
+        messages: [{ role: 'user', content: `You are Vocara's coaching voice. Write ONE short motivating message (max 15 words) in German. Style: poetic, Bridgelab — vary metaphors: voices, harbor, sun, nearness, growth. Use "Brücke" at most once. Stats: ${streak}-day streak, ${dueCount} cards due, ${weeklyDone}/${weeklyTotal} weekly areas done. ${partnerCtx} Reference the actual numbers naturally. Never generic. Return ONLY the message, no quotes or markdown.` }]
       })
     }).then(r => r.json()).then(d => {
       const msg = d.content?.[0]?.text?.trim()
@@ -3126,7 +3165,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
       : activeCards.filter(c => c.category === category)
     console.log('[Vocara] cards in category:', cards.length, 'activeCards total:', activeCards.length)
     if (cards.length === 0) {
-      setEmptyCategoryMsg('Noch keine Karten in dieser Kategorie — füge welche hinzu!')
+      setEmptyCategoryMsg(isMarkLang ? 'Hier wartet noch nichts — aber das ändert sich.' : 'Nothing here yet — but that changes now.')
       setTimeout(() => setEmptyCategoryMsg(null), 3500)
       return
     }
@@ -3554,8 +3593,8 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
 
       {/* ── KI COACHING BANNER ── */}
       {coachMsg && (
-        <div style={{ background: `${th.card}cc`, border: `1px solid ${th.border}`, borderRadius: '12px', padding: '10px 14px', marginBottom: '12px' }}>
-          <p style={{ color: th.sub, fontSize: '0.82rem', fontStyle: 'italic', margin: 0, lineHeight: 1.5 }}>{coachMsg}</p>
+        <div style={{ background: `${th.card}bb`, border: `1px solid ${th.gold}33`, borderRadius: '12px', padding: '10px 16px', marginBottom: '12px' }}>
+          <p style={{ color: th.gold, fontSize: '0.85rem', fontStyle: 'italic', margin: 0, lineHeight: 1.6, opacity: 0.92 }}>{coachMsg}</p>
         </div>
       )}
 
