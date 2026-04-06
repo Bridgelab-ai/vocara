@@ -1,8 +1,47 @@
 import React, { useState, useEffect, useRef, Component } from 'react'
 import { auth, db } from './firebase'
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
-import { doc, setDoc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore'
+import { doc, setDoc, getDoc, updateDoc, deleteDoc, onSnapshot } from 'firebase/firestore'
 import './App.css'
+
+// ── APP PREFS CONTEXT (lightMode, cardSize) ─────────────────────
+const AppPrefsContext = React.createContext({ lightMode: false, cardSize: 'normal' })
+
+// ── THEME RESOLVER (applies light mode overrides) ─────────────
+function resolveTheme(themeKey, lightMode = false) {
+  const th = THEMES[themeKey] || THEMES.nairobi
+  if (!lightMode) return th
+  return {
+    ...th,
+    bg: '#F2F2F4',
+    card: 'rgba(255,255,255,0.90)',
+    text: '#1a1a1a',
+    sub: '#666',
+    border: 'rgba(0,0,0,0.10)',
+    bgGrad: `radial-gradient(ellipse at 50% 0%, ${th.accent}18 0%, #EDEDF0 40%, #F2F2F4 100%)`,
+  }
+}
+
+// ── SEASONAL OVERLAY ─────────────────────────────────────────
+function getSeasonOverlay(themeKey) {
+  const month = new Date().getMonth() + 1 // 1–12
+  const isWinter = month === 12 || month <= 2
+  const isSpring = month >= 3 && month <= 5
+  const isSummer = month >= 6 && month <= 8
+  if (themeKey === 'hamburg') {
+    if (isWinter) return 'rgba(180,215,255,0.06)' // icy blue
+    if (isSpring) return 'rgba(100,200,120,0.05)'  // soft green
+    if (isSummer) return 'rgba(50,140,255,0.05)'   // bright blue
+    return 'rgba(220,140,0,0.06)'                  // autumn amber
+  }
+  if (themeKey === 'nairobi') {
+    if (isWinter) return 'rgba(210,160,60,0.07)'   // dry dusty warm
+    if (isSpring) return 'rgba(0,160,60,0.06)'     // long rains green
+    if (isSummer) return 'rgba(255,210,60,0.06)'   // crisp gold
+    return 'rgba(140,160,180,0.06)'                // misty short rains
+  }
+  return null
+}
 
 const MARK_UID = 'aiNZh4Myn8Y0KfYkGGrkNNW0HC72'
 const ELOSY_UID = 'NIX3DYenRdbRjmr2EHsIad9GcqG3'
@@ -767,6 +806,10 @@ html, body, #root {
 @keyframes vocaraFadeIn {
   from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes vocaraFadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
 }
 @keyframes metalFlow {
   0%   { background-position: 0% center; }
@@ -2561,7 +2604,7 @@ function ResultScreen({ correct, wrong, easy, weakestCard, strongestCard, master
   )
 }
 
-function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setMyData, allCards, lang, onPartner }) {
+function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setMyData, allCards, lang, onPartner, onLightModeChange, onCardSizeChange }) {
   const th = THEMES[theme]
   const pausedLanguages = myData?.pausedLanguages || []
   const uniqueTargetLangs = [...new Set((allCards || []).map(c => c.targetLang).filter(Boolean))]
@@ -2639,15 +2682,42 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
       )}
 
       {/* ── DARK/LIGHT MODE ── */}
-      <div style={s.card}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <p style={{ ...s.cardLabel, marginBottom: '2px' }}>Dark / Light Mode</p>
-            <p style={{ color: th.sub, fontSize: '0.75rem', margin: 0 }}>{isDE ? 'Bald verfügbar' : 'Coming soon'}</p>
+      {(() => {
+        const { lightMode } = React.useContext(AppPrefsContext)
+        return (
+          <div style={s.card}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <p style={{ ...s.cardLabel, marginBottom: '2px' }}>{isDE ? '☀️ Dark / Light Mode' : '☀️ Dark / Light Mode'}</p>
+                <p style={{ color: th.sub, fontSize: '0.75rem', margin: 0 }}>{lightMode ? (isDE ? 'Hell' : 'Light') : (isDE ? 'Dunkel' : 'Dark')}</p>
+              </div>
+              <button onClick={() => onLightModeChange && onLightModeChange(!lightMode)}
+                style={{ background: lightMode ? th.accent : 'rgba(255,255,255,0.08)', border: `1px solid ${lightMode ? th.accent : th.border}`, borderRadius: '22px', width: '52px', height: '28px', cursor: 'pointer', position: 'relative', transition: 'all 0.2s', flexShrink: 0 }}>
+                <span style={{ position: 'absolute', top: '3px', left: lightMode ? '27px' : '3px', width: '22px', height: '22px', borderRadius: '50%', background: lightMode ? '#fff' : th.sub, transition: 'left 0.2s', display: 'block' }} />
+              </button>
+            </div>
           </div>
-          <span style={{ background: `${th.gold}18`, color: th.gold, border: `1px solid ${th.gold}44`, borderRadius: '20px', padding: '3px 14px', fontSize: '0.72rem', fontWeight: '700', flexShrink: 0 }}>{isDE ? 'Bald' : 'Soon'}</span>
-        </div>
-      </div>
+        )
+      })()}
+
+      {/* ── KARTENGRÖSSE ── */}
+      {(() => {
+        const { cardSize } = React.useContext(AppPrefsContext)
+        const sizes = [{ key: 'small', labelDE: 'Klein', labelEN: 'Small' }, { key: 'normal', labelDE: 'Normal', labelEN: 'Normal' }, { key: 'large', labelDE: 'Groß', labelEN: 'Large' }]
+        return (
+          <div style={s.card}>
+            <p style={{ ...s.cardLabel, marginBottom: '12px' }}>{isDE ? '📐 Kartengröße' : '📐 Card size'}</p>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {sizes.map(sz => (
+                <button key={sz.key} onClick={() => onCardSizeChange && onCardSizeChange(sz.key)}
+                  style={{ flex: 1, padding: '9px 0', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.82rem', background: cardSize === sz.key ? th.accent : 'transparent', color: cardSize === sz.key ? (th.btnTextColor || '#111') : th.sub, border: `1px solid ${cardSize === sz.key ? th.accent : th.border}`, transition: 'all 0.2s' }}>
+                  {isDE ? sz.labelDE : sz.labelEN}
+                </button>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* ── STREAK FREEZE ── */}
       <div style={s.card}>
@@ -2865,7 +2935,7 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
   )
 }
 
-function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSaveProgress, theme, onThemeChange, onPartnerUpdate, onSaveCefr, onBack }) {
+function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSaveProgress, theme, onThemeChange, onLightModeChange, onCardSizeChange, onPartnerUpdate, onSaveCefr, onBack }) {
   const [screen, setScreen] = useState('menu')
   const [session, setSession] = useState(null)
   const [result, setResult] = useState(null)
@@ -2894,6 +2964,10 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const [miniTaskLoading, setMiniTaskLoading] = useState(false)
   const [reactionPrompt, setReactionPrompt] = useState(null) // {name, count}
   const [floatingReaction, setFloatingReaction] = useState(null) // emoji string
+  const [replyInput, setReplyInput] = useState('')
+  const [showReplyInput, setShowReplyInput] = useState(false)
+  const [floatingMessage, setFloatingMessage] = useState(null) // incoming whisper text
+  const [wordOfDayBanner, setWordOfDayBanner] = useState(null) // {front, back}
   const [freezeAvailable, setFreezeAvailable] = useState(true)
   const [karteMenu, setKarteMenu] = useState(false)
   const [dotTooltip, setDotTooltip] = useState(null) // area key
@@ -3026,10 +3100,18 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
     setMyData(d => ({ ...d, miniTask: task }))
   }, [screen])
 
-  // ── PARTNER REACTION ──────────────────────────────────────
+  // ── PARTNER REACTION + INCOMING MESSAGE ─────────────────────
   useEffect(() => {
     const todayD = todayStr()
-    // Show floating emoji if we received a reaction
+    // Show incoming partner message as floating whisper
+    const pm = myData?.pendingMessage
+    if (pm?.date === todayD && pm?.text) {
+      setFloatingMessage(pm.text)
+      setTimeout(() => setFloatingMessage(null), 8000)
+      updateDoc(doc(db, 'users', user.uid), { pendingMessage: null }).catch(() => {})
+      setMyData(d => ({ ...d, pendingMessage: null }))
+    }
+    // Show floating emoji if we received an emoji reaction
     const pr = myData?.pendingReaction
     if (pr?.date === todayD && pr?.emoji) {
       setFloatingReaction(pr.emoji)
@@ -3037,7 +3119,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
       updateDoc(doc(db, 'users', user.uid), { pendingReaction: null }).catch(() => {})
       setMyData(d => ({ ...d, pendingReaction: null }))
     }
-    // Prompt to react to partner's new sessions
+    // Prompt to respond to partner's learning activity
     if (!partnerData) return
     const partnerTodayCorrect = (partnerData.sessionHistory || [])
       .filter(h => h.date === todayD).reduce((a, b) => a + (b.correct || 0), 0)
@@ -3046,6 +3128,20 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
       setReactionPrompt({ name, count: partnerTodayCorrect })
     }
   }, [])
+
+  const sendPartnerMessage = async () => {
+    const text = replyInput.trim().slice(0, 20)
+    if (!text || !myData?.partnerUID) return
+    try {
+      const message = { text, from: user.displayName?.split(' ')[0] || 'Partner', date: todayStr() }
+      await updateDoc(doc(db, 'users', myData.partnerUID), { pendingMessage: message })
+      await updateDoc(doc(db, 'users', user.uid), { lastPartnerReactionDate: todayStr() })
+      setMyData(d => ({ ...d, lastPartnerReactionDate: todayStr() }))
+    } catch (e) { console.warn('sendPartnerMessage failed:', e) }
+    setReactionPrompt(null)
+    setReplyInput('')
+    setShowReplyInput(false)
+  }
 
   const sendReaction = async (emoji) => {
     if (!myData?.partnerUID) return
@@ -3075,7 +3171,8 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
     <button onClick={() => setScreen('menu')} title="Zurück zur Startseite" style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999, background: 'rgba(0,0,0,0.55)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '50%', width: '46px', height: '46px', fontSize: '1.3rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }}>🏠</button>
   )
 
-  const t = T[lang]; const th = THEMES[theme]; const s = makeStyles(th)
+  const { lightMode, cardSize } = React.useContext(AppPrefsContext)
+  const t = T[lang]; const th = resolveTheme(theme, lightMode); const s = makeStyles(th)
   const firstName = user.displayName?.split(' ')[0] || user.displayName
   const cardProgress = myData?.cardProgress || {}
   const isMarkLang = lang === 'de'
@@ -3090,6 +3187,14 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const activeCards = pausedLanguages.length > 0
     ? allCards.filter(c => !pausedLanguages.includes(c.targetLang))
     : allCards
+
+  // ── WORT DES TAGES ────────────────────────────────────────
+  const wordOfDay = (() => {
+    const mastered = activeCards.filter(c => !/_r(_\d+)?$/.test(c.id) && (cardProgress[c.id]?.interval || 0) >= 7)
+    if (mastered.length === 0) return null
+    const dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 86400000)
+    return mastered[dayOfYear % mastered.length]
+  })()
 
   // ── STREAK STATUS ─────────────────────────────────────────
   const sessionDates = [...new Set(sessionHistory.map(h => h.date))].sort()
@@ -3190,8 +3295,18 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
     }
     if (sess.length === 0) return
     setCurrentSessionMode(category)
-    setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
-    if (['vocabulary', 'street', 'home'].includes(category)) markAreaDone(category)
+    // Show Wort des Tages banner for 2.5s before starting session
+    if (wordOfDay && category !== 'all') {
+      setWordOfDayBanner(wordOfDay)
+      setTimeout(() => {
+        setWordOfDayBanner(null)
+        setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+        if (['vocabulary', 'street', 'home', 'basics'].includes(category)) markAreaDone(category)
+      }, 2500)
+    } else {
+      setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+      if (['vocabulary', 'street', 'home'].includes(category)) markAreaDone(category)
+    }
   }
   const startBasicsSession = async () => {
     const existingBasics = activeCards.filter(c => c.category === 'basics')
@@ -3542,7 +3657,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
 
   if (screen === 'cards' && session) return <>{homeFloat}<CardScreen session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} onSaveSessionProgress={saveSessionProgress} onStop={handleSessionStop} onSaveExample={handleSaveExample} mode={currentSessionMode} startIndex={resumeStartIndex} startProgress={resumeStartProgress} /></>
   if (screen === 'result') return <>{homeFloat}<ResultScreen correct={result.correct} wrong={result.wrong} easy={result.easy} weakestCard={result.weakestCard} strongestCard={result.strongestCard} masteryUnlocked={masteryUnlocked} t={t} lang={lang} onBack={() => { setScreen('menu'); setSession(null) }} onReplay={result.originalSession ? () => { setSession(result.originalSession); setResumeStartIndex(0); setResumeStartProgress(null); setScreen('cards') } : null} s={s} th={th} /></>
-  if (screen === 'settings') return <>{homeFloat}<SettingsScreen t={t} s={s} theme={theme} onThemeChange={onThemeChange} onBack={() => setScreen('menu')} user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} onPartner={() => setScreen('partner')} /></>
+  if (screen === 'settings') return <>{homeFloat}<SettingsScreen t={t} s={s} theme={theme} onThemeChange={onThemeChange} onBack={() => setScreen('menu')} user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} onPartner={() => setScreen('partner')} onLightModeChange={onLightModeChange} onCardSizeChange={onCardSizeChange} /></>
   if (screen === 'meinekarten') return <>{homeFloat}<MeineKartenScreen user={user} myData={myData} setMyData={setMyData} allCards={allCards} cardProgress={cardProgress} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
   if (screen === 'geschenkkarte') return <>{homeFloat}<GeschenkkarteScreen user={user} myData={myData} lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} /></>
   if (screen === 'karteerstellen') return <>{homeFloat}<KarteErstellenScreen user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
@@ -3872,28 +3987,46 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         </div>
       )}
 
-      {/* ── PARTNER REACTION PROMPT ── */}
+      {/* ── PARTNER ACTIVITY BANNER (elegant) ── */}
       {reactionPrompt && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 8900, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', backdropFilter: 'blur(4px)' }}>
-          <div style={{ background: th.card, border: `1px solid ${th.border}`, borderRadius: '20px', padding: '24px 20px', maxWidth: '340px', width: '100%', textAlign: 'center', animation: 'vocaraFadeIn 0.3s ease both', boxShadow: `0 0 30px ${th.glowColor}33` }}>
-            <p style={{ fontSize: '1.8rem', margin: '0 0 8px' }}>🎉</p>
-            <p style={{ color: th.text, fontWeight: '700', fontSize: '1rem', margin: '0 0 4px' }}>
-              {reactionPrompt.name} {isMarkLang ? 'hat heute' : 'learned today'}
-            </p>
-            <p style={{ color: th.accent, fontSize: '1.2rem', fontWeight: '700', margin: '0 0 16px' }}>
-              {reactionPrompt.count} {isMarkLang ? 'Karten' : 'cards'} ✓
-            </p>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginBottom: '14px' }}>
-              {['👏', '🔥', '💪', '❤️'].map(emoji => (
-                <button key={emoji} onClick={() => sendReaction(emoji)}
-                  style={{ background: 'rgba(255,255,255,0.06)', border: `1px solid ${th.border}`, borderRadius: '12px', padding: '10px 14px', cursor: 'pointer', fontSize: '1.5rem', WebkitTapHighlightColor: 'transparent' }}>
-                  {emoji}
-                </button>
-              ))}
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 8900, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 20px', animation: 'vocaraFadeIn 0.4s ease both' }}>
+          <div style={{ background: `${th.card}F0`, backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', borderBottom: `1px solid ${th.border}`, width: '100%', maxWidth: '420px', padding: '14px 18px 12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <p style={{ color: th.text, fontSize: '0.9rem', margin: 0 }}>
+                <span style={{ fontWeight: '700' }}>{reactionPrompt.name}</span>
+                {isMarkLang ? ` hat heute ${reactionPrompt.count} Karten gelernt.` : ` learned ${reactionPrompt.count} cards today.`}
+              </p>
+              <button onClick={() => { setReactionPrompt(null); setShowReplyInput(false); setReplyInput('') }}
+                style={{ background: 'transparent', border: 'none', color: th.sub, cursor: 'pointer', fontSize: '1rem', padding: '0 0 0 10px', flexShrink: 0, WebkitTapHighlightColor: 'transparent' }}>✕</button>
             </div>
-            <button onClick={() => setReactionPrompt(null)} style={{ background: 'transparent', border: 'none', color: th.sub, cursor: 'pointer', fontSize: '0.82rem', padding: '4px 8px' }}>
-              {isMarkLang ? 'Überspringen' : 'Skip'}
-            </button>
+            {!showReplyInput ? (
+              <button onClick={() => setShowReplyInput(true)}
+                style={{ marginTop: '8px', background: 'transparent', border: 'none', color: th.gold, fontSize: '0.82rem', fontWeight: '600', cursor: 'pointer', padding: 0, WebkitTapHighlightColor: 'transparent' }}>
+                ✨ {isMarkLang ? 'Antworten' : 'Reply'}
+              </button>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', marginTop: '10px', borderBottom: `1px solid ${th.gold}66`, paddingBottom: '4px' }}>
+                <input
+                  autoFocus maxLength={20}
+                  value={replyInput}
+                  onChange={e => setReplyInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') sendPartnerMessage() }}
+                  placeholder={isMarkLang ? `Schreib ${reactionPrompt.name} etwas…` : `Write something to ${reactionPrompt.name}…`}
+                  style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: th.text, fontSize: '0.88rem', padding: '2px 0', fontFamily: "'Inter', sans-serif" }}
+                />
+                <button onClick={sendPartnerMessage}
+                  style={{ background: 'transparent', border: 'none', color: th.gold, cursor: 'pointer', fontSize: '1.1rem', padding: '0 4px', WebkitTapHighlightColor: 'transparent' }}>→</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── FLOATING INCOMING WHISPER ── */}
+      {floatingMessage && (
+        <div style={{ position: 'fixed', top: '14px', left: '50%', transform: 'translateX(-50%)', zIndex: 9200, pointerEvents: 'none', animation: 'vocaraFadeIn 0.5s ease both, vocaraFadeOut 1s ease 7s both', maxWidth: '90vw' }}>
+          <div style={{ background: `${th.card}EE`, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid ${th.gold}44`, borderRadius: '22px', padding: '10px 20px', boxShadow: `0 4px 20px ${th.glowColor}33` }}>
+            <p style={{ color: th.text, fontSize: '0.9rem', margin: 0, fontStyle: 'italic' }}>„{floatingMessage}"</p>
           </div>
         </div>
       )}
@@ -3902,6 +4035,20 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
       {floatingReaction && (
         <div style={{ position: 'fixed', top: '22%', left: '50%', transform: 'translateX(-50%)', fontSize: '4rem', zIndex: 9100, pointerEvents: 'none', animation: 'vocaraCelebrate 3.5s ease both' }}>
           {floatingReaction}
+        </div>
+      )}
+
+      {/* ── WORT DES TAGES BANNER ── */}
+      {wordOfDayBanner && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 8800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', animation: 'vocaraFadeIn 0.4s ease both' }}>
+          <div style={{ background: th.card, border: `1px solid ${th.gold}44`, borderRadius: '22px', padding: '28px 24px', maxWidth: '340px', width: '100%', textAlign: 'center', boxShadow: `0 0 40px ${th.glowColor}33` }}>
+            <p style={{ color: th.gold, fontSize: '0.72rem', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 12px' }}>{isMarkLang ? "Heute's Wort" : "Word of the day"}</p>
+            <p style={{ color: th.text, fontSize: '1.4rem', fontWeight: '700', margin: '0 0 6px' }}>{wordOfDayBanner.front}</p>
+            <p style={{ color: th.accent, fontSize: '1rem', margin: '0 0 14px' }}>{wordOfDayBanner.back}</p>
+            <p style={{ color: th.sub, fontSize: '0.78rem', margin: 0, lineHeight: 1.5, fontStyle: 'italic' }}>
+              {isMarkLang ? '— heute begegnet es dir überall.' : '— it will appear in every area today.'}
+            </p>
+          </div>
         </div>
       )}
 
@@ -4447,7 +4594,7 @@ function HorizontScreen({ lang, theme, onBack }) {
   )
 }
 
-function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCards, cardProgress, onBack }) {
+function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCards, cardProgress, coupleId, onBack, onLiveSession }) {
   const th = THEMES[theme]; const s = makeStyles(th)
   const isDE = lang === 'de'
   const [innerScreen, setInnerScreen] = useState('list') // 'list' | 'create' | 'set'
@@ -4789,6 +4936,19 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
           </div>
         )}
 
+        {/* ── SYNCHRONES LERNEN ── */}
+        {hasPartner && coupleId && onLiveSession && (
+          <button onClick={onLiveSession}
+            style={{ ...s.card, display: 'flex', alignItems: 'center', gap: '14px', width: '100%', cursor: 'pointer', marginBottom: '18px', padding: '16px', textAlign: 'left', border: `1px solid ${th.gold}44`, background: `${th.gold}08` }}>
+            <span style={{ fontSize: '1.8rem', flexShrink: 0 }}>⚡</span>
+            <div style={{ flex: 1 }}>
+              <p style={{ color: th.text, fontWeight: '700', margin: '0 0 2px', fontSize: '0.95rem' }}>{isDE ? 'Jetzt zusammen lernen' : 'Learn together now'}</p>
+              <p style={{ color: th.sub, fontSize: '0.78rem', margin: 0 }}>{isDE ? 'Gleiche Karten — gleichzeitig' : 'Same cards — at the same time'}</p>
+            </div>
+            <span style={{ color: th.gold, fontSize: '1rem' }}>›</span>
+          </button>
+        )}
+
         {sets.length === 0 ? (
           <div style={{ ...s.card, textAlign: 'center', padding: '36px 20px' }}>
             <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: '12px' }}>📚</span>
@@ -4829,6 +4989,187 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
   )
 }
 
+// ── LIVE SESSION SCREEN (#41) ────────────────────────────────
+function LiveSessionScreen({ user, myData, partnerData, coupleId, allCards, lang, theme, onBack }) {
+  const th = THEMES[theme]; const s = makeStyles(th)
+  const isDE = lang === 'de'
+  const partnerName = myData?.partnerName || partnerData?.name?.split(' ')[0] || 'Partner'
+  const myName = user.displayName?.split(' ')[0] || 'Ich'
+  const [liveData, setLiveData] = useState(null) // Firestore live session doc
+  const [myAnswer, setMyAnswer] = useState(null) // 'correct'|'wrong'
+  const [status, setStatus] = useState('waiting') // 'waiting'|'active'|'done'
+  const liveRef = useRef(null)
+  const unsubRef = useRef(null)
+
+  // Pick cards: up to 10 mastered vocabulary cards, deterministic for today
+  const sessionCards = (() => {
+    const dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 86400000)
+    const cardProgress = myData?.cardProgress || {}
+    const pool = allCards.filter(c => !/_r(_\d+)?$/.test(c.id) && (cardProgress[c.id]?.interval || 0) >= 1)
+    const shuffled = [...pool].sort((a, b) => (a.id + dayOfYear).localeCompare(b.id))
+    return shuffled.slice(0, 10)
+  })()
+
+  useEffect(() => {
+    if (!coupleId) return
+    liveRef.current = doc(db, 'shared', coupleId, 'liveSession', 'current')
+    // Subscribe to live updates
+    unsubRef.current = onSnapshot(liveRef.current, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data()
+        setLiveData(data)
+        if (data.active === false) setStatus('done')
+        else setStatus('active')
+      } else {
+        setLiveData(null)
+        setStatus('waiting')
+      }
+    })
+    return () => { if (unsubRef.current) unsubRef.current() }
+  }, [coupleId])
+
+  const startSession = async () => {
+    if (!liveRef.current) return
+    const cardIds = sessionCards.map(c => c.id)
+    await setDoc(liveRef.current, {
+      hostUID: user.uid,
+      cardIndex: 0,
+      cardIds,
+      answers: {},
+      startedAt: Date.now(),
+      active: true,
+    })
+    setStatus('active')
+  }
+
+  const recordAnswer = async (correct) => {
+    if (!liveRef.current || !liveData) return
+    const idx = liveData.cardIndex || 0
+    const answerKey = `${user.uid}_${idx}`
+    setMyAnswer(correct ? 'correct' : 'wrong')
+    const updates = { [`answers.${answerKey}`]: correct ? 'correct' : 'wrong' }
+    // Both answered? Advance card or finish
+    const partnerUID = myData?.partnerUID || (user.uid === MARK_UID ? ELOSY_UID : ELOSY_UID === user.uid ? MARK_UID : null)
+    const partnerKey = partnerUID ? `${partnerUID}_${idx}` : null
+    const partnerAnswered = partnerKey && liveData.answers?.[partnerKey]
+    if (partnerAnswered) {
+      const next = idx + 1
+      if (next >= (liveData.cardIds?.length || 0)) {
+        updates.active = false
+      } else {
+        updates.cardIndex = next
+      }
+      setMyAnswer(null)
+    }
+    await updateDoc(liveRef.current, updates).catch(console.warn)
+  }
+
+  const endSession = async () => {
+    if (liveRef.current) await updateDoc(liveRef.current, { active: false }).catch(console.warn)
+    onBack()
+  }
+
+  const currentIdx = liveData?.cardIndex || 0
+  const currentCardId = liveData?.cardIds?.[currentIdx]
+  const currentCard = sessionCards.find(c => c.id === currentCardId) || sessionCards[currentIdx]
+  const totalCards = liveData?.cardIds?.length || sessionCards.length
+  const partnerUID = myData?.partnerUID || (user.uid === MARK_UID ? ELOSY_UID : user.uid === ELOSY_UID ? MARK_UID : null)
+  const myAnswerNow = liveData?.answers?.[`${user.uid}_${currentIdx}`]
+  const partnerAnswerNow = partnerUID ? liveData?.answers?.[`${partnerUID}_${currentIdx}`] : null
+
+  if (status === 'done') {
+    const myCorrect = Object.entries(liveData?.answers || {}).filter(([k, v]) => k.startsWith(user.uid) && v === 'correct').length
+    const partnerCorrect = partnerUID ? Object.entries(liveData?.answers || {}).filter(([k, v]) => k.startsWith(partnerUID) && v === 'correct').length : 0
+    return (
+      <div style={s.container} className="vocara-screen"><div style={{ ...s.homeBox, paddingTop: '40px' }}>
+        <div style={{ textAlign: 'center', animation: 'vocaraFadeIn 0.4s ease both' }}>
+          <p style={{ fontSize: '3rem', marginBottom: '16px' }}>🎉</p>
+          <h2 style={{ color: th.text, fontSize: '1.4rem', fontWeight: '700', marginBottom: '20px' }}>{isDE ? 'Session beendet!' : 'Session done!'}</h2>
+          <div style={{ ...s.card, marginBottom: '12px' }}>
+            <p style={{ color: th.sub, fontSize: '0.78rem', margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '1px' }}>{isDE ? 'Ergebnis' : 'Results'}</p>
+            <div style={{ display: 'flex', justifyContent: 'space-around' }}>
+              <div style={{ textAlign: 'center' }}>
+                <p style={{ color: th.text, fontWeight: '700', fontSize: '1.6rem', margin: '0 0 4px' }}>{myCorrect}</p>
+                <p style={{ color: th.sub, fontSize: '0.78rem', margin: 0 }}>{myName}</p>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <p style={{ color: th.text, fontWeight: '700', fontSize: '1.6rem', margin: '0 0 4px' }}>{partnerCorrect}</p>
+                <p style={{ color: th.sub, fontSize: '0.78rem', margin: 0 }}>{partnerName}</p>
+              </div>
+            </div>
+          </div>
+          <button style={s.button} onClick={onBack}>{isDE ? '← Zurück' : '← Back'}</button>
+        </div>
+      </div></div>
+    )
+  }
+
+  return (
+    <div style={s.container} className="vocara-screen"><div style={{ ...s.homeBox, paddingTop: '16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
+        <button style={{ ...s.backBtn, marginBottom: 0 }} onClick={endSession}>← {isDE ? 'Beenden' : 'End'}</button>
+        <p style={{ color: th.text, fontWeight: '700', fontSize: '1rem', flex: 1, textAlign: 'center', margin: 0 }}>
+          {isDE ? '⚡ Gemeinsam lernen' : '⚡ Learn together'}
+        </p>
+      </div>
+
+      {status === 'waiting' && !liveData && (
+        <div style={{ ...s.card, textAlign: 'center', padding: '36px 24px' }}>
+          <p style={{ fontSize: '2.5rem', marginBottom: '14px' }}>⚡</p>
+          <p style={{ color: th.text, fontWeight: '700', fontSize: '1rem', marginBottom: '8px' }}>{isDE ? 'Bereit für eine gemeinsame Session?' : 'Ready for a joint session?'}</p>
+          <p style={{ color: th.sub, fontSize: '0.85rem', marginBottom: '20px' }}>
+            {isDE ? `Beide sehen dieselben Karten gleichzeitig.` : `Both see the same cards at the same time.`}
+          </p>
+          <button style={s.button} onClick={startSession}>{isDE ? '🚀 Session starten' : '🚀 Start session'}</button>
+        </div>
+      )}
+
+      {status === 'waiting' && liveData?.active && (
+        <div style={{ ...s.card, textAlign: 'center', padding: '24px' }}>
+          <p style={{ color: th.sub, fontSize: '0.9rem' }}>{partnerName} {isDE ? 'hat eine Session gestartet.' : 'started a session.'}</p>
+          <button style={{ ...s.button, marginTop: '12px' }} onClick={() => setStatus('active')}>{isDE ? 'Beitreten' : 'Join'}</button>
+        </div>
+      )}
+
+      {status === 'active' && currentCard && (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+            <span style={{ color: th.sub, fontSize: '0.78rem' }}>{currentIdx + 1} / {totalCards}</span>
+            <span style={{ color: th.sub, fontSize: '0.78rem' }}>{isDE ? 'Synchron' : 'Sync'} ⚡</span>
+          </div>
+          <div style={{ ...s.bigCard, marginBottom: '20px' }}>
+            <p style={{ ...s.cardFront, marginBottom: '10px' }}>{currentCard.front}</p>
+            <div style={{ height: '1px', background: th.border, width: '60%', margin: '8px auto' }} />
+            <p style={{ ...s.cardBack }}>{currentCard.back}</p>
+          </div>
+          {/* Partner status */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', padding: '0 4px' }}>
+            <span style={{ color: myAnswerNow === 'correct' ? '#4CAF50' : myAnswerNow === 'wrong' ? th.accent : th.sub, fontSize: '0.82rem' }}>
+              {myName}: {myAnswerNow === 'correct' ? '✓' : myAnswerNow === 'wrong' ? '✗' : (isDE ? 'antwortet…' : 'answering…')}
+            </span>
+            <span style={{ color: partnerAnswerNow === 'correct' ? '#4CAF50' : partnerAnswerNow === 'wrong' ? th.accent : th.sub, fontSize: '0.82rem' }}>
+              {partnerName}: {partnerAnswerNow === 'correct' ? '✓' : partnerAnswerNow === 'wrong' ? '✗' : (isDE ? 'antwortet…' : 'answering…')}
+            </span>
+          </div>
+          {!myAnswerNow && (
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button onClick={() => recordAnswer(true)}
+                style={{ ...s.button, flex: 1, background: 'rgba(76,175,80,0.15)', border: '1px solid rgba(76,175,80,0.4)', color: '#81c784', marginBottom: 0 }}>✓ {isDE ? 'Gewusst' : 'Correct'}</button>
+              <button onClick={() => recordAnswer(false)}
+                style={{ ...s.button, flex: 1, background: `${th.accent}15`, border: `1px solid ${th.accent}44`, color: th.accent, marginBottom: 0 }}>✗ {isDE ? 'Nicht gewusst' : 'Wrong'}</button>
+            </div>
+          )}
+          {myAnswerNow && (
+            <p style={{ color: th.sub, fontSize: '0.85rem', textAlign: 'center', fontStyle: 'italic' }}>
+              {isDE ? `Wartet auf ${partnerName}…` : `Waiting for ${partnerName}…`}
+            </p>
+          )}
+        </>
+      )}
+    </div></div>
+  )
+}
+
 class ErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { hasError: false } }
   static getDerivedStateFromError() { return { hasError: true } }
@@ -4854,9 +5195,11 @@ function App() {
   const [myData, setMyData] = useState(null)
   const [partnerData, setPartnerData] = useState(null)
   const [theme, setTheme] = useState('nairobi')
+  const [lightMode, setLightMode] = useState(false)
+  const [cardSize, setCardSize] = useState('normal')
   const [needsLangSetup, setNeedsLangSetup] = useState(false)
   const [needsOnboarding, setNeedsOnboarding] = useState(false)
-  const [mainNav, setMainNav] = useState('main') // 'main' | 'sprechen' | 'entdecken' | 'horizont'
+  const [mainNav, setMainNav] = useState('main') // 'main' | 'sprechen' | 'entdecken' | 'horizont' | 'livesession'
 
   useEffect(() => {
     const id = 'vocara-global-css'
@@ -4878,6 +5221,8 @@ function App() {
           if (snap.exists()) {
             const data = snap.data()
             if (data.theme) setTheme(data.theme)
+            if (data.lightMode !== undefined) setLightMode(!!data.lightMode)
+            if (data.cardSize) setCardSize(data.cardSize)
             // ── Rule-based categorization on load ──────────────────
             try {
               const baseCards = u.uid === ELOSY_UID ? ALL_ELOSY_CARDS_BASE : ALL_MARK_CARDS_BASE
@@ -4966,6 +5311,14 @@ function App() {
     setTheme(newTheme)
     if (user) await updateDoc(doc(db, 'users', user.uid), { theme: newTheme })
   }
+  const handleLightModeChange = async (val) => {
+    setLightMode(val)
+    if (user) await updateDoc(doc(db, 'users', user.uid), { lightMode: val }).catch(() => {})
+  }
+  const handleCardSizeChange = async (val) => {
+    setCardSize(val)
+    if (user) await updateDoc(doc(db, 'users', user.uid), { cardSize: val }).catch(() => {})
+  }
   const handlePartnerUpdate = async (partnerUID) => {
     const ref = doc(db, 'users', user.uid)
     const snap = await getDoc(ref); if (snap.exists()) setMyData(snap.data())
@@ -5022,40 +5375,54 @@ function App() {
         ? 'rgba(160,50,0,0.10)'    // 18–24: darker, warm amber-red
         : null                     // 12–18: normal, no overlay
 
+  const seasonOverlay = getSeasonOverlay(theme)
   const uniqueTargetLangsAll = [...new Set(allCards.map(c => c.targetLang).filter(Boolean))]
   const firstNameAll = user?.displayName?.split(' ')[0] || user?.displayName || ''
 
+  // Compute coupleId for live session
+  const partnerUID = myData?.partnerUID || (user?.uid === MARK_UID ? ELOSY_UID : user?.uid === ELOSY_UID ? MARK_UID : null)
+  const coupleId = partnerUID ? [user.uid, partnerUID].sort().join('_') : null
+
   return (
-    <ErrorBoundary>
-      <WaterCanvas />
-      {(theme === 'nairobi' || theme === 'welt') && <ParticleCanvas theme={theme} />}
-      {timeOverlay && <div style={{ position: 'fixed', inset: 0, background: timeOverlay, pointerEvents: 'none', zIndex: 2 }} />}
-      {mainNav === 'main' && (
-        <MainSelectionScreen
-          lang={lang} theme={theme} firstName={firstNameAll}
-          uniqueTargetLangs={uniqueTargetLangsAll} pausedLanguages={myData?.pausedLanguages || []}
-          onSprechen={() => setMainNav('sprechen')}
-          onEntdecken={() => setMainNav('entdecken')}
-          onHorizont={() => setMainNav('horizont')}
-        />
-      )}
-      {mainNav === 'sprechen' && (
-        <MenuScreen user={user} myData={myData} setMyData={setMyData} partnerData={partnerData}
-          allCards={allCards}
-          lang={lang} onSaveProgress={saveProgress}
-          theme={theme} onThemeChange={handleThemeChange}
-          onPartnerUpdate={handlePartnerUpdate} onSaveCefr={handleSaveCefr}
-          onBack={() => setMainNav('main')} />
-      )}
-      {mainNav === 'entdecken' && (
-        <SetsScreen user={user} myData={myData} setMyData={setMyData} partnerData={partnerData}
-          lang={lang} theme={theme} allCards={allCards} cardProgress={myData?.cardProgress || {}}
-          onBack={() => setMainNav('main')} />
-      )}
-      {mainNav === 'horizont' && (
-        <HorizontScreen lang={lang} theme={theme} onBack={() => setMainNav('main')} />
-      )}
-    </ErrorBoundary>
+    <AppPrefsContext.Provider value={{ lightMode, cardSize }}>
+      <ErrorBoundary>
+        <WaterCanvas />
+        {(theme === 'nairobi' || theme === 'welt') && <ParticleCanvas theme={theme} />}
+        {timeOverlay && <div style={{ position: 'fixed', inset: 0, background: timeOverlay, pointerEvents: 'none', zIndex: 2 }} />}
+        {seasonOverlay && <div style={{ position: 'fixed', inset: 0, background: seasonOverlay, pointerEvents: 'none', zIndex: 3 }} />}
+        {mainNav === 'main' && (
+          <MainSelectionScreen
+            lang={lang} theme={theme} firstName={firstNameAll}
+            uniqueTargetLangs={uniqueTargetLangsAll} pausedLanguages={myData?.pausedLanguages || []}
+            onSprechen={() => setMainNav('sprechen')}
+            onEntdecken={() => setMainNav('entdecken')}
+            onHorizont={() => setMainNav('horizont')}
+          />
+        )}
+        {mainNav === 'sprechen' && (
+          <MenuScreen user={user} myData={myData} setMyData={setMyData} partnerData={partnerData}
+            allCards={allCards}
+            lang={lang} onSaveProgress={saveProgress}
+            theme={theme} onThemeChange={handleThemeChange}
+            onLightModeChange={handleLightModeChange} onCardSizeChange={handleCardSizeChange}
+            onPartnerUpdate={handlePartnerUpdate} onSaveCefr={handleSaveCefr}
+            onBack={() => setMainNav('main')} />
+        )}
+        {mainNav === 'entdecken' && (
+          <SetsScreen user={user} myData={myData} setMyData={setMyData} partnerData={partnerData}
+            lang={lang} theme={theme} allCards={allCards} cardProgress={myData?.cardProgress || {}}
+            coupleId={coupleId}
+            onBack={() => setMainNav('main')} onLiveSession={() => setMainNav('livesession')} />
+        )}
+        {mainNav === 'horizont' && (
+          <HorizontScreen lang={lang} theme={theme} onBack={() => setMainNav('main')} />
+        )}
+        {mainNav === 'livesession' && coupleId && (
+          <LiveSessionScreen user={user} myData={myData} partnerData={partnerData} coupleId={coupleId}
+            allCards={allCards} lang={lang} theme={theme} onBack={() => setMainNav('entdecken')} />
+        )}
+      </ErrorBoundary>
+    </AppPrefsContext.Provider>
   )
 }
 

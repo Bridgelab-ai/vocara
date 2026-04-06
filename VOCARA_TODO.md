@@ -17,8 +17,8 @@
 12. Emoji-Reaktion auf Partner-Fortschritt ✅
 13. Gemeinsame Karten-Sammlung
 14. Überraschungskarte vom Partner täglich ✅
-15. Dark/Light Mode (Placeholder ✅ — toggle in Einstellungen, bald verfügbar)
-16. Kartengröße anpassbar
+15. Dark/Light Mode ✅
+16. Kartengröße anpassbar ✅
 17. Animierte Karten-Übergänge
 18. Tägliche Miniaufgabe
 19. Level-Namen (Hafen-Anfänger → Elbe-Experte) ✅
@@ -36,7 +36,7 @@
 29. Statistik Lieblingsbereich anzeigen
 
 ## Liste D – Neue Ideen Lern-Mechanik
-30. Wort des Tages in alle 5 Bereiche einweben
+30. Wort des Tages in alle 5 Bereiche einweben ✅
 31. Sprachrhythmus-Training via KI
 32. Kontextwechsel: gleiche Karte formell/informell/romantisch
 33. Fehler-Muster Analyse durch KI ✅
@@ -86,11 +86,11 @@
 38. Gemeinsames Tagebuch (täglich 1 Satz in Zielsprache)
 39. Liebes-Karte des Tages
 40. Video-Moment aufnehmen und teilen
-41. Synchrones Lernen live
+41. Synchrones Lernen live ✅
 42. Hintergrund: organische Wassertropfen-Wellen zufällig
 43. Buttons: Glassmorphism/Frosted Glass
 44. Gimmick-Freischalt-Fenster themenspezifisch
-45. Jahreszeiten-Themes (Hamburg Winter, Nairobi Regenzeit)
+45. Jahreszeiten-Themes (Hamburg Winter, Nairobi Regenzeit) ✅
 46. Tageszeit-Anpassung (morgens heller, abends wärmer)
 47. Karten-Wegfliege-Animation bei richtig
 48. Haptisches Feedback (unterschiedlich für Richtig/Falsch) ✅
