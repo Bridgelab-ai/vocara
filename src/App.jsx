@@ -858,63 +858,47 @@ button:active {
 }
 `
 
-function WaterRippleCanvas() {
-  const canvasRef = useRef(null)
-  const dropsRef = useRef([])
-  const rafRef = useRef(null)
-  const timerRef = useRef(null)
+const WaterCanvas = () => {
+  const canvasRef = useRef(null);
   useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    const resize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight }
-    resize()
-    window.addEventListener('resize', resize)
-    const addDrop = () => {
-      if (dropsRef.current.length >= 4) return
-      dropsRef.current.push({
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const ripples = [];
+    const addRipple = () => {
+      ripples.push({
         x: Math.random() * canvas.width,
         y: Math.random() * canvas.height,
-        startTime: performance.now(),
-        duration: 2500,
-        rings: 4,
-        maxR: 120,
-      })
-    }
-    const schedule = () => {
-      timerRef.current = setTimeout(() => { addDrop(); schedule() }, 3500 + Math.random() * 1000)
-    }
-    addDrop()
-    schedule()
-    const draw = (now) => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-      dropsRef.current = dropsRef.current.filter(d => now - d.startTime < d.duration)
-      for (const d of dropsRef.current) {
-        const t = (now - d.startTime) / d.duration
-        for (let i = 0; i < d.rings; i++) {
-          const ringT = t - i * 0.08
-          if (ringT <= 0) continue
-          const r = ringT * d.maxR
-          const alpha = (1 - ringT) * 0.06
-          if (alpha <= 0) continue
-          ctx.beginPath()
-          ctx.arc(d.x, d.y, r, 0, Math.PI * 2)
-          ctx.strokeStyle = `rgba(255,255,255,${alpha.toFixed(3)})`
-          ctx.lineWidth = 1
-          ctx.stroke()
+        radius: 0,
+        maxRadius: 150,
+        opacity: 0.08,
+        speed: 0.8
+      });
+      setTimeout(addRipple, 3000 + Math.random() * 4000);
+    };
+    addRipple();
+    const animate = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ripples.forEach((r, i) => {
+        r.radius += r.speed;
+        r.opacity -= 0.0003;
+        if (r.radius > r.maxRadius || r.opacity <= 0) {
+          ripples.splice(i, 1);
+          return;
         }
-      }
-      rafRef.current = requestAnimationFrame(draw)
-    }
-    rafRef.current = requestAnimationFrame(draw)
-    return () => {
-      window.removeEventListener('resize', resize)
-      clearTimeout(timerRef.current)
-      cancelAnimationFrame(rafRef.current)
-    }
-  }, [])
-  return <canvas ref={canvasRef} style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 0 }} />
-}
+        ctx.beginPath();
+        ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(255,255,255,${r.opacity})`;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      });
+      requestAnimationFrame(animate);
+    };
+    animate();
+  }, []);
+  return <canvas ref={canvasRef} style={{position:'fixed',top:0,left:0,width:'100%',height:'100%',zIndex:0,pointerEvents:'none'}} />;
+};
 
 function makeStyles(th) {
   return {
@@ -960,32 +944,36 @@ function makeStyles(th) {
     progressBar: { height: '4px', background: th.border, borderRadius: '2px', marginTop: '4px', overflow: 'hidden' },
     progressFill: { height: '100%', borderRadius: '2px', transition: 'width 0.5s ease', background: th.accent },
     button: {
-      background: `linear-gradient(135deg, ${th.accent}30, ${th.accent}18)`,
-      color: th.text, border: `1px solid ${th.accent}55`,
-      padding: '13px 28px', borderRadius: '50px', fontSize: '1rem', cursor: 'pointer',
-      fontWeight: '700', width: '100%', marginBottom: '8px',
-      backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
-      boxShadow: `0 4px 24px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.12), 0 0 0 1px ${th.accent}22`,
+      background: 'linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04))',
+      color: 'white', border: '1px solid rgba(255,255,255,0.20)',
+      padding: '13px 28px', borderRadius: '20px', fontSize: '1rem', cursor: 'pointer',
+      fontWeight: '600', width: '100%', marginBottom: '8px',
+      backdropFilter: 'blur(20px) saturate(180%)', WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+      boxShadow: '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15)',
     },
     menuBtn: {
-      background: th.card, color: th.text, border: `1px solid ${th.border}`,
-      padding: '14px 16px', borderRadius: '14px', fontSize: '0.95rem', cursor: 'pointer',
+      background: 'linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03))',
+      color: th.text, border: '1px solid rgba(255,255,255,0.12)',
+      padding: '14px 16px', borderRadius: '16px', fontSize: '0.95rem', cursor: 'pointer',
       fontWeight: '500', width: '100%', marginBottom: '8px', textAlign: 'left',
       display: 'flex', alignItems: 'center', gap: '10px',
-      boxShadow: `0 3px 0 ${th.border}, 0 5px 10px rgba(0,0,0,0.3)`,
+      backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+      boxShadow: '0 4px 16px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)',
     },
     menuBtnDisabled: {
-      background: th.card, color: th.sub, border: `1px solid ${th.border}`,
-      padding: '14px 16px', borderRadius: '14px', fontSize: '0.95rem', cursor: 'not-allowed',
+      background: 'rgba(255,255,255,0.02)', color: th.sub, border: '1px solid rgba(255,255,255,0.06)',
+      padding: '14px 16px', borderRadius: '16px', fontSize: '0.95rem', cursor: 'not-allowed',
       fontWeight: '400', width: '100%', marginBottom: '8px', textAlign: 'left',
       display: 'flex', alignItems: 'center', gap: '10px', opacity: 0.45,
     },
     menuBtnActive: {
-      background: th.accent + '18', color: th.text, border: `1px solid ${th.accent}`,
-      padding: '14px 16px', borderRadius: '14px', fontSize: '0.95rem', cursor: 'pointer',
-      fontWeight: '500', width: '100%', marginBottom: '8px', textAlign: 'left',
+      background: `linear-gradient(135deg, ${th.accent}25, ${th.accent}10)`, color: th.text,
+      border: `1px solid ${th.accent}60`,
+      padding: '14px 16px', borderRadius: '16px', fontSize: '0.95rem', cursor: 'pointer',
+      fontWeight: '600', width: '100%', marginBottom: '8px', textAlign: 'left',
       display: 'flex', alignItems: 'center', gap: '10px',
-      boxShadow: `0 3px 0 ${th.sub}, 0 5px 10px rgba(0,0,0,0.3)`,
+      backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+      boxShadow: `0 4px 20px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.12), 0 0 0 1px ${th.accent}20`,
     },
     menuBtnWarning: {
       background: '#f4433611', color: th.text, border: '1px solid #f44336',
@@ -4057,56 +4045,75 @@ function GeschenkkarteScreen({ user, myData, lang, theme, onBack, allCards, card
 function MainSelectionScreen({ lang, theme, firstName, uniqueTargetLangs, pausedLanguages, onSprechen, onEntdecken, onHorizont }) {
   const th = THEMES[theme]; const s = makeStyles(th)
   const isDE = lang === 'de'
-  const glassBtn = (onClick, icon, title, sub, disabled) => (
-    <button
-      onClick={disabled ? undefined : onClick}
-      style={{
-        background: disabled ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.04)',
-        backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
-        border: `1px solid ${disabled ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.12)'}`,
-        borderRadius: '24px',
-        boxShadow: disabled ? 'none' : `0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1), 0 0 0 1px ${th.accent}15`,
-        padding: '28px 20px 24px',
-        cursor: disabled ? 'default' : 'pointer',
-        width: '100%', marginBottom: '14px',
-        textAlign: 'center', color: disabled ? th.sub : th.text,
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
-        opacity: disabled ? 0.45 : 1,
-        WebkitTapHighlightColor: 'transparent',
-      }}
-    >
-      <span style={{ fontSize: '2rem', marginBottom: '2px' }}>{icon}</span>
-      <span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '1.4rem', fontWeight: '700', letterSpacing: '0.5px', color: disabled ? th.sub : th.text }}>{title}</span>
-      <span style={{ fontSize: '0.8rem', color: th.sub, lineHeight: 1.4 }}>{sub}</span>
-      {disabled && (
-        <span style={{ marginTop: '6px', background: `${th.gold}18`, color: th.gold, border: `1px solid ${th.gold}44`, borderRadius: '20px', padding: '3px 14px', fontSize: '0.72rem', fontWeight: '700' }}>
-          {isDE ? 'Bald verfügbar' : 'Coming soon'}
-        </span>
-      )}
-    </button>
-  )
+  const [pressedBtn, setPressedBtn] = React.useState(null)
+
+  const glassBtn = (id, onClick, icon, titleMain, titleSub, desc, disabled) => {
+    const isPressed = pressedBtn === id
+    return (
+      <button
+        key={id}
+        onClick={disabled ? undefined : onClick}
+        onMouseDown={() => !disabled && setPressedBtn(id)}
+        onMouseUp={() => setPressedBtn(null)}
+        onMouseLeave={() => setPressedBtn(null)}
+        onTouchStart={() => !disabled && setPressedBtn(id)}
+        onTouchEnd={() => setPressedBtn(null)}
+        style={{
+          background: disabled
+            ? 'linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))'
+            : 'linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04))',
+          backdropFilter: 'blur(20px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+          border: `1px solid ${disabled ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.20)'}`,
+          borderRadius: '20px',
+          boxShadow: disabled ? 'none' : isPressed
+            ? '0 2px 12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)'
+            : '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15)',
+          padding: '22px 20px 18px',
+          cursor: disabled ? 'default' : 'pointer',
+          width: '100%', marginBottom: '12px',
+          textAlign: 'center',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
+          opacity: disabled ? 0.4 : 1,
+          transform: isPressed ? 'scale(0.96)' : 'scale(1)',
+          transition: 'transform 0.12s ease, box-shadow 0.12s ease',
+          WebkitTapHighlightColor: 'transparent',
+        }}
+      >
+        <span style={{ fontSize: '1.8rem', marginBottom: '2px' }}>{icon}</span>
+        <span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '1.3rem', fontWeight: '700', letterSpacing: '0.4px', color: 'white' }}>{titleMain}</span>
+        {titleSub && <span style={{ fontSize: '0.8rem', fontWeight: '600', color: th.accent, letterSpacing: '0.5px' }}>{titleSub}</span>}
+        <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.45)', lineHeight: 1.4 }}>{desc}</span>
+        {disabled && (
+          <span style={{ marginTop: '4px', background: `${th.gold}18`, color: th.gold, border: `1px solid ${th.gold}44`, borderRadius: '20px', padding: '2px 12px', fontSize: '0.7rem', fontWeight: '700' }}>
+            {isDE ? 'Bald verfügbar' : 'Coming soon'}
+          </span>
+        )}
+      </button>
+    )
+  }
+
   return (
-    <div style={{ ...s.container, zIndex: 10 }} className="vocara-screen">
-      <div style={{ ...s.homeBox, paddingTop: '24px' }}>
-        <div style={{ textAlign: 'center', paddingBottom: '28px', paddingTop: '20px' }}>
-          <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 'clamp(1.4rem, 6vw, 2.2rem)', fontWeight: '700', letterSpacing: '0.12em', background: 'linear-gradient(135deg, #aaa 0%, #e0e0e0 40%, #888 70%, #ccc 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', marginBottom: '4px', opacity: 0.8 }}>Bridgelab</p>
-          <h1 style={{ ...s.title, fontSize: 'clamp(3.5rem, 15vw, 5.5rem)', lineHeight: 1, marginBottom: '10px' }}>Vocara</h1>
-          <p style={{ color: th.sub, fontSize: '0.95rem', marginBottom: '4px' }}>
-            {isDE ? `Hallo, ${firstName}` : `Hello, ${firstName}`}
+    <div style={{ ...s.container, position: 'relative', zIndex: 10 }} className="vocara-screen">
+      <div style={{ ...s.homeBox, paddingTop: '24px', position: 'relative', zIndex: 1 }}>
+        <div style={{ textAlign: 'center', paddingBottom: '32px', paddingTop: '24px' }}>
+          <h1 style={{
+            fontFamily: "'Playfair Display', Georgia, serif",
+            fontSize: 'clamp(2.8rem, 12vw, 4.5rem)',
+            fontWeight: '900',
+            letterSpacing: '0.08em',
+            background: 'linear-gradient(135deg, #999 0%, #f0f0f0 35%, #bbb 55%, #e8e8e8 70%, #888 100%)',
+            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+            lineHeight: 1, marginBottom: '12px',
+            filter: 'drop-shadow(0 2px 8px rgba(255,255,255,0.08))',
+          }}>Bridgelab</h1>
+          <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: '0.82rem', fontStyle: 'italic', letterSpacing: '0.03em', marginBottom: '0' }}>
+            {isDE ? 'Wir bauen keine Apps. Wir bauen Brücken.' : 'We don\'t build apps. We build bridges.'}
           </p>
-          {uniqueTargetLangs.length > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '6px', marginTop: '4px' }}>
-              {uniqueTargetLangs.map(l => {
-                const info = AVAILABLE_LANGS.find(a => a.code === l)
-                const paused = pausedLanguages.includes(l)
-                return <span key={l} style={{ fontSize: '1.1rem', opacity: paused ? 0.25 : 1, filter: paused ? 'grayscale(1)' : 'none' }}>{info?.flag || l}</span>
-              })}
-            </div>
-          )}
         </div>
-        {glassBtn(onSprechen, '🗣️', isDE ? 'Sprache' : 'Language', isDE ? 'Wörter, Sätze & Gespräche' : 'Words, sentences & conversation', false)}
-        {glassBtn(onEntdecken, '🔍', isDE ? 'Entdecken' : 'Discover', isDE ? 'Eigene Sets & KI-Karten' : 'Custom sets & AI cards', false)}
-        {glassBtn(onHorizont, '🌐', isDE ? 'Horizont' : 'Horizon', isDE ? 'Kultur & Auswandern' : 'Culture & emigration', true)}
+        {glassBtn('vocara', onSprechen, '🗣️', 'Vocara', isDE ? 'Sprache' : 'Language', isDE ? 'Wörter, Sätze & Gespräche' : 'Words, sentences & conversation', false)}
+        {glassBtn('entdecken', onEntdecken, '🔍', isDE ? 'Entdecken' : 'Discover', null, isDE ? 'Eigene Sets & KI-Karten' : 'Custom sets & AI cards', false)}
+        {glassBtn('horizont', onHorizont, '🌐', isDE ? 'Horizont' : 'Horizon', null, isDE ? 'Kultur & Auswandern' : 'Culture & emigration', true)}
       </div>
     </div>
   )
@@ -4591,7 +4598,7 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <WaterRippleCanvas />
+      <WaterCanvas />
       {timeOverlay && <div style={{ position: 'fixed', inset: 0, background: timeOverlay, pointerEvents: 'none', zIndex: 2 }} />}
       {mainNav === 'main' && (
         <MainSelectionScreen
