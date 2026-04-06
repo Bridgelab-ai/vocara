@@ -19,7 +19,7 @@ const THEMES = {
     name: '🌙 Nairobi',
     bg: '#0D0800', card: '#1A0F00', text: '#FFF5E0', sub: '#C8860A', border: '#3A2800',
     accent: '#C8860A', gold: '#F5C842', glowColor: '#F5C842', btnTextColor: '#1A0800',
-    bgGrad: 'radial-gradient(ellipse at 50% 20%, #3A2200 0%, #1A0D00 50%, #0D0800 100%)',
+    bgGrad: 'radial-gradient(ellipse at 50% 100%, #5C3000 0%, #2A1200 35%, #0D0800 65%), radial-gradient(ellipse at 65% 75%, #3A1800 0%, transparent 45%), radial-gradient(ellipse at 30% 55%, #1E0C00 0%, transparent 45%)',
     metalGrad: 'linear-gradient(145deg, #F5C842 0%, #C8860A 30%, #7A4F00 52%, #C8860A 72%, #F5C842 100%)',
     metalText: 'linear-gradient(90deg, #7A4F00 0%, #F5D060 16%, #C8860A 33%, #F5C842 50%, #7A4F00 66%, #F5D060 83%, #C8860A 100%)',
     btnFaceGrad: 'linear-gradient(90deg, #7A4F00 0%, #C8860A 20%, #E8A020 40%, #F5C842 50%, #E8A020 60%, #C8860A 80%, #7A4F00 100%)',
@@ -30,7 +30,7 @@ const THEMES = {
     name: '🌊 Hamburg',
     bg: '#050D18', card: '#0D1E30', text: '#E8F4FF', sub: '#5A9AC0', border: '#1B3A5C',
     accent: '#2E6B9E', gold: '#7AB8E8', glowColor: '#2E6B9E', btnTextColor: '#FFFFFF',
-    bgGrad: 'radial-gradient(ellipse at 50% 15%, #2E6B9E 0%, #112440 45%, #050D18 100%)',
+    bgGrad: 'radial-gradient(ellipse at 50% 0%, #1E4D8C 0%, #091E38 30%, #030C18 65%), radial-gradient(ellipse at 20% 95%, #0A1E38 0%, transparent 50%), radial-gradient(ellipse at 80% 85%, #06152A 0%, transparent 50%)',
     metalGrad: 'linear-gradient(145deg, #A8D8F0 0%, #4A8EC4 20%, #2E6B9E 40%, #1B3A5C 60%, #2E6B9E 80%, #A8D8F0 100%)',
     metalText: 'linear-gradient(90deg, #4A8EC4 0%, #A8D8F0 16%, #2E6B9E 33%, #E0F4FF 50%, #4A8EC4 66%, #A8D8F0 83%, #2E6B9E 100%)',
     btnFaceGrad: 'linear-gradient(90deg, #1B3A5C 0%, #2E6B9E 20%, #4A8EC4 40%, #7AB8E8 50%, #4A8EC4 60%, #2E6B9E 80%, #1B3A5C 100%)',
@@ -803,6 +803,12 @@ html, body, #root {
   40%  { transform: scale(1.6); }
   100% { transform: scale(1); }
 }
+@keyframes vocaraCardFlip {
+  0%   { transform: rotateY(0deg); }
+  45%  { transform: rotateY(90deg); opacity: 0.6; }
+  55%  { transform: rotateY(-90deg); opacity: 0.6; }
+  100% { transform: rotateY(0deg); }
+}
 
 @keyframes rainbowCardBorder {
   0%   { box-shadow: 0 0 0 2px #FF6B6B, 0 0 20px #FF6B6B55, inset 0 0 30px #FF6B6B18; }
@@ -861,8 +867,21 @@ button {
   overflow: hidden;
 }
 button:active {
-  transform: scale(0.97) translateY(2px) !important;
+  transform: scale(0.97) translateY(1px) !important;
   box-shadow: 0 1px 8px rgba(0,0,0,0.5) !important;
+}
+.vocara-cat-btn:active {
+  transform: scale(0.95) translateY(3px) !important;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.5) !important;
+}
+.vocara-alle-btn:active {
+  transform: scale(0.96) translateY(2px) !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.5) !important;
+}
+.vocara-nav-btn:active {
+  transform: scale(0.97) !important;
+  box-shadow: none !important;
+  opacity: 0.8 !important;
 }
 `
 
@@ -880,7 +899,7 @@ const WaterCanvas = () => {
         y: Math.random() * canvas.height,
         radius: 0,
         maxRadius: 150,
-        opacity: 0.08,
+        opacity: 0.07,
         speed: 0.8
       });
       setTimeout(addRipple, 3000 + Math.random() * 4000);
@@ -897,7 +916,7 @@ const WaterCanvas = () => {
         }
         ctx.beginPath();
         ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(255,255,255,${r.opacity})`;
+        ctx.strokeStyle = `rgba(255,255,255,${r.opacity * 0.85})`;
         ctx.lineWidth = 1.5;
         ctx.stroke();
       });
@@ -905,8 +924,54 @@ const WaterCanvas = () => {
     };
     animate();
   }, []);
-  return <canvas ref={canvasRef} style={{position:'fixed',top:0,left:0,width:'100%',height:'100%',zIndex:0,pointerEvents:'none'}} />;
+  return <canvas ref={canvasRef} style={{position:'fixed',top:0,left:0,width:'100%',height:'100%',zIndex:9999,pointerEvents:'none',mixBlendMode:'screen'}} />;
 };
+
+const ParticleCanvas = ({ theme }) => {
+  const canvasRef = useRef(null)
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight
+    const isWelt = theme === 'welt'
+    const colors = isWelt
+      ? ['255,100,100','100,200,120','100,160,255','200,100,255','255,220,80']
+      : ['255,215,0','245,200,66','250,185,40']
+    const particles = []
+    let rafId; let lastAdd = Date.now()
+    const add = () => {
+      const c = colors[Math.floor(Math.random() * colors.length)]
+      particles.push({ x: Math.random() * canvas.width, y: canvas.height * 0.75 + Math.random() * canvas.height * 0.25,
+        vx: (Math.random() - 0.5) * 0.35, vy: -(0.28 + Math.random() * 0.45),
+        opacity: 0, maxOpacity: 0.22 + Math.random() * 0.22, size: 1.4 + Math.random() * 1.6,
+        color: c, life: 0, maxLife: 260 + Math.random() * 180 })
+    }
+    add()
+    const animate = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      const now = Date.now()
+      if (particles.length < 3 && now - lastAdd > 2200 + Math.random() * 2500) { add(); lastAdd = now }
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i]
+        p.x += p.vx; p.y += p.vy; p.life++
+        if (p.life < 55) p.opacity = (p.life / 55) * p.maxOpacity
+        else if (p.life > p.maxLife - 55) p.opacity = Math.max(0, ((p.maxLife - p.life) / 55) * p.maxOpacity)
+        if (p.life > p.maxLife || p.y < -20) { particles.splice(i, 1); continue }
+        const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 3.5)
+        g.addColorStop(0, `rgba(${p.color},${p.opacity})`)
+        g.addColorStop(0.4, `rgba(${p.color},${p.opacity * 0.4})`)
+        g.addColorStop(1, `rgba(${p.color},0)`)
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.size * 3.5, 0, Math.PI * 2)
+        ctx.fillStyle = g; ctx.fill()
+      }
+      rafId = requestAnimationFrame(animate)
+    }
+    animate()
+    return () => cancelAnimationFrame(rafId)
+  }, [theme])
+  return <canvas ref={canvasRef} style={{position:'fixed',top:0,left:0,width:'100%',height:'100%',zIndex:1,pointerEvents:'none'}} />
+}
 
 function makeStyles(th) {
   return {
@@ -925,11 +990,12 @@ function makeStyles(th) {
     logoTitle: {
       fontSize: 'clamp(1.8rem, 7vw, 2.6rem)', marginBottom: '20px', fontWeight: '900',
       fontFamily: "'Playfair Display', Georgia, serif",
+      letterSpacing: '-0.02em',
       background: 'linear-gradient(90deg, #B8860B 0%, #FFD700 25%, #FFF0A0 50%, #FFD700 75%, #B8860B 100%)',
       WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
       backgroundSize: '300% auto',
       animation: 'metalFlow 8s linear infinite',
-      filter: 'drop-shadow(0 0 6px rgba(255,215,0,0.5)) drop-shadow(0 0 16px rgba(255,215,0,0.2))',
+      filter: 'drop-shadow(0 0 8px rgba(255,215,0,0.65)) drop-shadow(0 0 24px rgba(255,215,0,0.30)) drop-shadow(0 0 2px rgba(255,215,0,0.5))',
     },
     slogan: { color: th.sub, fontSize: '1rem', marginBottom: '32px', lineHeight: '1.8' },
     card: {
@@ -943,7 +1009,7 @@ function makeStyles(th) {
       textAlign: 'center', minHeight: '180px', display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
       border: th.rainbow ? '2px solid transparent' : `1px solid ${th.accent}55`,
-      boxShadow: th.rainbow ? undefined : `inset 0 0 30px ${th.glowColor}30, 0 0 28px ${th.accent}22, 0 0 0 1px ${th.accent}35, 0 6px 24px rgba(0,0,0,0.55)`,
+      boxShadow: th.rainbow ? undefined : `inset 0 0 30px ${th.glowColor}30, inset 0 0 1px 1px ${th.accent}60, 0 0 28px ${th.accent}22, 0 0 0 1px ${th.accent}35, 0 8px 32px rgba(0,0,0,0.6)`,
       animation: th.rainbow ? 'rainbowCardBorder 4s linear infinite' : undefined,
       position: 'relative', overflow: 'hidden',
     },
@@ -961,21 +1027,23 @@ function makeStyles(th) {
     progressBar: { height: '4px', background: th.border, borderRadius: '2px', marginTop: '4px', overflow: 'hidden' },
     progressFill: { height: '100%', borderRadius: '2px', transition: 'width 0.5s ease', background: th.accent },
     button: {
-      background: 'linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04))',
-      color: 'white', border: '1px solid rgba(255,255,255,0.20)',
+      background: 'linear-gradient(145deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)',
+      color: 'white', border: '1px solid rgba(255,255,255,0.22)',
       padding: '13px 28px', borderRadius: '20px', fontSize: '1rem', cursor: 'pointer',
       fontWeight: '600', width: '100%', marginBottom: '8px',
-      backdropFilter: 'blur(20px) saturate(180%)', WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-      boxShadow: '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15)',
+      fontFamily: "'Inter', system-ui, sans-serif",
+      backdropFilter: 'blur(24px) saturate(200%)', WebkitBackdropFilter: 'blur(24px) saturate(200%)',
+      boxShadow: '0 8px 32px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.28), inset 0 -1px 0 rgba(0,0,0,0.25)',
     },
     menuBtn: {
-      background: 'linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03))',
-      color: th.text, border: '1px solid rgba(255,255,255,0.12)',
+      background: 'linear-gradient(145deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.04) 100%)',
+      color: th.text, border: '1px solid rgba(255,255,255,0.14)',
       padding: '14px 16px', borderRadius: '16px', fontSize: '0.95rem', cursor: 'pointer',
       fontWeight: '500', width: '100%', marginBottom: '8px', textAlign: 'left',
       display: 'flex', alignItems: 'center', gap: '10px',
-      backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
-      boxShadow: '0 4px 16px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)',
+      fontFamily: "'Inter', system-ui, sans-serif",
+      backdropFilter: 'blur(24px) saturate(200%)', WebkitBackdropFilter: 'blur(24px) saturate(200%)',
+      boxShadow: '0 6px 24px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.16), inset 0 -1px 0 rgba(0,0,0,0.18)',
     },
     menuBtnDisabled: {
       background: 'rgba(255,255,255,0.02)', color: th.sub, border: '1px solid rgba(255,255,255,0.06)',
@@ -1085,10 +1153,12 @@ function makeStyles(th) {
       letterSpacing: '0.1px',
     },
     navBtn: {
-      background: th.card, color: th.sub, border: `1px solid ${th.border}`,
+      background: 'linear-gradient(145deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%)',
+      color: th.sub, border: `1px solid rgba(255,255,255,0.10)`,
       padding: '11px 16px', borderRadius: '12px', fontSize: '0.88rem', cursor: 'pointer',
       fontWeight: '500', width: '100%', marginBottom: '6px', textAlign: 'center',
-      boxShadow: `0 2px 0 ${th.border}`,
+      backdropFilter: 'blur(16px) saturate(180%)', WebkitBackdropFilter: 'blur(16px) saturate(180%)',
+      boxShadow: '0 4px 16px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.10)',
       fontFamily: "'Inter', system-ui, sans-serif",
       WebkitAppearance: 'none', appearance: 'none',
     },
@@ -2018,6 +2088,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
   const [micResult, setMicResult] = useState(null) // { score, total, words: [{word, correct}] }
   const [phoneticCache, setPhoneticCache] = useState({})
   const [cardAnim, setCardAnim] = useState(null) // null | 'flyRight' | 'flyUp' | 'shake'
+  const [flipPhase, setFlipPhase] = useState(false) // true = mid-flip (card turned sideways)
   const [kiExplanation, setKiExplanation] = useState(null) // null | 'loading' | string
   const [noteOpen, setNoteOpen] = useState(false)
   const [noteText, setNoteText] = useState('')
@@ -2138,8 +2209,12 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
 
   const handleReveal = () => {
     startTime.current = Date.now()
-    setRevealed(true)
-    speakBack(ttsMode)
+    setFlipPhase(true)
+    setTimeout(() => {
+      setRevealed(true)
+      setFlipPhase(false)
+      speakBack(ttsMode)
+    }, 230)
   }
   const handleStop = () => {
     onSaveState?.(queue, index, newProgress)
@@ -2254,9 +2329,11 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
           boxShadow: (newProgress[item.id]?.interval || 0) >= 14
             ? '0 0 22px rgba(255,215,0,0.16), inset 0 0 20px rgba(255,215,0,0.06), 0 6px 24px rgba(0,0,0,0.5)'
             : s.bigCard.boxShadow,
-          transition: 'border-color 0.3s ease, transform 0.12s ease-out',
+          transition: flipPhase ? 'transform 0.23s ease-in, border-color 0.3s ease' : 'transform 0.23s ease-out, border-color 0.3s ease',
           minHeight: '220px',
-          transform: `rotateX(${-cardTilt.x * 1.5}deg) rotateY(${cardTilt.y * 1.5}deg)`,
+          transform: flipPhase
+            ? `rotateX(${-cardTilt.x * 0.5}deg) rotateY(90deg)`
+            : `rotateX(${-cardTilt.x * 1.5}deg) rotateY(${cardTilt.y * 1.5}deg)`,
           transformStyle: 'preserve-3d',
           willChange: 'transform',
         }}>
@@ -3258,7 +3335,7 @@ Return ONLY a valid JSON array with no markdown or explanation:
     const homeCity = myData?.homeCity || (isMarkLang ? 'Hamburg' : 'Nairobi')
     const partnerCity = myData?.partnerCity || (isMarkLang ? 'Nairobi' : 'Hamburg')
     const existingAI = myData?.aiCards || []
-    const knownFronts = allCards.map(c => c.front)
+    const knownFrontsSet = new Set(allCards.map(c => c.front.toLowerCase().trim()))
 
     // Enforce 80/20 ratio: at most 1 SW card per 5 generated
     const totalAIAfter = existingAI.length + 5
@@ -3274,11 +3351,12 @@ Return ONLY a valid JSON array with no markdown or explanation:
       : [{ langA: 'de', langB: 'en', count: 5 }]
 
     const LANG_NAMES = { en: 'English', de: 'German', sw: 'Swahili' }
-    const allNewCards = []
+    let allNewCards = []
     const ts = Date.now()
 
+    const knownFrontsArr = [...knownFrontsSet]
     for (const req of requests) {
-      const knownList = knownFronts.slice(0, 80).join(' | ')
+      const knownList = knownFrontsArr.slice(0, 80).join(' | ')
       const isSwahili = req.langA === 'sw'
       const isEnglish = req.langA === 'en'
       const needsPronunciation = isSwahili || isEnglish
@@ -3331,11 +3409,33 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
       }
     }
 
+    // Deduplicate by front text
+    allNewCards = allNewCards.filter(card => {
+      const key = card.front.toLowerCase().trim()
+      if (knownFrontsSet.has(key)) { console.log('Card skipped (duplicate):', card.front); return false }
+      knownFrontsSet.add(key) // prevent intra-batch dupes
+      return true
+    })
     if (allNewCards.length === 0) return
+
+    allNewCards.forEach(card => console.log('Card saved:', card.front))
+
     const updatedAiCards = [...existingAI, ...allNewCards]
+    const newProgressEntries = {}
+    allNewCards.forEach(card => {
+      newProgressEntries[card.id] = { interval: 0, consecutiveFast: 0, wrongSessions: 0, nextReview: todayStr() }
+    })
     try {
-      await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards })
-      setMyData(d => ({ ...d, aiCards: updatedAiCards }))
+      const currentProgress = myData?.cardProgress || {}
+      const updatedProgress = { ...currentProgress, ...newProgressEntries }
+      await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress })
+      // Force fresh state from Firestore so card list and progress are in sync
+      const snap = await getDoc(doc(db, 'users', user.uid))
+      const fresh = snap.exists() ? snap.data() : {}
+      setMyData(d => ({ ...d,
+        aiCards: fresh.aiCards || updatedAiCards,
+        cardProgress: fresh.cardProgress || updatedProgress,
+      }))
       const msg = isMarkLang
         ? `✨ ${allNewCards.length} neue KI-Karten hinzugefügt!`
         : `✨ ${allNewCards.length} new AI cards added!`
@@ -4740,6 +4840,7 @@ function App() {
   return (
     <ErrorBoundary>
       <WaterCanvas />
+      {(theme === 'nairobi' || theme === 'welt') && <ParticleCanvas theme={theme} />}
       {timeOverlay && <div style={{ position: 'fixed', inset: 0, background: timeOverlay, pointerEvents: 'none', zIndex: 2 }} />}
       {mainNav === 'main' && (
         <MainSelectionScreen
