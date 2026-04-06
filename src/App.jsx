@@ -919,7 +919,7 @@ function makeStyles(th) {
       WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
       backgroundSize: '300% auto',
       animation: 'metalFlow 8s linear infinite',
-      filter: `drop-shadow(0 0 10px ${th.glowColor}4D)`,
+      filter: `drop-shadow(0 0 6px ${th.gold}55) drop-shadow(0 0 16px ${th.gold}2A) drop-shadow(0 0 2px ${th.gold}44)`,
     },
     slogan: { color: th.sub, fontSize: '1rem', marginBottom: '32px', lineHeight: '1.8' },
     card: {
@@ -2154,9 +2154,14 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
     }
   }
 
+  const haptic = (pattern) => { try { if (navigator.vibrate) navigator.vibrate(pattern) } catch(e) {} }
+
   const handleAnswerAnimated = (isCorrect) => {
     if (animLock.current) return
-    if (!isCorrect) {
+    if (isCorrect) {
+      haptic(50)
+    } else {
+      haptic([100, 100, 100])
       // Fetch KI explanation
       setKiExplanation('loading')
       fetch('/api/chat', {
@@ -2171,6 +2176,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
     triggerAnim(anim, delay, () => handleAnswer(isCorrect))
   }
   const handleEasyAnimated = () => {
+    haptic([30, 40, 30, 40, 30])
     triggerAnim('flyUp', 320, () => handleEasy())
   }
 
@@ -2199,7 +2205,12 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
       }}>
         <div style={{
           ...s.bigCard,
-          border: revealed ? `1px solid ${s.progressFill.background}` : `1px solid ${s.progressBar.background}`,
+          border: (newProgress[item.id]?.interval || 0) >= 14
+            ? '1px solid rgba(255,215,0,0.48)'
+            : revealed ? `1px solid ${s.progressFill.background}` : `1px solid ${s.progressBar.background}`,
+          boxShadow: (newProgress[item.id]?.interval || 0) >= 14
+            ? '0 0 22px rgba(255,215,0,0.16), inset 0 0 20px rgba(255,215,0,0.06), 0 6px 24px rgba(0,0,0,0.5)'
+            : s.bigCard.boxShadow,
           transition: 'border-color 0.3s ease, transform 0.12s ease-out',
           minHeight: '220px',
           transform: `rotateX(${-cardTilt.x * 1.5}deg) rotateY(${cardTilt.y * 1.5}deg)`,
@@ -2224,6 +2235,11 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
           }}>
             {item.category === 'street' ? 'Slang' : 'Hochsprache'}
           </div>
+          {(newProgress[item.id]?.interval || 0) >= 14 && (
+            <div style={{ position: 'absolute', top: '8px', right: '10px', background: 'rgba(255,215,0,0.15)', color: '#FFD700', border: '1px solid rgba(255,215,0,0.40)', borderRadius: '6px', padding: '2px 7px', fontSize: '9px', fontWeight: '600', letterSpacing: '0.3px', pointerEvents: 'none' }}>
+              ⭐ Gold
+            </div>
+          )}
           {item.sharedBy && !cardProgress[item.id] && (
             <div style={{ position: 'absolute', top: '8px', right: '10px', background: 'rgba(255,215,0,0.18)', color: '#FFD700', border: '1px solid rgba(255,215,0,0.35)', borderRadius: '6px', padding: '2px 7px', fontSize: '9px', fontWeight: '600', letterSpacing: '0.3px', pointerEvents: 'none' }}>
               🎁 {item.sharedBy}
@@ -2913,6 +2929,8 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const [miniTask, setMiniTask] = useState(null)
   const [miniTaskInput, setMiniTaskInput] = useState('')
   const [miniTaskLoading, setMiniTaskLoading] = useState(false)
+  const [reactionPrompt, setReactionPrompt] = useState(null) // {name, count}
+  const [floatingReaction, setFloatingReaction] = useState(null) // emoji string
   const VALID_SCREENS = new Set(['menu','cards','result','settings','partner','test','impressum','stats','ki','satz','diary'])
   if (!VALID_SCREENS.has(screen)) { setScreen('menu'); return null }
 
@@ -2993,6 +3011,38 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
     updateDoc(doc(db, 'users', user.uid), { miniTask: task }).catch(() => {})
     setMyData(d => ({ ...d, miniTask: task }))
   }, [screen])
+
+  // ── PARTNER REACTION ──────────────────────────────────────
+  useEffect(() => {
+    const todayD = todayStr()
+    // Show floating emoji if we received a reaction
+    const pr = myData?.pendingReaction
+    if (pr?.date === todayD && pr?.emoji) {
+      setFloatingReaction(pr.emoji)
+      setTimeout(() => setFloatingReaction(null), 3500)
+      updateDoc(doc(db, 'users', user.uid), { pendingReaction: null }).catch(() => {})
+      setMyData(d => ({ ...d, pendingReaction: null }))
+    }
+    // Prompt to react to partner's new sessions
+    if (!partnerData) return
+    const partnerTodayCorrect = (partnerData.sessionHistory || [])
+      .filter(h => h.date === todayD).reduce((a, b) => a + (b.correct || 0), 0)
+    if (partnerTodayCorrect > 0 && myData?.lastPartnerReactionDate !== todayD) {
+      const name = myData?.partnerName || partnerData?.name?.split(' ')[0] || 'Partner'
+      setReactionPrompt({ name, count: partnerTodayCorrect })
+    }
+  }, [])
+
+  const sendReaction = async (emoji) => {
+    if (!myData?.partnerUID) return
+    try {
+      const reaction = { emoji, from: user.displayName?.split(' ')[0] || 'Partner', date: todayStr() }
+      await updateDoc(doc(db, 'users', myData.partnerUID), { pendingReaction: reaction })
+      await updateDoc(doc(db, 'users', user.uid), { lastPartnerReactionDate: todayStr() })
+      setMyData(d => ({ ...d, lastPartnerReactionDate: todayStr() }))
+    } catch (e) { console.warn('sendReaction failed:', e) }
+    setReactionPrompt(null)
+  }
 
   const dismissSurprise = async (addToDeck) => {
     if (addToDeck && surpriseCard) {
@@ -3218,6 +3268,7 @@ Return ONLY a valid JSON array with no markdown or explanation:
         const prevCompleted = storedMonthly.lastUnlock === currentMonth ? 0 : (storedMonthly.completedWeeks || 0)
         const newWeekCount = prevCompleted + 1
         setWeekGoalCelebration(true)
+        try { if (navigator.vibrate) navigator.vibrate(300) } catch(e) {}
         setTimeout(() => setWeekGoalCelebration(false), 4500)
         if (newWeekCount >= 5) {
           const newGimmicks = (myData?.unlockedGimmicks || 0) + 1
@@ -3438,7 +3489,13 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
       {streakStatus === 'warning' && (
         <div style={{ background: 'rgba(255,165,0,0.1)', border: '1px solid rgba(255,165,0,0.4)', borderRadius: '12px', padding: '10px 14px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: '1.1rem' }}>⚠️</span>
-          <span style={{ color: '#FFA500', fontWeight: '600', fontSize: '0.88rem' }}>{isMarkLang ? 'Dein Streak ist in Gefahr!' : 'Your streak is at risk!'}</span>
+          <span style={{ color: '#FFA500', fontWeight: '600', fontSize: '0.88rem', flex: 1 }}>{isMarkLang ? 'Dein Streak ist in Gefahr!' : 'Your streak is at risk!'}</span>
+          {freezeAvailable && (
+            <button
+              onClick={() => { if (window.confirm(isMarkLang ? 'Streak Freeze jetzt verwenden? (1x/Monat)' : 'Use Streak Freeze now? (1x/month)')) handleStreakFreeze() }}
+              style={{ background: 'rgba(100,200,255,0.12)', border: '1px solid rgba(100,200,255,0.35)', color: '#7ec8e3', borderRadius: '20px', padding: '5px 12px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: '700', whiteSpace: 'nowrap', flexShrink: 0 }}
+            >🧊 Freeze</button>
+          )}
         </div>
       )}
       {streakStatus === 'lost' && (
@@ -3590,6 +3647,19 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         })}
       </div>
 
+      {/* ── GOLDEN CARDS COUNT ── */}
+      {(() => {
+        const goldenCount = Object.values(cardProgress).filter(p => (p?.interval || 0) >= 14).length
+        if (goldenCount === 0) return null
+        return (
+          <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+            <span style={{ color: 'rgba(255,215,0,0.7)', fontSize: '0.75rem', fontWeight: '600', letterSpacing: '0.3px' }}>
+              ⭐ {goldenCount} {isMarkLang ? 'goldene Karte' + (goldenCount !== 1 ? 'n' : '') + ' gemeistert' : `golden card${goldenCount !== 1 ? 's' : ''} mastered`}
+            </span>
+          </div>
+        )
+      })()}
+
       {/* ── SECONDARY NAVIGATION ── */}
       <div className="vocara-nav-section" style={{ marginTop: '4px', marginBottom: '10px' }}>
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('ki')}>{t.menuKi}</button>
@@ -3646,6 +3716,39 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
       {monthlyUnlockNotification && (
         <div style={{ position: 'fixed', bottom: '130px', left: '50%', background: '#FFD700', color: '#111', padding: '14px 28px', borderRadius: '28px', fontSize: '1rem', fontWeight: 'bold', zIndex: 1001, animation: 'vocaraCelebrate 5s ease both', whiteSpace: 'nowrap', pointerEvents: 'none', boxShadow: '0 6px 28px rgba(255,215,0,0.6)' }}>
           🎉 {lang === 'de' ? 'Monatsbonus freigeschaltet!' : 'Monthly bonus unlocked!'}
+        </div>
+      )}
+
+      {/* ── PARTNER REACTION PROMPT ── */}
+      {reactionPrompt && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 8900, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', backdropFilter: 'blur(4px)' }}>
+          <div style={{ background: th.card, border: `1px solid ${th.border}`, borderRadius: '20px', padding: '24px 20px', maxWidth: '340px', width: '100%', textAlign: 'center', animation: 'vocaraFadeIn 0.3s ease both', boxShadow: `0 0 30px ${th.glowColor}33` }}>
+            <p style={{ fontSize: '1.8rem', margin: '0 0 8px' }}>🎉</p>
+            <p style={{ color: th.text, fontWeight: '700', fontSize: '1rem', margin: '0 0 4px' }}>
+              {reactionPrompt.name} {isMarkLang ? 'hat heute' : 'learned today'}
+            </p>
+            <p style={{ color: th.accent, fontSize: '1.2rem', fontWeight: '700', margin: '0 0 16px' }}>
+              {reactionPrompt.count} {isMarkLang ? 'Karten' : 'cards'} ✓
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginBottom: '14px' }}>
+              {['👏', '🔥', '💪', '❤️'].map(emoji => (
+                <button key={emoji} onClick={() => sendReaction(emoji)}
+                  style={{ background: 'rgba(255,255,255,0.06)', border: `1px solid ${th.border}`, borderRadius: '12px', padding: '10px 14px', cursor: 'pointer', fontSize: '1.5rem', WebkitTapHighlightColor: 'transparent' }}>
+                  {emoji}
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setReactionPrompt(null)} style={{ background: 'transparent', border: 'none', color: th.sub, cursor: 'pointer', fontSize: '0.82rem', padding: '4px 8px' }}>
+              {isMarkLang ? 'Überspringen' : 'Skip'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── FLOATING RECEIVED REACTION ── */}
+      {floatingReaction && (
+        <div style={{ position: 'fixed', top: '22%', left: '50%', transform: 'translateX(-50%)', fontSize: '4rem', zIndex: 9100, pointerEvents: 'none', animation: 'vocaraCelebrate 3.5s ease both' }}>
+          {floatingReaction}
         </div>
       )}
 

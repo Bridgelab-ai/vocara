@@ -8,13 +8,13 @@
 5. Lernzeit Statistik testen
 6. Monatsziel Gimmick-Inhalte (Sounds)
 7. Karte falsch → KI erklärt warum
-8. Streak Freeze 1x/Monat
+8. Streak Freeze 1x/Monat ✅
 9. PWA Push Notifications
 10. Karten-Kommentar/Notiz
 
 ## Liste B – Social/Gamification
 11. Paar-Challenge gemeinsam
-12. Emoji-Reaktion auf Partner-Fortschritt
+12. Emoji-Reaktion auf Partner-Fortschritt ✅
 13. Gemeinsame Karten-Sammlung
 14. Überraschungskarte vom Partner täglich
 15. Dark/Light Mode
@@ -22,7 +22,7 @@
 17. Animierte Karten-Übergänge
 18. Tägliche Miniaufgabe
 19. Level-Namen (Hafen-Anfänger → Elbe-Experte)
-20. Goldene seltene Karten
+20. Goldene seltene Karten ✅
 
 ## Liste C – Unbestätigt/Design
 21. Nairobi Theme auf Handy prüfen
@@ -57,6 +57,11 @@
 - Level-Namen: Hafen-Neuling → Vocara-Meister nach Karten-Count (#19) ✅
 - Gemeinsames Tagebuch: täglich 1 Satz, KI-Feedback, Timeline (#38) ✅
 - Tageszeit-Anpassung: 4 Zeitslots mit Overlay (#46) ✅
+- Vocara Logo goldener Glow (drop-shadow layered per theme) ✅
+- Emoji-Reaktion auf Partner-Fortschritt: popup + floatingReaction (#12) ✅
+- Goldene seltene Karten: interval ≥ 14, gold border + ⭐ badge + Home-Counter (#20) ✅
+- Haptisches Feedback: correct=50ms, wrong=[100,100,100], easy=[30,40,30,40,30] (#48) ✅
+- Streak Freeze: 🧊 Button inline im Streak-Warning-Block (#8) ✅
 
 ## Liste E – Paar/Design/Business
 38. Gemeinsames Tagebuch (täglich 1 Satz in Zielsprache)
@@ -69,7 +74,7 @@
 45. Jahreszeiten-Themes (Hamburg Winter, Nairobi Regenzeit)
 46. Tageszeit-Anpassung (morgens heller, abends wärmer)
 47. Karten-Wegfliege-Animation bei richtig
-48. Haptisches Feedback (unterschiedlich für Richtig/Falsch)
+48. Haptisches Feedback (unterschiedlich für Richtig/Falsch) ✅
 49. Einstellungen als eigenes Menü
 50. Vocara Familien-Version
 51. Geschenk-Abo
