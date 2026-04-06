@@ -69,6 +69,15 @@
 - Einstellungen Sprachen: Premium-Modal mit Sprachliste + Upgrade-Placeholder (#5) ✅
 - Wochenziel Dots: 22px Kreis, ✓ bei erledigt, Tooltip per Tap ✅ (#16 teilweise)
 - Partner Aktivitäts-Anzeige: 🟢 lernt gerade / 🟡 heute aktiv / ⚪ gestern aktiv ✅
+- Neue AI-Karten nextReview = heute (sofort verfügbar) ✅
+- "Karten hinzufügen" Button entfernt; AI nur bei 85% Mastery ✅
+- Grundlagen als 6. Bereich: AI-generierte Farben/Zahlen/Formen, eigene Kategorie ✅
+- Wortkarten Beispielsatz: AI-generiert, CardScreen + Firestore (_example) ✅
+- Logo immer gold: Vocara + Bridgelab alle Screens mit Gold-Gradient ✅
+- KI Coaching Banner: AI-Nachricht auf Home-Screen basierend auf Streak/Stats ✅
+- Bridgelab-Wortsprache: "Heute gebaut.", "Brücke gebaut. ✓", "Verbindung braucht dich." ✅
+- Statistik Lerntage gesamt: beide User in StatsScreen ✅
+- Thai (TH) Sprache + Chiang Mai Theme implementiert ✅
 
 ## Liste E – Paar/Design/Business
 38. Gemeinsames Tagebuch (täglich 1 Satz in Zielsprache)
