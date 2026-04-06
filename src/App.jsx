@@ -3508,6 +3508,108 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
     setCurrentSessionMode('all')
     setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
   }
+
+  // ── VOCAB EMPTY-STATE: generate 5 single words then start session ─
+  const generateVocabCardsForEmpty = async () => {
+    setEmptyCategoryMsg(isMarkLang ? 'Noch keine Wörter hier — die KI erstellt gleich deine ersten Karten.' : 'No words yet — AI is creating your first cards…')
+
+    // Fetch fresh Firestore state to build exclusion list
+    const freshSnap = await getDoc(doc(db, 'users', user.uid))
+    const freshData = freshSnap.exists() ? freshSnap.data() : {}
+
+    // Exclusion list: ONLY single-word fronts (so AI isn't confused by phrases)
+    const allFronts = [
+      ...allCards.map(c => c.front),
+      ...(freshData.aiCards || []).map(c => c.front),
+    ]
+    const singleWordFronts = [...new Set(
+      allFronts
+        .filter(f => f && f.trim().split(' ').filter(Boolean).length === 1)
+        .map(f => f.trim().toLowerCase())
+    )].slice(0, 100)
+
+    const langA = isMarkLang ? 'en' : 'de'
+    const langB = isMarkLang ? 'de' : 'en'
+    const frontLang = isMarkLang ? 'English' : 'German'
+    const backLang = isMarkLang ? 'German' : 'English'
+
+    const prompt = `Generate exactly 5 simple single ${frontLang} words for a language learner. Each entry must be ONE word only — no phrases, no spaces.
+Back language: ${backLang}
+These words already exist — do NOT include them: ${singleWordFronts.join(', ')}
+Choose common useful words: objects, food, verbs, adjectives (intermediate level).
+Return ONLY valid JSON array, no markdown:
+[{"front":"word","back":"translation","category":"vocabulary"}]`
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 300, messages: [{ role: 'user', content: prompt }] })
+      })
+      const raw = ((await res.json()).content?.[0]?.text || '[]').trim()
+      const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim())
+
+      // Strict dedup: exact case-insensitive front match only
+      const existingFrontsSet = new Set(allFronts.map(f => (f || '').toLowerCase().trim()))
+      const ts = Date.now()
+
+      const newCards = parsed
+        .filter(c => {
+          if (!c.front?.trim() || !c.back?.trim()) return false
+          if (c.front.trim().split(' ').filter(Boolean).length > 1) {
+            console.log('[vocabEmpty] Rejected phrase:', c.front)
+            return false
+          }
+          const key = c.front.trim().toLowerCase()
+          if (existingFrontsSet.has(key)) {
+            console.log('[vocabEmpty] Exact duplicate skipped:', c.front)
+            return false
+          }
+          existingFrontsSet.add(key)
+          return true
+        })
+        .slice(0, 5)
+        .map((c, i) => ({
+          id: `vocab_ai_${ts}_${i}`,
+          front: c.front.trim(),
+          back: c.back.trim(),
+          category: 'vocabulary',
+          langA, langB,
+          source: 'ai-vocab',
+          createdAt: ts,
+        }))
+
+      if (newCards.length === 0) {
+        setEmptyCategoryMsg(isMarkLang ? 'Keine neuen Wörter generiert — versuche es später erneut.' : 'No new words generated — try again later.')
+        setTimeout(() => setEmptyCategoryMsg(null), 3500)
+        return
+      }
+
+      // Fresh fetch again before writing (avoid race condition)
+      const snap2 = await getDoc(doc(db, 'users', user.uid))
+      const data2 = snap2.exists() ? snap2.data() : {}
+      const updatedAiCards = [...(data2.aiCards || []), ...newCards]
+      const updatedProgress = { ...(data2.cardProgress || {}) }
+      newCards.forEach(c => {
+        updatedProgress[c.id] = { interval: 0, consecutiveFast: 0, wrongSessions: 0, nextReview: todayStr() }
+        console.log('[vocabEmpty] Saved new word:', c.front, '→', c.back)
+      })
+      await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress })
+
+      // Reload card list in state
+      setMyData(d => ({ ...d, aiCards: updatedAiCards, cardProgress: updatedProgress }))
+      setEmptyCategoryMsg(null)
+
+      // Build session from the new vocab cards and start immediately
+      const sess = newCards.flatMap(buildCardPair).slice(0, SESSION_SIZE)
+      setCurrentSessionMode('vocabulary')
+      setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+    } catch (e) {
+      console.error('[vocabEmpty] Generation failed:', e)
+      setEmptyCategoryMsg(isMarkLang ? 'KI-Generierung fehlgeschlagen — versuche es erneut.' : 'AI generation failed — try again.')
+      setTimeout(() => setEmptyCategoryMsg(null), 3500)
+    }
+  }
+
   const startCategorySession = (category) => {
     console.log('[Vocara] startCategorySession:', category)
     // ── MEINE WORTE HARD FILTER ─────────────────────────────────
@@ -3540,8 +3642,12 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
       console.log('[Vocara] cards (all):', cards.length)
     }
     if (cards.length === 0) {
-      setEmptyCategoryMsg(isMarkLang ? 'Hier wartet noch nichts — aber das ändert sich.' : 'Nothing here yet — but that changes now.')
-      setTimeout(() => setEmptyCategoryMsg(null), 3500)
+      if (category === 'vocabulary') {
+        generateVocabCardsForEmpty()
+      } else {
+        setEmptyCategoryMsg(isMarkLang ? 'Hier wartet noch nichts — aber das ändert sich.' : 'Nothing here yet — but that changes now.')
+        setTimeout(() => setEmptyCategoryMsg(null), 3500)
+      }
       return
     }
     const sp = myData?.sessionProgress
@@ -3800,7 +3906,9 @@ Return ONLY a valid JSON array with no markdown or explanation:
     let allNewCards = []
     const ts = Date.now()
 
-    const knownFrontsArr = [...knownFrontsSet]
+    // For the AI exclusion list: only send fronts that match the same format (single words for vocab)
+    // Sending phrases confuses the AI into avoiding semantically similar words
+    const knownFrontsArr = [...knownFrontsSet].filter(f => f.split(' ').length <= 2)
     for (const req of requests) {
       const knownList = knownFrontsArr.slice(0, 80).join(' | ')
       const isSwahili = req.langA === 'sw'
