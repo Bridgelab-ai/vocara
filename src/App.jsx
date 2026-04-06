@@ -1,4 +1,4 @@
-// Build timestamp: 2026-04-06T18:00
+// Build timestamp: 2026-04-06T19:00
 import React, { useState, useEffect, useRef, Component } from 'react'
 import { auth, db } from './firebase'
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
@@ -18,9 +18,10 @@ const MONTHLY_TEST_DAYS = 30
 const THEMES = {
   nairobi: {
     name: '🌙 Nairobi',
-    bg: '#0D0800', card: '#1A0F00', text: '#FFF5E0', sub: '#C8860A', border: '#3A2800',
+    bg: '#0D0500', card: '#1A0F00', text: '#FFF5E0', sub: '#C8860A', border: '#3A2800',
     accent: '#C8860A', gold: '#F5C842', glowColor: '#F5C842', btnTextColor: '#1A0800',
-    bgGrad: 'radial-gradient(ellipse at 50% 20%, #3A2200 0%, #1A0D00 50%, #0D0800 100%)',
+    rippleColor: 'rgba(245,200,66,0.08)',
+    bgGrad: 'radial-gradient(ellipse at 40% 60%, #1A0D00 0%, #0D0500 60%, #1A0800 100%), radial-gradient(ellipse at 70% 30%, rgba(200,134,10,0.12) 0%, transparent 60%)',
     metalGrad: 'linear-gradient(145deg, #F5C842 0%, #C8860A 30%, #7A4F00 52%, #C8860A 72%, #F5C842 100%)',
     metalText: 'linear-gradient(90deg, #7A4F00 0%, #F5D060 16%, #C8860A 33%, #F5C842 50%, #7A4F00 66%, #F5D060 83%, #C8860A 100%)',
     btnFaceGrad: 'linear-gradient(90deg, #7A4F00 0%, #C8860A 20%, #E8A020 40%, #F5C842 50%, #E8A020 60%, #C8860A 80%, #7A4F00 100%)',
@@ -31,7 +32,8 @@ const THEMES = {
     name: '🌊 Hamburg',
     bg: '#050D18', card: '#0D1E30', text: '#E8F4FF', sub: '#5A9AC0', border: '#1B3A5C',
     accent: '#2E6B9E', gold: '#7AB8E8', glowColor: '#2E6B9E', btnTextColor: '#FFFFFF',
-    bgGrad: 'radial-gradient(ellipse at 50% 15%, #2E6B9E 0%, #112440 45%, #050D18 100%)',
+    rippleColor: 'rgba(46,107,158,0.12)',
+    bgGrad: 'radial-gradient(ellipse at 30% 70%, #0D2137 0%, #050D18 50%, #0A1628 100%), radial-gradient(ellipse at 70% 30%, rgba(46,107,158,0.15) 0%, transparent 60%)',
     metalGrad: 'linear-gradient(145deg, #A8D8F0 0%, #4A8EC4 20%, #2E6B9E 40%, #1B3A5C 60%, #2E6B9E 80%, #A8D8F0 100%)',
     metalText: 'linear-gradient(90deg, #4A8EC4 0%, #A8D8F0 16%, #2E6B9E 33%, #E0F4FF 50%, #4A8EC4 66%, #A8D8F0 83%, #2E6B9E 100%)',
     btnFaceGrad: 'linear-gradient(90deg, #1B3A5C 0%, #2E6B9E 20%, #4A8EC4 40%, #7AB8E8 50%, #4A8EC4 60%, #2E6B9E 80%, #1B3A5C 100%)',
@@ -40,16 +42,17 @@ const THEMES = {
   },
   welt: {
     name: '🌍 Welt',
-    bg: '#060410', card: '#0e0a1e', text: '#fff', sub: '#7A70A0', border: '#1A1430',
+    bg: '#0D0A1F', card: '#0e0a1e', text: '#fff', sub: '#7A70A0', border: '#1A1430',
     accent: '#FF6B6B', gold: '#FFD93D', glowColor: '#C77DFF', btnTextColor: '#fff',
     rainbow: true,
+    rippleColor: 'rgba(123,111,212,0.1)',
     bgGrad: [
       'radial-gradient(ellipse at 15% 40%, #FF6B6B28 0%, transparent 45%)',
       'radial-gradient(ellipse at 85% 20%, #4D96FF28 0%, transparent 45%)',
       'radial-gradient(ellipse at 50% 85%, #6BCB7728 0%, transparent 45%)',
       'radial-gradient(ellipse at 75% 65%, #C77DFF28 0%, transparent 40%)',
       'radial-gradient(ellipse at 30% 70%, #FFD93D22 0%, transparent 40%)',
-      '#060410',
+      'radial-gradient(ellipse at 50% 50%, #0D0A1F 0%, #050310 60%, #0A0820 100%)',
     ].join(', '),
     metalGrad: 'linear-gradient(145deg, #FF6B6B, #FFD93D, #6BCB77, #4D96FF, #C77DFF, #FF6B6B)',
     metalText: 'linear-gradient(90deg, #C77DFF 0%, #FF6B6B 16%, #FFD93D 33%, #6BCB77 50%, #4D96FF 66%, #C77DFF 83%, #FF6B6B 100%)',
@@ -61,6 +64,7 @@ const THEMES = {
     name: '🍷 Lyon',
     bg: '#0D0000', card: '#1A0505', text: '#F5EDE0', sub: '#A0706A', border: '#3A1010',
     accent: '#8B1A1A', gold: '#D4A017', glowColor: '#C0392B', btnTextColor: '#F5EDE0',
+    rippleColor: 'rgba(212,160,23,0.08)',
     bgGrad: 'radial-gradient(ellipse at 50% 20%, #3A0808 0%, #1A0404 50%, #0D0000 100%)',
     metalGrad: 'linear-gradient(145deg, #D4A017 0%, #8B1A1A 30%, #3D0C0C 52%, #8B1A1A 72%, #D4A017 100%)',
     metalText: 'linear-gradient(90deg, #3D0C0C 0%, #D4A017 16%, #8B1A1A 33%, #D4A017 50%, #3D0C0C 66%, #D4A017 83%, #8B1A1A 100%)',
@@ -72,6 +76,7 @@ const THEMES = {
     name: '💃 Sevilla',
     bg: '#0D0500', card: '#1A0A02', text: '#FFF0E0', sub: '#A07050', border: '#3A1800',
     accent: '#C0392B', gold: '#F39C12', glowColor: '#E67E22', btnTextColor: '#FFF0E0',
+    rippleColor: 'rgba(243,156,18,0.08)',
     bgGrad: 'radial-gradient(ellipse at 50% 20%, #3A1200 0%, #1A0700 50%, #0D0500 100%)',
     metalGrad: 'linear-gradient(145deg, #F39C12 0%, #C0392B 30%, #6E1A0C 52%, #C0392B 72%, #F39C12 100%)',
     metalText: 'linear-gradient(90deg, #6E1A0C 0%, #F39C12 16%, #C0392B 33%, #F39C12 50%, #6E1A0C 66%, #F39C12 83%, #C0392B 100%)',
@@ -859,13 +864,17 @@ button:active {
 }
 `
 
-const WaterCanvas = () => {
+const WaterCanvas = ({ color = 'rgba(255,255,255,0.08)' }) => {
   const canvasRef = useRef(null);
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
+    // parse base rgb from color string for per-frame alpha
+    const baseRgb = color.match(/[\d.]+/g) || ['255','255','255','0.08']
+    const r0 = baseRgb[0], g0 = baseRgb[1], b0 = baseRgb[2]
+    const baseAlpha = parseFloat(baseRgb[3] || 0.08)
     const ripples = [];
     const addRipple = () => {
       ripples.push({
@@ -873,7 +882,7 @@ const WaterCanvas = () => {
         y: Math.random() * canvas.height,
         radius: 0,
         maxRadius: 150,
-        opacity: 0.08,
+        opacity: baseAlpha,
         speed: 0.8
       });
       setTimeout(addRipple, 3000 + Math.random() * 4000);
@@ -883,14 +892,14 @@ const WaterCanvas = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ripples.forEach((r, i) => {
         r.radius += r.speed;
-        r.opacity -= 0.0003;
+        r.opacity -= baseAlpha * 0.004;
         if (r.radius > r.maxRadius || r.opacity <= 0) {
           ripples.splice(i, 1);
           return;
         }
         ctx.beginPath();
         ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(255,255,255,${r.opacity})`;
+        ctx.strokeStyle = `rgba(${r0},${g0},${b0},${r.opacity.toFixed(4)})`;
         ctx.lineWidth = 1.5;
         ctx.stroke();
       });
@@ -917,16 +926,19 @@ function makeStyles(th) {
     },
     slogan: { color: th.sub, fontSize: '1rem', marginBottom: '32px', lineHeight: '1.8' },
     card: {
-      background: th.card, borderRadius: '14px', padding: '16px', marginBottom: '10px', textAlign: 'left',
-      border: `1px solid ${th.border}`,
+      background: 'rgba(255,255,255,0.05)',
+      backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+      borderRadius: '14px', padding: '16px', marginBottom: '10px', textAlign: 'left',
+      border: '1px solid rgba(255,255,255,0.12)',
       boxShadow: `inset 0 0 18px ${th.glowColor}14, 0 0 0 1px ${th.accent}20, 0 2px 12px rgba(0,0,0,0.4)`,
     },
     bigCard: {
-      background: `radial-gradient(ellipse at 50% 35%, transparent 20%, rgba(0,0,0,0.38) 100%), ${th.card}`,
+      background: 'rgba(255,255,255,0.06)',
+      backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
       borderRadius: '18px', padding: '28px 20px', marginBottom: '16px',
       textAlign: 'center', minHeight: '180px', display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
-      border: th.rainbow ? '2px solid transparent' : `1px solid ${th.accent}55`,
+      border: th.rainbow ? '2px solid transparent' : '1px solid rgba(255,255,255,0.12)',
       boxShadow: th.rainbow ? undefined : `inset 0 0 30px ${th.glowColor}30, 0 0 28px ${th.accent}22, 0 0 0 1px ${th.accent}35, 0 6px 24px rgba(0,0,0,0.55)`,
       animation: th.rainbow ? 'rainbowCardBorder 4s linear infinite' : undefined,
       position: 'relative', overflow: 'hidden',
@@ -4600,7 +4612,7 @@ function App() {
   return (
     <ErrorBoundary>
       <div style={{ position: 'fixed', inset: 0, background: th.bgGrad, backgroundColor: th.bg, zIndex: -1 }} />
-      <WaterCanvas />
+      <WaterCanvas color={th.rippleColor || 'rgba(255,255,255,0.08)'} />
       {timeOverlay && <div style={{ position: 'fixed', inset: 0, background: timeOverlay, pointerEvents: 'none', zIndex: 2 }} />}
       {mainNav === 'main' && (
         <MainSelectionScreen
