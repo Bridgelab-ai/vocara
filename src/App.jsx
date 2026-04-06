@@ -2927,9 +2927,11 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
     setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
   }
   const startCategorySession = (category) => {
+    console.log('[Vocara] startCategorySession:', category)
     const cards = category === 'all'
       ? activeCards
       : activeCards.filter(c => c.category === category)
+    console.log('[Vocara] cards in category:', cards.length, 'activeCards total:', activeCards.length)
     if (cards.length === 0) {
       setEmptyCategoryMsg('Noch keine Karten in dieser Kategorie — füge welche hinzu!')
       setTimeout(() => setEmptyCategoryMsg(null), 3500)
@@ -2940,7 +2942,14 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
       setResumeDialog({ category, cards })
       return
     }
-    const sess = buildSession(cards, cardProgress)
+    let sess = buildSession(cards, cardProgress)
+    console.log('[Vocara] buildSession result:', sess.length)
+    // Fallback: if nothing is due (all reviewed, none overdue), practice all category cards
+    if (sess.length === 0) {
+      const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
+      sess = shuffle(cards).slice(0, SESSION_SIZE)
+      console.log('[Vocara] fallback session (all cards):', sess.length)
+    }
     if (sess.length === 0) return
     setCurrentSessionMode(category)
     setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
