@@ -6019,7 +6019,7 @@ function App() {
             lang={lang} theme={theme} firstName={firstNameAll}
             uniqueTargetLangs={uniqueTargetLangsAll} pausedLanguages={myData?.pausedLanguages || []}
             onSprechen={() => setMainNav('sprechen')}
-            onEntdecken={() => setMainNav('entdecken')}
+            onEntdecken={() => { window.location.href = 'https://katara-eta.vercel.app'; }}
             onHorizont={() => setMainNav('horizont')}
           />
         )}

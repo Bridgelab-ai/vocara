@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git push:*)",
+      "Bash(git commit -m 'chore: add automation rules to CLAUDE.md:*)",
+      "Bash(npm run:*)",
+      "Bash(git commit -m 'fix: ReferenceError freezeAvailable not defined in MenuScreen:*)",
+      "Bash(git commit -m 'fix: add React default import to resolve ReferenceError:*)",
+      "Bash(git checkout:*)",
+      "Bash(git commit:*)",
+      "Read(//c/Users/Bridgelab/**)",
+      "Bash(npm create:*)",
+      "Bash(npm install:*)",
+      "Bash(gh repo:*)",
+      "Bash(where.exe gh:*)",
+      "Bash(git remote:*)",
+      "Bash(git branch:*)"
+    ]
+  }
+}
