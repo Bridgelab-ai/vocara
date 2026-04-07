@@ -5114,7 +5114,7 @@ function MainSelectionScreen({ lang, theme, firstName, uniqueTargetLangs, paused
           </p>
         </div>
         {glassBtn('vocara', onSprechen, 'Vocara', isDE ? 'Sprache' : 'Language', isDE ? 'Wörter, Sätze & Gespräche' : 'Words, sentences & conversation', false)}
-        {glassBtn('entdecken', onEntdecken, isDE ? 'Entdecken' : 'Discover', null, isDE ? 'Eigene Sets & KI-Karten' : 'Custom sets & AI cards', false)}
+        {glassBtn('entdecken', onEntdecken, 'Katara', isDE ? 'Professionelles Lernen' : 'Professional Learning', isDE ? 'Lernkarten für den Beruf' : 'Flashcards for work', false)}
         {glassBtn('horizont', onHorizont, isDE ? 'Horizont' : 'Horizon', null, isDE ? 'Kultur & Auswandern' : 'Culture & emigration', true)}
       </div>
     </div>
@@ -5405,7 +5405,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
       <div style={{ ...s.homeBox, paddingTop: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: '18px' }}>
           <button style={{ ...s.backBtn, marginBottom: 0, marginRight: '8px' }} onClick={onBack}>← {isDE ? 'Zurück' : 'Back'}</button>
-          <h2 style={{ color: th.text, fontSize: '1.2rem', fontWeight: '700', flex: 1, textAlign: 'center', margin: 0 }}>{isDE ? 'Entdecken' : 'Discover'}</h2>
+          <h2 style={{ color: th.text, fontSize: '1.2rem', fontWeight: '700', flex: 1, textAlign: 'center', margin: 0 }}>Katara</h2>
         </div>
 
         {/* ── PAAR-CHALLENGE ── */}
