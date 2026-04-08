@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, Component } from 'react'
 import { auth, db } from './firebase'
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
-import { doc, setDoc, getDoc, updateDoc, deleteDoc, onSnapshot } from 'firebase/firestore'
+import { doc, setDoc, getDoc, updateDoc, deleteDoc, onSnapshot, collection, addDoc, getDocs } from 'firebase/firestore'
 import './App.css'
 
 // ── APP PREFS CONTEXT (lightMode, cardSize) ─────────────────────
@@ -2023,6 +2023,29 @@ function PlacementTest({ lang, theme, user, onBack, onSaveCefr }) {
         </button>
       ))}
     </div></div>
+  )
+}
+
+function WelcomeScreen({ user, theme, onContinue }) {
+  const th = THEMES[theme]; const s = makeStyles(th)
+  const firstName = user?.displayName?.split(' ')[0] || user?.displayName || ''
+  return (
+    <div style={s.container} className="vocara-screen">
+      <div style={{ textAlign: 'center', padding: '32px 24px', maxWidth: '380px', width: '100%' }}>
+        <h1 style={s.logoTitle}>Katara</h1>
+        <div style={{ ...s.card, marginBottom: '24px', padding: '28px 20px' }}>
+          <p style={{ color: th.text, fontSize: '1.2rem', fontWeight: '700', marginBottom: '12px' }}>
+            Willkommen{firstName ? `, ${firstName}` : ''}!
+          </p>
+          <p style={{ color: th.sub, fontSize: '0.95rem', lineHeight: '1.5', margin: 0 }}>
+            Erstelle deine erste Kategorie und beginne zu lernen.
+          </p>
+        </div>
+        <button style={s.button} onClick={onContinue}>
+          Erste Kategorie erstellen →
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -5158,6 +5181,10 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
   const [challengeInput, setChallengeInput] = useState('')
   const [challengeSaving, setChallengeSaving] = useState(false)
   const fileRef = useRef(null)
+  const [categories, setCategories] = useState([])
+  const [newCatName, setNewCatName] = useState('')
+  const [catError, setCatError] = useState('')
+  const [catSaving, setCatSaving] = useState(false)
 
   const sets = myData?.cardSets || []
   const FREE_LIMIT = 2
@@ -5214,6 +5241,48 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
     await saveSet(updated)
     setNewSetName(''); setNewSetIcon('📚')
     setActiveSet(newSet); setInnerScreen('set')
+  }
+
+  const loadCategories = async () => {
+    console.log('[Vocara] loadCategories — fetching users/' + user.uid + '/categories')
+    try {
+      const snap = await getDocs(collection(db, 'users', user.uid, 'categories'))
+      const cats = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+      console.log('[Vocara] loadCategories — got', cats.length, 'categories:', cats.map(c => c.name))
+      setCategories(cats)
+    } catch (e) { console.error('[Vocara] loadCategories failed:', e) }
+  }
+
+  useEffect(() => { loadCategories() }, [user?.uid]) // eslint-disable-line
+
+  const createKategorie = async () => {
+    console.log('[Vocara] createKategorie — input value:', JSON.stringify(newCatName))
+    if (!newCatName.trim()) {
+      console.log('[Vocara] createKategorie — input empty, showing validation error')
+      setCatError('Bitte einen Namen eingeben')
+      return
+    }
+    setCatError('')
+    setCatSaving(true)
+    try {
+      console.log('[Vocara] createKategorie — writing to Firestore: users/' + user.uid + '/categories')
+      await addDoc(collection(db, 'users', user.uid, 'categories'), {
+        name: newCatName.trim(),
+        createdAt: Date.now(),
+      })
+      console.log('[Vocara] createKategorie — Firestore write successful ✓')
+      setNewCatName('')
+      setCatError('')
+      setInnerScreen('list')
+      console.log('[Vocara] createKategorie — refreshing category list...')
+      await loadCategories()
+      console.log('[Vocara] createKategorie — list refreshed ✓')
+    } catch (e) {
+      console.error('[Vocara] createKategorie — addDoc failed:', e)
+      setCatError(isDE ? 'Fehler beim Speichern. Bitte erneut versuchen.' : 'Error saving. Please try again.')
+    }
+    setCatSaving(false)
   }
 
   const addCardToSet = async () => {
@@ -5377,22 +5446,32 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
     )
   }
 
-  // ── Create set view ──
+  // ── Create category view ──
   if (innerScreen === 'create') {
     return (
       <div style={s.container} className="vocara-screen">
         <div style={{ ...s.homeBox, paddingTop: '16px' }}>
-          <button style={s.backBtn} onClick={() => setInnerScreen('list')}>← {isDE ? 'Zurück' : 'Back'}</button>
-          <h2 style={{ color: th.text, fontSize: '1.2rem', fontWeight: '700', marginBottom: '20px', textAlign: 'left' }}>{isDE ? 'Neues Set' : 'New set'}</h2>
+          <button style={s.backBtn} onClick={() => { setInnerScreen('list'); setNewCatName(''); setCatError('') }}>← {isDE ? 'Zurück' : 'Back'}</button>
+          <h2 style={{ color: th.text, fontSize: '1.2rem', fontWeight: '700', marginBottom: '20px', textAlign: 'left' }}>{isDE ? 'Neue Kategorie' : 'New category'}</h2>
           <div style={s.card}>
-            <input style={{ ...s.input, marginBottom: '12px' }} placeholder={isDE ? 'Name des Sets' : 'Set name'} value={newSetName} onChange={e => setNewSetName(e.target.value)} />
-            <p style={{ ...s.cardLabel, marginBottom: '10px' }}>{isDE ? 'Symbol wählen' : 'Pick an icon'}</p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
-              {iconOptions.map(ic => (
-                <button key={ic} onClick={() => setNewSetIcon(ic)} style={{ padding: '8px', borderRadius: '10px', cursor: 'pointer', fontSize: '1.3rem', background: newSetIcon === ic ? `${th.accent}22` : 'transparent', border: `1px solid ${newSetIcon === ic ? th.accent : th.border}` }}>{ic}</button>
-              ))}
-            </div>
-            <button style={s.button} onClick={createSet}>{isDE ? 'Set erstellen' : 'Create set'}</button>
+            <input
+              style={{ ...s.input, marginBottom: catError ? '6px' : '14px', borderColor: catError ? '#f44336' : undefined }}
+              placeholder={isDE ? 'Name der Kategorie' : 'Category name'}
+              value={newCatName}
+              onChange={e => { setNewCatName(e.target.value); if (catError) setCatError('') }}
+              onKeyDown={e => { if (e.key === 'Enter') createKategorie() }}
+              autoFocus
+            />
+            {catError && (
+              <p style={{ color: '#f44336', fontSize: '0.8rem', marginBottom: '12px', marginTop: 0 }}>{catError}</p>
+            )}
+            <button
+              style={{ ...s.button, opacity: catSaving ? 0.6 : 1 }}
+              onClick={createKategorie}
+              disabled={catSaving}
+            >
+              {catSaving ? (isDE ? 'Speichern…' : 'Saving…') : (isDE ? 'Kategorie erstellen' : 'Create category')}
+            </button>
           </div>
         </div>
       </div>
@@ -5541,38 +5620,56 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
           </button>
         )}
 
-        {sets.length === 0 ? (
-          <div style={{ ...s.card, textAlign: 'center', padding: '36px 20px' }}>
-            <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: '12px' }}>📚</span>
-            <p style={{ color: th.sub, fontSize: '0.9rem', margin: 0 }}>{isDE ? 'Noch keine Sets — erstelle dein erstes!' : 'No sets yet — create your first one!'}</p>
-          </div>
-        ) : (
-          sets.map((set, idx) => {
-            const isLocked = idx >= FREE_LIMIT
-            return (
-              <button key={set.id} onClick={isLocked ? undefined : () => { setActiveSet(set); setInnerScreen('set') }}
-                style={{ ...s.card, display: 'flex', alignItems: 'center', gap: '14px', width: '100%', cursor: isLocked ? 'default' : 'pointer', opacity: isLocked ? 0.5 : 1, marginBottom: '10px', padding: '16px', textAlign: 'left' }}>
-                <span style={{ fontSize: '1.8rem', flexShrink: 0 }}>{set.icon}</span>
+        {/* ── KATEGORIEN ── */}
+        <div style={{ marginBottom: '8px' }}>
+          <p style={{ color: th.sub, fontSize: '0.72rem', fontWeight: '700', letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 10px' }}>
+            {isDE ? 'Kategorien' : 'Categories'} {categories.length > 0 && `(${categories.length})`}
+          </p>
+          {categories.length === 0 ? (
+            <div style={{ ...s.card, textAlign: 'center', padding: '28px 20px', marginBottom: '10px' }}>
+              <span style={{ fontSize: '2rem', display: 'block', marginBottom: '8px' }}>📂</span>
+              <p style={{ color: th.sub, fontSize: '0.85rem', margin: 0 }}>{isDE ? 'Noch keine Kategorien — erstelle deine erste!' : 'No categories yet — create your first one!'}</p>
+            </div>
+          ) : (
+            categories.map(cat => (
+              <div key={cat.id}
+                style={{ ...s.card, display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '10px', padding: '14px 16px' }}>
+                <span style={{ fontSize: '1.4rem', flexShrink: 0 }}>📂</span>
                 <div style={{ flex: 1 }}>
-                  <p style={{ color: th.text, fontWeight: '700', margin: '0 0 2px', fontSize: '0.95rem' }}>{set.name}</p>
-                  <p style={{ color: th.sub, fontSize: '0.78rem', margin: 0 }}>{set.cards?.length || 0} {isDE ? 'Karten' : 'cards'}</p>
+                  <p style={{ color: th.text, fontWeight: '700', margin: '0 0 2px', fontSize: '0.95rem' }}>{cat.name}</p>
+                  <p style={{ color: th.sub, fontSize: '0.75rem', margin: 0 }}>{cat.createdAt ? new Date(cat.createdAt).toLocaleDateString('de-DE') : ''}</p>
                 </div>
-                {isLocked ? (
-                  <span style={{ background: `${th.gold}18`, color: th.gold, border: `1px solid ${th.gold}44`, borderRadius: '12px', padding: '3px 10px', fontSize: '0.72rem', fontWeight: '600', flexShrink: 0 }}>🔒 Premium</span>
-                ) : (
-                  <span style={{ color: th.sub, fontSize: '1rem' }}>›</span>
-                )}
-              </button>
-            )
-          })
-        )}
+              </div>
+            ))
+          )}
+          <button style={{ ...s.button, marginTop: '4px', marginBottom: '20px' }} onClick={() => setInnerScreen('create')}>
+            + {isDE ? 'Neue Kategorie' : 'New category'}
+          </button>
+        </div>
 
-        {sets.length < FREE_LIMIT ? (
-          <button style={{ ...s.button, marginTop: '8px' }} onClick={() => setInnerScreen('create')}>+ {isDE ? 'Neues Set erstellen' : 'Create new set'}</button>
-        ) : (
-          <div style={{ ...s.card, opacity: 0.55, marginTop: '8px', textAlign: 'center', padding: '14px' }}>
-            <p style={{ color: th.sub, fontSize: '0.82rem', margin: 0 }}>🔒 {isDE ? `Mehr als ${FREE_LIMIT} Sets — Premium` : `More than ${FREE_LIMIT} sets — Premium`}</p>
-          </div>
+        {/* ── SETS ── */}
+        {sets.length > 0 && (
+          <>
+            <p style={{ color: th.sub, fontSize: '0.72rem', fontWeight: '700', letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 10px' }}>Sets</p>
+            {sets.map((set, idx) => {
+              const isLocked = idx >= FREE_LIMIT
+              return (
+                <button key={set.id} onClick={isLocked ? undefined : () => { setActiveSet(set); setInnerScreen('set') }}
+                  style={{ ...s.card, display: 'flex', alignItems: 'center', gap: '14px', width: '100%', cursor: isLocked ? 'default' : 'pointer', opacity: isLocked ? 0.5 : 1, marginBottom: '10px', padding: '16px', textAlign: 'left' }}>
+                  <span style={{ fontSize: '1.8rem', flexShrink: 0 }}>{set.icon}</span>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ color: th.text, fontWeight: '700', margin: '0 0 2px', fontSize: '0.95rem' }}>{set.name}</p>
+                    <p style={{ color: th.sub, fontSize: '0.78rem', margin: 0 }}>{set.cards?.length || 0} {isDE ? 'Karten' : 'cards'}</p>
+                  </div>
+                  {isLocked ? (
+                    <span style={{ background: `${th.gold}18`, color: th.gold, border: `1px solid ${th.gold}44`, borderRadius: '12px', padding: '3px 10px', fontSize: '0.72rem', fontWeight: '600', flexShrink: 0 }}>🔒 Premium</span>
+                  ) : (
+                    <span style={{ color: th.sub, fontSize: '1rem' }}>›</span>
+                  )}
+                </button>
+              )
+            })}
+          </>
         )}
 
         {status && <p style={{ color: th.accent, fontSize: '0.85rem', textAlign: 'center', marginTop: '10px' }}>{status}</p>}
@@ -5791,6 +5888,7 @@ function App() {
   const [cardSize, setCardSize] = useState('normal')
   const [needsLangSetup, setNeedsLangSetup] = useState(false)
   const [needsOnboarding, setNeedsOnboarding] = useState(false)
+  const [isNewUser, setIsNewUser] = useState(false)
   const [mainNav, setMainNav] = useState('main') // 'main' | 'sprechen' | 'entdecken' | 'horizont' | 'livesession'
 
   useEffect(() => {
@@ -5818,104 +5916,122 @@ function App() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
+      if (!u) {
+        // LOGOUT: clear all local state so next user starts fresh
+        setMyData(null); setPartnerData(null)
+        setNeedsOnboarding(false); setNeedsLangSetup(false); setIsNewUser(false)
+        setMainNav('main')
+        setUser(null); setLoading(false)
+        return
+      }
       try {
-        if (u) {
-          const userRef = doc(db, 'users', u.uid)
-          await setDoc(userRef, { name: u.displayName, email: u.email, lastActive: todayStr() }, { merge: true })
-          const code = u.uid.slice(0, 8).toUpperCase()
-          await setDoc(doc(db, 'inviteCodes', code), { uid: u.uid }, { merge: true })
-          const snap = await getDoc(userRef)
-          if (snap.exists()) {
-            const data = snap.data()
-            if (data.theme) setTheme(data.theme)
-            if (data.lightMode !== undefined) setLightMode(!!data.lightMode)
-            if (data.cardSize) setCardSize(data.cardSize)
-            // ── BATCH CATEGORY FIX: vocabulary + 3+ words → sentence ─
-            // Runs on EVERY app load. Direct rule, no ruleCategory needed.
-            // After any changes: awaits a fresh Firestore re-fetch.
-            try {
-              const baseCards = u.uid === ELOSY_UID ? ALL_ELOSY_CARDS_BASE : ALL_MARK_CARDS_BASE
-              const aiCards = data.aiCards || []
-              const existingCats = data.cardCategories || {}
-              const newCats = { ...existingCats }
-              let batchChanged = false
+        const userRef = doc(db, 'users', u.uid)
+        const code = u.uid.slice(0, 8).toUpperCase()
+        await setDoc(doc(db, 'inviteCodes', code), { uid: u.uid }, { merge: true })
+        const snap = await getDoc(userRef)
 
-              for (const card of [...baseCards, ...aiCards]) {
-                const front = card.front || ''
-                const wordCount = front.trim().split(' ').filter(Boolean).length
-                const current = newCats[card.id]
+        // ── NEW USER: first login, no profile with createdAt yet
+        if (!snap.exists() || !snap.data()?.createdAt) {
+          const profile = { name: u.displayName, email: u.email, createdAt: Date.now(), language: 'de', lastActive: todayStr() }
+          await setDoc(userRef, profile)
+          setMyData(profile)
+          setIsNewUser(true)
+          setUser(u); setLoading(false)
+          return
+        }
 
-                // basics are untouchable
-                if (card.category === 'basics' || card.source === 'ai-basics') {
-                  if (current !== 'basics') {
-                    console.log('Reclassified:', front, '→ basics (protected)')
-                    newCats[card.id] = 'basics'
-                    batchChanged = true
-                  }
-                  continue
-                }
+        // ── RETURNING USER: update presence and load data
+        await updateDoc(userRef, { name: u.displayName, email: u.email, lastActive: todayStr() })
+        const freshSnap = await getDoc(userRef)
+        if (freshSnap.exists()) {
+          const data = freshSnap.data()
+          if (data.theme) setTheme(data.theme)
+          if (data.lightMode !== undefined) setLightMode(!!data.lightMode)
+          if (data.cardSize) setCardSize(data.cardSize)
+          // ── BATCH CATEGORY FIX: vocabulary + 3+ words → sentence ─
+          // baseCards only for Mark/Elosy; other users only process their aiCards
+          try {
+            const baseCards = u.uid === MARK_UID ? ALL_MARK_CARDS_BASE : u.uid === ELOSY_UID ? ALL_ELOSY_CARDS_BASE : []
+            const aiCards = data.aiCards || []
+            const existingCats = data.cardCategories || {}
+            const newCats = { ...existingCats }
+            let batchChanged = false
 
-                // DIRECT RULE: vocabulary + 3+ words = sentence, always
-                if (current === 'vocabulary' && wordCount >= 3 && !DE_VOCAB_WHITELIST.has(front.trim().toLowerCase())) {
-                  console.log('Reclassified:', front, '→ sentence')
-                  newCats[card.id] = 'sentence'
-                  batchChanged = true
-                  continue
-                }
+            for (const card of [...baseCards, ...aiCards]) {
+              const front = card.front || ''
+              const wordCount = front.trim().split(' ').filter(Boolean).length
+              const current = newCats[card.id]
 
-                // Run ruleCategory for anything else that looks wrong
-                const back = card.back || ''
-                const backWordCount = back.trim().split(/\s+/).filter(Boolean).length
-                const swahiliRe = /\b(habari|yako|nzuri|asante|karibu|pole|sawa|jambo|mambo|rafiki|wewe|mimi|nina|hii|hilo|chakula|maji|nyumba|watoto|upendo)\b/i
-                const isSwahiliCard = card.pronunciation || swahiliRe.test(front) || card.langA === 'sw'
-                const needsRun = !current || current === '' ||
-                  (wordCount === 1 && DE_VOCAB_WHITELIST.has(front.trim().toLowerCase()) && current !== 'vocabulary') ||
-                  (isSwahiliCard && current !== 'street') ||
-                  (current === 'vocabulary' && wordCount === 1 && backWordCount >= 3)
-                if (!needsRun) continue
-                const newCat = ruleCategory(card)
-                if (current !== newCat) {
-                  console.log('Reclassified:', front, '→', newCat)
-                  newCats[card.id] = newCat
+              // basics are untouchable
+              if (card.category === 'basics' || card.source === 'ai-basics') {
+                if (current !== 'basics') {
+                  console.log('Reclassified:', front, '→ basics (protected)')
+                  newCats[card.id] = 'basics'
                   batchChanged = true
                 }
+                continue
               }
 
-              if (batchChanged) {
-                await updateDoc(userRef, { cardCategories: newCats })
-                // Re-fetch fresh from Firestore after batch fix
-                const freshSnap = await getDoc(userRef)
-                if (freshSnap.exists()) {
-                  const freshData = freshSnap.data()
-                  data.cardCategories = freshData.cardCategories || newCats
-                  console.log('[category] Batch fix saved + re-fetched. Total entries:', Object.keys(data.cardCategories).length)
-                }
-              } else {
-                console.log('[category] No changes needed')
+              // DIRECT RULE: vocabulary + 3+ words = sentence, always
+              if (current === 'vocabulary' && wordCount >= 3 && !DE_VOCAB_WHITELIST.has(front.trim().toLowerCase())) {
+                console.log('Reclassified:', front, '→ sentence')
+                newCats[card.id] = 'sentence'
+                batchChanged = true
+                continue
               }
-            } catch (catErr) {
-              console.error('[Vocara] category batch fix failed:', catErr)
+
+              // Run ruleCategory for anything else that looks wrong
+              const back = card.back || ''
+              const backWordCount = back.trim().split(/\s+/).filter(Boolean).length
+              const swahiliRe = /\b(habari|yako|nzuri|asante|karibu|pole|sawa|jambo|mambo|rafiki|wewe|mimi|nina|hii|hilo|chakula|maji|nyumba|watoto|upendo)\b/i
+              const isSwahiliCard = card.pronunciation || swahiliRe.test(front) || card.langA === 'sw'
+              const needsRun = !current || current === '' ||
+                (wordCount === 1 && DE_VOCAB_WHITELIST.has(front.trim().toLowerCase()) && current !== 'vocabulary') ||
+                (isSwahiliCard && current !== 'street') ||
+                (current === 'vocabulary' && wordCount === 1 && backWordCount >= 3)
+              if (!needsRun) continue
+              const newCat = ruleCategory(card)
+              if (current !== newCat) {
+                console.log('Reclassified:', front, '→', newCat)
+                newCats[card.id] = newCat
+                batchChanged = true
+              }
             }
-            setMyData(data)
-            const isKnown = u.uid === MARK_UID || u.uid === ELOSY_UID
-            if (!isKnown) {
-              if (!data.onboardingDone) setNeedsOnboarding(true)
-              if (!data.languages || data.languages.length === 0) setNeedsLangSetup(true)
+
+            if (batchChanged) {
+              await updateDoc(userRef, { cardCategories: newCats })
+              // Re-fetch fresh from Firestore after batch fix
+              const refetchSnap = await getDoc(userRef)
+              if (refetchSnap.exists()) {
+                const refetchData = refetchSnap.data()
+                data.cardCategories = refetchData.cardCategories || newCats
+                console.log('[category] Batch fix saved + re-fetched. Total entries:', Object.keys(data.cardCategories).length)
+              }
+            } else {
+              console.log('[category] No changes needed')
             }
-            try {
-              if (data.partnerUID) {
-                const pSnap = await getDoc(doc(db, 'users', data.partnerUID))
+          } catch (catErr) {
+            console.error('[Vocara] category batch fix failed:', catErr)
+          }
+          setMyData(data)
+          const isKnown = u.uid === MARK_UID || u.uid === ELOSY_UID
+          if (!isKnown) {
+            if (!data.onboardingDone) setNeedsOnboarding(true)
+            if (!data.languages || data.languages.length === 0) setNeedsLangSetup(true)
+          }
+          try {
+            if (data.partnerUID) {
+              const pSnap = await getDoc(doc(db, 'users', data.partnerUID))
+              if (pSnap.exists()) setPartnerData(pSnap.data())
+            } else {
+              const partnerUID = u.uid === MARK_UID ? ELOSY_UID : u.uid === ELOSY_UID ? MARK_UID : null
+              if (partnerUID) {
+                const pSnap = await getDoc(doc(db, 'users', partnerUID))
                 if (pSnap.exists()) setPartnerData(pSnap.data())
-              } else {
-                const partnerUID = u.uid === MARK_UID ? ELOSY_UID : u.uid === ELOSY_UID ? MARK_UID : null
-                if (partnerUID) {
-                  const pSnap = await getDoc(doc(db, 'users', partnerUID))
-                  if (pSnap.exists()) setPartnerData(pSnap.data())
-                }
               }
-            } catch (partnerErr) {
-              console.error('[Vocara] partner load failed, skipping:', partnerErr)
             }
+          } catch (partnerErr) {
+            console.error('[Vocara] partner load failed, skipping:', partnerErr)
           }
         }
       } catch (initErr) {
@@ -5968,11 +6084,15 @@ function App() {
 
 
   const th = THEMES[theme]
-  const isElosy = user?.uid === ELOSY_UID
-  const lang = isElosy ? 'en' : 'de'
+  const isMarkUser = user?.uid === MARK_UID
+  const isElosyUser = user?.uid === ELOSY_UID
+  const lang = myData?.language || (isElosyUser ? 'en' : 'de')
 
   if (loading) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: th.bg, color: th.text }}>Laden...</div>
   if (!user) return <LoginScreen theme={theme} />
+
+  // New user: show welcome screen with call to action
+  if (isNewUser) return <WelcomeScreen user={user} theme={theme} onContinue={() => { setIsNewUser(false); setMainNav('entdecken') }} />
 
   // Onboarding: show for new users before lang setup
   if (needsOnboarding) return <OnboardingScreen lang={lang} theme={theme} onDone={handleOnboardingDone} />
@@ -5981,7 +6101,7 @@ function App() {
 
   const cardCategories = myData?.cardCategories || {}
   const allCards = [
-    ...(isElosy ? ALL_ELOSY_CARDS : ALL_MARK_CARDS),
+    ...(isMarkUser ? ALL_MARK_CARDS : isElosyUser ? ALL_ELOSY_CARDS : []),
     ...(myData?.aiCards || []).flatMap(buildCardPair),
     ...(myData?.sharedCards || []),
   ].map(card => {
@@ -6010,6 +6130,22 @@ function App() {
   return (
     <AppPrefsContext.Provider value={{ lightMode, cardSize }}>
       <ErrorBoundary>
+        {/* ── BRIDGELAB BACK BUTTON (fixed, all screens) ── */}
+        <button
+          onClick={() => { window.location.href = 'https://vocara-peach.vercel.app' }}
+          style={{
+            position: 'fixed', top: 10, left: 10, zIndex: 9999,
+            background: 'rgba(0,0,0,0.45)', color: 'rgba(255,255,255,0.55)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: '8px', padding: '5px 11px',
+            fontSize: '0.72rem', fontWeight: '500',
+            cursor: 'pointer', backdropFilter: 'blur(6px)',
+            WebkitTapHighlightColor: 'transparent',
+            letterSpacing: '0.02em',
+          }}
+        >
+          ← Bridgelab
+        </button>
         <WaterCanvas />
         {(theme === 'nairobi' || theme === 'welt') && <ParticleCanvas theme={theme} />}
         {timeOverlay && <div style={{ position: 'fixed', inset: 0, background: timeOverlay, pointerEvents: 'none', zIndex: 2 }} />}
