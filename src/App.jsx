@@ -894,6 +894,7 @@ html, body, #root {
   .vocara-bridgelab-title {
     font-size: clamp(3.2rem, 14vw, 5.5rem) !important;
     letter-spacing: 0.10em !important;
+    padding-right: 0.12em !important;
     filter: drop-shadow(0 0 20px rgba(255,215,0,0.70)) drop-shadow(0 0 50px rgba(255,215,0,0.40)) drop-shadow(0 0 4px rgba(255,215,0,0.80)) !important;
     -webkit-background-clip: text !important;
     background-clip: text !important;
@@ -5137,7 +5138,7 @@ function MainSelectionScreen({ lang, theme, firstName, uniqueTargetLangs, paused
           </p>
         </div>
         {glassBtn('vocara', onSprechen, 'Vocara', isDE ? 'Sprache' : 'Language', isDE ? 'Wörter, Sätze & Gespräche' : 'Words, sentences & conversation', false)}
-        {glassBtn('entdecken', onEntdecken, 'Katara', isDE ? 'Professionelles Lernen' : 'Professional Learning', isDE ? 'Lernkarten für den Beruf' : 'Flashcards for work', false)}
+        {glassBtn('entdecken', onEntdecken, 'Katara', 'Strukturiertes Lernen', 'Lern was du willst. Wann du willst.', false)}
         {glassBtn('horizont', onHorizont, isDE ? 'Horizont' : 'Horizon', null, isDE ? 'Kultur & Auswandern' : 'Culture & emigration', true)}
       </div>
     </div>
