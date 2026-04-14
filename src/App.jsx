@@ -6087,7 +6087,10 @@ function App() {
   const th = THEMES[theme]
   const isMarkUser = user?.uid === MARK_UID
   const isElosyUser = user?.uid === ELOSY_UID
-  const lang = myData?.language || (isElosyUser ? 'en' : 'de')
+  // fromLang is the user's native language (the UI language), stored as e.g. "EN" or "en"
+  // Priority: fromLang (profile field) > language (legacy field) > default by user identity
+  const langRaw = myData?.fromLang || myData?.language || (isElosyUser ? 'en' : 'de')
+  const lang = langRaw.toLowerCase()
 
   if (loading) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: th.bg, color: th.text }}>Laden...</div>
   if (!user) return <LoginScreen theme={theme} />
