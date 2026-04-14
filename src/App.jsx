@@ -5933,7 +5933,8 @@ function App() {
 
         // ── NEW USER: first login, no profile with createdAt yet
         if (!snap.exists() || !snap.data()?.createdAt) {
-          const profile = { name: u.displayName, email: u.email, createdAt: Date.now(), language: 'de', lastActive: todayStr() }
+          const defaultFromLang = u.uid === ELOSY_UID ? 'en' : 'de'
+          const profile = { name: u.displayName, email: u.email, createdAt: Date.now(), language: defaultFromLang, fromLang: defaultFromLang, lastActive: todayStr() }
           await setDoc(userRef, profile)
           setMyData(profile)
           setIsNewUser(true)
@@ -6014,6 +6015,13 @@ function App() {
           } catch (catErr) {
             console.error('[Vocara] category batch fix failed:', catErr)
           }
+          // One-time migration: write fromLang to Elosy's profile if missing
+          if (u.uid === ELOSY_UID && !data.fromLang) {
+            try {
+              await updateDoc(userRef, { fromLang: 'en', toLang: 'de' })
+              data.fromLang = 'en'; data.toLang = 'de'
+            } catch (_) {}
+          }
           setMyData(data)
           const isKnown = u.uid === MARK_UID || u.uid === ELOSY_UID
           if (!isKnown) {
@@ -6088,8 +6096,9 @@ function App() {
   const isMarkUser = user?.uid === MARK_UID
   const isElosyUser = user?.uid === ELOSY_UID
   // fromLang is the user's native language (the UI language), stored as e.g. "EN" or "en"
-  // Priority: fromLang (profile field) > language (legacy field) > default by user identity
-  const langRaw = myData?.fromLang || myData?.language || (isElosyUser ? 'en' : 'de')
+  // Priority: fromLang (Firestore) > identity-based default > legacy language field > 'de'
+  // Known users (Elosy/Mark) bypass the legacy 'language' field so a stale 'de' default never overrides
+  const langRaw = myData?.fromLang || (isElosyUser ? 'en' : isMarkUser ? 'de' : myData?.language || 'de')
   const lang = langRaw.toLowerCase()
 
   if (loading) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: th.bg, color: th.text }}>Laden...</div>
