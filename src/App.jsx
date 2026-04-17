@@ -6168,7 +6168,7 @@ function App() {
             lang={lang} theme={theme} firstName={firstNameAll}
             uniqueTargetLangs={uniqueTargetLangsAll} pausedLanguages={myData?.pausedLanguages || []}
             onSprechen={() => setMainNav('sprechen')}
-            onEntdecken={() => { window.location.href = 'https://katara-bridgelab.vercel.app'; }}
+            onEntdecken={() => { window.open('https://katara-eta.vercel.app', '_blank'); }}
             onHorizont={() => setMainNav('horizont')}
           />
         )}
