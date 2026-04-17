@@ -138,3 +138,4 @@
 - Session-Resume ✅
 - Swahili Kategorisierung teilweise offen
 - Kategorisierungs-Button entfernen ✅
+- fromLang-basierte UI-Sprache (Elosy EN→DE, alle Screens) ✅
