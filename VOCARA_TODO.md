@@ -45,6 +45,15 @@
 36. KI-Aussprache für bestehende Karten nachrüsten
 37. Eigene Bridgelab-Icons statt Standard
 
+## ✅ Implementiert (18.04.2026 Session 2)
+- Satztraining rebuild: 4 Typen (gap/order/tense/conjugation), freie Texteingabe, 4-Button Selbstbewertung, Grammatik-Erklärung (#neu)
+- Auf der Straße: Auto-generiert 5 KI-Slang-Phrasen wenn 0 Karten vorhanden (#neu)
+- Und zu Hause: Auto-generiert 5 KI-Home-Phrasen wenn 0 Karten vorhanden (#neu)
+- Streak-Warnung: Bridgelab-Design + ⚡ "Jetzt lernen" 5-Karten-Schnell-Session (#neu)
+- WaterCanvas: Opacity 0.15-0.25 (vorher 0.12-0.18), Größe 60-300px (#42 ✅)
+- Card Hover: translateY(-3px) CSS-Transition auf .vocara-big-card (#neu)
+- Partner lastActive: ISO-Timestamp bei jedem App-Start (Echtzeit-Status) (#neu)
+
 ## ✅ Implementiert (18.04.2026)
 - 4-Button Lern-System: ❌ Falsch | 😕 Fast | ✅ Richtig | ⚡ Easy (#neu)
 - Falsch: Position 5 Reinsertion (nicht ans Ende), consecutiveRight-Tracking
@@ -97,7 +106,7 @@
 39. Liebes-Karte des Tages
 40. Video-Moment aufnehmen und teilen
 41. Synchrones Lernen live ✅
-42. Hintergrund: organische Wassertropfen-Wellen zufällig
+42. Hintergrund: organische Wassertropfen-Wellen zufällig ✅
 43. Buttons: Glassmorphism/Frosted Glass
 44. Gimmick-Freischalt-Fenster themenspezifisch
 45. Jahreszeiten-Themes (Hamburg Winter, Nairobi Regenzeit) ✅
