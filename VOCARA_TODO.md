@@ -1,4 +1,4 @@
-# Vocara – Vollständige ToDo & Ideen-Liste (Stand 06.04.2026)
+# Vocara – Vollständige ToDo & Ideen-Liste (Stand 18.04.2026)
 
 ## Liste A – Nicht implementiert
 1. Neue Karte: "Für mich" / "Für Partner" Auswahl
@@ -7,7 +7,7 @@
 4. Thai Farbsystem testen
 5. Lernzeit Statistik testen
 6. Monatsziel Gimmick-Inhalte (Sounds)
-7. Karte falsch → KI erklärt warum
+7. Karte falsch → KI erklärt warum ✅
 8. Streak Freeze 1x/Monat ✅
 9. PWA Push Notifications ✅
 10. Karten-Kommentar/Notiz ✅
@@ -44,6 +44,16 @@
 35. KI-generierte Aussprache für alle Sprachen
 36. KI-Aussprache für bestehende Karten nachrüsten
 37. Eigene Bridgelab-Icons statt Standard
+
+## ✅ Implementiert (18.04.2026)
+- 4-Button Lern-System: ❌ Falsch | 😕 Fast | ✅ Richtig | ⚡ Easy (#neu)
+- Falsch: Position 5 Reinsertion (nicht ans Ende), consecutiveRight-Tracking
+- Fast: Interval=1 (morgen), Session-Exit, Haptic [30,60,30]
+- Easy: +5/10/21 Tage, 5x=GEMEISTERT → dann +30/60/90/180 alle 180d
+- Richtig: 3x consecutiveRight=+2d, 5x=+3d (Beschleunigung)
+- Session-Zusammenfassung: ❌X 😕X ✅X ⚡X + Nochmal/Fertig (#neu)
+- PC/Tablet Layout: 768px maxWidth 700px, 1024px 2-Spalten-Grid (#neu)
+- KI-Gespräch Übersetzen: bestätigt funktional (#neu)
 
 ## ✅ Implementiert (06.04.2026)
 - Hauptmenü-Navigation: Sprechen / Entdecken / Horizont (Glassmorphism)
