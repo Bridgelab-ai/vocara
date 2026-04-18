@@ -941,6 +941,13 @@ html, body, #root {
   .vocara-logo-title { font-size: 3.2rem !important; }
 }
 
+.vocara-big-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.vocara-big-card:hover {
+  transform: translateY(-3px) !important;
+}
+
 button {
   transition: transform 0.07s ease, box-shadow 0.07s ease;
   -webkit-tap-highlight-color: transparent;
@@ -979,9 +986,9 @@ const WaterCanvas = () => {
 
     const addDrop = () => {
       const ringCount = 2 + Math.floor(Math.random() * 4); // 2–5 rings
-      const maxRadius = 80 + Math.random() * 220;          // 80–300 px
+      const maxRadius = 60 + Math.random() * 240;          // 60–300 px
       const speed = 0.4 + Math.random() * 1.1;             // 0.4–1.5
-      const startOpacity = 0.12 + Math.random() * 0.06;    // 0.12–0.18
+      const startOpacity = 0.15 + Math.random() * 0.10;    // 0.15–0.25
       const x = Math.random() * canvas.width;
       const y = Math.random() * canvas.height;
       const spacing = maxRadius / (ringCount + 1);
@@ -1748,114 +1755,131 @@ function KiGespraechScreen({ lang, theme, onBack, userName }) {
 function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userName }) {
   const th = THEMES[theme]; const s = makeStyles(th)
   const isMarkLang = lang === 'de'
-  const [exercises, setExercises] = useState([])
-  const [index, setIndex] = useState(0)
-  const [selected, setSelected] = useState(null)
-  const [scrambleOrder, setScrambleOrder] = useState([])
-  const [scrambleBank, setScrambleBank] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [score, setScore] = useState(0)
-  const [done, setDone] = useState(false)
-  const [revealed, setRevealed] = useState(false)
-
-  const masteredVocab = allCards
-    .filter(c => (cardProgress[c.id]?.interval || 0) >= 7 && !c.id.includes('_r'))
-    .map(c => c.front)
-    .slice(0, 30)
-
-  useEffect(() => {
-    if (masteredVocab.length < 5) { setError('not_enough'); setLoading(false); return }
-    generateExercises()
-  }, [])
-
+  const targetLang = isMarkLang ? 'English' : 'German'
+  const fromLang = isMarkLang ? 'German' : 'English'
   const ttsLangCode = isMarkLang ? 'en' : 'de'
 
+  const knownVocab = allCards.filter(c =>
+    c.category === 'vocabulary' && !/_r(_\d+)?$/.test(c.id) && (cardProgress[c.id]?.interval || 0) >= 2
+  )
+
+  const [exercises, setExercises] = useState([])
+  const [index, setIndex] = useState(0)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+  const [userInput, setUserInput] = useState('')
+  const [chipBank, setChipBank] = useState([])
+  const [chipOrder, setChipOrder] = useState([])
+  const [revealed, setRevealed] = useState(false)
+  const [selfRating, setSelfRating] = useState(null)
+  const [correct, setCorrect] = useState(0)
+  const [done, setDone] = useState(false)
+
+  const ex = exercises[index]
+
+  useEffect(() => {
+    if (knownVocab.length >= 5) generateExercises()
+  }, [])
+
   const generateExercises = async () => {
-    setLoading(true); setError(null)
-    const targetLang = isMarkLang ? 'English' : 'German'
-    const nativeLang = isMarkLang ? 'German' : 'English'
-    const prompt = `Generate exactly 8 sentence exercises for a ${targetLang} learner (B1 level) whose native language is ${nativeLang}. Use these mastered vocabulary words where possible: ${masteredVocab.join(', ')}.
-
-Mix these 3 types:
-- "scramble": a ${targetLang} sentence split into shuffled word chips, user puts them in order
-- "fill_blank": a ${targetLang} sentence with one blank, 4 multiple choice options
-- "translate": a ${nativeLang} sentence to translate to ${targetLang}, 4 multiple choice options
-
-Return ONLY a valid JSON array. No markdown. No explanation. Example format:
-[
-  {"type":"scramble","sentence":"I am on my way","shuffled":["my","am","way","on","I"],"vocab":"I'm on my way"},
-  {"type":"fill_blank","blank_sentence":"She ___ very tired today.","options":["is","are","am","be"],"correct_index":0,"vocab":"tired"},
-  {"type":"translate","prompt_sentence":"Ich bin dabei.","options":["I am in.","I'm down.","I am here.","I will come."],"correct_index":1,"vocab":"I'm down"}
-]`
-
+    setLoading(true); setError(null); setIndex(0); setDone(false)
+    setCorrect(0); setRevealed(false); setSelfRating(null); setUserInput('')
+    const wordList = knownVocab.map(c => c.back).slice(0, 30).join(', ')
+    const prompt = `Create 8 grammar exercises for a ${targetLang} learner (${fromLang} native speaker).
+Use these known words where possible: ${wordList}
+Mix all 4 types. Return ONLY valid JSON array, no markdown:
+[{"type":"gap","question":"She [___] to school every day.","answer":"goes","hint":"3rd person singular","explanation":"In English, add -s/-es to verbs in 3rd person singular present tense."},
+{"type":"order","question":"Arrange the words in the correct order:","chips":["goes","she","school","to","every","day"],"answer":"She goes to school every day.","explanation":"Standard English word order: Subject + Verb + Object."},
+{"type":"tense","question":"She goes to school. (Past tense →)","answer":"She went to school.","hint":"irregular verb","explanation":"go is irregular: go → went → gone."},
+{"type":"conjugation","question":"sein + wir →","answer":"sind","hint":"irregular","explanation":"sein is irregular: ich bin, du bist, er ist, wir sind, ihr seid, sie sind."}]`
     try {
       const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 1500, messages: [{ role: 'user', content: prompt }] })
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1800, messages: [{ role: 'user', content: prompt }] })
       })
       const data = await res.json()
       const text = data.content?.[0]?.text || ''
-      const clean = text.replace(/```json|```/g, '').trim()
-      const parsed = JSON.parse(clean)
+      const parsed = JSON.parse(text.replace(/```json|```/g, '').trim())
       setExercises(parsed)
-      if (parsed[0]?.type === 'scramble') initScramble(parsed[0])
+      if (parsed[0]?.type === 'order') initChips(parsed[0])
     } catch (e) { setError('api') }
     setLoading(false)
   }
 
-  const initScramble = (ex) => {
-    const shuffled = [...ex.shuffled].sort(() => Math.random() - 0.5)
-    setScrambleBank(shuffled.map((w, i) => ({ word: w, id: i })))
-    setScrambleOrder([])
+  const initChips = (exercise) => {
+    const chips = [...(exercise.chips || exercise.answer.split(' '))]
+      .sort(() => Math.random() - 0.5)
+      .map((w, i) => ({ word: w, id: i }))
+    setChipBank(chips); setChipOrder([])
   }
 
-  const ex = exercises[index]
+  const handleCheck = () => {
+    if (ex.type === 'order') {
+      speak(ex.answer, ttsLangCode)
+    } else if (userInput.trim()) {
+      speak(ex.answer, ttsLangCode)
+    } else return
+    setRevealed(true)
+  }
 
-  const handleNext = (wasCorrect) => {
-    if (wasCorrect) setScore(s => s + 1)
+  const handleRate = (rating) => {
+    setSelfRating(rating)
+    if (rating === 'right' || rating === 'easy') setCorrect(c => c + 1)
+  }
+
+  const handleNext = () => {
     const next = index + 1
     if (next >= exercises.length) { setDone(true); return }
-    setIndex(next); setSelected(null); setRevealed(false)
-    if (exercises[next]?.type === 'scramble') initScramble(exercises[next])
+    setIndex(next); setUserInput(''); setRevealed(false); setSelfRating(null)
+    const nextEx = exercises[next]
+    if (nextEx?.type === 'order') initChips(nextEx)
+    else { setChipBank([]); setChipOrder([]) }
   }
 
-  const checkScramble = () => {
-    const answer = scrambleOrder.map(w => w.word).join(' ')
-    const correct = answer.trim().toLowerCase() === ex.sentence.trim().toLowerCase()
-    setRevealed(true); setSelected(correct ? 'correct' : 'wrong')
-    speak(ex.sentence, ttsLangCode)
+  const addChip = (chip) => { if (revealed) return; setChipOrder(o => [...o, chip]); setChipBank(b => b.filter(c => c.id !== chip.id)) }
+  const removeChip = (chip) => { if (revealed) return; setChipBank(b => [...b, chip]); setChipOrder(o => o.filter(c => c.id !== chip.id)) }
+
+  const isAnswerCorrect = () => {
+    if (ex.type === 'order') {
+      return chipOrder.map(c => c.word).join(' ').toLowerCase() === ex.answer.toLowerCase()
+    }
+    const norm = s => s.trim().toLowerCase().replace(/[.,!?]/g, '')
+    return norm(userInput) === norm(ex.answer)
   }
 
-  const addWord = (item) => {
-    setScrambleOrder(o => [...o, item])
-    setScrambleBank(b => b.filter(w => w.id !== item.id))
+  const typeLabel = (type) => {
+    const labels = { gap: isMarkLang ? '✏️ Lückentext' : '✏️ Fill the gap', order: isMarkLang ? '🔀 Wortstellung' : '🔀 Word order', tense: isMarkLang ? '⏰ Zeitformen' : '⏰ Tense', conjugation: isMarkLang ? '🔤 Konjugation' : '🔤 Conjugation' }
+    return labels[type] || type
   }
-  const removeWord = (item) => {
-    setScrambleBank(b => [...b, item])
-    setScrambleOrder(o => o.filter(w => w.id !== item.id))
-  }
+
+  if (knownVocab.length < 5) return (
+    <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
+      <button style={s.backBtn} onClick={onBack}>←</button>
+      <p style={{ color: th.accent, fontSize: '2rem', marginBottom: '12px' }}>📚</p>
+      <p style={{ color: th.text, fontSize: '1rem', marginBottom: '8px', fontWeight: '600' }}>
+        {isMarkLang ? 'Noch nicht genug Wörter' : 'Not enough words yet'}
+      </p>
+      <p style={{ color: th.sub, fontSize: '0.88rem', marginBottom: '20px', lineHeight: 1.5 }}>
+        {isMarkLang ? 'Übe zuerst mehr Wörter in Meine Worte — du brauchst mindestens 5 Wörter mit Mastery ≥ 2.' : 'Practice more words in My Words first — you need at least 5 words with mastery ≥ 2.'}
+      </p>
+      <button style={s.logoutBtn} onClick={onBack}>{isMarkLang ? 'Zurück' : 'Back'}</button>
+    </div></div>
+  )
 
   if (loading) return (
     <div style={s.container} className="vocara-screen">
       <div style={{ textAlign: 'center' }}>
         <p style={{ color: th.accent, fontSize: '1.4rem', marginBottom: '12px' }}>✦</p>
-        <p style={{ color: th.sub, fontSize: '0.9rem' }}>{isMarkLang ? 'KI erstellt deine Satzübungen...' : 'AI is preparing your sentence exercises...'}</p>
+        <p style={{ color: th.sub, fontSize: '0.9rem' }}>{isMarkLang ? 'KI erstellt deine Grammatik-Übungen…' : 'AI is preparing your grammar exercises…'}</p>
       </div>
     </div>
   )
 
   if (error) return (
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
-      <button style={s.backBtn} onClick={onBack}>← {isMarkLang ? 'Zurück' : 'Back'}</button>
-      <p style={{ color: th.accent, fontSize: '2rem', marginBottom: '12px' }}>⚠️</p>
-      <p style={{ color: th.text, marginBottom: '16px' }}>
-        {error === 'not_enough'
-          ? (isMarkLang ? 'Du musst zuerst mindestens 5 Karten meistern.' : 'Master at least 5 cards first.')
-          : (isMarkLang ? 'Verbindungsfehler. Bitte erneut versuchen.' : 'Connection error. Please try again.')}
-      </p>
-      {error === 'api' && <button style={s.button} onClick={generateExercises}>{isMarkLang ? 'Erneut versuchen' : 'Try again'}</button>}
+      <button style={s.backBtn} onClick={onBack}>←</button>
+      <p style={{ color: th.text, marginBottom: '16px' }}>{isMarkLang ? 'Verbindungsfehler. Bitte erneut versuchen.' : 'Connection error. Please try again.'}</p>
+      <button style={s.button} onClick={generateExercises}>{isMarkLang ? 'Erneut versuchen' : 'Try again'}</button>
       <button style={s.logoutBtn} onClick={onBack}>{isMarkLang ? 'Zurück' : 'Back'}</button>
     </div></div>
   )
@@ -1864,19 +1888,18 @@ Return ONLY a valid JSON array. No markdown. No explanation. Example format:
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
       <h1 style={s.title}>{isMarkLang ? 'Fertig! 🎉' : 'Done! 🎉'}</h1>
       <div style={{ ...s.card, textAlign: 'center', padding: '24px' }}>
-        <p style={{ color: th.gold, fontSize: '3rem', fontWeight: 'bold', margin: 0 }}>{score}/{exercises.length}</p>
+        <p style={{ color: th.gold, fontSize: '3rem', fontWeight: 'bold', margin: 0 }}>{correct}/{exercises.length}</p>
         <p style={{ color: th.sub, fontSize: '0.9rem', marginTop: '8px' }}>
-          {score === exercises.length ? '🏆 Perfekt!' : score >= exercises.length * 0.7 ? '💪 Sehr gut!' : '📚 Weiter üben!'}
+          {correct === exercises.length ? '🏆 Perfekt!' : correct >= exercises.length * 0.7 ? '💪 Sehr gut!' : '📚 Weiter üben!'}
         </p>
       </div>
-      <button style={s.button} onClick={() => { setIndex(0); setScore(0); setDone(false); setLoading(true); generateExercises() }}>
-        {isMarkLang ? '🔄 Neue Übungen' : '🔄 New exercises'}
-      </button>
+      <button style={s.button} onClick={generateExercises}>{isMarkLang ? '🔄 Neue Übungen' : '🔄 New exercises'}</button>
       <button style={s.logoutBtn} onClick={onBack}>{isMarkLang ? 'Zurück' : 'Back'}</button>
     </div></div>
   )
 
   if (!ex) return null
+  const correct_bool = revealed ? isAnswerCorrect() : null
 
   return (
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
@@ -1884,74 +1907,96 @@ Return ONLY a valid JSON array. No markdown. No explanation. Example format:
         <p style={s.greeting}>{index + 1} / {exercises.length}</p>
         <button style={s.stopBtn} onClick={onBack}>✕</button>
       </div>
-      <div style={s.progressBar}><div style={{ ...s.progressFill, width: `${((index) / exercises.length) * 100}%` }} /></div>
+      <div style={s.progressBar}><div style={{ ...s.progressFill, width: `${(index / exercises.length) * 100}%` }} /></div>
 
-      <p style={{ color: th.sub, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '1px', margin: '12px 0 8px 0' }}>
-        {ex.type === 'scramble' ? (isMarkLang ? '🔀 Richtige Reihenfolge' : '🔀 Correct order') :
-         ex.type === 'fill_blank' ? (isMarkLang ? '✏️ Lückentext' : '✏️ Fill the blank') :
-         (isMarkLang ? '🌐 Übersetzen' : '🌐 Translate')}
+      <p style={{ color: th.sub, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '1px', margin: '14px 0 10px' }}>
+        {typeLabel(ex.type)}
       </p>
 
-      {ex.type === 'scramble' && (
+      {/* QUESTION CARD */}
+      <div style={{ ...s.bigCard, minHeight: '80px', marginBottom: '14px' }}>
+        <p style={{ ...s.cardFront, marginBottom: ex.hint ? '6px' : 0 }}>{ex.question}</p>
+        {ex.hint && <p style={{ color: th.sub, fontSize: '0.72rem', fontStyle: 'italic', margin: 0 }}>💡 {ex.hint}</p>}
+      </div>
+
+      {/* INPUT AREA */}
+      {(ex.type === 'gap' || ex.type === 'tense' || ex.type === 'conjugation') && (
+        <div style={{ marginBottom: '14px' }}>
+          <input
+            value={userInput}
+            onChange={e => !revealed && setUserInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && !revealed && userInput.trim()) handleCheck() }}
+            placeholder={isMarkLang ? 'Deine Antwort…' : 'Your answer…'}
+            disabled={revealed}
+            style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: `1px solid ${revealed ? (correct_bool ? '#4CAF50' : '#f44336') : th.border}`, background: th.card, color: th.text, fontSize: '1rem', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
+            autoFocus
+          />
+        </div>
+      )}
+
+      {/* CHIP AREA for order type */}
+      {ex.type === 'order' && (
         <>
-          <div style={{ ...s.bigCard, minHeight: '80px', flexWrap: 'wrap', gap: '8px', padding: '16px', justifyContent: 'flex-start', alignItems: 'flex-start' }}>
-            {scrambleOrder.length === 0
+          <div style={{ ...s.bigCard, minHeight: '60px', flexWrap: 'wrap', gap: '8px', padding: '12px', justifyContent: 'flex-start', alignItems: 'flex-start', marginBottom: '8px' }}>
+            {chipOrder.length === 0
               ? <p style={{ color: th.sub, fontSize: '0.85rem', margin: 'auto' }}>{isMarkLang ? 'Tippe auf Wörter unten' : 'Tap words below'}</p>
-              : scrambleOrder.map((w) => (
-                <button key={w.id} onClick={() => !revealed && removeWord(w)}
+              : chipOrder.map(chip => (
+                <button key={chip.id} onClick={() => removeChip(chip)}
                   style={{ background: th.accent + '33', color: th.text, border: `1px solid ${th.accent}`, borderRadius: '8px', padding: '6px 12px', fontSize: '0.95rem', cursor: revealed ? 'default' : 'pointer' }}>
-                  {w.word}
+                  {chip.word}
                 </button>
               ))
             }
           </div>
-          {revealed && (
-            <p style={{ color: selected === 'correct' ? '#4CAF50' : '#f44336', fontWeight: 'bold', margin: '4px 0 12px 0' }}>
-              {selected === 'correct' ? '✓' : `✗  ${ex.sentence}`}
-            </p>
-          )}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center', marginBottom: '16px' }}>
-            {scrambleBank.map(w => (
-              <button key={w.id} onClick={() => !revealed && addWord(w)}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center', marginBottom: '14px' }}>
+            {chipBank.map(chip => (
+              <button key={chip.id} onClick={() => addChip(chip)}
                 style={{ background: th.card, color: th.text, border: `1px solid ${th.border}`, borderRadius: '8px', padding: '6px 12px', fontSize: '0.95rem', cursor: revealed ? 'default' : 'pointer' }}>
-                {w.word}
+                {chip.word}
               </button>
             ))}
           </div>
-          {!revealed
-            ? <button style={{ ...s.button, opacity: scrambleOrder.length === 0 ? 0.4 : 1 }} onClick={checkScramble} disabled={scrambleOrder.length === 0}>
-                {isMarkLang ? 'Prüfen' : 'Check'}
-              </button>
-            : <button style={s.button} onClick={() => handleNext(selected === 'correct')}>
-                {index + 1 < exercises.length ? (isMarkLang ? 'Weiter →' : 'Next →') : (isMarkLang ? 'Fertig' : 'Finish')}
-              </button>
-          }
         </>
       )}
 
-      {(ex.type === 'fill_blank' || ex.type === 'translate') && (
-        <>
-          <div style={{ ...s.bigCard, minHeight: '80px' }}>
-            <p style={{ ...s.cardFront, marginBottom: 0 }}>{ex.type === 'fill_blank' ? ex.blank_sentence : ex.prompt_sentence}</p>
+      {/* REVEAL RESULT */}
+      {revealed && (
+        <div style={{ marginBottom: '14px', animation: 'vocaraFadeIn 0.3s ease both' }}>
+          <p style={{ color: correct_bool ? '#4CAF50' : '#f44336', fontWeight: 'bold', fontSize: '1rem', marginBottom: '8px' }}>
+            {correct_bool ? `✓ ${ex.answer}` : `✗ ${isMarkLang ? 'Richtig: ' : 'Correct: '}${ex.answer}`}
+          </p>
+          <div style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${th.border}`, borderRadius: '10px', padding: '10px 14px' }}>
+            <p style={{ color: th.sub, fontSize: '0.78rem', margin: 0, lineHeight: 1.6 }}>📖 {ex.explanation}</p>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
-            {ex.options.map((opt, i) => {
-              let bg = th.card; let border = `1px solid ${th.border}`
-              if (revealed && i === ex.correct_index) { bg = '#4CAF5022'; border = '2px solid #4CAF50' }
-              else if (revealed && selected === i) { bg = '#f4433622'; border = '2px solid #f44336' }
-              else if (selected === i) { bg = th.accent + '22'; border = `2px solid ${th.accent}` }
-              return (
-                <button key={i} onClick={() => { if (!revealed) { setSelected(i); setRevealed(true); speak(ex.options[ex.correct_index], ttsLangCode) } }}
-                  style={{ background: bg, color: th.text, border, borderRadius: '10px', padding: '13px 16px', fontSize: '0.95rem', cursor: revealed ? 'default' : 'pointer', textAlign: 'left' }}>
-                  {opt}
-                </button>
-              )
-            })}
-          </div>
-          {revealed && <button style={s.button} onClick={() => handleNext(selected === ex.correct_index)}>
-            {index + 1 < exercises.length ? (isMarkLang ? 'Weiter →' : 'Next →') : (isMarkLang ? 'Fertig' : 'Finish')}
-          </button>}
-        </>
+        </div>
+      )}
+
+      {/* CHECK BUTTON */}
+      {!revealed && (
+        <button
+          style={{ ...s.button, opacity: (ex.type === 'order' ? chipOrder.length > 0 : userInput.trim().length > 0) ? 1 : 0.4 }}
+          onClick={handleCheck}
+          disabled={ex.type === 'order' ? chipOrder.length === 0 : !userInput.trim()}
+        >
+          {isMarkLang ? 'Prüfen' : 'Check'}
+        </button>
+      )}
+
+      {/* SELF RATING AFTER REVEAL */}
+      {revealed && !selfRating && (
+        <div style={{ ...s.answerRow, marginTop: '8px' }}>
+          <button style={s.wrongBtn} onClick={() => handleRate('wrong')}>❌ {lang === 'de' ? 'Falsch' : 'Wrong'}</button>
+          <button style={s.fastBtn} onClick={() => handleRate('fast')}>😕 Fast</button>
+          <button style={s.rightBtn} onClick={() => handleRate('right')}>✅ {lang === 'de' ? 'Richtig' : 'Right'}</button>
+          <button style={s.easyBtn} onClick={() => handleRate('easy')}>⚡ Easy</button>
+        </div>
+      )}
+
+      {/* NEXT BUTTON after rating */}
+      {revealed && selfRating && (
+        <button style={s.button} onClick={handleNext}>
+          {index + 1 < exercises.length ? (isMarkLang ? 'Weiter →' : 'Next →') : (isMarkLang ? 'Fertig' : 'Finish')}
+        </button>
       )}
     </div></div>
   )
@@ -3711,6 +3756,52 @@ Return ONLY JSON: [{"front": "German word", "back": "English translation", "cate
     }
   }
 
+  const generateCategoryCards = async (category) => {
+    const isStreet = category === 'street'
+    const langA = isMarkLang ? 'de' : 'en'
+    const langB = isMarkLang ? 'en' : 'de'
+    const fromLangName = isMarkLang ? 'German' : 'English'
+    const toLangName = isMarkLang ? 'English' : 'German'
+    const typeDesc = isStreet
+      ? 'slang, street language, informal expressions, youth language'
+      : 'home, family, romantic, everyday domestic expressions'
+    const label = isStreet
+      ? (isMarkLang ? 'Auf der Straße — KI erstellt erste Phrasen…' : 'On the Street — AI creating first phrases…')
+      : (isMarkLang ? 'Und zu Hause — KI erstellt erste Phrasen…' : 'At Home — AI creating first phrases…')
+    setEmptyCategoryMsg(label)
+    const prompt = `Generate exactly 5 natural ${typeDesc} flashcards for a ${toLangName} learner whose native language is ${fromLangName}.
+Front language: ${fromLangName}. Back language: ${toLangName}. Category: ${category}.
+For street/slang: use real informal expressions. For home: use family/romantic/daily household phrases.
+Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","context":"usage note in 1 sentence"}]`
+    try {
+      const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 600, messages: [{ role: 'user', content: prompt }] }) })
+      const data = await res.json()
+      const text = data.content?.[0]?.text || ''
+      const parsed = JSON.parse(text.replace(/```json|```/g, '').trim())
+      const ts = Date.now()
+      const newCards = parsed.map((c, i) => ({
+        ...c, id: `${category}_ai_${ts}_${i}`, langA, langB, source: `ai-${category}`, createdAt: ts,
+        targetLang: langB
+      }))
+      const updatedAiCards = [...(myData?.aiCards || []), ...newCards]
+      const updatedProgress = { ...(myData?.cardProgress || {}) }
+      newCards.forEach(c => { updatedProgress[c.id] = { interval: 0, consecutiveRight: 0, wrongSessions: 0, nextReview: todayStr() } })
+      await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress })
+      setMyData(d => ({ ...d, aiCards: updatedAiCards, cardProgress: updatedProgress }))
+      setEmptyCategoryMsg(isMarkLang ? 'Erste Phrasen bereit ✓' : 'First phrases ready ✓')
+      setTimeout(() => setEmptyCategoryMsg(null), 2000)
+      const sessionCards = newCards.flatMap(buildCardPair)
+      const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
+      const sess = shuffle(sessionCards).slice(0, SESSION_SIZE)
+      setCurrentSessionMode(category)
+      setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+    } catch(e) {
+      setEmptyCategoryMsg(isMarkLang ? 'KI-Generierung fehlgeschlagen.' : 'AI generation failed.')
+      setTimeout(() => setEmptyCategoryMsg(null), 3000)
+    }
+  }
+
   const startCategorySession = (category) => {
     console.log('[Vocara] startCategorySession:', category)
     // ── MEINE WORTE HARD FILTER ─────────────────────────────────
@@ -3747,6 +3838,14 @@ Return ONLY JSON: [{"front": "German word", "back": "English translation", "cate
       return
     }
     if (cards.length === 0) {
+      if (category === 'street') {
+        generateCategoryCards('street')
+        return
+      }
+      if (category === 'home') {
+        generateCategoryCards('home')
+        return
+      }
       setEmptyCategoryMsg(isMarkLang ? 'Hier wartet noch nichts — aber das ändert sich.' : 'Nothing here yet — but that changes now.')
       setTimeout(() => setEmptyCategoryMsg(null), 3500)
       return
@@ -4286,15 +4385,28 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
 
       {/* ── STREAK WARNING ── */}
       {streakStatus === 'warning' && (
-        <div style={{ background: 'rgba(255,165,0,0.1)', border: '1px solid rgba(255,165,0,0.4)', borderRadius: '12px', padding: '10px 14px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '1.1rem' }}>⚠️</span>
-          <span style={{ color: '#FFA500', fontWeight: '600', fontSize: '0.88rem', flex: 1 }}>{isMarkLang ? 'Die Verbindung braucht dich.' : 'Your streak is at risk!'}</span>
-          {freezeAvailable && (
-            <button
-              onClick={() => { if (window.confirm(isMarkLang ? 'Streak Freeze jetzt verwenden? (1x/Monat)' : 'Use Streak Freeze now? (1x/month)')) handleStreakFreeze() }}
-              style={{ background: 'rgba(100,200,255,0.12)', border: '1px solid rgba(100,200,255,0.35)', color: '#7ec8e3', borderRadius: '20px', padding: '5px 12px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: '700', whiteSpace: 'nowrap', flexShrink: 0 }}
-            >🧊 Freeze</button>
-          )}
+        <div style={{ background: 'rgba(255,165,0,0.10)', border: '1px solid rgba(255,165,0,0.45)', borderRadius: '14px', padding: '12px 14px', marginBottom: '12px', animation: 'vocaraFadeIn 0.4s ease both' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+            <span style={{ fontSize: '1.1rem' }}>⚠️</span>
+            <span style={{ color: '#FFA500', fontWeight: '700', fontSize: '0.9rem', flex: 1 }}>{isMarkLang ? 'Die Verbindung braucht dich heute.' : 'Your streak needs you today.'}</span>
+            {freezeAvailable && (
+              <button
+                onClick={() => { if (window.confirm(isMarkLang ? 'Streak Freeze jetzt verwenden? (1x/Monat)' : 'Use Streak Freeze now? (1x/month)')) handleStreakFreeze() }}
+                style={{ background: 'rgba(100,200,255,0.12)', border: '1px solid rgba(100,200,255,0.35)', color: '#7ec8e3', borderRadius: '20px', padding: '5px 10px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700', whiteSpace: 'nowrap', flexShrink: 0 }}
+              >🧊</button>
+            )}
+          </div>
+          <button
+            onClick={() => {
+              const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
+              const quick = shuffle(activeCards.filter(c => cardProgress[c.id]?.nextReview <= today || !cardProgress[c.id])).slice(0, 5)
+              if (quick.length === 0) return
+              setCurrentSessionMode('all'); setSession(quick); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+            }}
+            style={{ background: 'linear-gradient(135deg, rgba(255,165,0,0.25), rgba(255,165,0,0.12))', border: '1px solid rgba(255,165,0,0.5)', color: '#FFA500', borderRadius: '20px', padding: '8px 16px', cursor: 'pointer', fontSize: '0.88rem', fontWeight: '700', width: '100%', fontFamily: 'inherit' }}
+          >
+            ⚡ {isMarkLang ? 'Jetzt lernen →' : 'Learn now →'} (5 {isMarkLang ? 'Karten' : 'cards'})
+          </button>
         </div>
       )}
       {streakStatus === 'lost' && (
@@ -6118,6 +6230,8 @@ function App() {
       } catch (initErr) {
         console.error('[Vocara] app init failed, falling back to defaults:', initErr)
       }
+      // Update lastActive timestamp for partner visibility
+      try { await updateDoc(doc(db, 'users', u.uid), { lastActive: new Date().toISOString() }) } catch(e) {}
       setUser(u); setLoading(false)
     })
     return unsubscribe
