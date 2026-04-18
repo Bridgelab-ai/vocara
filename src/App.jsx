@@ -929,6 +929,16 @@ html, body, #root {
   .vocara-dots-row { margin-bottom: 5px !important; }
   .vocara-nav-section { margin-top: 0 !important; margin-bottom: 2px !important; }
   .vocara-nav-btn { padding: 7px 12px !important; font-size: 0.82rem !important; margin-bottom: 3px !important; }
+  .vocara-home-box { max-width: 700px !important; }
+  .vocara-card-screen-box { max-width: 600px !important; }
+  .vocara-answer-row { gap: 10px !important; }
+}
+@media (min-width: 1024px) {
+  .vocara-home-box { max-width: 960px !important; }
+  .vocara-cat-grid { display: grid !important; grid-template-columns: 1fr 1fr !important; }
+  .vocara-cat-grid > div { display: contents !important; }
+  .vocara-card-screen-box { max-width: 720px !important; }
+  .vocara-logo-title { font-size: 3.2rem !important; }
 }
 
 button {
@@ -1163,26 +1173,36 @@ function makeStyles(th) {
       backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
       boxShadow: `0 4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.14)`,
     },
-    answerRow: { display: 'flex', gap: '10px', width: '100%' },
+    answerRow: { display: 'flex', gap: '8px', width: '100%', flexWrap: 'wrap' },
     wrongBtn: {
       flex: 1, background: 'rgba(224,108,117,0.12)', color: '#e06c75', border: '1px solid rgba(224,108,117,0.4)',
-      padding: '12px', borderRadius: '50px', fontSize: '1rem', cursor: 'pointer', fontWeight: 'bold',
+      padding: '12px 8px', borderRadius: '50px', fontSize: '0.95rem', cursor: 'pointer', fontWeight: 'bold',
       backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
       boxShadow: '0 4px 16px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)',
+      minWidth: '0',
+    },
+    fastBtn: {
+      flex: 1, background: 'rgba(255,165,0,0.12)', color: '#FFA500', border: '1px solid rgba(255,165,0,0.4)',
+      padding: '12px 8px', borderRadius: '50px', fontSize: '0.95rem', cursor: 'pointer', fontWeight: 'bold',
+      backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
+      boxShadow: '0 4px 16px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)',
+      minWidth: '0',
     },
     easyBtn: {
-      flex: '0 0 auto', background: `rgba(255,255,255,0.06)`, color: th.gold, border: `1px solid ${th.gold}55`,
-      padding: '8px 14px', borderRadius: '50px', fontSize: '0.8rem', cursor: 'pointer',
-      fontWeight: 'bold', alignSelf: 'center',
+      flex: 1, background: `rgba(255,255,255,0.06)`, color: th.gold, border: `1px solid ${th.gold}55`,
+      padding: '12px 8px', borderRadius: '50px', fontSize: '0.95rem', cursor: 'pointer',
+      fontWeight: 'bold',
       backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
       boxShadow: '0 3px 12px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.08)',
+      minWidth: '0',
     },
     rightBtn: {
       flex: 1, background: `linear-gradient(135deg, ${th.accent}35, ${th.accent}18)`,
       color: th.text, border: `1px solid ${th.accent}55`,
-      padding: '12px', borderRadius: '50px', fontSize: '1rem', cursor: 'pointer', fontWeight: 'bold',
+      padding: '12px 8px', borderRadius: '50px', fontSize: '0.95rem', cursor: 'pointer', fontWeight: 'bold',
       backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
       boxShadow: '0 4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.12)',
+      minWidth: '0',
     },
     stopBtn: {
       background: 'transparent', color: '#f44336', border: '1px solid #f44336',
@@ -1254,7 +1274,7 @@ const T = {
     progressBtn: '📈 Fortschritt', logout: 'Abmelden',
     myProgress: 'Dein Fortschritt', notActive: 'Noch kein Partner',
     card: 'Karte', of: 'von', showSolution: 'Lösung anzeigen',
-    correct: 'Richtig', wrong: 'Falsch', easy: '⚡ Easy', stop: '✕ Beenden',
+    correct: 'Richtig', wrong: 'Falsch', fast: 'Fast', easy: '⚡ Easy', stop: '✕ Beenden',
     stopConfirm: 'Session wirklich beenden?', done: 'Heute. Gut gemacht.', back: 'Zurück',
     masteryMsg: 'Deine Stimme wächst. 3 neue Karten.',
     comingSoon: 'Kommt bald', chooseTheme: 'Wähle dein Theme', settingsTitle: 'Einstellungen',
@@ -1288,7 +1308,7 @@ const T = {
     progressBtn: '📈 Progress', logout: 'Sign out',
     myProgress: 'Your progress', notActive: 'No partner yet',
     card: 'Card', of: 'of', showSolution: 'Show answer',
-    correct: 'Correct', wrong: 'Wrong', easy: '⚡ Easy', stop: '✕ Stop',
+    correct: 'Correct', wrong: 'Wrong', fast: 'Fast', easy: '⚡ Easy', stop: '✕ Stop',
     stopConfirm: 'Stop this session?', done: 'Well done.', back: 'Back',
     masteryMsg: 'Your voice is growing. 3 new cards.',
     comingSoon: 'Coming soon', chooseTheme: 'Choose your theme', settingsTitle: 'Settings',
@@ -2322,6 +2342,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
   const startTime = useRef(Date.now())
   const answeredIds = useRef(new Set())
   const easyCountRef = useRef(0)
+  const fastCountRef = useRef(0)
   const cardStatsRef = useRef({})
 
   useEffect(() => {
@@ -2478,45 +2499,90 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
     easyCountRef.current += 1
     const st = cardStatsRef.current[cardId] || { wrongs: 0, fastestMs: Infinity }
     cardStatsRef.current[cardId] = { ...st, fastestMs: Math.min(st.fastestMs, 500) }
-    const prev = newProgress[cardId] || { interval: 0, consecutiveFast: 0, wrongSessions: 0 }
-    const easyInterval = Math.max(7, (prev.interval || 0) + 3)
-    const newCorrectCount = (prev.correctCount || 0) + 1
-    const isGolden = easyInterval >= 4 && newCorrectCount >= 5
-    const updatedProgress = { ...prev, interval: easyInterval, consecutiveFast: 0, wrongSessions: Math.max(0, (prev.wrongSessions || 0) - 1), nextReview: getNextReview(easyInterval), correctCount: newCorrectCount, isGolden }
+    const prev = newProgress[cardId] || { interval: 0, consecutiveRight: 0, wrongSessions: 0 }
+    const prevEasyCount = (prev.easyCount || 0) + 1
+    const wasMastered = !!prev.mastered
+    const nowMastered = prevEasyCount >= 5 || wasMastered
+    let easyInterval
+    if (wasMastered) {
+      const mrc = (prev.masteredReviewCount || 0) + 1
+      const masteredIntervals = [30, 60, 90, 180]
+      easyInterval = masteredIntervals[Math.min(mrc - 1, masteredIntervals.length - 1)]
+    } else if (prevEasyCount >= 5) {
+      easyInterval = 30
+    } else if (prevEasyCount === 1) {
+      easyInterval = 5
+    } else if (prevEasyCount === 2) {
+      easyInterval = 10
+    } else {
+      easyInterval = 21
+    }
+    const masteredReviewCount = wasMastered ? (prev.masteredReviewCount || 0) + 1 : (nowMastered ? 1 : 0)
+    const isGolden = nowMastered || easyInterval >= 14
+    const updatedProgress = {
+      ...prev, interval: easyInterval, consecutiveRight: 0,
+      wrongSessions: Math.max(0, (prev.wrongSessions || 0) - 1),
+      nextReview: getNextReview(easyInterval), easyCount: prevEasyCount,
+      mastered: nowMastered,
+      masteredAt: nowMastered && !wasMastered ? todayStr() : (prev.masteredAt || null),
+      masteredReviewCount, isGolden
+    }
     const finalProgress = { ...newProgress, [cardId]: updatedProgress }
     setNewProgress(finalProgress)
     const newCorrect = correct + 1; setCorrect(newCorrect)
-    if (index + 1 >= queue.length) { onFinish(finalProgress, newCorrect, wrong, easyCountRef.current, cardStatsRef.current); return }
+    if (index + 1 >= queue.length) { onFinish(finalProgress, newCorrect, wrong, easyCountRef.current, fastCountRef.current, cardStatsRef.current); return }
+    setIndex(i => i + 1); setRevealed(false)
+    onSaveState?.(queue, index + 1, finalProgress)
+  }
+  const handleFast = () => {
+    const cardId = item.id
+    answeredIds.current.add(cardId)
+    fastCountRef.current += 1
+    const st = cardStatsRef.current[cardId] || { wrongs: 0, fastestMs: Infinity }
+    cardStatsRef.current[cardId] = { ...st, fastestMs: Math.min(st.fastestMs, Date.now()) }
+    const prev = newProgress[cardId] || { interval: 0, consecutiveRight: 0, wrongSessions: 0 }
+    const updatedProgress = {
+      ...prev, interval: 1, consecutiveRight: 0,
+      wrongSessions: Math.max(0, (prev.wrongSessions || 0) - 1),
+      nextReview: getNextReview(1), fastCount: (prev.fastCount || 0) + 1
+    }
+    const finalProgress = { ...newProgress, [cardId]: updatedProgress }
+    setNewProgress(finalProgress)
+    if (index + 1 >= queue.length) { onFinish(finalProgress, correct, wrong, easyCountRef.current, fastCountRef.current, cardStatsRef.current); return }
     setIndex(i => i + 1); setRevealed(false)
     onSaveState?.(queue, index + 1, finalProgress)
   }
   const handleAnswer = (isCorrect) => {
     const elapsed = (Date.now() - startTime.current) / 1000
-    const speed = getSpeed(elapsed)
     const cardId = item.id
     answeredIds.current.add(cardId)
     const st = cardStatsRef.current[cardId] || { wrongs: 0, fastestMs: Infinity }
     if (!isCorrect) {
       cardStatsRef.current[cardId] = { ...st, wrongs: st.wrongs + 1 }
-      const prev = newProgress[cardId] || { interval: 0, consecutiveFast: 0, wrongSessions: 0 }
-      const updatedProgress = { ...prev, interval: 0, consecutiveFast: 0, wrongSessions: 3, nextReview: todayStr() }
+      const prev = newProgress[cardId] || { interval: 0, consecutiveRight: 0, wrongSessions: 0 }
+      const updatedProgress = { ...prev, interval: 0, consecutiveRight: 0, wrongSessions: 3, nextReview: todayStr(), wrongCount: (prev.wrongCount || 0) + 1 }
       const finalNewProgress = { ...newProgress, [cardId]: updatedProgress }
-      const newQueue = [...queue]; newQueue.splice(index, 1); newQueue.push({ ...item })
+      const newQueue = [...queue]
+      newQueue.splice(index, 1)
+      newQueue.splice(Math.min(index + 5, newQueue.length), 0, { ...item })
       wrongCardsRef.current.push({ front: item.front, back: item.back })
       setQueue(newQueue); setNewProgress(finalNewProgress); setWrong(w => w + 1); setRevealed(false)
       onSaveState?.(newQueue, index, finalNewProgress)
     } else {
       cardStatsRef.current[cardId] = { ...st, fastestMs: Math.min(st.fastestMs, elapsed * 1000) }
-      const prev = newProgress[cardId] || { interval: 0, consecutiveFast: 0, wrongSessions: 0 }
-      const newCF = speed === 'very_fast' ? (prev.consecutiveFast || 0) + 1 : 0
-      const interval = getNewInterval(speed, { consecutiveFast: newCF })
-      const newCorrectCount = (prev.correctCount || 0) + 1
-      const isGolden = interval >= 4 && newCorrectCount >= 5
-      const updatedProgress = { ...prev, interval, consecutiveFast: newCF, wrongSessions: Math.max(0, (prev.wrongSessions || 0) - 1), nextReview: getNextReview(interval), correctCount: newCorrectCount, isGolden }
+      const prev = newProgress[cardId] || { interval: 0, consecutiveRight: 0, wrongSessions: 0 }
+      const newCR = (prev.consecutiveRight || 0) + 1
+      const baseInterval = Math.max(2, (prev.interval || 0) + 1)
+      let interval
+      if (newCR >= 5) interval = Math.max(4, (prev.interval || 0) + 3)
+      else if (newCR >= 3) interval = Math.max(3, (prev.interval || 0) + 2)
+      else interval = baseInterval
+      const isGolden = interval >= 14
+      const updatedProgress = { ...prev, interval, consecutiveRight: newCR, wrongSessions: Math.max(0, (prev.wrongSessions || 0) - 1), nextReview: getNextReview(interval), rightCount: (prev.rightCount || 0) + 1, isGolden }
       const finalProgress = { ...newProgress, [cardId]: updatedProgress }
       setNewProgress(finalProgress)
       const newCorrect = correct + 1; setCorrect(newCorrect)
-      if (index + 1 >= queue.length) { onFinish(finalProgress, newCorrect, wrong, easyCountRef.current, cardStatsRef.current); return }
+      if (index + 1 >= queue.length) { onFinish(finalProgress, newCorrect, wrong, easyCountRef.current, fastCountRef.current, cardStatsRef.current); return }
       setIndex(i => i + 1); setRevealed(false)
       onSaveState?.(queue, index + 1, finalProgress)
     }
@@ -2547,9 +2613,13 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
     haptic([30, 40, 30, 40, 30])
     triggerAnim('flyUp', 320, () => handleEasy())
   }
+  const handleFastAnimated = () => {
+    haptic([30, 60, 30])
+    triggerAnim('flyRight', 350, () => handleFast())
+  }
 
   return (
-    <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
+    <div style={s.container} className="vocara-screen"><div style={s.homeBox} className="vocara-card-screen-box">
       <div style={s.cardHeader}>
         <p style={s.greeting}>{t.card} {index + 1} {t.of} {queue.length}</p>
         <button style={s.stopBtn} onClick={handleStop}>{t.stop}</button>
@@ -2782,26 +2852,28 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
         </div>
       )}
       {revealed && (
-        <div style={{ ...s.answerRow, alignItems: 'flex-end' }}>
-          <button style={s.wrongBtn} onClick={() => handleAnswerAnimated(false)}>✗ {t.wrong}</button>
+        <div style={s.answerRow}>
+          <button style={s.wrongBtn} onClick={() => handleAnswerAnimated(false)}>❌ {t.wrong}</button>
+          <button style={s.fastBtn} onClick={handleFastAnimated}>😕 {t.fast}</button>
+          <button style={s.rightBtn} onClick={() => handleAnswerAnimated(true)}>✅ {t.correct}</button>
           <button style={s.easyBtn} onClick={handleEasyAnimated}>{t.easy}</button>
-          <button style={s.rightBtn} onClick={() => handleAnswerAnimated(true)}>✓ {t.correct}</button>
         </div>
       )}
     </div></div>
   )
 }
 
-function ResultScreen({ correct, wrong, easy, weakestCard, strongestCard, masteryUnlocked, t, lang, onBack, onReplay, s, th }) {
+function ResultScreen({ correct, wrong, fast, easy, weakestCard, strongestCard, masteryUnlocked, t, lang, onBack, onReplay, s, th }) {
   const isMarkLang = lang === 'de'
   return (
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
       <h1 style={s.title}>{t.done} 🎉</h1>
       {masteryUnlocked && <div style={{ ...s.card, borderLeft: '3px solid #4CAF50' }}><p style={{ color: '#4CAF50', margin: 0, fontSize: '0.85rem' }}>{t.masteryMsg}</p></div>}
       <div style={s.card}>
-        <div style={s.langRow}><span style={s.lang}>{t.correct}</span><span style={{ ...s.langPct, color: '#4CAF50' }}>{correct}</span></div>
-        <div style={s.langRow}><span style={s.lang}>{t.wrong}</span><span style={{ ...s.langPct, color: '#f44336' }}>{wrong}</span></div>
-        {easy > 0 && <div style={s.langRow}><span style={s.lang}>Easy ⚡</span><span style={{ ...s.langPct, color: th?.gold || '#FFD700' }}>{easy}</span></div>}
+        <div style={s.langRow}><span style={s.lang}>❌ {t.wrong}</span><span style={{ ...s.langPct, color: '#e06c75' }}>{wrong}</span></div>
+        {fast > 0 && <div style={s.langRow}><span style={s.lang}>😕 {t.fast}</span><span style={{ ...s.langPct, color: '#FFA500' }}>{fast}</span></div>}
+        <div style={s.langRow}><span style={s.lang}>✅ {t.correct}</span><span style={{ ...s.langPct, color: '#4CAF50' }}>{correct}</span></div>
+        {easy > 0 && <div style={s.langRow}><span style={s.lang}>⚡ Easy</span><span style={{ ...s.langPct, color: th?.gold || '#FFD700' }}>{easy}</span></div>}
       </div>
       {(weakestCard || strongestCard) && (
         <div style={s.card}>
@@ -2827,7 +2899,7 @@ function ResultScreen({ correct, wrong, easy, weakestCard, strongestCard, master
         </button>
       )}
       <button style={{ background: 'transparent', color: th?.sub || '#888', border: `1px solid ${th?.border || '#333'}`, padding: '12px 28px', borderRadius: '50px', fontSize: '0.95rem', cursor: 'pointer', fontWeight: '600', width: '100%' }} onClick={onBack}>
-        {isMarkLang ? 'Weiter' : 'Continue'}
+        {isMarkLang ? 'Fertig' : 'Done'}
       </button>
     </div></div>
   )
@@ -4115,7 +4187,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     }
   }
 
-  const handleFinish = async (finalProgress, correct, wrong, easy, cardStats) => {
+  const handleFinish = async (finalProgress, correct, wrong, easy, fast, cardStats) => {
     let unlocked = false
     if (checkMastery(allCards, finalProgress, correct, correct + wrong)) {
       const newBatch = getNextNewCards(allCards, finalProgress, NEW_CARDS_BATCH)
@@ -4138,7 +4210,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     const strongestEntry = statsEntries.filter(([, v]) => v.wrongs === 0 && v.fastestMs < Infinity).sort((a, b) => a[1].fastestMs - b[1].fastestMs)[0]
     const weakestCard = weakestEntry ? session?.find(c => c.id === weakestEntry[0]) : null
     const strongestCard = strongestEntry ? session?.find(c => c.id === strongestEntry[0]) : null
-    setResult({ correct, wrong, easy: easy || 0, weakestCard, strongestCard, originalSession: session })
+    setResult({ correct, wrong, easy: easy || 0, fast: fast || 0, weakestCard, strongestCard, originalSession: session })
     // #31 After sentence session, offer rhythm training before result
     if (currentSessionMode === 'sentence') {
       setScreen('rhythmus')
@@ -4149,7 +4221,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
 
   if (screen === 'cards' && session) return <>{homeFloat}<CardScreen session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} onSaveSessionProgress={saveSessionProgress} onStop={handleSessionStop} onSaveExample={handleSaveExample} mode={currentSessionMode} startIndex={resumeStartIndex} startProgress={resumeStartProgress} /></>
   if (screen === 'rhythmus') return <>{homeFloat}<RhythmusScreen lang={lang} theme={theme} onBack={() => { setScreen('result') }} allCards={allCards} cardProgress={cardProgress} /></>
-  if (screen === 'result') return <>{homeFloat}<ResultScreen correct={result.correct} wrong={result.wrong} easy={result.easy} weakestCard={result.weakestCard} strongestCard={result.strongestCard} masteryUnlocked={masteryUnlocked} t={t} lang={lang} onBack={() => { setScreen('menu'); setSession(null) }} onReplay={result.originalSession ? () => { setSession(result.originalSession); setResumeStartIndex(0); setResumeStartProgress(null); setScreen('cards') } : null} s={s} th={th} /></>
+  if (screen === 'result') return <>{homeFloat}<ResultScreen correct={result.correct} wrong={result.wrong} fast={result.fast} easy={result.easy} weakestCard={result.weakestCard} strongestCard={result.strongestCard} masteryUnlocked={masteryUnlocked} t={t} lang={lang} onBack={() => { setScreen('menu'); setSession(null) }} onReplay={result.originalSession ? () => { setSession(result.originalSession); setResumeStartIndex(0); setResumeStartProgress(null); setScreen('cards') } : null} s={s} th={th} /></>
   if (screen === 'settings') return <>{homeFloat}<SettingsScreen t={t} s={s} theme={theme} onThemeChange={onThemeChange} onBack={() => setScreen('menu')} user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} onPartner={() => setScreen('partner')} onLightModeChange={onLightModeChange} onCardSizeChange={onCardSizeChange} /></>
   if (screen === 'meinekarten') return <>{homeFloat}<MeineKartenScreen user={user} myData={myData} setMyData={setMyData} allCards={allCards} cardProgress={cardProgress} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
   if (screen === 'geschenkkarte') return <>{homeFloat}<GeschenkkarteScreen user={user} myData={myData} lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} /></>
