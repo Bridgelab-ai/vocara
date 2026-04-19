@@ -45,6 +45,14 @@
 36. KI-Aussprache für bestehende Karten nachrüsten ✅
 37. Eigene Bridgelab-Icons statt Standard
 
+## ✅ Implementiert (19.04.2026 Session 5)
+- Aussprache-Analyse: Levenshtein fuzzy matching (40% Toleranz), 0-100% Score, farbige Anzeige, Transkript, Nochmal-Button; auch in RhythmusScreen (#1)
+- Gimmick Freischaltung: Theme-spezifischer animierter Popup bei 5-Wochen-Streak (Hamburg/Nairobi/Welt/Lyon/Sevilla/ChiangMai) (#5)
+- Wort des Tages: Banner vor ALLEN Session-Typen (nicht nur Kategorie-Sessions) (#6)
+- Kontext-Wechsel: ✅ bereits implementiert (#2)
+- Fehler-Muster Analyse: ✅ bereits implementiert (#3)
+- Sprachrhythmus Training: ✅ bereits implementiert als RhythmusScreen (#4)
+
 ## ✅ Implementiert (19.04.2026 Session 4)
 - Tagesaufgabe Fix: Wort IMMER in toLang (picked.front, gefiltert nach langA=targetLang) — nicht mehr native Sprache
 - KI-Tutor Banner: ersetzt Coaching-Banner, aktualisiert nach jeder Session (sessionCompleteCount), Kategorie-Stats im Prompt, Streak subtil im Panel
