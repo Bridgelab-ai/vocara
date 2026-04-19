@@ -3417,50 +3417,38 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
   )
 }
 
-function VocaraLogoSVG({ withSlogans = false, isDE = true }) {
+function VocaraLogoSVG() {
   return (
-    <div style={{ textAlign: 'center' }}>
-      {withSlogans && (
-        <p style={{ color: 'rgba(245,200,66,0.45)', fontSize: '0.6rem', fontWeight: '700', letterSpacing: '0.28em', textTransform: 'uppercase', margin: '0 0 6px', fontFamily: "'Inter', system-ui, sans-serif" }}>
-          BRIDGELAB
-        </p>
-      )}
-      <div style={{ filter: 'drop-shadow(0 0 14px rgba(255,215,0,0.45)) drop-shadow(0 0 40px rgba(255,215,0,0.18))', display: 'inline-block' }}>
-        <svg viewBox="0 0 680 140" style={{ width: '100%', maxWidth: '320px', height: 'auto', display: 'block' }}>
-          <defs>
-            <linearGradient id="vg1" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#FFF0A0"/>
-              <stop offset="40%" stopColor="#FFD700"/>
-              <stop offset="100%" stopColor="#C8900A"/>
-            </linearGradient>
-            <linearGradient id="vg2" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#C8900A" stopOpacity="0.55"/>
-              <stop offset="60%" stopColor="#A07010" stopOpacity="0.2"/>
-              <stop offset="100%" stopColor="#806008" stopOpacity="0"/>
-            </linearGradient>
-            <filter id="vripple">
-              <feTurbulence type="turbulence" baseFrequency="0.02 0.08" numOctaves="2" result="noise"/>
-              <feDisplacementMap in="SourceGraphic" in2="noise" scale="4" xChannelSelector="R" yChannelSelector="G"/>
-            </filter>
-            <filter id="vblur2">
-              <feGaussianBlur stdDeviation="0 2.5"/>
-            </filter>
-          </defs>
-          <text x="340" y="72" textAnchor="middle" fontFamily="Georgia, serif" fontSize="88" fontWeight="700" fill="url(#vg1)" letterSpacing="6">VOCARA</text>
-          <line x1="60" y1="82" x2="620" y2="82" stroke="#FFD700" strokeWidth="0.5" opacity="0.12"/>
-          <g filter="url(#vripple)">
-            <text x="340" y="146" textAnchor="middle" fontFamily="Georgia, serif" fontSize="88" fontWeight="700" fill="url(#vg2)" letterSpacing="6" transform="scale(1,-1) translate(0,-228)" filter="url(#vblur2)">VOCARA</text>
-          </g>
-          <rect x="0" y="83" width="680" height="1.5" fill="#0a1530" opacity="0.9"/>
-          <path d="M 0 92 Q 170 88 340 92 Q 510 96 680 92" fill="none" stroke="#FFD700" strokeWidth="0.5" opacity="0.07"/>
-          <path d="M 0 104 Q 200 100 400 105 Q 550 108 680 103" fill="none" stroke="#FFD700" strokeWidth="0.4" opacity="0.05"/>
-        </svg>
-      </div>
-      {withSlogans && (
-        <p style={{ color: 'rgba(245,200,66,0.38)', fontSize: '0.62rem', fontWeight: '500', letterSpacing: '0.14em', margin: '6px 0 0', fontFamily: "'Inter', system-ui, sans-serif", fontStyle: 'italic' }}>
-          {isDE ? 'Sprache. Verbindung. Täglich.' : 'Language. Connection. Daily.'}
-        </p>
-      )}
+    <div style={{ textAlign: 'center', display: 'inline-block', filter: 'drop-shadow(0 0 14px rgba(255,215,0,0.45)) drop-shadow(0 0 40px rgba(255,215,0,0.18))' }}>
+      <svg viewBox="0 0 680 140" style={{ width: '100%', maxWidth: '320px', height: 'auto', display: 'block' }}>
+        <defs>
+          <linearGradient id="vocara-gold-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#FFF0A0"/>
+            <stop offset="40%" stopColor="#FFD700"/>
+            <stop offset="100%" stopColor="#C8900A"/>
+          </linearGradient>
+          <linearGradient id="vocara-refl-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#C8900A" stopOpacity="0.55"/>
+            <stop offset="60%" stopColor="#A07010" stopOpacity="0.2"/>
+            <stop offset="100%" stopColor="#806008" stopOpacity="0"/>
+          </linearGradient>
+          <filter id="vocara-ripple">
+            <feTurbulence type="turbulence" baseFrequency="0.02 0.08" numOctaves="2" result="noise"/>
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="4" xChannelSelector="R" yChannelSelector="G"/>
+          </filter>
+          <filter id="vocara-blur">
+            <feGaussianBlur stdDeviation="0 2.5"/>
+          </filter>
+        </defs>
+        <text x="340" y="72" textAnchor="middle" fontFamily="Georgia, serif" fontSize="88" fontWeight="700" fill="url(#vocara-gold-grad)" letterSpacing="6">VOCARA</text>
+        <line x1="60" y1="82" x2="620" y2="82" stroke="#FFD700" strokeWidth="0.5" opacity="0.12"/>
+        <g filter="url(#vocara-ripple)">
+          <text x="340" y="146" textAnchor="middle" fontFamily="Georgia, serif" fontSize="88" fontWeight="700" fill="url(#vocara-refl-grad)" letterSpacing="6" transform="scale(1,-1) translate(0,-228)" filter="url(#vocara-blur)">VOCARA</text>
+        </g>
+        <rect x="0" y="83" width="680" height="1.5" fill="#0a1530" opacity="0.9"/>
+        <path d="M 0 92 Q 170 88 340 92 Q 510 96 680 92" fill="none" stroke="#FFD700" strokeWidth="0.5" opacity="0.07"/>
+        <path d="M 0 104 Q 200 100 400 105 Q 550 108 680 103" fill="none" stroke="#FFD700" strokeWidth="0.4" opacity="0.05"/>
+      </svg>
     </div>
   )
 }
@@ -4545,7 +4533,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
 
       {/* ── LOGO ── */}
       <div className="vocara-logo-section" style={{ textAlign: 'center', paddingTop: '16px', paddingBottom: '10px' }}>
-        <VocaraLogoSVG withSlogans={!!onBack} isDE={isMarkLang} />
+        <VocaraLogoSVG />
         <p className="vocara-logo-greeting" style={{ ...s.greeting, marginTop: '8px', marginBottom: uniqueTargetLangs.length > 0 ? '6px' : 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px' }}>
           {t.hello}, {firstName}
           {partnerActivityStatus && (
