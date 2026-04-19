@@ -690,6 +690,21 @@ function daysSince(dateStr) {
   return Math.floor((Date.now() - new Date(dateStr)) / 86400000)
 }
 
+function levenshtein(a, b) {
+  const m = a.length, n = b.length
+  const dp = Array.from({ length: m + 1 }, (_, i) => Array.from({ length: n + 1 }, (_, j) => i === 0 ? j : j === 0 ? i : 0))
+  for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++)
+    dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1])
+  return dp[m][n]
+}
+function fuzzyWordMatch(expected, got) {
+  const e = expected.toLowerCase().replace(/[^\w]/g, '')
+  const g = got.toLowerCase().replace(/[^\w]/g, '')
+  if (!e || !g) return false
+  const maxDist = Math.max(1, Math.floor(e.length * 0.4))
+  return levenshtein(e, g) <= maxDist
+}
+
 function calcStreak(history) {
   if (!history || history.length === 0) return 0
   const dates = [...new Set(history.map(h => h.date))].sort().reverse()
@@ -2308,13 +2323,13 @@ function RhythmusScreen({ lang, theme, onBack, allCards, cardProgress }) {
     rec.interimResults = false; rec.maxAlternatives = 1
     setMicState('listening'); setTranscript(''); setScore(null)
     rec.onresult = (e) => {
-      const heard = e.results[0][0].transcript.toLowerCase().trim()
+      const heard = e.results[0][0].transcript.trim()
       setTranscript(heard)
-      const target = (sentence?.back || '').toLowerCase()
-      const tWords = target.split(/\s+/)
-      const hWords = heard.split(/\s+/)
-      const correct = tWords.filter(w => hWords.some(h => h.includes(w) || w.includes(h))).length
-      setScore({ correct, total: tWords.length })
+      const tWords = (sentence?.back || '').split(/\s+/)
+      const hWords = heard.toLowerCase().split(/\s+/)
+      const correct = tWords.filter(w => hWords.some(h => fuzzyWordMatch(w, h))).length
+      const pct = Math.round((correct / Math.max(tWords.length, 1)) * 100)
+      setScore({ correct, total: tWords.length, pct })
       setMicState('done')
     }
     rec.onerror = () => setMicState('idle')
@@ -2367,8 +2382,8 @@ function RhythmusScreen({ lang, theme, onBack, allCards, cardProgress }) {
                     return <span key={i} style={{ color: hit ? '#4CAF50' : '#e53935', fontSize: '1rem', fontWeight: '600' }}>{w}</span>
                   })}
                 </div>
-                <p style={{ color: score.correct === score.total ? '#4CAF50' : th.gold, fontSize: '0.9rem', fontWeight: '700', margin: '0 0 12px' }}>
-                  {score.correct}/{score.total} {isDE ? 'Wörter korrekt' : 'words correct'}
+                <p style={{ color: (score.pct || 0) >= 80 ? '#4CAF50' : (score.pct || 0) >= 50 ? '#FFA500' : th.gold, fontSize: '1rem', fontWeight: '700', margin: '0 0 12px' }}>
+                  {isDE ? 'Aussprache: ' : 'Pronunciation: '}{score.pct ?? Math.round(score.correct/Math.max(score.total,1)*100)}%
                 </p>
                 <button onClick={() => { setMicState('idle'); setTranscript(''); setScore(null) }} style={{ background: 'transparent', border: `1px solid ${th.border}`, borderRadius: '10px', padding: '7px 16px', color: th.sub, fontSize: '0.82rem', cursor: 'pointer' }}>
                   🔄 {isDE ? 'Nochmal' : 'Try again'}
@@ -2441,16 +2456,24 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
     setMicState('listening'); setMicResult(null)
     const rec = new SR()
     rec.lang = SPEECH_LANGS[item.langB] || 'en-GB'
-    rec.interimResults = false; rec.maxAlternatives = 1
-    const timeout = setTimeout(() => { try { rec.stop() } catch(e) {} }, 4000)
+    rec.interimResults = false; rec.maxAlternatives = 3
+    const timeout = setTimeout(() => { try { rec.stop() } catch(e) {} }, 5000)
     rec.onresult = (e) => {
       clearTimeout(timeout)
-      const transcript = e.results[0][0].transcript.trim()
+      // Collect all alternatives for best match
+      const alts = []
+      for (let r = 0; r < e.results.length; r++)
+        for (let a = 0; a < e.results[r].length; a++) alts.push(e.results[r][a].transcript.trim())
+      const transcript = alts[0] || ''
       const expWords = item.back.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(Boolean)
-      const gotWords = transcript.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(Boolean)
-      const words = expWords.map((w, i) => ({ word: item.back.split(/\s+/)[i] || w, correct: gotWords.includes(w) }))
-      const score = words.filter(w => w.correct).length
-      setMicResult({ score, total: expWords.length, words })
+      const gotWords = alts.join(' ').toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(Boolean)
+      const origWords = item.back.split(/\s+/)
+      const words = expWords.map((w, i) => ({
+        word: origWords[i] || w,
+        correct: gotWords.some(g => fuzzyWordMatch(w, g))
+      }))
+      const pct = Math.round((words.filter(w => w.correct).length / Math.max(words.length, 1)) * 100)
+      setMicResult({ score: pct, words, transcript })
       setMicState('done')
     }
     rec.onerror = () => { clearTimeout(timeout); setMicState('idle') }
@@ -2772,20 +2795,26 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
                   <button onClick={handleMic} style={{ background: 'transparent', border: 'none', fontSize: '1.3rem', cursor: 'pointer', padding: '4px', opacity: micState === 'listening' ? 1 : 0.7, animation: micState === 'listening' ? 'vocaraPulse 0.8s infinite' : 'none' }}>🎤</button>
-                  <span style={{ fontSize: '0.58rem', color: micState === 'listening' ? '#e53935' : '#8A8A9A', fontFamily: "'Inter', system-ui, sans-serif", letterSpacing: '0.3px' }}>{micState === 'listening' ? '…' : micState === 'done' ? `${micResult?.score}/${micResult?.total}` : 'Mic'}</span>
+                  <span style={{ fontSize: '0.58rem', color: micState === 'listening' ? '#e53935' : micState === 'done' ? (micResult?.score >= 80 ? '#4CAF50' : micResult?.score >= 50 ? '#FFA500' : '#e53935') : '#8A8A9A', fontFamily: "'Inter', system-ui, sans-serif", letterSpacing: '0.3px' }}>{micState === 'listening' ? '…' : micState === 'done' ? `${micResult?.score}%` : 'Mic'}</span>
                 </div>
               </div>
               {micState === 'unsupported' && (
                 <p style={{ color: '#ff9800', fontSize: '0.75rem', fontStyle: 'italic', marginTop: '6px', textAlign: 'center' }}>Dein Browser unterstützt keine Spracherkennung — bitte Chrome verwenden</p>
               )}
               {micResult && (
-                <div style={{ marginTop: '8px', textAlign: 'center' }}>
-                  <p style={{ fontSize: '0.78rem', color: '#8A8A9A', marginBottom: '4px' }}>Aussprache: {micResult.score}/{micResult.total} Wörter korrekt</p>
-                  <p style={{ fontSize: '1rem', letterSpacing: '2px' }}>
+                <div style={{ marginTop: '8px', textAlign: 'center', animation: 'vocaraFadeIn 0.3s ease both' }}>
+                  <p style={{ fontSize: '0.88rem', fontWeight: '700', margin: '0 0 4px', color: micResult.score >= 80 ? '#4CAF50' : micResult.score >= 50 ? '#FFA500' : '#e53935' }}>
+                    {lang === 'de' ? 'Aussprache: ' : 'Pronunciation: '}{micResult.score}%
+                  </p>
+                  <p style={{ fontSize: '1rem', letterSpacing: '2px', margin: '0 0 6px' }}>
                     {micResult.words.map((w, i) => (
                       <span key={i} style={{ color: w.correct ? '#4CAF50' : '#e53935', marginRight: '4px' }}>{w.word}</span>
                     ))}
                   </p>
+                  {micResult.transcript && <p style={{ fontSize: '0.68rem', color: '#8A8A9A', margin: '0 0 6px', fontStyle: 'italic' }}>„{micResult.transcript}"</p>}
+                  <button onClick={() => { setMicState('idle'); setMicResult(null) }} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', padding: '4px 12px', color: '#8A8A9A', fontSize: '0.72rem', cursor: 'pointer' }}>
+                    🔄 {lang === 'de' ? 'Nochmal' : 'Try again'}
+                  </button>
                 </div>
               )}
               {showPronunciation && (
@@ -3361,6 +3390,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const [satzLoading, setSatzLoading] = useState(false)
   const [weekGoalCelebration, setWeekGoalCelebration] = useState(false)
   const [monthlyUnlockNotification, setMonthlyUnlockNotification] = useState(false)
+  const [gimmickPopup, setGimmickPopup] = useState(false)
   const [weeklyGoals, setWeeklyGoals] = useState(() => {
     const currentWeek = getISOWeekStr()
     const stored = myData?.weeklyGoals
@@ -3922,17 +3952,16 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
     }
     if (sess.length === 0) return
     setCurrentSessionMode(category)
-    // Show Wort des Tages banner for 2.5s before starting session
-    if (wordOfDay && category !== 'all') {
-      setWordOfDayBanner(wordOfDay)
-      setTimeout(() => {
-        setWordOfDayBanner(null)
-        setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
-        if (['vocabulary', 'street', 'home', 'basics'].includes(category)) markAreaDone(category)
-      }, 2500)
-    } else {
+    // Show Wort des Tages banner for 2s before starting any session
+    const startSession = () => {
       setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
-      if (['vocabulary', 'street', 'home'].includes(category)) markAreaDone(category)
+      if (['vocabulary', 'street', 'home', 'basics'].includes(category)) markAreaDone(category)
+    }
+    if (wordOfDay) {
+      setWordOfDayBanner(wordOfDay)
+      setTimeout(() => { setWordOfDayBanner(null); startSession() }, 2000)
+    } else {
+      startSession()
     }
   }
   const startBasicsSession = async () => {
@@ -4023,8 +4052,17 @@ Return ONLY a valid JSON array with no markdown or explanation:
         source: 'satz-session',
       }))
       setCurrentSessionMode('sentence')
-      setSession(sessionCards); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
-      markAreaDone('sentence')
+      if (wordOfDay) {
+        setWordOfDayBanner(wordOfDay)
+        setTimeout(() => {
+          setWordOfDayBanner(null)
+          setSession(sessionCards); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+          markAreaDone('sentence')
+        }, 2000)
+      } else {
+        setSession(sessionCards); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+        markAreaDone('sentence')
+      }
     } catch (e) {
       console.warn('Satz session generation failed:', e)
       setEmptyCategoryMsg(isMarkLang ? 'Fehler beim Generieren der Sätze.' : 'Failed to generate sentences.')
@@ -4093,6 +4131,8 @@ Return ONLY a valid JSON array with no markdown or explanation:
           setMyData(d => ({ ...d, monthlyGoal: newMonthly, unlockedGimmicks: newGimmicks, weeklyGoals: updated }))
           setMonthlyUnlockNotification(true)
           setTimeout(() => setMonthlyUnlockNotification(false), 5000)
+          setGimmickPopup(true)
+          setTimeout(() => setGimmickPopup(false), 6000)
         } else {
           const newMonthly = { completedWeeks: newWeekCount, lastUnlock: storedMonthly.lastUnlock || null }
           updateDoc(doc(db, 'users', user.uid), { monthlyGoal: newMonthly, weeklyGoals: updated }).catch(() => {})
@@ -4733,6 +4773,31 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           🎉 {lang === 'de' ? 'Monatsbonus freigeschaltet!' : 'Monthly bonus unlocked!'}
         </div>
       )}
+
+      {/* ── GIMMICK FREISCHALTUNG POPUP ── */}
+      {gimmickPopup && (() => {
+        const gimmickContent = {
+          hamburg: { emoji: '⚓', title: isMarkLang ? 'Hafen-Gimmick freigeschaltet!' : 'Harbor gimmick unlocked!', desc: isMarkLang ? 'Die Elbe rauscht. Du hast 5 Wochen durchgehalten.' : 'The harbor is yours. 5 weeks completed.', bg: 'linear-gradient(135deg, #0a1a2e, #1a3a5e)', border: '#4ECDC4' },
+          nairobi: { emoji: '🌅', title: isMarkLang ? 'Savanna-Gimmick freigeschaltet!' : 'Savanna gimmick unlocked!', desc: isMarkLang ? 'Die Sonne über Nairobi. Deine Stimme trägt weiter.' : 'The savanna glows. Your voice carries further.', bg: 'linear-gradient(135deg, #2d1a00, #5a3800)', border: '#FFB347' },
+          welt: { emoji: '🌌', title: isMarkLang ? 'Aurora-Gimmick freigeschaltet!' : 'Aurora gimmick unlocked!', desc: isMarkLang ? 'Ein Nordlicht für deine Sprache. 5 Wochen.' : 'Northern lights for your language. 5 weeks.', bg: 'linear-gradient(135deg, #0a001a, #1a003a)', border: '#B088F9' },
+          lyon: { emoji: '🍷', title: isMarkLang ? 'Lyon-Gimmick freigeschaltet!' : 'Lyon gimmick unlocked!', desc: isMarkLang ? 'Burgunder und Gold. La langue s\'ouvre.' : 'Burgundy and gold. La langue s\'ouvre.', bg: 'linear-gradient(135deg, #1a0008, #3a0015)', border: '#D4A017' },
+          sevilla: { emoji: '💃', title: isMarkLang ? 'Flamenco-Gimmick freigeschaltet!' : 'Flamenco gimmick unlocked!', desc: isMarkLang ? 'Der Rhythmus Sevillas. 5 Wochen tanzen.' : 'The rhythm of Sevilla. 5 weeks dancing.', bg: 'linear-gradient(135deg, #1a0500, #3a1000)', border: '#F39C12' },
+          chiangmai: { emoji: '🪷', title: isMarkLang ? 'Chiang-Mai-Gimmick freigeschaltet!' : 'Chiang Mai gimmick unlocked!', desc: isMarkLang ? 'Lotus blüht. Die Stimme findet ihren Weg.' : 'Lotus blooms. The voice finds its way.', bg: 'linear-gradient(135deg, #0d0017, #200030)', border: '#CE93D8' },
+        }
+        const g = gimmickContent[theme] || gimmickContent.welt
+        return (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 9500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)', animation: 'vocaraFadeIn 0.5s ease both' }}
+            onClick={() => setGimmickPopup(false)}>
+            <div style={{ background: g.bg, border: `2px solid ${g.border}`, borderRadius: '24px', padding: '32px 28px', maxWidth: '340px', width: '100%', textAlign: 'center', boxShadow: `0 0 60px ${g.border}55`, animation: 'vocaraCelebrate 0.6s ease both' }}>
+              <div style={{ fontSize: '3.5rem', marginBottom: '12px', animation: 'vocaraCelebrate 1s ease both' }}>{g.emoji}</div>
+              <p style={{ color: g.border, fontSize: '0.65rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1.5px', margin: '0 0 8px' }}>🎁 {isMarkLang ? 'Gimmick freigeschaltet' : 'Gimmick unlocked'}</p>
+              <p style={{ color: '#fff', fontSize: '1.1rem', fontWeight: '700', margin: '0 0 10px', lineHeight: 1.3 }}>{g.title}</p>
+              <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.85rem', fontStyle: 'italic', margin: '0 0 16px', lineHeight: 1.5 }}>{g.desc}</p>
+              <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.68rem', margin: 0 }}>{isMarkLang ? 'Tippen zum Schließen' : 'Tap to close'}</p>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* ── PARTNER ACTIVITY BANNER (elegant) ── */}
       {reactionPrompt && (
