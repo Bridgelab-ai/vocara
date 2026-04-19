@@ -146,6 +146,15 @@ const AVAILABLE_LANGS = [
 const LANG_FLAGS = { en: '🇬🇧', de: '🇩🇪', sw: '🇰🇪', th: '🇹🇭', es: '🇪🇸', fr: '🇫🇷', ar: '🇸🇦', tr: '🇹🇷', pt: '🇵🇹' }
 
 const SPEECH_LANGS = { en: 'en-GB', de: 'de-DE', sw: 'sw-KE', th: 'th-TH', fr: 'fr-FR', es: 'es-ES', ar: 'ar-SA', tr: 'tr-TR', pt: 'pt-PT' }
+// Returns the text and lang code for the TARGET language side of a card.
+// Cards from buildCardPair carry targetLang (= the language being learned).
+// front/back languages correspond to langA/langB — not native/target.
+function getToLangText(card) {
+  if (!card) return { text: '', langCode: 'en' }
+  const toLangCode = card.targetLang || card.langA || 'en'
+  const text = card.langA === toLangCode ? card.front : card.back
+  return { text, langCode: toLangCode }
+}
 
 async function speak(text, langCode) {
   if (!window.speechSynthesis || !text) return
@@ -2335,27 +2344,19 @@ function RhythmusScreen({ lang, theme, onBack, allCards, cardProgress }) {
     setLoading(false)
   }, [])
 
-  const speak = (text) => {
-    if (!text || !window.speechSynthesis) return
-    const utt = new SpeechSynthesisUtterance(text)
-    const voices = window.speechSynthesis.getVoices()
-    const goog = voices.find(v => v.name.toLowerCase().includes('google') && !v.name.includes('UK'))
-    if (goog) utt.voice = goog
-    utt.rate = 0.85; utt.pitch = 1
-    window.speechSynthesis.speak(utt)
-  }
-
   const startMic = () => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SR) { setMicState('unsupported'); return }
     const rec = new SR()
-    rec.lang = sentence?.langB === 'de' ? 'de-DE' : sentence?.langB === 'sw' ? 'sw-KE' : 'en-US'
+    const { langCode: toLang } = getToLangText(sentence)
+    rec.lang = SPEECH_LANGS[toLang] || 'en-GB'
     rec.interimResults = false; rec.maxAlternatives = 1
     setMicState('listening'); setTranscript(''); setScore(null)
     rec.onresult = (e) => {
       const heard = e.results[0][0].transcript.trim()
       setTranscript(heard)
-      const tWords = (sentence?.back || '').split(/\s+/)
+      const { text: toLangText } = getToLangText(sentence)
+      const tWords = (toLangText || '').split(/\s+/)
       const hWords = heard.toLowerCase().split(/\s+/)
       const correct = tWords.filter(w => hWords.some(h => fuzzyWordMatch(w, h))).length
       const pct = Math.round((correct / Math.max(tWords.length, 1)) * 100)
@@ -2381,14 +2382,20 @@ function RhythmusScreen({ lang, theme, onBack, allCards, cardProgress }) {
         </div>
       ) : (
         <>
-          <div style={{ ...s.card, textAlign: 'center', position: 'relative' }}>
-            <p style={{ color: th.sub, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 10px' }}>{isDE ? 'Spreche nach:' : 'Repeat after me:'}</p>
-            <p style={{ color: th.text, fontSize: '1.15rem', fontWeight: '600', margin: '0 0 14px', lineHeight: 1.4 }}>{sentence.back}</p>
-            <p style={{ color: th.sub, fontSize: '0.82rem', fontStyle: 'italic', margin: '0 0 16px' }}>{sentence.front}</p>
-            <button onClick={() => speak(sentence.back)} style={{ background: 'transparent', border: `1px solid ${th.border}`, borderRadius: '12px', padding: '8px 18px', color: th.sub, fontSize: '0.82rem', cursor: 'pointer' }}>
-              🔊 {isDE ? 'Anhören' : 'Listen'}
-            </button>
-          </div>
+          {(() => {
+            const { text: toText, langCode: toLCode } = getToLangText(sentence)
+            const nativeText = sentence.langA === (sentence.targetLang || sentence.langA) ? sentence.back : sentence.front
+            return (
+              <div style={{ ...s.card, textAlign: 'center', position: 'relative' }}>
+                <p style={{ color: th.sub, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 10px' }}>{isDE ? 'Spreche nach:' : 'Repeat after me:'}</p>
+                <p style={{ color: th.text, fontSize: '1.15rem', fontWeight: '600', margin: '0 0 14px', lineHeight: 1.4 }}>{toText}</p>
+                <p style={{ color: th.sub, fontSize: '0.82rem', fontStyle: 'italic', margin: '0 0 16px' }}>{nativeText}</p>
+                <button onClick={() => speak(toText, toLCode)} style={{ background: 'transparent', border: `1px solid ${th.border}`, borderRadius: '12px', padding: '8px 18px', color: th.sub, fontSize: '0.82rem', cursor: 'pointer' }}>
+                  🔊 {isDE ? 'Anhören' : 'Listen'}
+                </button>
+              </div>
+            )
+          })()}
 
           <div style={{ ...s.card, textAlign: 'center' }}>
             {micState === 'idle' && (
@@ -2472,10 +2479,11 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
   const fromLang = item.langA
   const toLang = item.langB
   const showPronunciation = item.pronunciation
-  // Always speak the back (toLang) text in its language
+  // Always speak the TARGET language side of the card, never native language
   const speakBack = (mode = ttsMode) => {
-    if (mode === 1) speakSyllable(item.back, item.langB)
-    else speak(item.back, item.langB)
+    const { text, langCode } = getToLangText(item)
+    if (mode === 1) speakSyllable(text, langCode)
+    else speak(text, langCode)
   }
   const cycleTtsMode = () => setTtsMode(m => (m + 1) % 2)
   const handleSpeakerTap = () => { speakBack(ttsMode); cycleTtsMode() }
