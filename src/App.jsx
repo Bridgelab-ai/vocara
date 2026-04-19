@@ -2493,19 +2493,19 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
     if (!SR) { setMicState('unsupported'); return }
     setMicState('listening'); setMicResult(null)
     const rec = new SR()
-    rec.lang = SPEECH_LANGS[item.langB] || 'en-GB'
+    const { text: toLangText, langCode: toLangCode } = getToLangText(item)
+    rec.lang = SPEECH_LANGS[toLangCode] || 'en-GB'
     rec.interimResults = false; rec.maxAlternatives = 3
     const timeout = setTimeout(() => { try { rec.stop() } catch(e) {} }, 5000)
     rec.onresult = (e) => {
       clearTimeout(timeout)
-      // Collect all alternatives for best match
       const alts = []
       for (let r = 0; r < e.results.length; r++)
         for (let a = 0; a < e.results[r].length; a++) alts.push(e.results[r][a].transcript.trim())
       const transcript = alts[0] || ''
-      const expWords = item.back.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(Boolean)
+      const expWords = toLangText.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(Boolean)
       const gotWords = alts.join(' ').toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(Boolean)
-      const origWords = item.back.split(/\s+/)
+      const origWords = toLangText.split(/\s+/)
       const words = expWords.map((w, i) => ({
         word: origWords[i] || w,
         correct: gotWords.some(g => fuzzyWordMatch(w, g))
@@ -2520,7 +2520,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
   }
 
   useEffect(() => {
-    if (!revealed) { setMicState('idle'); setMicResult(null); return }
+    if (!revealed) return // mic state preserved when flipping — index change effect resets it
     if (fromLang !== 'de' || toLang !== 'en') return
     if (phoneticCache[item.id] !== undefined) return
     setPhoneticCache(c => ({ ...c, [item.id]: '' })) // mark as loading
@@ -2821,7 +2821,35 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
           <p style={s.dirLabel}>{LANG_FLAGS[fromLang]} → {LANG_FLAGS[toLang]}</p>
           <p style={s.cardFront}>{question}</p>
           {!revealed && (
-            <button style={s.revealBtn} onClick={handleReveal}>{t.showSolution}</button>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', width: '100%' }}>
+              {/* ── PRE-REVEAL MIC ── */}
+              {micState !== 'unsupported' && (
+                <button
+                  onClick={handleMic}
+                  disabled={micState === 'listening'}
+                  style={{ background: micState === 'listening' ? 'rgba(229,57,53,0.12)' : 'transparent', border: `1px solid ${micState === 'listening' ? 'rgba(229,57,53,0.35)' : 'rgba(140,140,155,0.22)'}`, borderRadius: '12px', padding: '7px 20px', color: micState === 'listening' ? '#e53935' : '#8A8A9A', fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', animation: micState === 'listening' ? 'vocaraPulse 0.8s infinite' : 'none', WebkitTapHighlightColor: 'transparent' }}
+                >
+                  🎤 {micState === 'listening' ? (lang === 'de' ? 'Höre zu…' : 'Listening…') : (lang === 'de' ? 'Antwort sprechen' : 'Speak your answer')}
+                </button>
+              )}
+              {micResult && (
+                <div style={{ textAlign: 'center', animation: 'vocaraFadeIn 0.3s ease both', width: '100%' }}>
+                  <p style={{ fontSize: '0.88rem', fontWeight: '700', margin: '0 0 2px', color: micResult.score >= 80 ? '#4CAF50' : micResult.score >= 50 ? '#FFA500' : '#e53935' }}>
+                    {micResult.score}%
+                  </p>
+                  <p style={{ fontSize: '0.72rem', margin: '0 0 8px', fontStyle: 'italic', color: micResult.score >= 80 ? '#4CAF50' : micResult.score >= 50 ? '#FFA500' : '#e53935' }}>
+                    {micResult.score >= 80 ? (lang === 'de' ? 'Sehr gut verständlich' : 'Very clearly understandable') : micResult.score >= 50 ? (lang === 'de' ? 'Gut, aber noch etwas üben' : 'Good, but keep practicing') : (lang === 'de' ? 'Nochmal versuchen' : 'Try again')}
+                  </p>
+                  {micResult.score >= 70
+                    ? <button onClick={() => handleAnswerAnimated(true)} style={{ background: 'rgba(76,175,80,0.18)', border: '1px solid rgba(76,175,80,0.45)', borderRadius: '12px', padding: '8px 22px', color: '#4CAF50', fontSize: '0.85rem', cursor: 'pointer', fontWeight: '600', WebkitTapHighlightColor: 'transparent' }}>✅ {lang === 'de' ? 'Richtig — weiter' : 'Correct — next'}</button>
+                    : <button style={s.revealBtn} onClick={handleReveal}>{lang === 'de' ? 'Lösung anzeigen' : 'Show solution'}</button>
+                  }
+                </div>
+              )}
+              {!micResult && (
+                <button style={s.revealBtn} onClick={handleReveal}>{t.showSolution}</button>
+              )}
+            </div>
           )}
           {revealed && (
             <div style={{ animation: 'vocaraFadeIn 0.3s ease both', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
