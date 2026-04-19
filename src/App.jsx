@@ -3464,13 +3464,13 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   if (!VALID_SCREENS.has(screen)) { setScreen('menu'); return null }
 
   // ── KI-TUTOR BANNER ──────────────────────────────────────────
-  useEffect(() => {
-    const sessionHistory = myData?.sessionHistory || []
-    const cardProg = myData?.cardProgress || {}
+  const fetchTutorMsg = (freshCardProg, freshSessionHistory) => {
+    const cardProg = freshCardProg || myData?.cardProgress || {}
+    const sessionHistory = freshSessionHistory || myData?.sessionHistory || []
+    const isDE = lang === 'de'
     const streak = calcStreak(sessionHistory)
     const masteredCount = Object.values(cardProg).filter(p => (p?.interval || 0) >= 7).length
     const level = getLevelName(masteredCount, lang)
-    const isDE = lang === 'de'
     const fromLangName = isDE ? 'German' : 'English'
     const toLangName = isDE ? 'English' : 'German'
     const CATS = [
@@ -3491,7 +3491,6 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
     const sessionsStr = lastSessions.length > 0 ? lastSessions.map(s => `${s.correct}/${s.total}`).join(',') : 'none'
     const phoneticCards = Object.values(cardProg).filter(p => p?._phonetic).length
     const phoneticStr = phoneticCards > 0 ? ` ${phoneticCards} cards have pronunciation guides.` : ''
-    // Determine best area to recommend (most due cards)
     const AREA_KEYS = ['vocabulary','street','home','sentence','basics']
     let bestArea = 'vocabulary'; let bestDue = -1
     AREA_KEYS.forEach(key => {
@@ -3509,7 +3508,8 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
       const msg = d.content?.[0]?.text?.trim()
       setCoachMsg(msg || '')
     }).catch(() => setCoachMsg(''))
-  }, [sessionCompleteCount])
+  }
+  useEffect(() => { fetchTutorMsg() }, [sessionCompleteCount]) // eslint-disable-line
 
   // ── EXAMPLE SENTENCE SAVE ────────────────────────────────────
   const handleSaveExample = async (cardId, example) => {
@@ -4465,6 +4465,8 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     const weakestCard = weakestEntry ? session?.find(c => c.id === weakestEntry[0]) : null
     const strongestCard = strongestEntry ? session?.find(c => c.id === strongestEntry[0]) : null
     setResult({ correct, wrong, easy: easy || 0, fast: fast || 0, weakestCard, strongestCard, originalSession: session })
+    // Refresh tutor with fresh progress & history so due counts are accurate post-session
+    fetchTutorMsg(finalProgress, updatedHistory)
     setSessionCompleteCount(n => n + 1)
     // #31 After sentence session, offer rhythm training before result
     if (currentSessionMode === 'sentence') {
