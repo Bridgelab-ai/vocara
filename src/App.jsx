@@ -879,14 +879,6 @@ html, body, #root {
   100% { transform: rotateY(0deg); }
 }
 
-@keyframes vocaraLogoSlide {
-  from { opacity: 0; transform: translateY(-24px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes vocaraReflIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
 @keyframes vocaraRayHamburg {
   0%   { transform: translateX(-120%) rotate(22deg); opacity: 0; }
   18%  { opacity: 0.55; }
@@ -3471,61 +3463,22 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
 }
 
 function VocaraLogoSVG({ withSlogans = false, animate = false, isDE = true }) {
-  const played = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('vl-animated')
-  const doAnimate = animate && !played
-  if (doAnimate && typeof sessionStorage !== 'undefined') sessionStorage.setItem('vl-animated', '1')
   return (
     <div style={{ textAlign: 'center' }}>
       {withSlogans && (
-        <p style={{ color: 'rgba(245,200,66,0.55)', fontSize: '10px', fontWeight: '700', letterSpacing: '7px', textTransform: 'uppercase', margin: '0 0 10px', fontFamily: "'Inter', system-ui, sans-serif", animation: doAnimate ? 'vocaraFadeIn 0.6s ease 0.8s both' : undefined }}>
+        <p style={{ color: 'rgba(245,200,66,0.55)', fontSize: '10px', fontWeight: '700', letterSpacing: '7px', textTransform: 'uppercase', margin: '0 0 10px', fontFamily: "'Inter', system-ui, sans-serif" }}>
           DIE STIMME IST DIE BRÜCKE
         </p>
       )}
-      <div style={{
-        display: 'inline-block',
-        background: '#050510',
-        borderRadius: '12px',
-        padding: '12px 20px 8px',
-        filter: 'drop-shadow(0 0 18px rgba(255,215,0,0.40)) drop-shadow(0 0 50px rgba(255,215,0,0.15))',
-      }}>
-        <svg viewBox="0 0 680 140" style={{ width: '100%', maxWidth: '320px', height: 'auto', display: 'block' }}>
-          <defs>
-            <linearGradient id="vocara-g1" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#FFF0A0"/>
-              <stop offset="40%" stopColor="#FFD700"/>
-              <stop offset="100%" stopColor="#C8900A"/>
-            </linearGradient>
-            <linearGradient id="vocara-g2" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#C8900A" stopOpacity="0.55"/>
-              <stop offset="60%" stopColor="#A07010" stopOpacity="0.2"/>
-              <stop offset="100%" stopColor="#806008" stopOpacity="0"/>
-            </linearGradient>
-            <filter id="vocara-ripple">
-              <feTurbulence type="turbulence" baseFrequency="0.02 0.08" numOctaves="2" result="noise"/>
-              <feDisplacementMap in="SourceGraphic" in2="noise" scale="4" xChannelSelector="R" yChannelSelector="G"/>
-            </filter>
-            <filter id="vocara-blur">
-              <feGaussianBlur stdDeviation="0 2.5"/>
-            </filter>
-          </defs>
-          <g style={doAnimate ? { animation: 'vocaraLogoSlide 0.6s cubic-bezier(0.2,0.8,0.4,1) both' } : {}}>
-            <text x="340" y="72" textAnchor="middle" fontFamily="Georgia, serif" fontSize="88" fontWeight="700" fill="url(#vocara-g1)" letterSpacing="6">VOCARA</text>
-          </g>
-          <line x1="60" y1="82" x2="620" y2="82" stroke="#FFD700" strokeWidth="0.5" opacity="0.12"/>
-          <g filter="url(#vocara-ripple)" style={doAnimate ? { animation: 'vocaraReflIn 0.5s ease 0.4s both' } : {}}>
-            <text x="340" y="146" textAnchor="middle" fontFamily="Georgia, serif" fontSize="88" fontWeight="700" fill="url(#vocara-g2)" letterSpacing="6" transform="scale(1,-1) translate(0,-228)" filter="url(#vocara-blur)">VOCARA</text>
-          </g>
-          <rect x="0" y="83" width="680" height="1.5" fill="#0a1530" opacity="0.9"/>
-          <path d="M 0 92 Q 170 88 340 92 Q 510 96 680 92" fill="none" stroke="#FFD700" strokeWidth="0.5" opacity="0.07"/>
-          <path d="M 0 104 Q 200 100 400 105 Q 550 108 680 103" fill="none" stroke="#FFD700" strokeWidth="0.4" opacity="0.05"/>
-        </svg>
-      </div>
+      <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '2.8rem', fontWeight: '700', color: '#FFD700', margin: 0, letterSpacing: '4px', lineHeight: 1 }}>
+        Vocara
+      </p>
       {withSlogans && (
         <>
-          <p style={{ color: 'rgba(245,200,66,0.40)', fontSize: '9px', fontWeight: '600', letterSpacing: '2px', textTransform: 'uppercase', margin: '10px 0 2px', fontFamily: "'Inter', system-ui, sans-serif", animation: doAnimate ? 'vocaraFadeIn 0.5s ease 0.9s both' : undefined }}>
+          <p style={{ color: 'rgba(245,200,66,0.40)', fontSize: '9px', fontWeight: '600', letterSpacing: '2px', textTransform: 'uppercase', margin: '10px 0 2px', fontFamily: "'Inter', system-ui, sans-serif" }}>
             WIR BAUEN KEINE APPS. WIR BAUEN BRÜCKEN.
           </p>
-          <p style={{ color: 'rgba(245,200,66,0.25)', fontSize: '8px', fontWeight: '500', letterSpacing: '3px', textTransform: 'uppercase', margin: 0, fontFamily: "'Inter', system-ui, sans-serif", animation: doAnimate ? 'vocaraFadeIn 0.4s ease 1.0s both' : undefined }}>
+          <p style={{ color: 'rgba(245,200,66,0.25)', fontSize: '8px', fontWeight: '500', letterSpacing: '3px', textTransform: 'uppercase', margin: 0, fontFamily: "'Inter', system-ui, sans-serif" }}>
             BY BRIDGELAB
           </p>
         </>
