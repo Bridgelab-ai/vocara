@@ -1685,7 +1685,7 @@ function StreakWidget({ history, th, t }) {
 }
 
 // ── KI-GESPRÄCH ───────────────────────────────────────────────
-function KiGespraechScreen({ lang, theme, onBack, userName }) {
+function KiGespraechScreen({ lang, theme, onBack, userName, userToLang = 'en' }) {
   const th = THEMES[theme]; const s = makeStyles(th)
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
@@ -1693,10 +1693,10 @@ function KiGespraechScreen({ lang, theme, onBack, userName }) {
   const [translations, setTranslations] = useState({})
   const [translating, setTranslating] = useState(null)
   const bottomRef = useRef(null)
-  const isMarkLang = lang === 'de'
-  const targetLang = isMarkLang ? 'English' : 'German'
-  const nativeLang = isMarkLang ? 'German' : 'English'
-  const ttsLangCode = isMarkLang ? 'en' : 'de'
+  const ttsLangCode = userToLang.toLowerCase()
+  const LANG_NAMES_FULL = { en: 'English', de: 'German', sw: 'Swahili', th: 'Thai', es: 'Spanish', fr: 'French', ar: 'Arabic', tr: 'Turkish', pt: 'Portuguese' }
+  const targetLang = LANG_NAMES_FULL[ttsLangCode] || ttsLangCode
+  const nativeLang = LANG_NAMES_FULL[lang] || lang
   const systemPrompt = `You are Vocara, a friendly language tutor helping ${userName} learn ${targetLang}. You must respond ONLY in ${targetLang}. Never use ${nativeLang} in your response. If the user writes in ${nativeLang}, still respond entirely in ${targetLang} and gently encourage them to try in ${targetLang} too. If the user makes a grammar mistake in ${targetLang}, have a natural conversation first, then add a short gentle correction at the end like "💡 Small tip: ..." Keep responses short (2-4 sentences). Be warm and natural — like a friend who happens to be a language expert. The Vocara philosophy: The voice is the bridge.`
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, loading])
@@ -1814,12 +1814,12 @@ function KiGespraechScreen({ lang, theme, onBack, userName }) {
   )
 }
 
-function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userName }) {
+function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userName, userToLang = 'en' }) {
   const th = THEMES[theme]; const s = makeStyles(th)
-  const isMarkLang = lang === 'de'
-  const targetLang = isMarkLang ? 'English' : 'German'
-  const fromLang = isMarkLang ? 'German' : 'English'
-  const ttsLangCode = isMarkLang ? 'en' : 'de'
+  const LANG_NAMES_FULL = { en: 'English', de: 'German', sw: 'Swahili', th: 'Thai', es: 'Spanish', fr: 'French', ar: 'Arabic', tr: 'Turkish', pt: 'Portuguese' }
+  const ttsLangCode = userToLang.toLowerCase()
+  const targetLang = LANG_NAMES_FULL[ttsLangCode] || ttsLangCode
+  const fromLang = LANG_NAMES_FULL[lang] || lang
 
   const knownVocab = allCards.filter(c =>
     c.category === 'vocabulary' && !/_r(_\d+)?$/.test(c.id) && (cardProgress[c.id]?.interval || 0) >= 2
@@ -4652,8 +4652,8 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
   if (screen === 'test') return <>{homeFloat}<PlacementTest lang={lang} theme={theme} user={user} onBack={() => setScreen('menu')} onSaveCefr={onSaveCefr} /></>
   if (screen === 'impressum') return <>{homeFloat}<ImpressumScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
   if (screen === 'stats') return <>{homeFloat}<StatsScreen user={user} myData={myData} partnerData={partnerData} allCards={allCards} lang={lang} theme={theme} onBack={() => setScreen('menu')} cardProgress={cardProgress} /></>
-  if (screen === 'ki') return <>{homeFloat}<KiGespraechScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} userName={user.displayName?.split(' ')[0] || 'du'} /></>
-  if (screen === 'satz') return <>{homeFloat}<SatzTrainingScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} userName={user.displayName?.split(' ')[0] || 'du'} /></>
+  if (screen === 'ki') return <>{homeFloat}<KiGespraechScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={(myData?.toLang || '').toLowerCase() || (lang === 'de' ? 'en' : 'de')} /></>
+  if (screen === 'satz') return <>{homeFloat}<SatzTrainingScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={(myData?.toLang || '').toLowerCase() || (lang === 'de' ? 'en' : 'de')} /></>
   if (screen === 'diary') return <>{homeFloat}<DiaryScreen user={user} myData={myData} setMyData={setMyData} partnerData={partnerData} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
   if (screen === 'admin' && user.uid === MARK_UID) return <>{homeFloat}<AdminScreen user={user} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
 
