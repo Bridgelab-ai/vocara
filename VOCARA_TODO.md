@@ -45,6 +45,11 @@
 36. KI-Aussprache für bestehende Karten nachrüsten ✅
 37. Eigene Bridgelab-Icons statt Standard
 
+## ✅ Implementiert (19.04.2026 Session 4)
+- Tagesaufgabe Fix: Wort IMMER in toLang (picked.front, gefiltert nach langA=targetLang) — nicht mehr native Sprache
+- KI-Tutor Banner: ersetzt Coaching-Banner, aktualisiert nach jeder Session (sessionCompleteCount), Kategorie-Stats im Prompt, Streak subtil im Panel
+- Karte des Tages: Datums-Seed + Kategorie-Rotation (vocab/street/home/sentence/basics), recentDailyFronts-Ausschluss (30 Karten), speichert in dailyCards/{date} Subcollection
+
 ## ✅ Implementiert (18.04.2026 Session 3)
 - Wochenziel Dots: teal #00BFA5 mit weißem ✓ wenn erledigt, grau wenn offen (#1 fix)
 - Karten-Editor: Aussprache-Feld editierbar, "Mit Partner teilen" Button (pendingGift) (#2)
