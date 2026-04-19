@@ -146,14 +146,17 @@ const AVAILABLE_LANGS = [
 const LANG_FLAGS = { en: '🇬🇧', de: '🇩🇪', sw: '🇰🇪', th: '🇹🇭', es: '🇪🇸', fr: '🇫🇷', ar: '🇸🇦', tr: '🇹🇷', pt: '🇵🇹' }
 
 const SPEECH_LANGS = { en: 'en-GB', de: 'de-DE', sw: 'sw-KE', th: 'th-TH', fr: 'fr-FR', es: 'es-ES', ar: 'ar-SA', tr: 'tr-TR', pt: 'pt-PT' }
-// Returns the text and lang code for the TARGET language side of a card.
-// Cards from buildCardPair carry targetLang (= the language being learned).
-// front/back languages correspond to langA/langB — not native/target.
-function getToLangText(card) {
-  if (!card) return { text: '', langCode: 'en' }
-  const toLangCode = card.targetLang || card.langA || 'en'
-  const text = card.langA === toLangCode ? card.front : card.back
-  return { text, langCode: toLangCode }
+// Returns { text, langCode } for the TARGET language side of a card.
+// userToLang (from Firestore profile) takes priority over card.targetLang.
+// All comparisons are case-insensitive (Firestore may store 'EN' or 'en').
+// Returns null only if the card has no text at all — callers should handle null.
+function getToLangText(card, userToLang) {
+  if (!card) return null
+  const toLang = (userToLang || card.targetLang || card.langA || 'en').toLowerCase()
+  if ((card.langA || '').toLowerCase() === toLang) return { text: card.front, langCode: toLang }
+  if ((card.langB || '').toLowerCase() === toLang) return { text: card.back, langCode: toLang }
+  if (card.front && card.back) return { text: card.back, langCode: toLang }
+  return null
 }
 
 async function speak(text, langCode) {
@@ -2320,7 +2323,7 @@ function PartnerScreen({ user, myData, lang, theme, onBack, onPartnerUpdate }) {
 }
 
 // ── SPRACHRHYTHMUS-TRAINING (#31) ──────────────────────────────
-function RhythmusScreen({ lang, theme, onBack, allCards, cardProgress }) {
+function RhythmusScreen({ lang, theme, onBack, allCards, cardProgress, userToLang = 'en' }) {
   const th = THEMES[theme]; const s = makeStyles(th)
   const isDE = lang === 'de'
   const [sentence, setSentence] = useState(null)
@@ -2348,14 +2351,14 @@ function RhythmusScreen({ lang, theme, onBack, allCards, cardProgress }) {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SR) { setMicState('unsupported'); return }
     const rec = new SR()
-    const { langCode: toLang } = getToLangText(sentence)
+    const { langCode: toLang } = getToLangText(sentence, userToLang) || { langCode: userToLang }
     rec.lang = SPEECH_LANGS[toLang] || 'en-GB'
     rec.interimResults = false; rec.maxAlternatives = 1
     setMicState('listening'); setTranscript(''); setScore(null)
     rec.onresult = (e) => {
       const heard = e.results[0][0].transcript.trim()
       setTranscript(heard)
-      const { text: toLangText } = getToLangText(sentence)
+      const { text: toLangText } = getToLangText(sentence, userToLang) || { text: sentence.back }
       const tWords = (toLangText || '').split(/\s+/)
       const hWords = heard.toLowerCase().split(/\s+/)
       const correct = tWords.filter(w => hWords.some(h => fuzzyWordMatch(w, h))).length
@@ -2383,8 +2386,8 @@ function RhythmusScreen({ lang, theme, onBack, allCards, cardProgress }) {
       ) : (
         <>
           {(() => {
-            const { text: toText, langCode: toLCode } = getToLangText(sentence)
-            const nativeText = sentence.langA === (sentence.targetLang || sentence.langA) ? sentence.back : sentence.front
+            const { text: toText, langCode: toLCode } = getToLangText(sentence, userToLang) || { text: sentence.back, langCode: userToLang }
+            const nativeText = sentence.langA?.toLowerCase() === toLCode ? sentence.back : sentence.front
             return (
               <div style={{ ...s.card, textAlign: 'center', position: 'relative' }}>
                 <p style={{ color: th.sub, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 10px' }}>{isDE ? 'Spreche nach:' : 'Repeat after me:'}</p>
@@ -2434,7 +2437,7 @@ function RhythmusScreen({ lang, theme, onBack, allCards, cardProgress }) {
   )
 }
 
-function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveState, onSaveSessionProgress, onStop, onSaveExample, mode = 'all', startIndex = 0, startProgress = null }) {
+function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveState, onSaveSessionProgress, onStop, onSaveExample, mode = 'all', startIndex = 0, startProgress = null, userToLang = 'en' }) {
   const [index, setIndex] = useState(startIndex)
   const [queue, setQueue] = useState(session)
   const [revealed, setRevealed] = useState(false)
@@ -2481,9 +2484,10 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
   const showPronunciation = item.pronunciation
   // Always speak the TARGET language side of the card, never native language
   const speakBack = (mode = ttsMode) => {
-    const { text, langCode } = getToLangText(item)
-    if (mode === 1) speakSyllable(text, langCode)
-    else speak(text, langCode)
+    const result = getToLangText(item, userToLang)
+    if (!result) return
+    if (mode === 1) speakSyllable(result.text, result.langCode)
+    else speak(result.text, result.langCode)
   }
   const cycleTtsMode = () => setTtsMode(m => (m + 1) % 2)
   const handleSpeakerTap = () => { speakBack(ttsMode); cycleTtsMode() }
@@ -2493,7 +2497,8 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
     if (!SR) { setMicState('unsupported'); return }
     setMicState('listening'); setMicResult(null)
     const rec = new SR()
-    const { text: toLangText, langCode: toLangCode } = getToLangText(item)
+    const toLangResult = getToLangText(item, userToLang) || { text: item.back, langCode: userToLang }
+    const { text: toLangText, langCode: toLangCode } = toLangResult
     rec.lang = SPEECH_LANGS[toLangCode] || 'en-GB'
     rec.interimResults = false; rec.maxAlternatives = 3
     const timeout = setTimeout(() => { try { rec.stop() } catch(e) {} }, 5000)
@@ -3214,6 +3219,51 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
         <span style={{ color: th.text, fontSize: '0.9rem' }}>🤝 {isDE ? 'Partner verbinden' : 'Connect partner'}</span>
         <span style={{ color: th.sub }}>→</span>
       </button>
+
+      {/* ── SPRACHE EINSTELLEN (REQUIRED) ── */}
+      {(() => {
+        const currentFromLang = (myData?.fromLang || '').toLowerCase()
+        const currentToLang = (myData?.toLang || '').toLowerCase()
+        const missingToLang = !currentToLang
+        const saveLangs = async (newFrom, newTo) => {
+          try {
+            await updateDoc(doc(db, 'users', user.uid), { fromLang: newFrom, toLang: newTo })
+            setMyData(d => ({ ...d, fromLang: newFrom, toLang: newTo }))
+          } catch (e) { console.warn('saveLangs failed:', e) }
+        }
+        return (
+          <div style={{ ...s.card, border: missingToLang ? `1px solid rgba(255,152,0,0.5)` : undefined }}>
+            {missingToLang && (
+              <p style={{ color: '#ff9800', fontSize: '0.78rem', marginBottom: '10px', fontWeight: '600' }}>
+                ⚠️ {isDE ? 'Bitte lege deine Zielsprache fest — TTS und Mikrofon benötigen diese Information.' : 'Please set your target language — TTS and microphone require this.'}
+              </p>
+            )}
+            <p style={{ ...s.cardLabel, marginBottom: '14px' }}>🗣 {isDE ? 'Meine Sprachen' : 'My languages'}</p>
+            <p style={{ color: th.sub, fontSize: '0.75rem', marginBottom: '6px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              {isDE ? 'Meine Sprache (Ausgangssprache):' : 'My language (native):'}
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '14px' }}>
+              {AVAILABLE_LANGS.map(l => (
+                <button key={l.code} onClick={() => saveLangs(l.code, currentToLang || '')}
+                  style={{ padding: '6px 12px', borderRadius: '10px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: currentFromLang === l.code ? '700' : '400', background: currentFromLang === l.code ? th.accent : 'transparent', color: currentFromLang === l.code ? (th.btnTextColor || '#111') : th.sub, border: `1px solid ${currentFromLang === l.code ? th.accent : th.border}`, transition: 'all 0.2s' }}>
+                  {l.flag} {isDE ? l.label : l.label}
+                </button>
+              ))}
+            </div>
+            <p style={{ color: th.sub, fontSize: '0.75rem', marginBottom: '6px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              {isDE ? 'Ich lerne (Zielsprache):' : 'I am learning (target language):'}
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              {AVAILABLE_LANGS.filter(l => l.code !== currentFromLang).map(l => (
+                <button key={l.code} onClick={() => saveLangs(currentFromLang || 'de', l.code)}
+                  style={{ padding: '6px 12px', borderRadius: '10px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: currentToLang === l.code ? '700' : '400', background: currentToLang === l.code ? th.gold + '33' : 'transparent', color: currentToLang === l.code ? th.gold : th.sub, border: `1px solid ${currentToLang === l.code ? th.gold + '88' : th.border}`, transition: 'all 0.2s' }}>
+                  {l.flag} {isDE ? l.label : l.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* ── WEITERE SPRACHEN (PREMIUM) ── */}
       <div style={s.card}>
@@ -4592,8 +4642,8 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     }
   }
 
-  if (screen === 'cards' && session) return <>{homeFloat}<CardScreen session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} onSaveSessionProgress={saveSessionProgress} onStop={handleSessionStop} onSaveExample={handleSaveExample} mode={currentSessionMode} startIndex={resumeStartIndex} startProgress={resumeStartProgress} /></>
-  if (screen === 'rhythmus') return <>{homeFloat}<RhythmusScreen lang={lang} theme={theme} onBack={() => { setScreen('result') }} allCards={allCards} cardProgress={cardProgress} /></>
+  if (screen === 'cards' && session) return <>{homeFloat}<CardScreen session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} onSaveSessionProgress={saveSessionProgress} onStop={handleSessionStop} onSaveExample={handleSaveExample} mode={currentSessionMode} startIndex={resumeStartIndex} startProgress={resumeStartProgress} userToLang={(myData?.toLang || '').toLowerCase() || (lang === 'de' ? 'en' : 'de')} /></>
+  if (screen === 'rhythmus') return <>{homeFloat}<RhythmusScreen lang={lang} theme={theme} onBack={() => { setScreen('result') }} allCards={allCards} cardProgress={cardProgress} userToLang={(myData?.toLang || '').toLowerCase() || (lang === 'de' ? 'en' : 'de')} /></>
   if (screen === 'result') return <>{homeFloat}<ResultScreen correct={result.correct} wrong={result.wrong} fast={result.fast} easy={result.easy} weakestCard={result.weakestCard} strongestCard={result.strongestCard} masteryUnlocked={masteryUnlocked} t={t} lang={lang} onBack={() => { setScreen('menu'); setSession(null) }} onReplay={result.originalSession ? () => { setSession(result.originalSession); setResumeStartIndex(0); setResumeStartProgress(null); setScreen('cards') } : null} s={s} th={th} /></>
   if (screen === 'settings') return <>{homeFloat}<SettingsScreen t={t} s={s} theme={theme} onThemeChange={onThemeChange} onBack={() => setScreen('menu')} user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} onPartner={() => setScreen('partner')} onLightModeChange={onLightModeChange} onCardSizeChange={onCardSizeChange} /></>
   if (screen === 'meinekarten') return <>{homeFloat}<MeineKartenScreen user={user} myData={myData} setMyData={setMyData} allCards={allCards} cardProgress={cardProgress} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
