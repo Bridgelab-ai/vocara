@@ -747,10 +747,10 @@ function getLast7Days(history) {
   }
   return result
 }
-async function saveSessionHistory(uid, correct, total, currentHistory) {
+async function saveSessionHistory(uid, correct, total, currentHistory, extraUpdate) {
   const entry = { date: todayStr(), correct, total, ts: Date.now() }
   const updated = [entry, ...(currentHistory || [])].slice(0, 60)
-  await updateDoc(doc(db, 'users', uid), { sessionHistory: updated })
+  await updateDoc(doc(db, 'users', uid), { sessionHistory: updated, ...(extraUpdate || {}) })
   return updated
 }
 function buildSession(allCards, cardProgress) {
@@ -879,6 +879,29 @@ html, body, #root {
   100% { transform: rotateY(0deg); }
 }
 
+@keyframes vocaraLogoSlide {
+  from { opacity: 0; transform: translateY(-24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes vocaraReflIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes vocaraRayHamburg {
+  0%   { transform: translateX(-120%) rotate(22deg); opacity: 0; }
+  18%  { opacity: 0.55; }
+  82%  { opacity: 0.45; }
+  100% { transform: translateX(240%) rotate(22deg); opacity: 0; }
+}
+@keyframes vocaraNairobiParticle {
+  0%   { transform: translateY(-10px) scale(0.6); opacity: 0.9; }
+  100% { transform: translateY(110vh) scale(1.1); opacity: 0; }
+}
+@keyframes vocaraAuroraWelt {
+  0%   { transform: scale(0.4) rotate(-10deg); opacity: 0; }
+  40%  { transform: scale(1.6) rotate(8deg); opacity: 0.85; }
+  100% { transform: scale(2.8) rotate(20deg); opacity: 0; }
+}
 @keyframes rainbowCardBorder {
   0%   { box-shadow: 0 0 0 2px #FF6B6B, 0 0 20px #FF6B6B55, inset 0 0 30px #FF6B6B18; }
   20%  { box-shadow: 0 0 0 2px #FFD93D, 0 0 20px #FFD93D55, inset 0 0 30px #FFD93D18; }
@@ -2818,8 +2841,11 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
               )}
               {micResult && (
                 <div style={{ marginTop: '8px', textAlign: 'center', animation: 'vocaraFadeIn 0.3s ease both' }}>
-                  <p style={{ fontSize: '0.88rem', fontWeight: '700', margin: '0 0 4px', color: micResult.score >= 80 ? '#4CAF50' : micResult.score >= 50 ? '#FFA500' : '#e53935' }}>
+                  <p style={{ fontSize: '0.88rem', fontWeight: '700', margin: '0 0 2px', color: micResult.score >= 80 ? '#4CAF50' : micResult.score >= 50 ? '#FFA500' : '#e53935' }}>
                     {lang === 'de' ? 'Aussprache: ' : 'Pronunciation: '}{micResult.score}%
+                  </p>
+                  <p style={{ fontSize: '0.75rem', margin: '0 0 6px', fontStyle: 'italic', color: micResult.score >= 80 ? '#4CAF50' : micResult.score >= 50 ? '#FFA500' : '#e53935' }}>
+                    {micResult.score >= 80 ? (lang === 'de' ? 'Sehr gut verständlich' : 'Very clearly understandable') : micResult.score >= 50 ? (lang === 'de' ? 'Gut, aber noch etwas üben' : 'Good, but keep practicing') : (lang === 'de' ? 'Nochmal versuchen' : 'Try again')}
                   </p>
                   <p style={{ fontSize: '1rem', letterSpacing: '2px', margin: '0 0 6px' }}>
                     {micResult.words.map((w, i) => (
@@ -3384,6 +3410,33 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
         {statBox(isMarkLang ? 'Morgen fällig' : 'Due tomorrow', dueTomorrow, '')}
       </div>
 
+      {/* ── LERNZEIT ── */}
+      {(() => {
+        const nowMonth = new Date().toISOString().slice(0, 7)
+        const nowWeek = getISOWeekStr()
+        const wMin = myData?.learningWeek === nowWeek ? (myData?.weeklyMinutes || 0) : 0
+        const mMin = myData?.learningMonth === nowMonth ? (myData?.monthlyMinutes || 0) : 0
+        const tMin = myData?.totalMinutes || 0
+        if (tMin === 0) return null
+        return (
+          <div style={{ ...s.card, marginBottom: '12px' }}>
+            <p style={{ ...s.cardLabel, marginBottom: '10px' }}>{isMarkLang ? '⏱ Lernzeit' : '⏱ Study time'}</p>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              {[
+                [isMarkLang ? 'Woche' : 'Week', wMin],
+                [isMarkLang ? 'Monat' : 'Month', mMin],
+                [isMarkLang ? 'Gesamt' : 'Total', tMin],
+              ].map(([label, min]) => (
+                <div key={label} style={{ textAlign: 'center', flex: 1 }}>
+                  <p style={{ color: th.gold, fontSize: '1.3rem', fontWeight: '700', margin: '0 0 2px', lineHeight: 1 }}>{min < 60 ? `${min}m` : `${Math.round(min/60)}h`}</p>
+                  <p style={{ color: th.sub, fontSize: '0.68rem', margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
+
       {/* ── 7-DAY CHART ── */}
       <div style={{ ...s.card, marginBottom: '16px' }}>
         <StreakWidget history={sessionHistory} th={th} t={t} />
@@ -3417,38 +3470,66 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
   )
 }
 
-function VocaraLogoSVG() {
+function VocaraLogoSVG({ withSlogans = false, animate = false, isDE = true }) {
+  const played = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('vl-animated')
+  const doAnimate = animate && !played
+  if (doAnimate && typeof sessionStorage !== 'undefined') sessionStorage.setItem('vl-animated', '1')
   return (
-    <div style={{ textAlign: 'center', display: 'inline-block', filter: 'drop-shadow(0 0 14px rgba(255,215,0,0.45)) drop-shadow(0 0 40px rgba(255,215,0,0.18))' }}>
-      <svg viewBox="0 0 680 140" style={{ width: '100%', maxWidth: '320px', height: 'auto', display: 'block' }}>
-        <defs>
-          <linearGradient id="vocara-gold-grad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#FFF0A0"/>
-            <stop offset="40%" stopColor="#FFD700"/>
-            <stop offset="100%" stopColor="#C8900A"/>
-          </linearGradient>
-          <linearGradient id="vocara-refl-grad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#C8900A" stopOpacity="0.55"/>
-            <stop offset="60%" stopColor="#A07010" stopOpacity="0.2"/>
-            <stop offset="100%" stopColor="#806008" stopOpacity="0"/>
-          </linearGradient>
-          <filter id="vocara-ripple">
-            <feTurbulence type="turbulence" baseFrequency="0.02 0.08" numOctaves="2" result="noise"/>
-            <feDisplacementMap in="SourceGraphic" in2="noise" scale="4" xChannelSelector="R" yChannelSelector="G"/>
-          </filter>
-          <filter id="vocara-blur">
-            <feGaussianBlur stdDeviation="0 2.5"/>
-          </filter>
-        </defs>
-        <text x="340" y="72" textAnchor="middle" fontFamily="Georgia, serif" fontSize="88" fontWeight="700" fill="url(#vocara-gold-grad)" letterSpacing="6">VOCARA</text>
-        <line x1="60" y1="82" x2="620" y2="82" stroke="#FFD700" strokeWidth="0.5" opacity="0.12"/>
-        <g filter="url(#vocara-ripple)">
-          <text x="340" y="146" textAnchor="middle" fontFamily="Georgia, serif" fontSize="88" fontWeight="700" fill="url(#vocara-refl-grad)" letterSpacing="6" transform="scale(1,-1) translate(0,-228)" filter="url(#vocara-blur)">VOCARA</text>
-        </g>
-        <rect x="0" y="83" width="680" height="1.5" fill="#0a1530" opacity="0.9"/>
-        <path d="M 0 92 Q 170 88 340 92 Q 510 96 680 92" fill="none" stroke="#FFD700" strokeWidth="0.5" opacity="0.07"/>
-        <path d="M 0 104 Q 200 100 400 105 Q 550 108 680 103" fill="none" stroke="#FFD700" strokeWidth="0.4" opacity="0.05"/>
-      </svg>
+    <div style={{ textAlign: 'center' }}>
+      {withSlogans && (
+        <p style={{ color: 'rgba(245,200,66,0.55)', fontSize: '10px', fontWeight: '700', letterSpacing: '7px', textTransform: 'uppercase', margin: '0 0 10px', fontFamily: "'Inter', system-ui, sans-serif", animation: doAnimate ? 'vocaraFadeIn 0.6s ease 0.8s both' : undefined }}>
+          DIE STIMME IST DIE BRÜCKE
+        </p>
+      )}
+      <div style={{
+        display: 'inline-block',
+        background: '#050510',
+        borderRadius: '12px',
+        padding: '12px 20px 8px',
+        filter: 'drop-shadow(0 0 18px rgba(255,215,0,0.40)) drop-shadow(0 0 50px rgba(255,215,0,0.15))',
+      }}>
+        <svg viewBox="0 0 680 140" style={{ width: '100%', maxWidth: '320px', height: 'auto', display: 'block' }}>
+          <defs>
+            <linearGradient id="vocara-g1" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#FFF0A0"/>
+              <stop offset="40%" stopColor="#FFD700"/>
+              <stop offset="100%" stopColor="#C8900A"/>
+            </linearGradient>
+            <linearGradient id="vocara-g2" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#C8900A" stopOpacity="0.55"/>
+              <stop offset="60%" stopColor="#A07010" stopOpacity="0.2"/>
+              <stop offset="100%" stopColor="#806008" stopOpacity="0"/>
+            </linearGradient>
+            <filter id="vocara-ripple">
+              <feTurbulence type="turbulence" baseFrequency="0.02 0.08" numOctaves="2" result="noise"/>
+              <feDisplacementMap in="SourceGraphic" in2="noise" scale="4" xChannelSelector="R" yChannelSelector="G"/>
+            </filter>
+            <filter id="vocara-blur">
+              <feGaussianBlur stdDeviation="0 2.5"/>
+            </filter>
+          </defs>
+          <g style={doAnimate ? { animation: 'vocaraLogoSlide 0.6s cubic-bezier(0.2,0.8,0.4,1) both' } : {}}>
+            <text x="340" y="72" textAnchor="middle" fontFamily="Georgia, serif" fontSize="88" fontWeight="700" fill="url(#vocara-g1)" letterSpacing="6">VOCARA</text>
+          </g>
+          <line x1="60" y1="82" x2="620" y2="82" stroke="#FFD700" strokeWidth="0.5" opacity="0.12"/>
+          <g filter="url(#vocara-ripple)" style={doAnimate ? { animation: 'vocaraReflIn 0.5s ease 0.4s both' } : {}}>
+            <text x="340" y="146" textAnchor="middle" fontFamily="Georgia, serif" fontSize="88" fontWeight="700" fill="url(#vocara-g2)" letterSpacing="6" transform="scale(1,-1) translate(0,-228)" filter="url(#vocara-blur)">VOCARA</text>
+          </g>
+          <rect x="0" y="83" width="680" height="1.5" fill="#0a1530" opacity="0.9"/>
+          <path d="M 0 92 Q 170 88 340 92 Q 510 96 680 92" fill="none" stroke="#FFD700" strokeWidth="0.5" opacity="0.07"/>
+          <path d="M 0 104 Q 200 100 400 105 Q 550 108 680 103" fill="none" stroke="#FFD700" strokeWidth="0.4" opacity="0.05"/>
+        </svg>
+      </div>
+      {withSlogans && (
+        <>
+          <p style={{ color: 'rgba(245,200,66,0.40)', fontSize: '9px', fontWeight: '600', letterSpacing: '2px', textTransform: 'uppercase', margin: '10px 0 2px', fontFamily: "'Inter', system-ui, sans-serif", animation: doAnimate ? 'vocaraFadeIn 0.5s ease 0.9s both' : undefined }}>
+            WIR BAUEN KEINE APPS. WIR BAUEN BRÜCKEN.
+          </p>
+          <p style={{ color: 'rgba(245,200,66,0.25)', fontSize: '8px', fontWeight: '500', letterSpacing: '3px', textTransform: 'uppercase', margin: 0, fontFamily: "'Inter', system-ui, sans-serif", animation: doAnimate ? 'vocaraFadeIn 0.4s ease 1.0s both' : undefined }}>
+            BY BRIDGELAB
+          </p>
+        </>
+      )}
     </div>
   )
 }
@@ -4492,8 +4573,18 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     }
     setMasteryUnlocked(unlocked)
     await onSaveProgress(finalProgress)
-    const updatedHistory = await saveSessionHistory(user.uid, correct, correct + wrong, sessionHistory)
-    setMyData(d => ({ ...d, sessionHistory: updatedHistory }))
+    // ── Learning time tracking ─────────────────────────────
+    const sessionMinutes = Math.max(1, Math.round((correct + wrong) * 30 / 60))
+    const nowMonth = new Date().toISOString().slice(0, 7)
+    const nowWeek = getISOWeekStr()
+    const prevMonthly = myData?.learningMonth === nowMonth ? (myData?.monthlyMinutes || 0) : 0
+    const prevWeekly = myData?.learningWeek === nowWeek ? (myData?.weeklyMinutes || 0) : 0
+    const newMonthlyMinutes = prevMonthly + sessionMinutes
+    const newWeeklyMinutes = prevWeekly + sessionMinutes
+    const newTotalMinutes = (myData?.totalMinutes || 0) + sessionMinutes
+    const timeUpdate = { monthlyMinutes: newMonthlyMinutes, weeklyMinutes: newWeeklyMinutes, totalMinutes: newTotalMinutes, learningMonth: nowMonth, learningWeek: nowWeek }
+    const updatedHistory = await saveSessionHistory(user.uid, correct, correct + wrong, sessionHistory, timeUpdate)
+    setMyData(d => ({ ...d, sessionHistory: updatedHistory, ...timeUpdate }))
     await clearSessionState(user.uid)
     const statsEntries = Object.entries(cardStats || {})
     const weakestEntry = statsEntries.filter(([, v]) => v.wrongs > 0).sort((a, b) => b[1].wrongs - a[1].wrongs)[0]
@@ -4533,7 +4624,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
 
       {/* ── LOGO ── */}
       <div className="vocara-logo-section" style={{ textAlign: 'center', paddingTop: '16px', paddingBottom: '10px' }}>
-        <VocaraLogoSVG />
+        <VocaraLogoSVG withSlogans={!!onBack} animate={true} isDE={isMarkLang} />
         <p className="vocara-logo-greeting" style={{ ...s.greeting, marginTop: '8px', marginBottom: uniqueTargetLangs.length > 0 ? '6px' : 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px' }}>
           {t.hello}, {firstName}
           {partnerActivityStatus && (
@@ -4918,12 +5009,33 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           chiangmai: { emoji: '🪷', title: isMarkLang ? 'Chiang-Mai-Gimmick freigeschaltet!' : 'Chiang Mai gimmick unlocked!', desc: isMarkLang ? 'Lotus blüht. Die Stimme findet ihren Weg.' : 'Lotus blooms. The voice finds its way.', bg: 'linear-gradient(135deg, #0d0017, #200030)', border: '#CE93D8' },
         }
         const g = gimmickContent[theme] || gimmickContent.welt
+        const themeAnim = {
+          hamburg: (
+            [1,2,3].map(i => (
+              <div key={i} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: `linear-gradient(${20+i*8}deg, transparent 30%, rgba(255,215,0,${0.12+i*0.04}) 50%, transparent 70%)`, animation: `vocaraRayHamburg ${1.2+i*0.4}s ease ${i*0.3}s both`, pointerEvents: 'none' }} />
+            ))
+          ),
+          nairobi: (
+            [10,20,35,50,65,75,88,45].map((left, i) => (
+              <div key={i} style={{ position: 'absolute', top: '-5%', left: `${left}%`, width: `${6+i%4*4}px`, height: `${6+i%4*4}px`, borderRadius: '50%', background: `rgba(255,${120+i*10},30,0.75)`, animation: `vocaraNairobiParticle ${1.2+i*0.18}s ease ${i*0.12}s both`, pointerEvents: 'none' }} />
+            ))
+          ),
+          welt: (
+            ['#FF6B6B','#FFD93D','#6BCB77','#4D96FF','#C77DFF','#FF9F43'].map((c, i) => (
+              <div key={i} style={{ position: 'absolute', top: '50%', left: '50%', width: '60vw', height: '60vw', marginTop: '-30vw', marginLeft: '-30vw', borderRadius: '50%', background: `radial-gradient(circle, ${c}44 0%, transparent 70%)`, animation: `vocaraAuroraWelt ${1.4+i*0.2}s ease ${i*0.15}s both`, pointerEvents: 'none' }} />
+            ))
+          ),
+        }
         return (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 9500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)', animation: 'vocaraFadeIn 0.5s ease both' }}
+          <div style={{ position: 'fixed', inset: 0, zIndex: 9500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(10px)', animation: 'vocaraFadeIn 0.5s ease both', overflow: 'hidden' }}
             onClick={() => setGimmickPopup(false)}>
-            <div style={{ background: g.bg, border: `2px solid ${g.border}`, borderRadius: '24px', padding: '32px 28px', maxWidth: '340px', width: '100%', textAlign: 'center', boxShadow: `0 0 60px ${g.border}55`, animation: 'vocaraCelebrate 0.6s ease both' }}>
+            {/* Theme-specific animation overlay */}
+            <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+              {themeAnim[theme] || null}
+            </div>
+            <div style={{ position: 'relative', zIndex: 1, background: g.bg, border: `2px solid ${g.border}`, borderRadius: '24px', padding: '32px 28px', maxWidth: '340px', width: '100%', textAlign: 'center', boxShadow: `0 0 60px ${g.border}55, 0 0 120px ${g.border}22`, animation: 'vocaraFadeIn 0.4s ease 0.15s both' }}>
               <div style={{ fontSize: '3.5rem', marginBottom: '12px', animation: 'vocaraCelebrate 1s ease both' }}>{g.emoji}</div>
-              <p style={{ color: g.border, fontSize: '0.65rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1.5px', margin: '0 0 8px' }}>🎁 {isMarkLang ? 'Gimmick freigeschaltet' : 'Gimmick unlocked'}</p>
+              <p style={{ color: g.border, fontSize: '0.65rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1.5px', margin: '0 0 8px' }}>🎉 {isMarkLang ? 'Gimmick freigeschaltet' : 'Gimmick unlocked'}</p>
               <p style={{ color: '#fff', fontSize: '1.1rem', fontWeight: '700', margin: '0 0 10px', lineHeight: 1.3 }}>{g.title}</p>
               <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.85rem', fontStyle: 'italic', margin: '0 0 16px', lineHeight: 1.5 }}>{g.desc}</p>
               <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.68rem', margin: 0 }}>{isMarkLang ? 'Tippen zum Schließen' : 'Tap to close'}</p>
@@ -5064,19 +5176,30 @@ function AdminScreen({ user, lang, theme, onBack }) {
   const isDE = lang === 'de'
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
+  const [toggling, setToggling] = useState(null)
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const snap = await getDocs(collection(db, 'users'))
-        const data = snap.docs.map(d => ({ uid: d.id, ...d.data() }))
-          .sort((a, b) => (b.lastActive || '').localeCompare(a.lastActive || ''))
-        setUsers(data)
-      } catch (e) { console.warn('Admin load failed:', e) }
-      setLoading(false)
-    }
-    load()
-  }, [])
+  const load = async () => {
+    setLoading(true)
+    try {
+      const snap = await getDocs(collection(db, 'users'))
+      const data = snap.docs.map(d => ({ uid: d.id, ...d.data() }))
+        .sort((a, b) => (b.lastActive || '').localeCompare(a.lastActive || ''))
+      setUsers(data)
+    } catch (e) { console.warn('Admin load failed:', e) }
+    setLoading(false)
+  }
+
+  useEffect(() => { load() }, [])
+
+  const togglePlan = async (uid, currentPlan) => {
+    setToggling(uid)
+    const next = currentPlan === 'pro' ? null : currentPlan === 'premium' ? 'pro' : 'premium'
+    try {
+      await updateDoc(doc(db, 'users', uid), { plan: next })
+      setUsers(prev => prev.map(u => u.uid === uid ? { ...u, plan: next } : u))
+    } catch (e) { console.warn('togglePlan failed:', e) }
+    setToggling(null)
+  }
 
   const exportCSV = () => {
     const headers = ['uid','name','email','streak','cards','lastActive','partnerUID']
@@ -5108,14 +5231,34 @@ function AdminScreen({ user, lang, theme, onBack }) {
     return streak
   }
 
+  const thisWeek = getISOWeekStr()
+  const activeThisWeek = users.filter(u => (u.sessionHistory || []).some(h => {
+    try { return getISOWeekStr(new Date(...h.date.split('-').map((v,i)=>i===1?v-1:+v))) === thisWeek } catch { return false }
+  })).length
+  const premiumCount = users.filter(u => u.plan === 'premium' || u.plan === 'pro').length
+
   return (
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
       <button style={s.backBtn} onClick={onBack}>← {isDE ? 'Zurück' : 'Back'}</button>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <h2 style={{ color: th.text, fontSize: '1.2rem', margin: 0 }}>⚙ Admin · {users.length} {isDE ? 'Nutzer' : 'users'}</h2>
-        <button onClick={exportCSV} style={{ background: `${th.gold}18`, border: `1px solid ${th.gold}44`, color: th.gold, borderRadius: '10px', padding: '6px 12px', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer' }}>
-          ↓ CSV
-        </button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+        <h2 style={{ color: th.text, fontSize: '1.2rem', margin: 0 }}>⚙ Admin</h2>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={load} style={{ background: 'transparent', border: `1px solid ${th.border}`, color: th.sub, borderRadius: '8px', padding: '5px 10px', fontSize: '0.75rem', cursor: 'pointer' }}>↺</button>
+          <button onClick={exportCSV} style={{ background: `${th.gold}18`, border: `1px solid ${th.gold}44`, color: th.gold, borderRadius: '10px', padding: '6px 12px', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer' }}>↓ CSV</button>
+        </div>
+      </div>
+      {/* Quick stats */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+        {[
+          [users.length, isDE ? 'Nutzer' : 'Users'],
+          [activeThisWeek, isDE ? 'Aktiv Woche' : 'Active week'],
+          [premiumCount, 'Premium/Pro'],
+        ].map(([val, label]) => (
+          <div key={label} style={{ flex: 1, background: th.card, border: `1px solid ${th.border}`, borderRadius: '12px', padding: '10px 6px', textAlign: 'center' }}>
+            <p style={{ color: th.gold, fontSize: '1.4rem', fontWeight: '700', margin: '0 0 2px' }}>{val}</p>
+            <p style={{ color: th.sub, fontSize: '0.6rem', margin: 0, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{label}</p>
+          </div>
+        ))}
       </div>
       {loading ? (
         <p style={{ color: th.sub, textAlign: 'center' }}>…</p>
@@ -5125,17 +5268,21 @@ function AdminScreen({ user, lang, theme, onBack }) {
             const streak = calcSimpleStreak(u.sessionHistory)
             const cards = Object.keys(u.cardProgress || {}).length
             const mastered = Object.values(u.cardProgress || {}).filter(p => (p?.interval || 0) >= 7).length
+            const plan = u.plan || null
             return (
               <div key={u.uid} style={{ paddingBottom: '10px', marginBottom: '10px', borderBottom: i < users.length-1 ? `1px solid ${th.border}` : 'none' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ color: th.text, fontWeight: '600', fontSize: '0.88rem' }}>{u.name || u.uid.slice(0,8)}</span>
                   <span style={{ color: th.sub, fontSize: '0.7rem' }}>{u.lastActive || '—'}</span>
                 </div>
-                <div style={{ display: 'flex', gap: '10px', marginTop: '3px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '4px', alignItems: 'center', flexWrap: 'wrap' }}>
                   <span style={{ color: '#FFA500', fontSize: '0.72rem' }}>🔥 {streak}</span>
                   <span style={{ color: th.sub, fontSize: '0.72rem' }}>📋 {cards} ({mastered}✓)</span>
                   {u.partnerUID && <span style={{ color: th.gold, fontSize: '0.72rem' }}>🤝</span>}
-                  {u.premium && <span style={{ color: th.gold, fontSize: '0.72rem' }}>⭐ Premium</span>}
+                  <button onClick={() => togglePlan(u.uid, plan)} disabled={toggling === u.uid}
+                    style={{ marginLeft: 'auto', background: plan === 'pro' ? 'rgba(200,200,255,0.12)' : plan === 'premium' ? `${th.gold}18` : 'transparent', color: plan === 'pro' ? '#aaa' : plan === 'premium' ? th.gold : th.sub, border: `1px solid ${plan ? th.gold+'44' : th.border}`, borderRadius: '8px', padding: '2px 8px', fontSize: '0.65rem', fontWeight: '700', cursor: 'pointer', opacity: toggling === u.uid ? 0.5 : 1 }}>
+                    {plan === 'pro' ? 'Pro' : plan === 'premium' ? 'Premium' : 'Free'} ↻
+                  </button>
                 </div>
               </div>
             )
