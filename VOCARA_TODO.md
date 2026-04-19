@@ -1,4 +1,16 @@
-# Vocara – Vollständige ToDo & Ideen-Liste (Stand 18.04.2026)
+# Vocara – Vollständige ToDo & Ideen-Liste (Stand 19.04.2026)
+
+## ✅ Implementiert (19.04.2026 Session 6) — V01.000.002
+- VERSION SYSTEM: APP_VERSION = V01.000.002, angezeigt in Einstellungen-Footer und Home-Footer ✅
+- KI-TUTOR START BUTTON: ▶ Starten neben Tutor-Nachricht, startet empfohlenen Bereich (most due cards), Tagebuch-Reminder wenn heute nicht geschrieben ✅
+- GIMMIK ÜBERSICHT: "Meine Gimmiks" Section in Einstellungen, per-Theme Historie (gimmickHistory in Firestore) ✅
+- PARTNER-KARTE KI AUSFÜLLEN: 🤖 KI ausfüllen Button in KarteErstellenScreen bei Partner-Modus, Auto-Erkennung Kategorie, golden-teal Shimmer-Border ✅
+- KI-FENSTER AUSBLENDEN: − Collapse Button auf KI-Tutor Panel, tutorCollapsed in Firestore gespeichert ✅
+- KARTE KREIEREN BUTTON: ＋ Karte kreieren Nav-Button über Einstellungen ✅
+- AUSSPRACHE-COACHING: KI-Tutor Prompt enthält phonetic_ready_cards Zähler für Aussprache-Tipps ✅
+- TAGEBUCH NUR ZIELSPRACHE: Spracherkennung DE/EN via Wort-Frequenz-Analyse, ⚠️ Warnung wenn falsche Sprache, Pflicht-Hinweis auf Zielsprache ✅
+- ADMIN PANEL: AdminScreen für Mark UID only, alle User (last active, streak, cards, mastered, partner), CSV Export ✅
+- MEHRERE PARTNER: Free 1 Partner, Premium/Pro grayed-out Buttons in PartnerScreen sichtbar ✅
 
 ## Liste A – Nicht implementiert
 1. Neue Karte: "Für mich" / "Für Partner" Auswahl
