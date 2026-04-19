@@ -3382,31 +3382,48 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const [dotTooltip, setDotTooltip] = useState(null) // area key
   const [pendingGift, setPendingGift] = useState(null) // gift object
   const [coachMsg, setCoachMsg] = useState(null)
+  const [sessionCompleteCount, setSessionCompleteCount] = useState(0)
   const [basicsLoading, setBasicsLoading] = useState(false)
   const VALID_SCREENS = new Set(['menu','cards','result','settings','partner','test','impressum','stats','ki','satz','diary','meinekarten','geschenkkarte','karteerstellen'])
   if (!VALID_SCREENS.has(screen)) { setScreen('menu'); return null }
 
-  // ── COACHING BANNER ──────────────────────────────────────────
+  // ── KI-TUTOR BANNER ──────────────────────────────────────────
   useEffect(() => {
-    if (coachMsg !== null) return
     const sessionHistory = myData?.sessionHistory || []
+    const cardProg = myData?.cardProgress || {}
     const streak = calcStreak(sessionHistory)
-    const dueCount = Object.values(myData?.cardProgress || {}).filter(p => p.nextReview <= todayStr()).length
-    const weeklyDone = weeklyGoals?.completed?.length || 0
-    const weeklyTotal = WEEK_AREAS.length
-    const partnerName = myData?.partnerName || 'Partner'
-    const partnerTodayActive = partnerData?.sessionHistory?.some(h => h.date === todayStr())
-    const partnerCtx = partnerTodayActive ? `${partnerName} lernt gerade auch.` : ''
+    const masteredCount = Object.values(cardProg).filter(p => (p?.interval || 0) >= 7).length
+    const level = getLevelName(masteredCount, lang)
+    const isDE = lang === 'de'
+    const fromLangName = isDE ? 'German' : 'English'
+    const toLangName = isDE ? 'English' : 'German'
+    const CATS = [
+      { key: 'vocabulary', label: isDE ? 'Wörter' : 'Words' },
+      { key: 'street', label: 'Slang' },
+      { key: 'home', label: isDE ? 'Zuhause' : 'Home' },
+      { key: 'sentence', label: isDE ? 'Sätze' : 'Sentences' },
+      { key: 'basics', label: isDE ? 'Grundlagen' : 'Basics' },
+    ]
+    const todayD = todayStr()
+    const catStats = CATS.map(({ key, label }) => {
+      const cats = (allCards || []).filter(c => !/_r/.test(c.id) && c.category === key)
+      const mastered = cats.filter(c => (cardProg[c.id]?.interval || 0) >= 7).length
+      const due = cats.filter(c => (cardProg[c.id]?.nextReview || '0') <= todayD).length
+      return `${label}:${mastered}mastered,${due}due`
+    }).join('; ')
+    const lastSessions = [...sessionHistory].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3)
+    const sessionsStr = lastSessions.length > 0 ? lastSessions.map(s => `${s.correct}/${s.total}`).join(',') : 'none'
+    setCoachMsg(null)
     fetch('/api/chat', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 40,
-        messages: [{ role: 'user', content: `You are Vocara's coaching voice. Write ONE short motivating message (max 15 words) in German. Style: poetic, Bridgelab — vary metaphors: voices, harbor, sun, nearness, growth. Use "Brücke" at most once. Stats: ${streak}-day streak, ${dueCount} cards due, ${weeklyDone}/${weeklyTotal} weekly areas done. ${partnerCtx} Reference the actual numbers naturally. Never generic. Return ONLY the message, no quotes or markdown.` }]
+      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 45,
+        messages: [{ role: 'user', content: `You are a personal language tutor for a ${fromLangName} speaker learning ${toLangName}. Stats: ${catStats}. Last sessions: ${sessionsStr}. Streak: ${streak} days. Level: ${level}. Give ONE specific coaching tip (max 20 words) in ${fromLangName} about what to focus on NOW to speak ${toLangName} faster. Be practical and direct. Bridgelab tone: warm, no fluff. Return ONLY the tip, no quotes or markdown.` }]
       })
     }).then(r => r.json()).then(d => {
       const msg = d.content?.[0]?.text?.trim()
-      if (msg) setCoachMsg(msg)
+      setCoachMsg(msg || '')
     }).catch(() => setCoachMsg(''))
-  }, [])
+  }, [sessionCompleteCount])
 
   // ── EXAMPLE SENTENCE SAVE ────────────────────────────────────
   const handleSaveExample = async (cardId, example) => {
@@ -3447,45 +3464,58 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
     if (stored?.date === todayD) { setDailyCard(stored); return }
     const loadDailyCard = async () => {
       try {
-        // Try partner's card first
+        // Check Firestore subcollection for today's already-generated card
+        const cardRef = doc(db, 'users', user.uid, 'dailyCards', todayD)
+        const cardSnap = await getDoc(cardRef).catch(() => null)
+        if (cardSnap?.exists()) {
+          const card = cardSnap.data()
+          setDailyCard(card)
+          setMyData(d => ({ ...d, dailyCard: card }))
+          return
+        }
+        // Try partner's subcollection card
         if (myData?.partnerUID) {
           try {
-            const pSnap = await getDoc(doc(db, 'users', myData.partnerUID))
-            if (pSnap.exists() && pSnap.data()?.dailyCard?.date === todayD) {
-              const pc = pSnap.data().dailyCard
+            const pCardRef = doc(db, 'users', myData.partnerUID, 'dailyCards', todayD)
+            const pSnap = await getDoc(pCardRef)
+            if (pSnap.exists()) {
+              const pc = pSnap.data()
               setDailyCard(pc)
+              await setDoc(cardRef, pc).catch(() => {})
               await updateDoc(doc(db, 'users', user.uid), { dailyCard: pc }).catch(() => {})
               setMyData(d => ({ ...d, dailyCard: pc }))
               return
             }
           } catch (e) {}
         }
-        const relType = myData?.relationshipType || 'couple'
-        const homeCity = myData?.homeCity || (isMarkLang ? 'Hamburg' : 'Nairobi')
-        const partnerCity = myData?.partnerCity || (isMarkLang ? 'Nairobi' : 'Hamburg')
-        const toneMap = {
-          couple:     `romantic and warm, for a couple connecting ${homeCity} and ${partnerCity}`,
-          friends:    `fun, casual and friendly`,
-          family:     `warm, family-oriented and caring`,
-          colleagues: `professional, motivating and workplace-relevant`,
-        }
-        const tone = toneMap[relType] || toneMap.couple
-        const langPair = isMarkLang ? 'German/English' : 'English/German'
+        // Generate new card with date-based category rotation
+        const DAILY_CATS = ['vocabulary', 'street', 'home', 'sentence', 'basics']
+        const dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 86400000)
+        const category = DAILY_CATS[dayOfYear % DAILY_CATS.length]
+        const masteredCount = Object.values(myData?.cardProgress || {}).filter(p => (p?.interval || 0) >= 7).length
+        const level = getLevelName(masteredCount, lang)
+        const toLangFull = isMarkLang ? 'English' : 'German'
+        const fromLangFull = isMarkLang ? 'German' : 'English'
+        const toLangCode = isMarkLang ? 'en' : 'de'
+        const fromLangCode = isMarkLang ? 'de' : 'en'
+        const recentFronts = (myData?.recentDailyFronts || []).slice(-30).join(', ')
         const res = await fetch('/api/chat', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             model: 'claude-haiku-4-5-20251001', max_tokens: 150,
-            messages: [{ role: 'user', content: `Create ONE short phrase card for language learning (${langPair}). Tone: ${tone}. Return ONLY JSON (no markdown): {"front":"<phrase in source lang>","back":"<translation>","context":"<1 short line: when you'd say this>"}` }]
+            messages: [{ role: 'user', content: `Today is ${todayD}. Generate ONE unique daily phrase card for a ${fromLangFull} speaker learning ${toLangFull} at level: ${level}. Category: ${category}. Front MUST be in ${toLangFull}, back in ${fromLangFull}. Avoid these recent fronts: ${recentFronts || 'none'}. Be creative, practical, and culturally rich. Return ONLY JSON (no markdown): {"front":"...","back":"...","context":"...","category":"${category}"}` }]
           })
         })
         const data = await res.json()
         const raw = data.content?.[0]?.text?.trim() || '{}'
         const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim())
         if (parsed.front && parsed.back) {
-          const card = { front: parsed.front, back: parsed.back, context: parsed.context || '', date: todayD, relType }
+          const card = { front: parsed.front, back: parsed.back, context: parsed.context || '', date: todayD, category, langA: toLangCode, langB: fromLangCode }
           setDailyCard(card)
-          await updateDoc(doc(db, 'users', user.uid), { dailyCard: card }).catch(() => {})
-          setMyData(d => ({ ...d, dailyCard: card }))
+          await setDoc(doc(db, 'users', user.uid, 'dailyCards', todayD), card).catch(() => {})
+          const recentArr = [...(myData?.recentDailyFronts || []), parsed.front].slice(-30)
+          await updateDoc(doc(db, 'users', user.uid), { dailyCard: card, recentDailyFronts: recentArr }).catch(() => {})
+          setMyData(d => ({ ...d, dailyCard: card, recentDailyFronts: recentArr }))
         }
       } catch (e) { console.warn('Daily card failed:', e) }
     }
@@ -3498,12 +3528,16 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
     const todayD = todayStr()
     const stored = myData?.miniTask
     if (stored?.date === todayD) { setMiniTask(stored); return }
+    // Pick only cards where front is in the target language (not native/SW)
+    const targetLangA = lang === 'de' ? 'en' : 'de'
     const masteredCards = allCards.filter(c =>
-      !/_r(_\d+)?$/.test(c.id) && (cardProgress[c.id]?.interval || 0) >= 7
+      !/_r(_\d+)?$/.test(c.id) &&
+      (cardProgress[c.id]?.interval || 0) >= 7 &&
+      c.langA === targetLangA
     )
     if (masteredCards.length === 0) return
     const picked = masteredCards[Math.floor(Math.random() * masteredCards.length)]
-    const task = { word: picked.back, front: picked.front, date: todayD, done: false }
+    const task = { word: picked.front, date: todayD, done: false }
     setMiniTask(task)
     updateDoc(doc(db, 'users', user.uid), { miniTask: task }).catch(() => {})
     setMyData(d => ({ ...d, miniTask: task }))
@@ -4333,6 +4367,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     const weakestCard = weakestEntry ? session?.find(c => c.id === weakestEntry[0]) : null
     const strongestCard = strongestEntry ? session?.find(c => c.id === strongestEntry[0]) : null
     setResult({ correct, wrong, easy: easy || 0, fast: fast || 0, weakestCard, strongestCard, originalSession: session })
+    setSessionCompleteCount(n => n + 1)
     // #31 After sentence session, offer rhythm training before result
     if (currentSessionMode === 'sentence') {
       setScreen('rhythmus')
@@ -4399,10 +4434,19 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         </button>
       )}
 
-      {/* ── KI COACHING BANNER ── */}
-      {coachMsg && (
-        <div style={{ background: `${th.card}bb`, border: `1px solid ${th.gold}33`, borderRadius: '12px', padding: '10px 16px', marginBottom: '12px' }}>
-          <p style={{ color: th.gold, fontSize: '0.85rem', fontStyle: 'italic', margin: 0, lineHeight: 1.6, opacity: 0.92 }}>{coachMsg}</p>
+      {/* ── KI-TUTOR PANEL ── */}
+      {coachMsg !== null && (
+        <div style={{ background: `${th.card}bb`, border: `1px solid ${th.gold}33`, borderRadius: '14px', padding: '11px 15px', marginBottom: '12px', animation: 'vocaraFadeIn 0.4s ease both' }}>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
+            <span style={{ color: th.gold, fontSize: '0.62rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px' }}>🎓 {isMarkLang ? 'KI-Tutor' : 'AI Tutor'}</span>
+            {calcStreak(sessionHistory) > 0 && (
+              <span style={{ color: th.sub, fontSize: '0.62rem', marginLeft: 'auto', opacity: 0.55 }}>🔥 {calcStreak(sessionHistory)} {isMarkLang ? 'Tage' : 'days'}</span>
+            )}
+          </div>
+          {coachMsg
+            ? <p style={{ color: th.text, fontSize: '0.84rem', fontStyle: 'italic', margin: 0, lineHeight: 1.55, opacity: 0.88 }}>{coachMsg}</p>
+            : <p style={{ color: th.sub, fontSize: '0.8rem', margin: 0, opacity: 0.5 }}>…</p>
+          }
         </div>
       )}
 
