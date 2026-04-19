@@ -1566,6 +1566,26 @@ function ImpressumScreen({ lang, theme, onBack }) {
         <p style={{ color: th.sub, fontSize: '0.8rem', fontWeight: 'bold', margin: '0 0 4px 0' }}>Cookies</p>
         <p style={{ ...p(), marginBottom: 0 }}>Vocara verwendet keine Tracking-Cookies.</p>
       </div>
+      <h2 style={{ color: th.gold, fontSize: '1.2rem', margin: '20px 0 4px 0' }}>KI-Disclaimer</h2>
+      <div style={s.card}>
+        <p style={p()}>Vocara verwendet Künstliche Intelligenz (KI) für die Generierung von Lernkarten, Aussprachehinweisen, Grammatikfeedback und Gesprächsübungen. Die KI-generierten Inhalte können Fehler enthalten und ersetzen keinen professionellen Sprachunterricht.</p>
+        <p style={p()}>KI-Antworten werden durch die Claude API von Anthropic bereitgestellt. Inhalte werden nicht dauerhaft auf KI-Servern gespeichert. Nutzereingaben im KI-Gespräch werden ausschließlich zur Generierung der jeweiligen Antwort verwendet.</p>
+        <p style={{ ...p(), marginBottom: 0 }}>Sprachliche Korrektheit: Obwohl die KI-Inhalte sorgfältig generiert werden, übernimmt Bridgelab keine Haftung für etwaige Fehler in den KI-generierten Texten.</p>
+      </div>
+      <h2 style={{ color: th.gold, fontSize: '1.2rem', margin: '20px 0 4px 0' }}>Haftungsausschluss</h2>
+      <div style={s.card}>
+        <p style={p()}>Die Nutzung von Vocara erfolgt auf eigene Verantwortung. Bridgelab übernimmt keine Haftung für Schäden, die durch die Nutzung der App entstehen könnten.</p>
+        <p style={{ ...p(), marginBottom: 0 }}>Externe Links: Für Inhalte externer Webseiten, auf die Vocara verlinkt, übernimmt Bridgelab keine Haftung. Die verlinkten Seiten wurden zum Zeitpunkt der Verlinkung auf mögliche Rechtsverstöße überprüft.</p>
+      </div>
+      <h2 style={{ color: th.gold, fontSize: '1.2rem', margin: '20px 0 4px 0' }}>Nutzerinhalte (UGC)</h2>
+      <div style={s.card}>
+        <p style={p()}>Nutzer können eigene Lernkarten, Tagebucheinträge und Kommentare erstellen. Diese Inhalte werden in der persönlichen Firebase-Datenbank des Nutzers gespeichert und sind nur für verbundene Partner sichtbar.</p>
+        <p style={{ ...p(), marginBottom: 0 }}>Bridgelab ist nicht verantwortlich für die von Nutzern erstellten Inhalte. Nutzer sind verpflichtet, keine rechtswidrigen, beleidigenden oder urheberrechtlich geschützten Inhalte einzustellen.</p>
+      </div>
+      <h2 style={{ color: th.gold, fontSize: '1.2rem', margin: '20px 0 4px 0' }}>Jugendschutz (COPPA)</h2>
+      <div style={s.card}>
+        <p style={{ ...p(), marginBottom: 0 }}>Vocara richtet sich nicht an Kinder unter 13 Jahren. Wir erheben wissentlich keine personenbezogenen Daten von Kindern unter 13 Jahren. Wenn Sie glauben, dass ein Kind unter 13 Jahren Daten übermittelt hat, kontaktieren Sie uns bitte unter mark.reimer@mail.de.</p>
+      </div>
       <button style={s.button} onClick={onBack}>{t.back}</button>
     </div></div>
   )
@@ -2778,6 +2798,9 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
               )}
               {fromLang === 'de' && toLang === 'en' && phoneticCache[item.id] && (
                 <p style={{ ...s.cardPronunciation, fontStyle: 'italic', marginTop: '2px' }}>🗣 /{phoneticCache[item.id]}/</p>
+              )}
+              {!phoneticCache[item.id] && cardProgress[item.id]?._phonetic && (
+                <p style={{ ...s.cardPronunciation, fontStyle: 'italic', marginTop: '2px', color: 'rgba(255,255,255,0.4)' }}>🗣 /{cardProgress[item.id]._phonetic}/</p>
               )}
               {item.context && <p style={s.cardContext}>„{item.context}"</p>}
               {item.category === 'vocabulary' && exampleSentence && (
@@ -4570,17 +4593,17 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
               onClick={() => setDotTooltip(active ? null : area.key)}>
               <div style={{
                 width: '22px', height: '22px', borderRadius: '50%',
-                background: done ? th.accent : 'transparent',
-                border: done ? 'none' : `2px solid ${th.border}`,
+                background: done ? '#00BFA5' : 'transparent',
+                border: done ? 'none' : '2px solid rgba(180,180,200,0.3)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 transition: 'all 0.3s ease',
-                boxShadow: done ? `0 0 10px ${th.glowColor}66` : 'none',
+                boxShadow: done ? '0 0 10px rgba(0,191,165,0.4)' : 'none',
                 animation: done ? 'dotPop 0.4s ease both' : 'none',
                 flexShrink: 0,
               }}>
-                {done && <span style={{ color: th.btnTextColor || '#111', fontSize: '11px', fontWeight: '900', lineHeight: 1 }}>✓</span>}
+                {done && <span style={{ color: '#fff', fontSize: '11px', fontWeight: '900', lineHeight: 1 }}>✓</span>}
               </div>
-              <span style={{ fontSize: '8px', color: done ? th.accent : th.sub, fontWeight: done ? '700' : '400', textAlign: 'center', lineHeight: 1.2, maxWidth: '46px', transition: 'color 0.3s ease' }}>
+              <span style={{ fontSize: '8px', color: done ? '#00BFA5' : th.sub, fontWeight: done ? '700' : '400', textAlign: 'center', lineHeight: 1.2, maxWidth: '46px', transition: 'color 0.3s ease' }}>
                 {lang === 'de' ? area.labelDe : area.labelEn}
               </span>
               {active && (
@@ -4624,7 +4647,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           )}
         </button>
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('diary')}>
-          📔 {isMarkLang ? 'Tagebuch' : 'Diary'}
+          📖 {isMarkLang ? 'Unser Tagebuch' : 'Our Diary'}
         </button>
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('partner')}>
           {myData?.partnerUID ? `${t.menuPartnerLabel}: ${partnerName}` : t.menuPartnerConnect}
@@ -4922,7 +4945,9 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
   const [editFront, setEditFront] = useState('')
   const [editBack, setEditBack] = useState('')
   const [editCat, setEditCat] = useState('vocabulary')
+  const [editPronunciation, setEditPronunciation] = useState('')
   const [saveStatus, setSaveStatus] = useState(null)
+  const myPartnerUID = myData?.partnerUID || (user.uid === MARK_UID ? ELOSY_UID : user.uid === ELOSY_UID ? MARK_UID : null)
 
   const userCards = (myData?.aiCards || []).filter(c => !/_r(_\d+)?$/.test(c.id))
 
@@ -4941,16 +4966,29 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
     return matchSearch && matchCat
   })
 
-  const openEdit = (card) => { setEditCard(card); setEditFront(card.front); setEditBack(card.back); setEditCat(card.category || 'vocabulary') }
+  const openEdit = (card) => { setEditCard(card); setEditFront(card.front); setEditBack(card.back); setEditCat(card.category || 'vocabulary'); setEditPronunciation(card.pronunciation || '') }
 
   const saveEdit = async () => {
     if (!editFront.trim() || !editBack.trim()) return
-    const updated = (myData?.aiCards || []).map(c => c.id === editCard.id ? { ...c, front: editFront.trim(), back: editBack.trim(), category: editCat } : c)
+    const updated = (myData?.aiCards || []).map(c => c.id === editCard.id
+      ? { ...c, front: editFront.trim(), back: editBack.trim(), category: editCat, ...(editPronunciation.trim() ? { pronunciation: editPronunciation.trim() } : {}) }
+      : c)
     try {
       await updateDoc(doc(db, 'users', user.uid), { aiCards: updated })
       setMyData(d => ({ ...d, aiCards: updated }))
       setEditCard(null)
       setSaveStatus(isDE ? 'Gespeichert ✓' : 'Saved ✓')
+      setTimeout(() => setSaveStatus(null), 2000)
+    } catch (e) { console.warn(e) }
+  }
+
+  const shareWithPartner = async (card) => {
+    if (!myPartnerUID) return
+    const myFirstName = user.displayName?.split(' ')[0] || 'Partner'
+    const gift = { front: card.front, back: card.back, category: card.category || 'vocabulary', langA: card.langA, langB: card.langB, fromName: myFirstName, message: '' }
+    try {
+      await updateDoc(doc(db, 'users', myPartnerUID), { pendingGift: gift })
+      setSaveStatus(isDE ? 'Geteilt ✓' : 'Shared ✓')
       setTimeout(() => setSaveStatus(null), 2000)
     } catch (e) { console.warn(e) }
   }
@@ -4984,16 +5022,22 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
         <div style={{ ...s.card, border: `1px solid ${th.accent}55`, marginBottom: '12px', animation: 'vocaraFadeIn 0.2s ease both' }}>
           <p style={{ ...s.cardLabel, marginBottom: '12px' }}>{isDE ? 'Karte bearbeiten' : 'Edit card'}</p>
           <input style={{ ...s.input, marginBottom: '8px' }} value={editFront} onChange={e => setEditFront(e.target.value)} placeholder={isDE ? 'Vorderseite' : 'Front'} />
-          <input style={{ ...s.input, marginBottom: '12px' }} value={editBack} onChange={e => setEditBack(e.target.value)} placeholder={isDE ? 'Rückseite' : 'Back'} />
+          <input style={{ ...s.input, marginBottom: '8px' }} value={editBack} onChange={e => setEditBack(e.target.value)} placeholder={isDE ? 'Rückseite' : 'Back'} />
+          <input style={{ ...s.input, marginBottom: '12px', fontSize: '0.82rem', fontStyle: 'italic' }} value={editPronunciation} onChange={e => setEditPronunciation(e.target.value)} placeholder={isDE ? 'Aussprache (z.B. WE-dser) — optional' : 'Pronunciation (e.g. WE-dser) — optional'} />
           <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
             <button onClick={() => setEditCat('vocabulary')} style={{ flex: 1, padding: '7px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '0.78rem', background: editCat !== 'street' ? 'rgba(140,140,155,0.25)' : 'transparent', color: editCat !== 'street' ? '#A0A0B8' : th.sub, border: `1px solid ${editCat !== 'street' ? 'rgba(140,140,155,0.45)' : th.border}` }}>Hochsprache</button>
             <button onClick={() => setEditCat('street')} style={{ flex: 1, padding: '7px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '0.78rem', background: editCat === 'street' ? 'rgba(180,120,30,0.2)' : 'transparent', color: editCat === 'street' ? '#C8922A' : th.sub, border: `1px solid ${editCat === 'street' ? 'rgba(180,120,30,0.4)' : th.border}` }}>Slang</button>
           </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
             <button style={{ flex: 1, background: th.accent, color: th.btnTextColor || '#111', border: 'none', padding: '9px', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '0.88rem' }} onClick={saveEdit}>{isDE ? 'Speichern' : 'Save'}</button>
             <button style={{ flex: '0 0 auto', background: '#f4433618', color: '#e06c75', border: '1px solid rgba(224,108,117,0.5)', padding: '9px 14px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.82rem' }} onClick={() => deleteCard(editCard)}>{isDE ? 'Löschen' : 'Delete'}</button>
             <button style={{ flex: '0 0 auto', background: 'transparent', color: th.sub, border: `1px solid ${th.border}`, padding: '9px 12px', borderRadius: '10px', cursor: 'pointer', fontSize: '0.85rem' }} onClick={() => setEditCard(null)}>✕</button>
           </div>
+          {myPartnerUID && (
+            <button style={{ width: '100%', background: 'transparent', color: th.gold, border: `1px solid ${th.gold}44`, padding: '8px', borderRadius: '10px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600' }} onClick={() => shareWithPartner(editCard)}>
+              🎁 {isDE ? 'Mit Partner teilen' : 'Share with partner'}
+            </button>
+          )}
           {saveStatus && <p style={{ color: th.accent, fontSize: '0.8rem', marginTop: '8px', textAlign: 'center' }}>{saveStatus}</p>}
         </div>
       )}
@@ -6084,6 +6128,41 @@ function App() {
     }
   }, [])
 
+  // Auto-generate German-phonetic pronunciation for aiCards missing it
+  useEffect(() => {
+    if (!user || !myData) return
+    const aiCards = (myData.aiCards || []).filter(c => !/_r(_\d+)?$/.test(c.id) && !c.pronunciation)
+    const cardProg = myData.cardProgress || {}
+    const needsPhonetic = aiCards.filter(c => !cardProg[c.id]?._phonetic).slice(0, 5)
+    if (needsPhonetic.length === 0) return
+    const generate = async () => {
+      for (const card of needsPhonetic) {
+        try {
+          const res = await fetch('/api/chat', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: 'claude-haiku-4-5-20251001', max_tokens: 30,
+              messages: [{ role: 'user', content: `Give ONLY the German-phonetic pronunciation for this word/phrase: "${card.front}". Output only the phonetic spelling, nothing else. Example: "weather" → "WE-dser", "through" → "Ssru"` }]
+            })
+          })
+          const data = await res.json()
+          const phonetic = data.content?.[0]?.text?.trim()
+          if (phonetic && phonetic.length < 60) {
+            const update = {}
+            update[`cardProgress.${card.id}._phonetic`] = phonetic
+            await updateDoc(doc(db, 'users', user.uid), update).catch(() => {})
+            setMyData(d => {
+              const cp = { ...(d.cardProgress || {}) }
+              cp[card.id] = { ...cp[card.id], _phonetic: phonetic }
+              return { ...d, cardProgress: cp }
+            })
+          }
+        } catch(e) {}
+      }
+    }
+    generate()
+  }, [myData?.aiCards?.length, user?.uid])
+
   // #9 Schedule daily notification based on notificationTime setting
   useEffect(() => {
     if (!myData?.notificationTime || myData.notificationTime === 'off') return
@@ -6311,11 +6390,11 @@ function App() {
 
   const hour = new Date().getHours()
   const timeOverlay = hour >= 0 && hour < 6
-    ? 'rgba(0,20,50,0.08)'         // 00–06: deep night blue (#46)
+    ? 'rgba(0,20,50,0.06)'         // 00–06: deep night blue (#46)
     : hour >= 6 && hour < 12
-      ? 'rgba(255,200,50,0.04)'    // 06–12: warm golden morning (#46)
+      ? 'rgba(255,200,50,0.03)'    // 06–12: warm golden morning (#46)
       : hour >= 18
-        ? 'rgba(255,100,0,0.05)'   // 18–24: deeper warm evening (#46)
+        ? 'rgba(255,100,0,0.04)'   // 18–24: deeper warm evening (#46)
         : null                     // 12–18: normal, no overlay
 
   const seasonOverlay = getSeasonOverlay(theme)
