@@ -41,9 +41,17 @@
 32. Kontextwechsel: gleiche Karte formell/informell/romantisch ✅
 33. Fehler-Muster Analyse durch KI ✅
 34. Spanisch + Französisch implementieren
-35. KI-generierte Aussprache für alle Sprachen
-36. KI-Aussprache für bestehende Karten nachrüsten
+35. KI-generierte Aussprache für alle Sprachen ✅
+36. KI-Aussprache für bestehende Karten nachrüsten ✅
 37. Eigene Bridgelab-Icons statt Standard
+
+## ✅ Implementiert (18.04.2026 Session 3)
+- Wochenziel Dots: teal #00BFA5 mit weißem ✓ wenn erledigt, grau wenn offen (#1 fix)
+- Karten-Editor: Aussprache-Feld editierbar, "Mit Partner teilen" Button (pendingGift) (#2)
+- KI-Aussprache: auto-generiert _phonetic für aiCards on app load, gespeichert Firestore, angezeigt in Kursivschrift (#35/#36)
+- Tageszeit Anpassung: Overlay-Werte reduziert 0.06/0.03/0.04 (#5 fix)
+- Tagebuch Nav: 📖 Unser Tagebuch / Our Diary (#6)
+- Rechtliches: KI-Disclaimer, Haftungsausschluss, UGC-Disclaimer, COPPA in ImpressumScreen (#7)
 
 ## ✅ Implementiert (18.04.2026 Session 2)
 - Satztraining rebuild: 4 Typen (gap/order/tense/conjugation), freie Texteingabe, 4-Button Selbstbewertung, Grammatik-Erklärung (#neu)
