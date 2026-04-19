@@ -155,8 +155,7 @@ function getToLangText(card, userToLang) {
   const toLang = (userToLang || card.targetLang || card.langA || 'en').toLowerCase()
   if ((card.langA || '').toLowerCase() === toLang) return { text: card.front, langCode: toLang }
   if ((card.langB || '').toLowerCase() === toLang) return { text: card.back, langCode: toLang }
-  if (card.front && card.back) return { text: card.back, langCode: toLang }
-  return null
+  return null // never guess — silence is better than speaking the wrong language
 }
 
 async function speak(text, langCode) {
@@ -164,7 +163,7 @@ async function speak(text, langCode) {
   window.speechSynthesis.cancel()
   const u = new SpeechSynthesisUtterance(text)
   const langTag = SPEECH_LANGS[langCode] || 'en-GB'
-  u.lang = langTag; u.rate = 1.1
+  u.lang = langTag; u.rate = 0.85
   const voices = await new Promise(resolve => {
     const v = window.speechSynthesis.getVoices()
     if (v.length) { resolve(v); return }
