@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.001.000'
+const APP_VERSION = 'V01.002.004'
 const MARK_UID = 'aiNZh4Myn8Y0KfYkGGrkNNW0HC72'
 const ELOSY_UID = 'NIX3DYenRdbRjmr2EHsIad9GcqG3'
 const SESSION_SIZE = 15
@@ -4577,7 +4577,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
 
       {/* ── LOGO ── */}
       <div className="vocara-logo-section" style={{ textAlign: 'center', paddingTop: '16px', paddingBottom: '10px' }}>
-        <VocaraLogoSVG withSlogans={!!onBack} animate={true} isDE={isMarkLang} />
+        <VocaraLogoSVG withSlogans={false} animate={false} isDE={isMarkLang} />
         <p className="vocara-logo-greeting" style={{ ...s.greeting, marginTop: '8px', marginBottom: uniqueTargetLangs.length > 0 ? '6px' : 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px' }}>
           {t.hello}, {firstName}
           {partnerActivityStatus && (
@@ -4586,22 +4586,19 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
             </span>
           )}
         </p>
-        {(onBack || uniqueTargetLangs.length > 0) && (
-          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', position: 'relative' }}>
-            {onBack && (
-              <button onClick={onBack} style={{ position: 'absolute', left: 0, background: 'transparent', border: 'none', color: th.sub, cursor: 'pointer', fontSize: '0.82rem', padding: '4px 0', fontWeight: '600', WebkitTapHighlightColor: 'transparent' }}>← Zurück</button>
-            )}
-            {uniqueTargetLangs.map(l => {
-              const info = AVAILABLE_LANGS.find(a => a.code === l)
-              const paused = pausedLanguages.includes(l)
-              return (
-                <span key={l} title={info?.label || l} style={{ fontSize: '1.1rem', opacity: paused ? 0.25 : 1, filter: paused ? 'grayscale(1)' : 'none', transition: 'opacity 0.3s' }}>
-                  {info?.flag || l}
-                </span>
-              )
-            })}
-          </div>
-        )}
+        {(() => {
+          const fromFlag = LANG_FLAGS[lang] || ''
+          const toLangCode = myData?.toLang || (lang === 'de' ? 'en' : 'de')
+          const toFlag = LANG_FLAGS[toLangCode] || ''
+          if (!fromFlag && !toFlag) return null
+          return (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px' }}>
+              <span style={{ fontSize: '0.95rem' }}>{fromFlag}</span>
+              <span style={{ color: th.sub, fontSize: '0.7rem', opacity: 0.6 }}>→</span>
+              <span style={{ fontSize: '0.95rem' }}>{toFlag}</span>
+            </div>
+          )
+        })()}
       </div>
 
       {/* ── MONTHLY TEST BANNER ── */}
