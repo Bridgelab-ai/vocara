@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.005.008'
+const APP_VERSION = 'V01.005.009'
 const MARK_UID = 'aiNZh4Myn8Y0KfYkGGrkNNW0HC72'
 const ELOSY_UID = 'NIX3DYenRdbRjmr2EHsIad9GcqG3'
 const SESSION_SIZE = 15
@@ -6983,10 +6983,12 @@ function App() {
         const snap = await getDoc(userRef)
 
         // ── NEW USER: first login, no profile with createdAt yet
-        if (!snap.exists() || !snap.data()?.createdAt) {
+        // NEVER treat known UIDs as new users — protects Elosy/Mark data
+        const isKnownUID = u.uid === MARK_UID || u.uid === ELOSY_UID
+        if (!isKnownUID && (!snap.exists() || !snap.data()?.createdAt)) {
           const defaultFromLang = u.uid === ELOSY_UID ? 'en' : 'de'
           const profile = { name: u.displayName, email: u.email, createdAt: Date.now(), language: defaultFromLang, fromLang: defaultFromLang, lastActive: todayStr() }
-          await setDoc(userRef, profile)
+          await setDoc(userRef, profile, { merge: true })
           setMyData(profile)
           setIsNewUser(true)
           setUser(u); setLoading(false)
@@ -6994,7 +6996,8 @@ function App() {
         }
 
         // ── RETURNING USER: update presence and load data
-        await updateDoc(userRef, { name: u.displayName, email: u.email, lastActive: todayStr() })
+        // Use setDoc+merge so it works even if doc exists but some fields were lost
+        await setDoc(userRef, { name: u.displayName, email: u.email, lastActive: todayStr() }, { merge: true })
         const freshSnap = await getDoc(userRef)
         if (freshSnap.exists()) {
           const data = freshSnap.data()
@@ -7086,7 +7089,8 @@ function App() {
             console.log('[Vocara] Restoring partner connection:', CORRECT_PARTNER)
             data.partnerUID = CORRECT_PARTNER
             data.partnerName = CORRECT_PARTNER_NAME
-            try { await updateDoc(userRef, { partnerUID: CORRECT_PARTNER, partnerName: CORRECT_PARTNER_NAME }) } catch (_) {}
+            // setDoc+merge works even if field was missing; updateDoc would fail
+            try { await setDoc(userRef, { partnerUID: CORRECT_PARTNER, partnerName: CORRECT_PARTNER_NAME }, { merge: true }) } catch (_) {}
           }
           // Store partnerUID in localStorage as failsafe
           try { localStorage.setItem('vocara_partnerUID_' + u.uid, data.partnerUID || '') } catch (_) {}
@@ -7098,13 +7102,14 @@ function App() {
             } catch (_) {}
           }
           // Write full public profile to userProfiles/{uid} (readable by partner)
+          // Never write partnerUID: null for known UIDs — only write if we have a value
           try {
-            await setDoc(doc(db, 'userProfiles', u.uid), {
+            const pubProfile = {
               displayName: u.displayName, name: data.name || u.displayName,
-              email: u.email, photoURL: u.photoURL || null,
-              lastActive: todayStr(), partnerUID: data.partnerUID || null,
-              partnerName: data.partnerName || null
-            }, { merge: true })
+              email: u.email, photoURL: u.photoURL || null, lastActive: todayStr()
+            }
+            if (data.partnerUID) { pubProfile.partnerUID = data.partnerUID; pubProfile.partnerName = data.partnerName || null }
+            await setDoc(doc(db, 'userProfiles', u.uid), pubProfile, { merge: true })
           } catch (e) { console.warn('[Vocara] userProfiles write skipped:', e?.code) }
           setMyData(data)
           // Load partner: try userProfiles first (public), fall back to users/, then hardcoded name
