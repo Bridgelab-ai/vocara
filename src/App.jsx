@@ -57,14 +57,14 @@ const MONTHLY_TEST_DAYS = 30
 const THEMES = {
   nairobi: {
     name: '🌙 Nairobi',
-    bg: '#0D0800', card: '#1A0F00', text: '#FFF5E0', sub: '#C8860A', border: '#3A2800',
-    accent: '#C8860A', gold: '#F5C842', glowColor: '#F5C842', btnTextColor: '#1A0800',
-    bgGrad: 'radial-gradient(ellipse at 50% 100%, #5C3000 0%, #2A1200 35%, #0D0800 65%), radial-gradient(ellipse at 65% 75%, #3A1800 0%, transparent 45%), radial-gradient(ellipse at 30% 55%, #1E0C00 0%, transparent 45%)',
-    metalGrad: 'linear-gradient(145deg, #F5C842 0%, #C8860A 30%, #7A4F00 52%, #C8860A 72%, #F5C842 100%)',
-    metalText: 'linear-gradient(90deg, #7A4F00 0%, #F5D060 16%, #C8860A 33%, #F5C842 50%, #7A4F00 66%, #F5D060 83%, #C8860A 100%)',
-    btnFaceGrad: 'linear-gradient(90deg, #7A4F00 0%, #C8860A 20%, #E8A020 40%, #F5C842 50%, #E8A020 60%, #C8860A 80%, #7A4F00 100%)',
-    shadow3d: '0 1px 0 rgba(245,200,66,0.4) inset, 0 -1px 0 rgba(0,0,0,0.5) inset, 0 4px 0 #7A4F00, 0 6px 0 #5A3800, 0 8px 0 #3A2000, 0 10px 20px rgba(20,10,0,0.8)',
-    shadowPressed: '0 1px 0 rgba(245,200,66,0.2) inset, 0 -1px 0 rgba(0,0,0,0.4) inset, 0 1px 0 #7A4F00, 0 3px 8px rgba(20,10,0,0.6)',
+    bg: '#0A0800', card: '#0F0C00', text: '#FFFFFF', sub: '#B8860B', border: '#2A2200',
+    accent: '#FFD700', gold: '#FFD700', glowColor: '#FFD700', btnTextColor: '#0A0800',
+    bgGrad: 'radial-gradient(ellipse at 50% 100%, #1C1800 0%, #0F0C00 40%, #0A0800 70%), radial-gradient(ellipse at 65% 60%, #141000 0%, transparent 50%), radial-gradient(ellipse at 30% 40%, #0D0A00 0%, transparent 50%)',
+    metalGrad: 'linear-gradient(145deg, #FFF0A0 0%, #FFD700 30%, #B8860B 52%, #FFD700 72%, #FFF0A0 100%)',
+    metalText: 'linear-gradient(90deg, #B8860B 0%, #FFF0A0 16%, #FFD700 33%, #FFF0A0 50%, #B8860B 66%, #FFF0A0 83%, #FFD700 100%)',
+    btnFaceGrad: 'linear-gradient(90deg, #B8860B 0%, #FFD700 20%, #FFF0A0 40%, #FFD700 50%, #FFF0A0 60%, #FFD700 80%, #B8860B 100%)',
+    shadow3d: '0 1px 0 rgba(255,240,160,0.5) inset, 0 -1px 0 rgba(0,0,0,0.7) inset, 0 4px 0 #B8860B, 0 6px 0 #8B6800, 0 8px 0 #5C4400, 0 10px 20px rgba(0,0,0,0.85)',
+    shadowPressed: '0 1px 0 rgba(255,240,160,0.25) inset, 0 -1px 0 rgba(0,0,0,0.6) inset, 0 1px 0 #B8860B, 0 3px 8px rgba(0,0,0,0.75)',
   },
   hamburg: {
     name: '🌊 Hamburg',
@@ -3118,6 +3118,65 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
   const isDE = lang === 'de'
   const [premiumModal, setPremiumModal] = useState(false)
 
+  // ── ZIELSPRACHEN MIT ANTEILEN ────────────────────────────────
+  const initToLangs = () => {
+    if (myData?.toLangs && myData.toLangs.length > 0) return myData.toLangs
+    const raw = myData?.toLang
+    if (Array.isArray(raw) && raw.length > 1) {
+      const n = raw.length
+      return raw.map((l, i) => ({ lang: l.toLowerCase(), percent: i === 0 ? Math.round(100 / n + (100 % n)) : Math.floor(100 / n) }))
+    }
+    return [{ lang: (Array.isArray(raw) ? raw[0] : raw || 'en').toLowerCase(), percent: 100 }]
+  }
+  const [toLangs, setToLangsLocal] = useState(initToLangs)
+
+  const saveToLangs = async (updated) => {
+    setToLangsLocal(updated)
+    try {
+      await updateDoc(doc(db, 'users', user.uid), { toLangs: updated })
+      setMyData(d => ({ ...d, toLangs: updated }))
+    } catch (e) { console.warn('saveToLangs failed:', e) }
+  }
+
+  const updatePercent = (langCode, newPct) => {
+    const clamped = Math.max(10, Math.min(90, newPct))
+    const others = toLangs.filter(l => l.lang !== langCode)
+    if (others.length === 0) return
+    const remaining = 100 - clamped
+    const totalOther = others.reduce((s, l) => s + l.percent, 0)
+    const updated = toLangs.map(l => {
+      if (l.lang === langCode) return { ...l, percent: clamped }
+      return { ...l, percent: totalOther > 0 ? Math.round(l.percent / totalOther * remaining) : Math.floor(remaining / others.length) }
+    })
+    const sum = updated.reduce((s, l) => s + l.percent, 0)
+    if (sum !== 100) updated[updated.length - 1].percent += 100 - sum
+    saveToLangs(updated)
+  }
+
+  const addToLang = (langCode) => {
+    if (toLangs.find(l => l.lang === langCode)) return
+    if (toLangs.length >= 3) return
+    const newPct = 30
+    const updated = [
+      ...toLangs.map(l => ({ ...l, percent: Math.round(l.percent * (100 - newPct) / 100) })),
+      { lang: langCode, percent: newPct }
+    ]
+    const sum = updated.reduce((s, l) => s + l.percent, 0)
+    if (sum !== 100) updated[0].percent += 100 - sum
+    saveToLangs(updated)
+  }
+
+  const removeToLang = (langCode) => {
+    if (toLangs.length <= 1) return
+    const removed = toLangs.find(l => l.lang === langCode)?.percent || 0
+    const rest = toLangs.filter(l => l.lang !== langCode)
+    const total = rest.reduce((s, l) => s + l.percent, 0)
+    const updated = rest.map(l => ({ ...l, percent: Math.round(l.percent / total * 100) }))
+    const sum = updated.reduce((s, l) => s + l.percent, 0)
+    if (sum !== 100) updated[0].percent += 100 - sum
+    saveToLangs(updated)
+  }
+
   const togglePause = async (langCode) => {
     const newPaused = pausedLanguages.includes(langCode)
       ? pausedLanguages.filter(l => l !== langCode)
@@ -3187,6 +3246,46 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
           })}
         </div>
       )}
+
+      {/* ── ZIELSPRACHEN ANTEILE ── */}
+      <div style={s.card}>
+        <p style={{ ...s.cardLabel, marginBottom: '14px' }}>{isDE ? '🌍 Lernsprachen & Anteile' : '🌍 Learning languages & share'}</p>
+        {toLangs.map(({ lang: lc, percent }) => {
+          const info = AVAILABLE_LANGS.find(l => l.code === lc) || { flag: '🌐', label: lc.toUpperCase() }
+          return (
+            <div key={lc} style={{ marginBottom: '14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <span style={{ color: th.text, fontSize: '0.9rem' }}>{info.flag} {info.label}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ color: th.gold, fontWeight: '700', fontSize: '0.85rem', minWidth: '36px', textAlign: 'right' }}>{percent}%</span>
+                  {toLangs.length > 1 && (
+                    <button onClick={() => removeToLang(lc)} style={{ background: 'transparent', border: 'none', color: th.sub, fontSize: '0.85rem', cursor: 'pointer', padding: '2px 4px', opacity: 0.6 }}>✕</button>
+                  )}
+                </div>
+              </div>
+              {toLangs.length > 1 && (
+                <input type="range" min="10" max="90" step="5" value={percent}
+                  onChange={e => updatePercent(lc, parseInt(e.target.value))}
+                  style={{ width: '100%', accentColor: th.accent, cursor: 'pointer' }}
+                />
+              )}
+            </div>
+          )
+        })}
+        {toLangs.length < 3 && (
+          <div style={{ marginTop: '8px' }}>
+            <p style={{ color: th.sub, fontSize: '0.72rem', marginBottom: '8px' }}>{isDE ? 'Sprache hinzufügen:' : 'Add language:'}</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              {AVAILABLE_LANGS.filter(l => !toLangs.find(t => t.lang === l.code)).map(l => (
+                <button key={l.code} onClick={() => addToLang(l.code)}
+                  style={{ background: 'transparent', border: `1px solid ${th.border}`, borderRadius: '16px', padding: '4px 10px', color: th.sub, fontSize: '0.75rem', cursor: 'pointer' }}>
+                  {l.flag} {l.code.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* ── DARK/LIGHT MODE ── */}
       {(() => {
@@ -3623,6 +3722,9 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const [resumeDialog, setResumeDialog] = useState(null)
   const [currentSessionMode, setCurrentSessionMode] = useState('all')
   const [activeToLang, setActiveToLang] = useState(() => {
+    // Prefer first entry of toLangs config, then fall back to toLang
+    const tls = myData?.toLangs
+    if (tls && tls.length > 0) return tls[0].lang.toLowerCase()
     const t = myData?.toLang
     return Array.isArray(t) ? t[0].toLowerCase() : (t || 'en').toLowerCase()
   })
@@ -4209,11 +4311,25 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
       setResumeDialog({ category, cards })
       return
     }
-    let sess = buildSession(cards, cardProgress)
+    const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
+    // Percentage-based language mixing if user has multiple toLangs configured
+    const toLangsConfig = myData?.toLangs
+    let sess
+    if (toLangsConfig && toLangsConfig.length > 1) {
+      const mixed = []
+      for (const { lang: lc, percent } of toLangsConfig) {
+        const langCards = cards.filter(c => (c.langB || c.targetLang || '').toLowerCase() === lc || (c.langA || '').toLowerCase() === lc)
+        const count = Math.max(1, Math.round(percent / 100 * SESSION_SIZE))
+        const built = buildSession(langCards, cardProgress)
+        mixed.push(...(built.length > 0 ? built.slice(0, count) : shuffle(langCards).slice(0, count)))
+      }
+      sess = shuffle(mixed).slice(0, SESSION_SIZE)
+    } else {
+      sess = buildSession(cards, cardProgress)
+    }
     console.log('[Vocara] buildSession result:', sess.length)
     // Fallback: if nothing is due (all reviewed, none overdue), practice all category cards
     if (sess.length === 0) {
-      const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
       sess = shuffle(cards).slice(0, SESSION_SIZE)
       console.log('[Vocara] fallback session (all cards):', sess.length)
     }
@@ -4728,24 +4844,28 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           )}
         </p>
         {(() => {
-          const fromFlag = LANG_FLAGS[lang] || ''
-          const toLangOptions = Array.isArray(myData?.toLang)
-            ? myData.toLang
-            : myData?.toLang ? [myData.toLang] : [lang === 'de' ? 'en' : 'de']
-          const toFlag = LANG_FLAGS[activeToLang] || LANG_FLAGS[toLangOptions[0]] || ''
+          // toLangs config takes priority over legacy toLang array
+          const toLangsConfig = myData?.toLangs
+          const toLangOptions = toLangsConfig && toLangsConfig.length > 0
+            ? toLangsConfig.map(l => l.lang)
+            : Array.isArray(myData?.toLang) ? myData.toLang.map(l => l.toLowerCase())
+            : myData?.toLang ? [myData.toLang.toLowerCase()] : [lang === 'de' ? 'en' : 'de']
           if (toLangOptions.length > 1) {
             return (
               <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '0.95rem' }}>{fromFlag}</span>
-                <span style={{ color: th.sub, fontSize: '0.7rem', opacity: 0.6 }}>→</span>
+                <span style={{ background: `${th.accent}1A`, border: `1px solid ${th.accent}33`, borderRadius: '20px', padding: '2px 8px', fontSize: '0.7rem', fontWeight: '600', color: th.accent }}>
+                  {lang.toUpperCase()}
+                </span>
+                <span style={{ color: th.sub, fontSize: '0.7rem', opacity: 0.5 }}>→</span>
                 <select
                   value={activeToLang}
                   onChange={(e) => handleChangeActiveToLang(e.target.value)}
                   style={{ padding: '3px 8px', borderRadius: '6px', border: `1.5px solid ${th.accent}`, background: th.card, color: th.text, fontSize: '0.82rem', cursor: 'pointer', outline: 'none' }}
                 >
-                  {toLangOptions.map(l => (
-                    <option key={l} value={l.toLowerCase()}>{LANG_FLAGS[l.toLowerCase()] || ''} {l.toUpperCase()}</option>
-                  ))}
+                  {toLangOptions.map(l => {
+                    const pct = toLangsConfig?.find(t => t.lang === l)?.percent
+                    return <option key={l} value={l}>{LANG_FLAGS[l] || ''} {l.toUpperCase()}{pct ? ` ${pct}%` : ''}</option>
+                  })}
                 </select>
               </div>
             )
@@ -6766,7 +6886,9 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [myData, setMyData] = useState(null)
   const [partnerData, setPartnerData] = useState(null)
-  const [theme, setTheme] = useState('nairobi')
+  const [theme, setTheme] = useState(() => {
+    try { return localStorage.getItem('vocara_theme') || 'nairobi' } catch { return 'nairobi' }
+  })
   const [lightMode, setLightMode] = useState(false)
   const [cardSize, setCardSize] = useState('normal')
   const [needsLangSetup, setNeedsLangSetup] = useState(false)
@@ -6864,7 +6986,7 @@ function App() {
         const freshSnap = await getDoc(userRef)
         if (freshSnap.exists()) {
           const data = freshSnap.data()
-          if (data.theme) setTheme(data.theme)
+          if (data.theme) { setTheme(data.theme); try { localStorage.setItem('vocara_theme', data.theme) } catch {} }
           if (data.lightMode !== undefined) setLightMode(!!data.lightMode)
           if (data.cardSize) setCardSize(data.cardSize)
           // ── BATCH CATEGORY FIX: vocabulary + 3+ words → sentence ─
@@ -6977,6 +7099,7 @@ function App() {
   }
   const handleThemeChange = async (newTheme) => {
     setTheme(newTheme)
+    try { localStorage.setItem('vocara_theme', newTheme) } catch {}
     if (user) await updateDoc(doc(db, 'users', user.uid), { theme: newTheme })
   }
   const handleLightModeChange = async (val) => {
