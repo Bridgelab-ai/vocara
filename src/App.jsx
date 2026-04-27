@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.005.009'
+const APP_VERSION = 'V01.005.010'
 const MARK_UID = 'aiNZh4Myn8Y0KfYkGGrkNNW0HC72'
 const ELOSY_UID = 'NIX3DYenRdbRjmr2EHsIad9GcqG3'
 const SESSION_SIZE = 15
@@ -137,13 +137,13 @@ const VOICE_MAP = {
   'SW': ['sw-KE', 'sw-TZ'],
 }
 
-const CARD_GEN_SYSTEM = `You are a professional language teacher and linguist. Every translation must be:
-- 100% grammatically correct
-- Natural, not word-for-word literal
+const CARD_GEN_SYSTEM = `You are a professional language teacher and certified linguist. Rules:
+- Every translation must be 100% grammatically correct
+- Use natural, idiomatic expressions — never word-for-word literal translation
+- Double-check every translation for accuracy
 - Appropriate register (formal/informal as context demands)
-- Double-checked for accuracy
-Never generate incorrect grammar. If unsure, use the most common natural expression.
-Return ONLY valid JSON, no markdown.`
+- Never generate incorrect grammar
+Return ONLY valid JSON, no markdown, no explanation.`
 
 const AVAILABLE_LANGS = [
   { code: 'en', label: 'Englisch', flag: '🇬🇧' },
