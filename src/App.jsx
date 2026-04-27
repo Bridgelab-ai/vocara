@@ -4874,6 +4874,8 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
               </div>
             )
           }
+          const fromFlag = LANG_FLAGS[lang] || ''
+          const toFlag = LANG_FLAGS[activeToLang] || ''
           if (!fromFlag && !toFlag) return null
           return (
             <div style={{ display: 'flex', justifyContent: 'center' }}>
@@ -7122,10 +7124,14 @@ function App() {
     if (user) await updateDoc(doc(db, 'users', user.uid), { cardSize: val }).catch(() => {})
   }
   const handlePartnerUpdate = async (partnerUID) => {
-    const ref = doc(db, 'users', user.uid)
-    const snap = await getDoc(ref); if (snap.exists()) setMyData(snap.data())
-    if (partnerUID) { const pSnap = await getDoc(doc(db, 'users', partnerUID)); if (pSnap.exists()) setPartnerData(pSnap.data()) }
-    else setPartnerData(null)
+    try {
+      const ref = doc(db, 'users', user.uid)
+      const snap = await getDoc(ref); if (snap.exists()) setMyData(snap.data())
+    } catch (e) { console.warn('[Vocara] own data reload failed:', e?.code) }
+    if (partnerUID) {
+      try { const pSnap = await getDoc(doc(db, 'users', partnerUID)); if (pSnap.exists()) setPartnerData(pSnap.data()) }
+      catch (e) { console.warn('[Vocara] partner data load skipped (users/' + partnerUID + '):', e?.code) }
+    } else setPartnerData(null)
   }
   const handleSaveCefr = async (level) => {
     try {
