@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.002.007'
+const APP_VERSION = 'V01.002.008'
 const MARK_UID = 'aiNZh4Myn8Y0KfYkGGrkNNW0HC72'
 const ELOSY_UID = 'NIX3DYenRdbRjmr2EHsIad9GcqG3'
 const SESSION_SIZE = 15
@@ -6979,6 +6979,13 @@ function App() {
         const code = u.uid.slice(0, 8).toUpperCase()
         try { await setDoc(doc(db, 'inviteCodes', code), { uid: u.uid }, { merge: true }) }
         catch (e) { console.warn('[Vocara] inviteCodes write skipped (path: inviteCodes/' + code + '):', e?.code || e?.message) }
+        // Write public profile to userProfiles/{uid} for partner reads
+        try {
+          await setDoc(doc(db, 'userProfiles', u.uid), {
+            displayName: u.displayName, email: u.email,
+            lastActive: Date.now(), photoURL: u.photoURL || null
+          }, { merge: true })
+        } catch (e) { console.warn('[Vocara] userProfiles write skipped:', e?.code) }
         const snap = await getDoc(userRef)
 
         // ── NEW USER: first login, no profile with createdAt yet
@@ -7078,20 +7085,20 @@ function App() {
             if (!data.onboardingDone) setNeedsOnboarding(true)
             if (!data.languages || data.languages.length === 0) setNeedsLangSetup(true)
           }
-          try {
-            if (data.partnerUID) {
-              const pSnap = await getDoc(doc(db, 'users', data.partnerUID))
-              if (pSnap.exists()) setPartnerData(pSnap.data())
-            } else {
-              const partnerUID = u.uid === MARK_UID ? ELOSY_UID : u.uid === ELOSY_UID ? MARK_UID : null
-              if (partnerUID) {
-                const pSnap = await getDoc(doc(db, 'users', partnerUID))
-                if (pSnap.exists()) setPartnerData(pSnap.data())
-              }
-            }
-          } catch (partnerErr) {
-            console.error('[Vocara] partner load failed, skipping:', partnerErr)
+          const loadPartner = async (partnerUID) => {
+            try {
+              const pSnap = await getDoc(doc(db, 'users', partnerUID))
+              if (pSnap.exists()) { setPartnerData(pSnap.data()); return }
+            } catch (_) {}
+            // Fallback: read from public userProfiles collection
+            try {
+              const pubSnap = await getDoc(doc(db, 'userProfiles', partnerUID))
+              if (pubSnap.exists()) setPartnerData(pubSnap.data())
+            } catch (e) { console.warn('[Vocara] partner load skipped (userProfiles/' + partnerUID + '):', e?.code) }
           }
+          const resolvedPartnerUID = data.partnerUID ||
+            (u.uid === MARK_UID ? ELOSY_UID : u.uid === ELOSY_UID ? MARK_UID : null)
+          if (resolvedPartnerUID) await loadPartner(resolvedPartnerUID)
         }
       } catch (initErr) {
         console.error('[Vocara] app init failed, falling back to defaults:', initErr)
@@ -7129,8 +7136,12 @@ function App() {
       const snap = await getDoc(ref); if (snap.exists()) setMyData(snap.data())
     } catch (e) { console.warn('[Vocara] own data reload failed:', e?.code) }
     if (partnerUID) {
-      try { const pSnap = await getDoc(doc(db, 'users', partnerUID)); if (pSnap.exists()) setPartnerData(pSnap.data()) }
-      catch (e) { console.warn('[Vocara] partner data load skipped (users/' + partnerUID + '):', e?.code) }
+      let loaded = false
+      try { const pSnap = await getDoc(doc(db, 'users', partnerUID)); if (pSnap.exists()) { setPartnerData(pSnap.data()); loaded = true } } catch (_) {}
+      if (!loaded) {
+        try { const pubSnap = await getDoc(doc(db, 'userProfiles', partnerUID)); if (pubSnap.exists()) setPartnerData(pubSnap.data()) }
+        catch (e) { console.warn('[Vocara] partner load skipped (userProfiles/' + partnerUID + '):', e?.code) }
+      }
     } else setPartnerData(null)
   }
   const handleSaveCefr = async (level) => {
