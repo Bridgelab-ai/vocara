@@ -2204,7 +2204,7 @@ function LoginScreen({ theme }) {
   return (
     <div style={s.container} className="vocara-screen">
       <div style={{ textAlign: 'center', padding: '24px', maxWidth: '380px', width: '100%' }}>
-        <img src="/vocara-logo.jpg" alt="Vocara" style={{ height: '100px', objectFit: 'contain', mixBlendMode: 'screen', display: 'block', margin: '0 auto 8px' }} />
+        <p style={{ fontFamily: 'Georgia, serif', fontSize: '42px', fontWeight: '700', color: '#FFD700', margin: '0 0 8px', letterSpacing: '3px', lineHeight: 1 }}>Vocara</p>
         <p style={s.slogan}>Die Stimme ist die Brücke.<br /><span style={{ fontSize: '0.85rem' }}>The voice is the bridge.</span></p>
         <button style={s.button} onClick={handleLogin}>Mit Google anmelden / Sign in with Google</button>
         {error && <p style={s.error}>{error}</p>}
@@ -2226,7 +2226,7 @@ function LangSetupScreen({ user, lang, theme, onDone }) {
   }
   return (
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
-      <img src="/vocara-logo.jpg" alt="Vocara" style={{ height: '80px', objectFit: 'contain', mixBlendMode: 'screen', display: 'block', margin: '0 auto 8px' }} />
+      <p style={{ fontFamily: 'Georgia, serif', fontSize: '42px', fontWeight: '700', color: '#FFD700', margin: '0 0 8px', letterSpacing: '3px', lineHeight: 1, textAlign: 'center' }}>Vocara</p>
       <p style={{ color: th.text, fontWeight: 'bold', marginBottom: '4px' }}>{t.langSetupTitle}</p>
       <p style={{ color: th.sub, fontSize: '0.85rem', marginBottom: '16px' }}>{t.langSetupSub}</p>
       <div style={s.card}>
@@ -3694,7 +3694,7 @@ function VocaraLogoSVG({ withSlogans = false, animate = false, isDE = true }) {
           DIE STIMME IST DIE BRÜCKE
         </p>
       )}
-      <img src="/vocara-logo.jpg" alt="Vocara" style={{ height: '130px', objectFit: 'contain', mixBlendMode: 'screen', display: 'block', margin: '0 auto' }} />
+      <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '2.8rem', fontWeight: '700', color: '#FFD700', margin: 0, letterSpacing: '4px', lineHeight: 1 }}>Vocara</p>
       {withSlogans && (
         <>
           <p style={{ color: 'rgba(245,200,66,0.40)', fontSize: '9px', fontWeight: '600', letterSpacing: '2px', textTransform: 'uppercase', margin: '10px 0 2px', fontFamily: "'Inter', system-ui, sans-serif" }}>
@@ -4838,7 +4838,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
 
       {/* ── LOGO ── */}
       <div className="vocara-logo-section" style={{ textAlign: 'center', paddingTop: '16px', paddingBottom: '10px' }}>
-        <img src="/vocara-logo.jpg" alt="Vocara" style={{ height: '70px', objectFit: 'contain', mixBlendMode: 'screen', display: 'block', margin: '0 auto' }} />
+        <p style={{ fontFamily: 'Georgia, serif', fontSize: '42px', fontWeight: '700', color: '#FFD700', margin: '0 auto', letterSpacing: '3px', lineHeight: 1 }}>Vocara</p>
         <p className="vocara-logo-greeting" style={{ ...s.greeting, marginTop: '8px', marginBottom: uniqueTargetLangs.length > 0 ? '6px' : 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px' }}>
           {t.hello}, {firstName}
           {partnerActivityStatus && (
