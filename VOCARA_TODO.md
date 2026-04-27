@@ -1,4 +1,15 @@
-# Vocara – Vollständige ToDo & Ideen-Liste (Stand 19.04.2026)
+# Vocara – Vollständige ToDo & Ideen-Liste (Stand 27.04.2026)
+
+## ✅ Implementiert (27.04.2026 Session 7)
+- THEME PERSISTENZ: localStorage Cache verhindert Theme-Flicker beim Reload ✅
+- NAIROBI THEME: Pure Gold/Black — #FFD700 gold, #0A0800 near-black, #B8860B dark gold, kein Orange/Braun ✅
+- ZIELSPRACHE MEHRFACH AUSWAHL: toLangs [{lang, percent}] in Firestore, Prozent-Slider in Einstellungen, Session-Mixing nach Prozent ✅
+- KARTE DES TAGES: DE oben / EN unten für Mark, Kontext max 2 Sätze, EN-Kontext in DE-UI versteckt ✅
+- KI-TUTOR: Gold-Pill Button für Tagebuch, coachMsg auf 2 Sätze gekürzt ✅
+- FLAGGEN: Emoji-Flags ersetzt durch "DE → EN" Pill in Theme-Akzentfarbe ✅
+- LEVEL-CHECK BANNER: Subtiler Ghost-Button ohne aggressives Rot ✅
+- SATZ MESSAGE: Zeigt echte Anzahl bekannter Wörter ✅
+- VERSION V01.002.007 ✅
 
 ## ✅ Implementiert (19.04.2026 Session 6) — V01.000.002
 - VERSION SYSTEM: APP_VERSION = V01.000.002, angezeigt in Einstellungen-Footer und Home-Footer ✅
@@ -191,3 +202,7 @@
 - Swahili Kategorisierung teilweise offen
 - Kategorisierungs-Button entfernen ✅
 - fromLang-basierte UI-Sprache (Elosy EN→DE, alle Screens) ✅
+- VOICE_MAP + selectVoiceForLang für EN/DE/SW ✅
+- activeToLang Dropdown für Mark (EN+SW bidirektional) ✅
+- userToLang Array-Bug gefixt (myData.toLang Array → activeToLang) ✅
+- Kartengenerierung auf claude-sonnet-4-6 + CARD_GEN_SYSTEM Qualitätsprompt ✅ (V01.002.005)
