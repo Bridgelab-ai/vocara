@@ -3720,11 +3720,12 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const [resumeDialog, setResumeDialog] = useState(null)
   const [currentSessionMode, setCurrentSessionMode] = useState('all')
   const [activeToLang, setActiveToLang] = useState(() => {
-    // Prefer first entry of toLangs config, then fall back to toLang
-    const tls = myData?.toLangs
-    if (tls && tls.length > 0) return tls[0].lang.toLowerCase()
-    const t = myData?.toLang
-    return Array.isArray(t) ? t[0].toLowerCase() : (t || 'en').toLowerCase()
+    try {
+      const tls = myData?.toLangs
+      if (tls && tls.length > 0 && tls[0]?.lang) return tls[0].lang.toLowerCase()
+      const t = myData?.toLang
+      return Array.isArray(t) ? (t[0] || 'en').toLowerCase() : (t || 'en').toLowerCase()
+    } catch { return 'en' }
   })
   const [satzLoading, setSatzLoading] = useState(false)
   const [weekGoalCelebration, setWeekGoalCelebration] = useState(false)
@@ -3911,7 +3912,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
     if (stored?.date === todayD) { setMiniTask(stored); return }
     // Pick only cards where front is in the target language (not native/SW)
     const targetLangA = lang === 'de' ? 'en' : 'de'
-    const masteredCards = allCards.filter(c =>
+    const masteredCards = (allCards || []).filter(c =>
       !/_r(_\d+)?$/.test(c.id) &&
       (cardProgress[c.id]?.interval || 0) >= 7 &&
       c.langA === targetLangA
@@ -4023,10 +4024,11 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const yd = new Date(); yd.setDate(yd.getDate() - 1)
   const yesterday = `${yd.getFullYear()}-${String(yd.getMonth() + 1).padStart(2, '0')}-${String(yd.getDate()).padStart(2, '0')}`
   const pausedLanguages = myData?.pausedLanguages || []
-  const uniqueTargetLangs = [...new Set(allCards.map(c => c.targetLang).filter(Boolean))]
+  const safeCards = allCards || []
+  const uniqueTargetLangs = [...new Set(safeCards.map(c => c.targetLang).filter(Boolean))]
   const activeCards = pausedLanguages.length > 0
-    ? allCards.filter(c => !pausedLanguages.includes(c.targetLang))
-    : allCards
+    ? safeCards.filter(c => !pausedLanguages.includes(c.targetLang))
+    : safeCards
 
   // ── WORT DES TAGES ────────────────────────────────────────
   const wordOfDay = (() => {
@@ -4079,7 +4081,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
 
   const sessionPreview = (() => {
     let due = 0, newC = 0
-    allCards.forEach(card => {
+    ;(allCards || []).forEach(card => {
       const p = cardProgress[card.id]
       if (!p) newC++
       else if (p.wrongSessions > 0 || p.nextReview <= today) due++
@@ -4115,7 +4117,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
 
     // Exclusion list: ALL existing card fronts (for the AI), but full list for dedup
     const allFronts = [
-      ...allCards.map(c => c.front),
+      ...(allCards || []).map(c => c.front),
       ...(freshData.aiCards || []).map(c => c.front),
     ]
     const exclusionList = [...new Set(allFronts.map(f => (f || '').toLowerCase().trim()))]
@@ -4567,7 +4569,7 @@ Return ONLY a valid JSON array with no markdown or explanation:
     const homeCity = myData?.homeCity || (isMarkLang ? 'Hamburg' : 'Nairobi')
     const partnerCity = myData?.partnerCity || (isMarkLang ? 'Nairobi' : 'Hamburg')
     const existingAI = myData?.aiCards || []
-    const knownFrontsSet = new Set(allCards.map(c => c.front.toLowerCase().trim()))
+    const knownFrontsSet = new Set((allCards || []).map(c => c.front.toLowerCase().trim()))
 
     // Enforce 80/20 ratio: at most 1 SW card per 5 generated
     const totalAIAfter = existingAI.length + 5
