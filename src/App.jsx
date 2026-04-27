@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.002.008'
+const APP_VERSION = 'V01.005.008'
 const MARK_UID = 'aiNZh4Myn8Y0KfYkGGrkNNW0HC72'
 const ELOSY_UID = 'NIX3DYenRdbRjmr2EHsIad9GcqG3'
 const SESSION_SIZE = 15
@@ -4839,6 +4839,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
       {/* ── LOGO ── */}
       <div className="vocara-logo-section" style={{ textAlign: 'center', paddingTop: '16px', paddingBottom: '10px' }}>
         <p style={{ fontFamily: 'Georgia, serif', fontSize: '42px', fontWeight: '700', color: '#FFD700', margin: '0 auto', letterSpacing: '3px', lineHeight: 1 }}>Vocara</p>
+        <p style={{ color: th.sub, fontSize: '0.55rem', opacity: 0.3, margin: '2px 0 0', letterSpacing: '1px', textAlign: 'center' }}>{APP_VERSION}</p>
         <p className="vocara-logo-greeting" style={{ ...s.greeting, marginTop: '8px', marginBottom: uniqueTargetLangs.length > 0 ? '6px' : 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px' }}>
           {t.hello}, {firstName}
           {partnerActivityStatus && (
@@ -7072,18 +7073,29 @@ function App() {
               data.fromLang = 'en'; data.toLang = 'de'
             } catch (_) {}
           }
-          setMyData(data)
           const isKnown = u.uid === MARK_UID || u.uid === ELOSY_UID
           if (!isKnown) {
             if (!data.onboardingDone) setNeedsOnboarding(true)
             if (!data.languages || data.languages.length === 0) setNeedsLangSetup(true)
           }
-          // Restore partnerUID if lost (for Mark/Elosy hardcoded pair)
-          if (!data.partnerUID) {
-            const defaultPartner = u.uid === MARK_UID ? ELOSY_UID : u.uid === ELOSY_UID ? MARK_UID : null
-            if (defaultPartner) {
-              try { await updateDoc(userRef, { partnerUID: defaultPartner }); data.partnerUID = defaultPartner } catch (_) {}
-            }
+          // ── PARTNER CONNECTION: always restore from hardcoded backup for Mark/Elosy ──
+          const CORRECT_PARTNER = u.uid === MARK_UID ? ELOSY_UID : u.uid === ELOSY_UID ? MARK_UID : null
+          const CORRECT_PARTNER_NAME = u.uid === MARK_UID ? 'Elosy' : u.uid === ELOSY_UID ? 'Mark' : null
+          const needsPartnerRestore = CORRECT_PARTNER && data.partnerUID !== CORRECT_PARTNER
+          if (needsPartnerRestore) {
+            console.log('[Vocara] Restoring partner connection:', CORRECT_PARTNER)
+            data.partnerUID = CORRECT_PARTNER
+            data.partnerName = CORRECT_PARTNER_NAME
+            try { await updateDoc(userRef, { partnerUID: CORRECT_PARTNER, partnerName: CORRECT_PARTNER_NAME }) } catch (_) {}
+          }
+          // Store partnerUID in localStorage as failsafe
+          try { localStorage.setItem('vocara_partnerUID_' + u.uid, data.partnerUID || '') } catch (_) {}
+          // Store in settings subcollection as second backup
+          if (data.partnerUID) {
+            try {
+              await setDoc(doc(db, 'users', u.uid, 'settings', 'partner'),
+                { partnerUID: data.partnerUID, partnerName: data.partnerName || null }, { merge: true })
+            } catch (_) {}
           }
           // Write full public profile to userProfiles/{uid} (readable by partner)
           try {
@@ -7094,7 +7106,8 @@ function App() {
               partnerName: data.partnerName || null
             }, { merge: true })
           } catch (e) { console.warn('[Vocara] userProfiles write skipped:', e?.code) }
-          // Load partner: try userProfiles first (public), fall back to users/
+          setMyData(data)
+          // Load partner: try userProfiles first (public), fall back to users/, then hardcoded name
           const loadPartner = async (partnerUID) => {
             try {
               const pubSnap = await getDoc(doc(db, 'userProfiles', partnerUID))
@@ -7103,7 +7116,11 @@ function App() {
             try {
               const pSnap = await getDoc(doc(db, 'users', partnerUID))
               if (pSnap.exists()) { setPartnerData(pSnap.data()); return }
-            } catch (e) { console.warn('[Vocara] partner load skipped (uid=' + partnerUID + '):', e?.code) }
+            } catch (_) {}
+            // Hardcoded fallback for known UIDs
+            if (partnerUID === ELOSY_UID) setPartnerData({ name: 'Elosy', displayName: 'Elosy', lastActive: null })
+            else if (partnerUID === MARK_UID) setPartnerData({ name: 'Mark', displayName: 'Mark', lastActive: null })
+            else console.warn('[Vocara] partner load failed for uid=' + partnerUID)
           }
           const resolvedPartnerUID = data.partnerUID ||
             (u.uid === MARK_UID ? ELOSY_UID : u.uid === ELOSY_UID ? MARK_UID : null)
