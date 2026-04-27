@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.005.011'
+const APP_VERSION = 'V01.005.012'
 const MARK_UID = 'aiNZh4Myn8Y0KfYkGGrkNNW0HC72'
 const ELOSY_UID = 'NIX3DYenRdbRjmr2EHsIad9GcqG3'
 const SESSION_SIZE = 15
@@ -896,6 +896,19 @@ html, body, #root {
   0%   { transform: scale(1); }
   40%  { transform: scale(1.6); }
   100% { transform: scale(1); }
+}
+@keyframes vocaraSlideIn {
+  0%   { opacity: 0; transform: translateX(-60px) scale(0.95); }
+  100% { opacity: 1; transform: translateX(0) scale(1); }
+}
+@keyframes particleBurst {
+  0%   { opacity: 1; transform: translate(0,0) scale(1); }
+  100% { opacity: 0; transform: translate(var(--px), var(--py)) scale(0); }
+}
+@keyframes sparkleRing {
+  0%   { opacity: 0.9; transform: scale(0.5); }
+  60%  { opacity: 0.6; transform: scale(1.8); }
+  100% { opacity: 0; transform: scale(2.5); }
 }
 @keyframes vocaraCardFlip {
   0%   { transform: rotateY(0deg); }
@@ -2467,6 +2480,8 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
   const [micResult, setMicResult] = useState(null) // { score, total, words: [{word, correct}] }
   const [phoneticCache, setPhoneticCache] = useState({})
   const [cardAnim, setCardAnim] = useState(null) // null | 'flyRight' | 'flyUp' | 'shake'
+  const [cardSlideIn, setCardSlideIn] = useState(false) // slide-in for next card
+  const [burstParticles, setBurstParticles] = useState([]) // [{id,x,y,color,dx,dy}]
   const [flipPhase, setFlipPhase] = useState(false) // true = mid-flip (card turned sideways)
   const [patternTip, setPatternTip] = useState(null) // null | 'loading' | string
   const wrongCardsRef = useRef([]) // accumulates wrong cards for pattern analysis
@@ -2636,11 +2651,31 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
     }).catch(() => {})
   }, [revealed, index])
 
+  const triggerBurst = (isEasy) => {
+    const count = isEasy ? 14 : 9
+    const colors = isEasy
+      ? ['#FFD700','#FFD700','#FFF700','#FF9900','#FFFFFF']
+      : ['#00E676','#69F0AE','#FFFFFF','#B9F6CA']
+    const particles = Array.from({ length: count }, (_, i) => {
+      const angle = (i / count) * 2 * Math.PI
+      const dist = 55 + Math.random() * 45
+      return { id: i, color: colors[i % colors.length], dx: Math.cos(angle) * dist, dy: Math.sin(angle) * dist }
+    })
+    setBurstParticles(particles)
+    setTimeout(() => setBurstParticles([]), 600)
+  }
+
   const triggerAnim = (anim, delay, cb) => {
     if (animLock.current) return
     animLock.current = true
     setCardAnim(anim)
-    setTimeout(() => { setCardAnim(null); animLock.current = false; cb() }, delay)
+    setTimeout(() => {
+      setCardAnim(null)
+      animLock.current = false
+      setCardSlideIn(true)
+      setTimeout(() => setCardSlideIn(false), 350)
+      cb()
+    }, delay)
   }
 
   const handleReveal = () => {
@@ -2777,10 +2812,12 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
     }
     const anim = isCorrect ? 'flyRight' : 'shake'
     const delay = isCorrect ? 350 : 480
+    if (isCorrect) triggerBurst(false)
     triggerAnim(anim, delay, () => handleAnswer(isCorrect))
   }
   const handleEasyAnimated = () => {
     haptic([30, 40, 30, 40, 30])
+    triggerBurst(true)
     triggerAnim('flyUp', 320, () => handleEasy())
   }
   const handleFastAnimated = () => {
@@ -2807,9 +2844,24 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
           </p>
         )
       })()}
+      {/* ── PARTICLE BURST (#47) ── */}
+      {burstParticles.length > 0 && (
+        <div style={{ position: 'fixed', top: '38%', left: '50%', pointerEvents: 'none', zIndex: 999 }}>
+          {burstParticles.map(p => (
+            <div key={p.id} style={{
+              position: 'absolute', width: '8px', height: '8px', borderRadius: '50%', background: p.color,
+              '--px': `${p.dx}px`, '--py': `${p.dy}px`,
+              animation: 'particleBurst 0.55s ease-out forwards',
+            }} />
+          ))}
+          <div style={{ position: 'absolute', width: '44px', height: '44px', borderRadius: '50%', border: '2px solid rgba(255,215,0,0.6)', top: '-22px', left: '-22px', animation: 'sparkleRing 0.5s ease-out forwards' }} />
+        </div>
+      )}
       {/* ── FLIP CARD ── */}
       <div style={{ width: '100%', marginBottom: '16px', perspective: '900px',
-        animation: cardAnim ? `vocara${cardAnim.charAt(0).toUpperCase() + cardAnim.slice(1)} ${cardAnim === 'shake' ? '0.48s' : '0.35s'} ease forwards` : undefined,
+        animation: cardAnim
+          ? `vocara${cardAnim.charAt(0).toUpperCase() + cardAnim.slice(1)} ${cardAnim === 'shake' ? '0.48s' : '0.35s'} ease forwards`
+          : cardSlideIn ? 'vocaraSlideIn 0.32s ease-out forwards' : undefined,
       }}>
         <div className="vocara-big-card" style={{
           ...s.bigCard,
@@ -3658,6 +3710,17 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
         <StreakWidget history={sessionHistory} th={th} t={t} />
       </div>
 
+      {/* ── LIEBLINGSBEREICH solo (#29) ── */}
+      {!hasPartner && myFavArea !== '—' && (
+        <div style={{ ...s.card, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span style={{ fontSize: '1.4rem' }}>🔥</span>
+          <div>
+            <p style={{ margin: 0, color: th.sub, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{isMarkLang ? 'Lieblingsbereich' : 'Favourite area'}</p>
+            <p style={{ margin: '2px 0 0', color: th.text, fontWeight: '700', fontSize: '1rem' }}>{myFavArea}</p>
+          </div>
+        </div>
+      )}
+
       {/* ── PARTNER COMPARISON ── */}
       {hasPartner && (
         <div style={s.card}>
@@ -3885,11 +3948,13 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
         const toLangCode = isMarkLang ? 'en' : 'de'
         const fromLangCode = isMarkLang ? 'de' : 'en'
         const recentFronts = (myData?.recentDailyFronts || []).slice(-30).join(', ')
+        const relType = myData?.relationshipType || 'couple'
+        const relContext = { couple: 'romantic couple', friends: 'close friends', family: 'family members', colleagues: 'colleagues' }[relType] || 'couple'
         const res = await fetch('/api/chat', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             model: 'claude-haiku-4-5-20251001', max_tokens: 150,
-            messages: [{ role: 'user', content: `Today is ${todayD}. Generate ONE unique daily phrase card for a ${fromLangFull} speaker learning ${toLangFull} at level: ${level}. Category: ${category}. Front MUST be in ${toLangFull}, back in ${fromLangFull}. Avoid these recent fronts: ${recentFronts || 'none'}. Be creative, practical, and culturally rich. Return ONLY JSON (no markdown): {"front":"...","back":"...","context":"...","category":"${category}"}` }]
+            messages: [{ role: 'user', content: `Today is ${todayD}. Generate ONE unique daily phrase card for a ${fromLangFull} speaker learning ${toLangFull} at level: ${level}. Category: ${category}. Context: two ${relContext} learning together. Front MUST be in ${toLangFull}, back in ${fromLangFull}. Avoid these recent fronts: ${recentFronts || 'none'}. Make the phrase emotionally resonant for ${relContext}. Return ONLY JSON (no markdown): {"front":"...","back":"...","context":"...","category":"${category}","relType":"${relType}"}` }]
           })
         })
         const data = await res.json()

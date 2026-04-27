@@ -1,5 +1,14 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 27.04.2026)
 
+## ✅ Implementiert (27.04.2026 Session 8)
+- ANIMIERTE KARTEN-ÜBERGÄNGE (#17): vocaraSlideIn keyframe, cardSlideIn state — next card slides in from left after any answer ✅
+- KARTEN-WEGFLIEGE-ANIMATION (#47): particleBurst + sparkleRing CSS keyframes, triggerBurst() — gold particles on Richtig, rainbow burst on Easy ✅
+- LIEBES/FREUNDSCHAFTS-KARTE DES TAGES (#39): relationshipType passed to daily card AI prompt — phrase tone adapts to couple/friends/family/colleagues ✅
+- STATISTIK LIEBLINGSBEREICH (#29): Standalone "Lieblingsbereich 🔥" section in StatsScreen for solo users ✅
+- SWAHILI KATEGORISIERUNG: Already implemented in app-load batch fix (lines 7042-7054) ✅
+- NEUE KARTE FÜR PARTNER (#1): forPartner toggle fully implemented in KarteErstellenScreen ✅
+- VERSION V01.005.012 ✅
+
 ## ✅ Implementiert (27.04.2026 Session 7)
 - THEME PERSISTENZ: localStorage Cache verhindert Theme-Flicker beim Reload ✅
 - NAIROBI THEME: Pure Gold/Black — #FFD700 gold, #0A0800 near-black, #B8860B dark gold, kein Orange/Braun ✅
