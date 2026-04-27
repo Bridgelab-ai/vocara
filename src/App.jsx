@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.002.005'
+const APP_VERSION = 'V01.002.007'
 const MARK_UID = 'aiNZh4Myn8Y0KfYkGGrkNNW0HC72'
 const ELOSY_UID = 'NIX3DYenRdbRjmr2EHsIad9GcqG3'
 const SESSION_SIZE = 15
@@ -2204,7 +2204,7 @@ function LoginScreen({ theme }) {
   return (
     <div style={s.container} className="vocara-screen">
       <div style={{ textAlign: 'center', padding: '24px', maxWidth: '380px', width: '100%' }}>
-        <img src="/vocara-logo.png" alt="Vocara" style={{ height: '100px', objectFit: 'contain', display: 'block', margin: '0 auto 8px' }} />
+        <p style={{ fontFamily: 'Georgia, serif', fontSize: '42px', fontWeight: '700', color: '#FFD700', margin: '0 0 8px', letterSpacing: '3px', lineHeight: 1 }}>Vocara</p>
         <p style={s.slogan}>Die Stimme ist die Brücke.<br /><span style={{ fontSize: '0.85rem' }}>The voice is the bridge.</span></p>
         <button style={s.button} onClick={handleLogin}>Mit Google anmelden / Sign in with Google</button>
         {error && <p style={s.error}>{error}</p>}
@@ -2226,7 +2226,7 @@ function LangSetupScreen({ user, lang, theme, onDone }) {
   }
   return (
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
-      <img src="/vocara-logo.png" alt="Vocara" style={{ height: '65px', objectFit: 'contain', display: 'block', margin: '0 auto 8px' }} />
+      <p style={{ fontFamily: 'Georgia, serif', fontSize: '42px', fontWeight: '700', color: '#FFD700', margin: '0 0 8px', letterSpacing: '3px', lineHeight: 1, textAlign: 'center' }}>Vocara</p>
       <p style={{ color: th.text, fontWeight: 'bold', marginBottom: '4px' }}>{t.langSetupTitle}</p>
       <p style={{ color: th.sub, fontSize: '0.85rem', marginBottom: '16px' }}>{t.langSetupSub}</p>
       <div style={s.card}>
@@ -4276,8 +4276,8 @@ Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","
     )
     if (knownVocabCards.length < 5) {
       setEmptyCategoryMsg(isMarkLang
-        ? 'Übe zuerst mehr Wörter in Meine Worte — du brauchst mindestens 5 gefestigte Wörter!'
-        : 'Practice more words in My Words first — you need at least 5 solid words!')
+        ? `Lerne zuerst mehr Wörter — du brauchst 5 gefestigte Wörter (du hast ${knownVocabCards.length}).`
+        : `Learn more words first — need 5 solid words (you have ${knownVocabCards.length}).`)
       setTimeout(() => setEmptyCategoryMsg(null), 3500)
       return
     }
@@ -4718,7 +4718,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
 
       {/* ── LOGO ── */}
       <div className="vocara-logo-section" style={{ textAlign: 'center', paddingTop: '16px', paddingBottom: '10px' }}>
-        <img src="/vocara-logo.png" alt="Vocara" style={{ height: '120px', objectFit: 'contain', display: 'block', margin: '0 auto' }} />
+        <p style={{ fontFamily: 'Georgia, serif', fontSize: '42px', fontWeight: '700', color: '#FFD700', margin: '0 auto', letterSpacing: '3px', lineHeight: 1 }}>Vocara</p>
         <p className="vocara-logo-greeting" style={{ ...s.greeting, marginTop: '8px', marginBottom: uniqueTargetLangs.length > 0 ? '6px' : 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px' }}>
           {t.hello}, {firstName}
           {partnerActivityStatus && (
@@ -4752,10 +4752,10 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           }
           if (!fromFlag && !toFlag) return null
           return (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px' }}>
-              <span style={{ fontSize: '0.95rem' }}>{fromFlag}</span>
-              <span style={{ color: th.sub, fontSize: '0.7rem', opacity: 0.6 }}>→</span>
-              <span style={{ fontSize: '0.95rem' }}>{toFlag}</span>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <span style={{ background: `${th.accent}1A`, border: `1px solid ${th.accent}33`, borderRadius: '20px', padding: '2px 10px', fontSize: '0.7rem', fontWeight: '600', color: th.accent, letterSpacing: '0.5px' }}>
+                {lang.toUpperCase()} → {(Array.isArray(myData?.toLang) ? myData.toLang[0] : myData?.toLang || 'EN').toUpperCase()}
+              </span>
             </div>
           )
         })()}
@@ -4763,12 +4763,9 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
 
       {/* ── MONTHLY TEST BANNER ── */}
       {testDue && (
-        <button style={{ ...s.menuBtnWarning, marginBottom: '12px' }} onClick={() => setScreen('test')}>
-          <span style={{ flex: 1 }}>
-            <span style={{ display: 'block', fontWeight: 'bold', color: '#f44336' }}>{t.monthlyTestBanner}</span>
-            <span style={{ fontSize: '0.75rem', color: th.sub }}>{t.monthlyTestSub}</span>
-          </span>
-          <span style={{ color: '#f44336' }}>→</span>
+        <button onClick={() => setScreen('test')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: `${th.card}88`, border: `1px solid ${th.border}`, borderRadius: '10px', padding: '8px 12px', marginBottom: '10px', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
+          <span style={{ color: th.sub, fontSize: '0.75rem' }}>🎯 {isMarkLang ? 'Level-Check verfügbar' : 'Level check available'}</span>
+          <span style={{ color: th.sub, fontSize: '0.72rem', opacity: 0.6 }}>→</span>
         </button>
       )}
 
@@ -4791,7 +4788,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           {!tutorCollapsed && (
             <>
               {coachMsg
-                ? <p style={{ color: th.text, fontSize: '0.84rem', fontStyle: 'italic', margin: 0, lineHeight: 1.55, opacity: 0.88 }}>{coachMsg}</p>
+                ? <p style={{ color: th.text, fontSize: '0.84rem', fontStyle: 'italic', margin: 0, lineHeight: 1.55, opacity: 0.88 }}>{coachMsg.split(/(?<=[.!?])\s+/).slice(0, 2).join(' ')}</p>
                 : <p style={{ color: th.sub, fontSize: '0.8rem', margin: 0, opacity: 0.5 }}>…</p>
               }
               {coachMsg && tutorRecommendedArea && (
@@ -4807,8 +4804,8 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
               {(() => {
                 const todayDiaryDone = !!(myData?.diaryEntries?.find(e => e.date === todayStr()))
                 if (!todayDiaryDone) return (
-                  <button onClick={() => setScreen('diary')} style={{ marginTop: '6px', display: 'block', background: 'transparent', border: 'none', color: th.sub, fontSize: '0.7rem', cursor: 'pointer', padding: 0, opacity: 0.65, WebkitTapHighlightColor: 'transparent' }}>
-                    📔 {isMarkLang ? 'Tagebuch heute noch offen' : 'Diary not written today'}
+                  <button onClick={() => setScreen('diary')} style={{ marginTop: '8px', display: 'inline-flex', alignItems: 'center', gap: '5px', background: `${th.gold}14`, border: `1px solid ${th.gold}30`, borderRadius: '20px', color: th.gold, fontSize: '0.72rem', fontWeight: '600', cursor: 'pointer', padding: '4px 12px', WebkitTapHighlightColor: 'transparent', opacity: 0.85 }}>
+                    📔 {isMarkLang ? 'Tagebuch schreiben →' : 'Write diary →'}
                   </button>
                 )
                 return null
@@ -4862,9 +4859,25 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
               </span>
               <button onClick={() => setDailyCardDismissed(true)} style={{ background: 'transparent', border: 'none', color: th.sub, cursor: 'pointer', fontSize: '0.9rem', padding: '0 2px', lineHeight: 1 }}>✕</button>
             </div>
-            <p style={{ color: th.text, fontWeight: '700', margin: '0 0 3px', fontSize: '0.92rem' }}>{dailyCard.front}</p>
-            <p style={{ color: th.accent, fontWeight: '600', margin: '0 0 3px', fontSize: '1rem' }}>{dailyCard.back}</p>
-            {dailyCard.context && <p style={{ color: th.sub, fontSize: '0.75rem', fontStyle: 'italic', margin: 0, lineHeight: 1.4 }}>„{dailyCard.context}"</p>}
+            {(() => {
+              // Always show DE on top, EN below for Mark; for others show front/back as-is
+              const deSide = dailyCard.langA === 'de' ? dailyCard.front : dailyCard.langB === 'de' ? dailyCard.back : dailyCard.front
+              const enSide = dailyCard.langA === 'en' ? dailyCard.front : dailyCard.langB === 'en' ? dailyCard.back : dailyCard.back
+              const topText = isMarkLang ? deSide : dailyCard.front
+              const botText = isMarkLang ? enSide : dailyCard.back
+              // Truncate context to max 2 sentences, skip if UI is DE (context tends to be in EN)
+              const rawCtx = dailyCard.context || ''
+              const ctxSentences = rawCtx.split(/(?<=[.!?])\s+/).filter(Boolean)
+              const ctxTrimmed = ctxSentences.slice(0, 2).join(' ')
+              const showCtx = !isMarkLang && ctxTrimmed
+              return (
+                <>
+                  <p style={{ color: th.text, fontWeight: '700', margin: '0 0 3px', fontSize: '0.92rem' }}>{topText}</p>
+                  <p style={{ color: th.accent, fontWeight: '600', margin: showCtx ? '0 0 3px' : 0, fontSize: '1rem' }}>{botText}</p>
+                  {showCtx && <p style={{ color: th.sub, fontSize: '0.75rem', fontStyle: 'italic', margin: 0, lineHeight: 1.4 }}>„{ctxTrimmed}"</p>}
+                </>
+              )
+            })()}
           </div>
         )
       })()}
