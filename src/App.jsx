@@ -2204,7 +2204,7 @@ function LoginScreen({ theme }) {
   return (
     <div style={s.container} className="vocara-screen">
       <div style={{ textAlign: 'center', padding: '24px', maxWidth: '380px', width: '100%' }}>
-        <h1 style={s.logoTitle}>Vocara</h1>
+        <img src="/vocara-logo.png" alt="Vocara" style={{ height: '100px', objectFit: 'contain', display: 'block', margin: '0 auto 8px' }} />
         <p style={s.slogan}>Die Stimme ist die Brücke.<br /><span style={{ fontSize: '0.85rem' }}>The voice is the bridge.</span></p>
         <button style={s.button} onClick={handleLogin}>Mit Google anmelden / Sign in with Google</button>
         {error && <p style={s.error}>{error}</p>}
@@ -2226,7 +2226,7 @@ function LangSetupScreen({ user, lang, theme, onDone }) {
   }
   return (
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
-      <h1 style={{ ...s.logoTitle, marginBottom: '8px' }}>Vocara</h1>
+      <img src="/vocara-logo.png" alt="Vocara" style={{ height: '65px', objectFit: 'contain', display: 'block', margin: '0 auto 8px' }} />
       <p style={{ color: th.text, fontWeight: 'bold', marginBottom: '4px' }}>{t.langSetupTitle}</p>
       <p style={{ color: th.sub, fontSize: '0.85rem', marginBottom: '16px' }}>{t.langSetupSub}</p>
       <div style={s.card}>
@@ -4718,7 +4718,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
 
       {/* ── LOGO ── */}
       <div className="vocara-logo-section" style={{ textAlign: 'center', paddingTop: '16px', paddingBottom: '10px' }}>
-        <VocaraLogoSVG withSlogans={false} animate={false} isDE={isMarkLang} />
+        <img src="/vocara-logo.png" alt="Vocara" style={{ height: '120px', objectFit: 'contain', display: 'block', margin: '0 auto' }} />
         <p className="vocara-logo-greeting" style={{ ...s.greeting, marginTop: '8px', marginBottom: uniqueTargetLangs.length > 0 ? '6px' : 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px' }}>
           {t.hello}, {firstName}
           {partnerActivityStatus && (
