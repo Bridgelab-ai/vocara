@@ -6979,13 +6979,6 @@ function App() {
         const code = u.uid.slice(0, 8).toUpperCase()
         try { await setDoc(doc(db, 'inviteCodes', code), { uid: u.uid }, { merge: true }) }
         catch (e) { console.warn('[Vocara] inviteCodes write skipped (path: inviteCodes/' + code + '):', e?.code || e?.message) }
-        // Write public profile to userProfiles/{uid} for partner reads
-        try {
-          await setDoc(doc(db, 'userProfiles', u.uid), {
-            displayName: u.displayName, email: u.email,
-            lastActive: Date.now(), photoURL: u.photoURL || null
-          }, { merge: true })
-        } catch (e) { console.warn('[Vocara] userProfiles write skipped:', e?.code) }
         const snap = await getDoc(userRef)
 
         // ── NEW USER: first login, no profile with createdAt yet
@@ -7085,16 +7078,32 @@ function App() {
             if (!data.onboardingDone) setNeedsOnboarding(true)
             if (!data.languages || data.languages.length === 0) setNeedsLangSetup(true)
           }
+          // Restore partnerUID if lost (for Mark/Elosy hardcoded pair)
+          if (!data.partnerUID) {
+            const defaultPartner = u.uid === MARK_UID ? ELOSY_UID : u.uid === ELOSY_UID ? MARK_UID : null
+            if (defaultPartner) {
+              try { await updateDoc(userRef, { partnerUID: defaultPartner }); data.partnerUID = defaultPartner } catch (_) {}
+            }
+          }
+          // Write full public profile to userProfiles/{uid} (readable by partner)
+          try {
+            await setDoc(doc(db, 'userProfiles', u.uid), {
+              displayName: u.displayName, name: data.name || u.displayName,
+              email: u.email, photoURL: u.photoURL || null,
+              lastActive: todayStr(), partnerUID: data.partnerUID || null,
+              partnerName: data.partnerName || null
+            }, { merge: true })
+          } catch (e) { console.warn('[Vocara] userProfiles write skipped:', e?.code) }
+          // Load partner: try userProfiles first (public), fall back to users/
           const loadPartner = async (partnerUID) => {
+            try {
+              const pubSnap = await getDoc(doc(db, 'userProfiles', partnerUID))
+              if (pubSnap.exists()) { setPartnerData(pubSnap.data()); return }
+            } catch (_) {}
             try {
               const pSnap = await getDoc(doc(db, 'users', partnerUID))
               if (pSnap.exists()) { setPartnerData(pSnap.data()); return }
-            } catch (_) {}
-            // Fallback: read from public userProfiles collection
-            try {
-              const pubSnap = await getDoc(doc(db, 'userProfiles', partnerUID))
-              if (pubSnap.exists()) setPartnerData(pubSnap.data())
-            } catch (e) { console.warn('[Vocara] partner load skipped (userProfiles/' + partnerUID + '):', e?.code) }
+            } catch (e) { console.warn('[Vocara] partner load skipped (uid=' + partnerUID + '):', e?.code) }
           }
           const resolvedPartnerUID = data.partnerUID ||
             (u.uid === MARK_UID ? ELOSY_UID : u.uid === ELOSY_UID ? MARK_UID : null)
@@ -7137,10 +7146,10 @@ function App() {
     } catch (e) { console.warn('[Vocara] own data reload failed:', e?.code) }
     if (partnerUID) {
       let loaded = false
-      try { const pSnap = await getDoc(doc(db, 'users', partnerUID)); if (pSnap.exists()) { setPartnerData(pSnap.data()); loaded = true } } catch (_) {}
+      try { const pub = await getDoc(doc(db, 'userProfiles', partnerUID)); if (pub.exists()) { setPartnerData(pub.data()); loaded = true } } catch (_) {}
       if (!loaded) {
-        try { const pubSnap = await getDoc(doc(db, 'userProfiles', partnerUID)); if (pubSnap.exists()) setPartnerData(pubSnap.data()) }
-        catch (e) { console.warn('[Vocara] partner load skipped (userProfiles/' + partnerUID + '):', e?.code) }
+        try { const p = await getDoc(doc(db, 'users', partnerUID)); if (p.exists()) setPartnerData(p.data()) }
+        catch (e) { console.warn('[Vocara] partner load skipped (uid=' + partnerUID + '):', e?.code) }
       }
     } else setPartnerData(null)
   }
