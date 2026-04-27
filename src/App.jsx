@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, Component } from 'react'
+import React, { useState, useEffect, useRef, useCallback, Component } from 'react'
 import { auth, db } from './firebase'
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
 import { doc, setDoc, getDoc, updateDoc, deleteDoc, onSnapshot, collection, addDoc, getDocs } from 'firebase/firestore'
@@ -129,6 +129,12 @@ const THEMES = {
     shadow3d: '0 1px 0 rgba(255,215,0,0.4) inset, 0 -1px 0 rgba(0,0,0,0.5) inset, 0 4px 0 #5C3820, 0 6px 0 #3D2318, 0 8px 0 #2C1810, 0 10px 20px rgba(30,10,0,0.8)',
     shadowPressed: '0 1px 0 rgba(255,215,0,0.2) inset, 0 -1px 0 rgba(0,0,0,0.4) inset, 0 1px 0 #5C3820, 0 3px 8px rgba(30,10,0,0.6)',
   },
+}
+
+const VOICE_MAP = {
+  'EN': ['en-GB', 'en-US'],
+  'DE': ['de-DE', 'de-AT', 'de-CH'],
+  'SW': ['sw-KE', 'sw-TZ'],
 }
 
 const AVAILABLE_LANGS = [
@@ -2481,6 +2487,28 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
   const fromLang = item.langA
   const toLang = item.langB
   const showPronunciation = item.pronunciation
+
+  const selectVoiceForLang = useCallback((langCode) => {
+    const voices = window.speechSynthesis.getVoices()
+    const key = (langCode || 'en').toUpperCase()
+    const preferred = VOICE_MAP[key] || ['en-GB']
+    let voice = voices.find(v => preferred.some(p => v.lang === p))
+    if (!voice) voice = voices.find(v => preferred.some(p => v.lang.startsWith(p.split('-')[0])))
+    return voice || voices[0]
+  }, [])
+
+  const speakTargetLanguageOnly = useCallback((text, langCode) => {
+    if (!text || !langCode) return
+    const key = (langCode || 'en').toUpperCase()
+    const utterance = new SpeechSynthesisUtterance(text)
+    const voice = selectVoiceForLang(key)
+    utterance.voice = voice
+    utterance.lang = VOICE_MAP[key]?.[0] || 'en-GB'
+    utterance.rate = 0.85
+    window.speechSynthesis.cancel()
+    window.speechSynthesis.speak(utterance)
+  }, [selectVoiceForLang])
+
   // Always speak the TARGET language side of the card, never native language
   const speakBack = (mode = ttsMode) => {
     const result = getToLangText(item, userToLang)
@@ -3586,6 +3614,10 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const [emptyCategoryMsg, setEmptyCategoryMsg] = useState(null)
   const [resumeDialog, setResumeDialog] = useState(null)
   const [currentSessionMode, setCurrentSessionMode] = useState('all')
+  const [activeToLang, setActiveToLang] = useState(() => {
+    const t = myData?.toLang
+    return Array.isArray(t) ? t[0].toLowerCase() : (t || 'en').toLowerCase()
+  })
   const [satzLoading, setSatzLoading] = useState(false)
   const [weekGoalCelebration, setWeekGoalCelebration] = useState(false)
   const [monthlyUnlockNotification, setMonthlyUnlockNotification] = useState(false)
@@ -3863,6 +3895,22 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const cefr = myData?.cefr
   const sessionHistory = myData?.sessionHistory || []
   const partnerName = myData?.partnerName || partnerData?.name?.split(' ')[0] || 'Partner'
+  useEffect(() => {
+    if (!user) return
+    const settingsRef = doc(db, 'users', user.uid, 'settings', 'preferences')
+    getDoc(settingsRef).then(snap => {
+      if (snap.exists() && snap.data().activeToLang) setActiveToLang(snap.data().activeToLang)
+    }).catch(() => {})
+  }, [user?.uid])
+
+  const handleChangeActiveToLang = async (newLang) => {
+    setActiveToLang(newLang)
+    if (user) {
+      const settingsRef = doc(db, 'users', user.uid, 'settings', 'preferences')
+      await setDoc(settingsRef, { activeToLang: newLang }, { merge: true }).catch(() => {})
+    }
+  }
+
   const today = todayStr()
   const yd = new Date(); yd.setDate(yd.getDate() - 1)
   const yesterday = `${yd.getFullYear()}-${String(yd.getMonth() + 1).padStart(2, '0')}-${String(yd.getDate()).padStart(2, '0')}`
@@ -4641,8 +4689,8 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     }
   }
 
-  if (screen === 'cards' && session) return <>{homeFloat}<CardScreen session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} onSaveSessionProgress={saveSessionProgress} onStop={handleSessionStop} onSaveExample={handleSaveExample} mode={currentSessionMode} startIndex={resumeStartIndex} startProgress={resumeStartProgress} userToLang={(myData?.toLang || '').toLowerCase() || (lang === 'de' ? 'en' : 'de')} /></>
-  if (screen === 'rhythmus') return <>{homeFloat}<RhythmusScreen lang={lang} theme={theme} onBack={() => { setScreen('result') }} allCards={allCards} cardProgress={cardProgress} userToLang={(myData?.toLang || '').toLowerCase() || (lang === 'de' ? 'en' : 'de')} /></>
+  if (screen === 'cards' && session) return <>{homeFloat}<CardScreen session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} onSaveSessionProgress={saveSessionProgress} onStop={handleSessionStop} onSaveExample={handleSaveExample} mode={currentSessionMode} startIndex={resumeStartIndex} startProgress={resumeStartProgress} userToLang={activeToLang} /></>
+  if (screen === 'rhythmus') return <>{homeFloat}<RhythmusScreen lang={lang} theme={theme} onBack={() => { setScreen('result') }} allCards={allCards} cardProgress={cardProgress} userToLang={activeToLang} /></>
   if (screen === 'result') return <>{homeFloat}<ResultScreen correct={result.correct} wrong={result.wrong} fast={result.fast} easy={result.easy} weakestCard={result.weakestCard} strongestCard={result.strongestCard} masteryUnlocked={masteryUnlocked} t={t} lang={lang} onBack={() => { setScreen('menu'); setSession(null) }} onReplay={result.originalSession ? () => { setSession(result.originalSession); setResumeStartIndex(0); setResumeStartProgress(null); setScreen('cards') } : null} s={s} th={th} /></>
   if (screen === 'settings') return <>{homeFloat}<SettingsScreen t={t} s={s} theme={theme} onThemeChange={onThemeChange} onBack={() => setScreen('menu')} user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} onPartner={() => setScreen('partner')} onLightModeChange={onLightModeChange} onCardSizeChange={onCardSizeChange} /></>
   if (screen === 'meinekarten') return <>{homeFloat}<MeineKartenScreen user={user} myData={myData} setMyData={setMyData} allCards={allCards} cardProgress={cardProgress} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
@@ -4652,8 +4700,8 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
   if (screen === 'test') return <>{homeFloat}<PlacementTest lang={lang} theme={theme} user={user} onBack={() => setScreen('menu')} onSaveCefr={onSaveCefr} /></>
   if (screen === 'impressum') return <>{homeFloat}<ImpressumScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
   if (screen === 'stats') return <>{homeFloat}<StatsScreen user={user} myData={myData} partnerData={partnerData} allCards={allCards} lang={lang} theme={theme} onBack={() => setScreen('menu')} cardProgress={cardProgress} /></>
-  if (screen === 'ki') return <>{homeFloat}<KiGespraechScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={(myData?.toLang || '').toLowerCase() || (lang === 'de' ? 'en' : 'de')} /></>
-  if (screen === 'satz') return <>{homeFloat}<SatzTrainingScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={(myData?.toLang || '').toLowerCase() || (lang === 'de' ? 'en' : 'de')} /></>
+  if (screen === 'ki') return <>{homeFloat}<KiGespraechScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={activeToLang} /></>
+  if (screen === 'satz') return <>{homeFloat}<SatzTrainingScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={activeToLang} /></>
   if (screen === 'diary') return <>{homeFloat}<DiaryScreen user={user} myData={myData} setMyData={setMyData} partnerData={partnerData} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
   if (screen === 'admin' && user.uid === MARK_UID) return <>{homeFloat}<AdminScreen user={user} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
 
@@ -4673,8 +4721,27 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         </p>
         {(() => {
           const fromFlag = LANG_FLAGS[lang] || ''
-          const toLangCode = myData?.toLang || (lang === 'de' ? 'en' : 'de')
-          const toFlag = LANG_FLAGS[toLangCode] || ''
+          const toLangOptions = Array.isArray(myData?.toLang)
+            ? myData.toLang
+            : myData?.toLang ? [myData.toLang] : [lang === 'de' ? 'en' : 'de']
+          const toFlag = LANG_FLAGS[activeToLang] || LANG_FLAGS[toLangOptions[0]] || ''
+          if (toLangOptions.length > 1) {
+            return (
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '0.95rem' }}>{fromFlag}</span>
+                <span style={{ color: th.sub, fontSize: '0.7rem', opacity: 0.6 }}>→</span>
+                <select
+                  value={activeToLang}
+                  onChange={(e) => handleChangeActiveToLang(e.target.value)}
+                  style={{ padding: '3px 8px', borderRadius: '6px', border: `1.5px solid ${th.accent}`, background: th.card, color: th.text, fontSize: '0.82rem', cursor: 'pointer', outline: 'none' }}
+                >
+                  {toLangOptions.map(l => (
+                    <option key={l} value={l.toLowerCase()}>{LANG_FLAGS[l.toLowerCase()] || ''} {l.toUpperCase()}</option>
+                  ))}
+                </select>
+              </div>
+            )
+          }
           if (!fromFlag && !toFlag) return null
           return (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px' }}>
