@@ -2255,7 +2255,7 @@ function PartnerScreen({ user, myData, lang, theme, onBack, onPartnerUpdate }) {
     const params = new URLSearchParams(window.location.search)
     const inviteUID = params.get('invite')
     if (inviteUID && inviteUID !== user.uid && !hasPartner) {
-      getDoc(doc(db, 'users', inviteUID)).then(snap => { if (snap.exists()) setPendingData({ uid: inviteUID, ...snap.data() }) })
+      getDoc(doc(db, 'users', inviteUID)).then(snap => { if (snap.exists()) setPendingData({ uid: inviteUID, ...snap.data() }) }).catch(e => console.warn('[Vocara] invite read skipped (users/' + inviteUID + '):', e?.code))
     }
   }, [])
   const copyLink = () => { navigator.clipboard.writeText(inviteLink); setCopied(true); setTimeout(() => setCopied(false), 2000) }
@@ -2269,11 +2269,15 @@ function PartnerScreen({ user, myData, lang, theme, onBack, onPartnerUpdate }) {
     } catch { setStatus('Fehler.') }
   }
   const acceptConnection = async (partnerUID) => {
-    const partnerSnap = await getDoc(doc(db, 'users', partnerUID))
-    const partnerName = partnerSnap.exists() ? partnerSnap.data().name : 'Partner'
-    await updateDoc(doc(db, 'users', user.uid), { partnerUID, partnerName })
-    await updateDoc(doc(db, 'users', partnerUID), { partnerUID: user.uid, partnerName: user.displayName })
-    onPartnerUpdate(partnerUID); setPendingData(null); window.history.replaceState({}, '', window.location.pathname)
+    try {
+      const partnerSnap = await getDoc(doc(db, 'users', partnerUID)).catch(() => null)
+      const partnerName = partnerSnap?.exists() ? partnerSnap.data().name : 'Partner'
+      await updateDoc(doc(db, 'users', user.uid), { partnerUID, partnerName })
+      try {
+        await updateDoc(doc(db, 'users', partnerUID), { partnerUID: user.uid, partnerName: user.displayName })
+      } catch (e) { console.warn('[Vocara] partner link write skipped (users/' + partnerUID + '):', e?.code || e?.message) }
+      onPartnerUpdate(partnerUID); setPendingData(null); window.history.replaceState({}, '', window.location.pathname)
+    } catch (e) { setStatus('Verbindung fehlgeschlagen / Connection failed.') }
   }
   const disconnect = async () => {
     if (!window.confirm('Partner wirklich trennen?')) return
@@ -6706,32 +6710,36 @@ function LiveSessionScreen({ user, myData, partnerData, coupleId, allCards, lang
     if (!coupleId) return
     liveRef.current = doc(db, 'shared', coupleId, 'liveSession', 'current')
     // Subscribe to live updates
-    unsubRef.current = onSnapshot(liveRef.current, (snap) => {
-      if (snap.exists()) {
-        const data = snap.data()
-        setLiveData(data)
-        if (data.active === false) setStatus('done')
-        else setStatus('active')
-      } else {
-        setLiveData(null)
-        setStatus('waiting')
-      }
-    })
+    try {
+      unsubRef.current = onSnapshot(liveRef.current, (snap) => {
+        if (snap.exists()) {
+          const data = snap.data()
+          setLiveData(data)
+          if (data.active === false) setStatus('done')
+          else setStatus('active')
+        } else {
+          setLiveData(null)
+          setStatus('waiting')
+        }
+      }, (e) => { console.warn('[Vocara] shared/ snapshot denied (shared/' + coupleId + '):', e?.code || e?.message); setStatus('waiting') })
+    } catch (e) { console.warn('[Vocara] shared/ subscribe failed:', e?.code || e?.message) }
     return () => { if (unsubRef.current) unsubRef.current() }
   }, [coupleId])
 
   const startSession = async () => {
     if (!liveRef.current) return
     const cardIds = sessionCards.map(c => c.id)
-    await setDoc(liveRef.current, {
-      hostUID: user.uid,
-      cardIndex: 0,
-      cardIds,
-      answers: {},
-      startedAt: Date.now(),
-      active: true,
-    })
-    setStatus('active')
+    try {
+      await setDoc(liveRef.current, {
+        hostUID: user.uid,
+        cardIndex: 0,
+        cardIds,
+        answers: {},
+        startedAt: Date.now(),
+        active: true,
+      })
+      setStatus('active')
+    } catch (e) { console.warn('[Vocara] shared/ startSession denied (shared/' + coupleId + '):', e?.code || e?.message) }
   }
 
   const recordAnswer = async (correct) => {
@@ -6967,7 +6975,8 @@ function App() {
       try {
         const userRef = doc(db, 'users', u.uid)
         const code = u.uid.slice(0, 8).toUpperCase()
-        await setDoc(doc(db, 'inviteCodes', code), { uid: u.uid }, { merge: true })
+        try { await setDoc(doc(db, 'inviteCodes', code), { uid: u.uid }, { merge: true }) }
+        catch (e) { console.warn('[Vocara] inviteCodes write skipped (path: inviteCodes/' + code + '):', e?.code || e?.message) }
         const snap = await getDoc(userRef)
 
         // ── NEW USER: first login, no profile with createdAt yet
@@ -7093,14 +7102,16 @@ function App() {
   }, [])
 
   const saveProgress = async (finalProgress) => {
-    const ref = doc(db, 'users', user.uid)
-    await updateDoc(ref, { cardProgress: finalProgress })
-    const snap = await getDoc(ref); if (snap.exists()) setMyData(snap.data())
+    try {
+      const ref = doc(db, 'users', user.uid)
+      await updateDoc(ref, { cardProgress: finalProgress })
+      const snap = await getDoc(ref); if (snap.exists()) setMyData(snap.data())
+    } catch (e) { console.error('[Vocara] saveProgress failed (users/' + user?.uid + '):', e?.code || e?.message) }
   }
   const handleThemeChange = async (newTheme) => {
     setTheme(newTheme)
     try { localStorage.setItem('vocara_theme', newTheme) } catch {}
-    if (user) await updateDoc(doc(db, 'users', user.uid), { theme: newTheme })
+    if (user) await updateDoc(doc(db, 'users', user.uid), { theme: newTheme }).catch(e => console.warn('[Vocara] theme save failed:', e?.code))
   }
   const handleLightModeChange = async (val) => {
     setLightMode(val)
