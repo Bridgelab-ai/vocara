@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.002.004'
+const APP_VERSION = 'V01.002.005'
 const MARK_UID = 'aiNZh4Myn8Y0KfYkGGrkNNW0HC72'
 const ELOSY_UID = 'NIX3DYenRdbRjmr2EHsIad9GcqG3'
 const SESSION_SIZE = 15
@@ -136,6 +136,14 @@ const VOICE_MAP = {
   'DE': ['de-DE', 'de-AT', 'de-CH'],
   'SW': ['sw-KE', 'sw-TZ'],
 }
+
+const CARD_GEN_SYSTEM = `You are a professional language teacher and linguist. Every translation must be:
+- 100% grammatically correct
+- Natural, not word-for-word literal
+- Appropriate register (formal/informal as context demands)
+- Double-checked for accuracy
+Never generate incorrect grammar. If unsure, use the most common natural expression.
+Return ONLY valid JSON, no markdown.`
 
 const AVAILABLE_LANGS = [
   { code: 'en', label: 'Englisch', flag: '🇬🇧' },
@@ -4029,7 +4037,7 @@ Return ONLY JSON: [{"front": "German word", "back": "English translation", "cate
     try {
       const res = await fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 500, messages: [{ role: 'user', content: prompt }] })
+        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 500, system: CARD_GEN_SYSTEM, messages: [{ role: 'user', content: prompt }] })
       })
       const raw = ((await res.json()).content?.[0]?.text || '[]').trim()
       const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim())
@@ -4121,7 +4129,7 @@ For street/slang: use real informal expressions. For home: use family/romantic/d
 Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","context":"usage note in 1 sentence"}]`
     try {
       const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 600, messages: [{ role: 'user', content: prompt }] }) })
+        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, system: CARD_GEN_SYSTEM, messages: [{ role: 'user', content: prompt }] }) })
       const data = await res.json()
       const text = data.content?.[0]?.text || ''
       const parsed = JSON.parse(text.replace(/```json|```/g, '').trim())
@@ -4241,7 +4249,7 @@ Front language: ${fromLangName}. Back language: ${toLangName}. Category: basics.
 Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","context":"..."}]`
     try {
       const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 800, messages: [{ role: 'user', content: prompt }] }) })
+        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 800, system: CARD_GEN_SYSTEM, messages: [{ role: 'user', content: prompt }] }) })
       const data = await res.json()
       const text = data.content?.[0]?.text || ''
       const parsed = JSON.parse(text.replace(/```json|```/g, '').trim())
@@ -4293,7 +4301,7 @@ Return ONLY a valid JSON array with no markdown or explanation:
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 800, messages: [{ role: 'user', content: prompt }] }),
+        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 800, system: CARD_GEN_SYSTEM, messages: [{ role: 'user', content: prompt }] }),
       })
       const data = await res.json()
       const raw = data.content?.[0]?.text || ''
@@ -4515,7 +4523,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         const res = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 600, messages: [{ role: 'user', content: prompt }] }),
+          body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, system: CARD_GEN_SYSTEM, messages: [{ role: 'user', content: prompt }] }),
         })
         const data = await res.json()
         const raw = data.content?.[0]?.text || ''
@@ -6177,7 +6185,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
       const res = await fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001', max_tokens: 800,
+          model: 'claude-sonnet-4-6', max_tokens: 800, system: CARD_GEN_SYSTEM,
           messages: [{ role: 'user', content: `Create exactly 10 flashcards about: "${kiTopic.trim()}". Return ONLY a JSON array, no markdown:\n[{"front":"<term or question>","back":"<translation or answer>"}]` }]
         })
       })
