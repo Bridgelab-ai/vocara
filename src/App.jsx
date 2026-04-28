@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.022.019'
+const APP_VERSION = 'V01.022.020'
 
 // ── SOZIALES REGISTER ───────────────────────────────────────────
 const SOCIAL_REGISTERS = [
@@ -3041,6 +3041,12 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
               🎁 {item.sharedBy}
             </div>
           )}
+          {/* Tense tag — bottom-left of card (only when not present tense) */}
+          {item.tense && item.tense !== 'present' && TENSE_LABELS[item.tense] && (
+            <div style={{ position: 'absolute', bottom: '8px', left: '10px', background: 'rgba(100,80,200,0.15)', border: '1px solid rgba(100,80,200,0.28)', borderRadius: '6px', padding: '2px 7px', fontSize: '9px', fontWeight: '600', letterSpacing: '0.4px', color: '#9c7bf0', pointerEvents: 'none' }}>
+              {TENSE_LABELS[item.tense].emoji} {lang === 'de' ? TENSE_LABELS[item.tense].de : TENSE_LABELS[item.tense].en}
+            </div>
+          )}
           {/* Note icon — bottom-right of card */}
           <button onClick={() => setNoteOpen(o => !o)} style={{ position: 'absolute', bottom: '8px', right: '10px', background: noteText ? 'rgba(255,255,255,0.10)' : 'transparent', border: noteText ? '1px solid rgba(255,255,255,0.18)' : 'none', borderRadius: '8px', padding: '3px 7px', color: noteText ? '#e0c060' : '#8A8A9A', fontSize: '0.75rem', cursor: 'pointer', opacity: 0.85, lineHeight: 1, zIndex: 2 }}>
             📝
@@ -4167,6 +4173,7 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
   const [sessionCompleteCount, setSessionCompleteCount] = useState(0)
   const [basicsLoading, setBasicsLoading] = useState(false)
   const [kontextCard, setKontextCard] = useState(null)
+  const [tenseUnlockCelebration, setTenseUnlockCelebration] = useState(null) // 'past' | 'future' | null
   const VALID_SCREENS = new Set(['menu','cards','result','settings','partner','test','impressum','stats','ki','satz','diary','meinekarten','geschenkkarte','karteerstellen','admin','rhythmus','kontext'])
   if (!VALID_SCREENS.has(screen)) { setScreen('menu'); return null }
 
@@ -4506,6 +4513,21 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
 
   // ── CEFR PROGRESS ─────────────────────────────────────────
   const myMasteredCount = Object.values(cardProgress).filter(p => (p?.interval || 0) >= 7).length
+
+  // ── TENSE UNLOCK CELEBRATION (fires once per threshold) ───
+  useEffect(() => {
+    if (!user || !myData || myMasteredCount === 0) return
+    const seen = myData?.tenseUnlockSeen || {}
+    if (myMasteredCount >= TENSE_THRESHOLDS.future && !seen.future) {
+      setTenseUnlockCelebration('future')
+      updateDoc(doc(db, 'users', user.uid), { 'tenseUnlockSeen.future': true }).catch(() => {})
+      setMyData(d => ({ ...d, tenseUnlockSeen: { ...(d?.tenseUnlockSeen || {}), future: true } }))
+    } else if (myMasteredCount >= TENSE_THRESHOLDS.past && !seen.past) {
+      setTenseUnlockCelebration('past')
+      updateDoc(doc(db, 'users', user.uid), { 'tenseUnlockSeen.past': true }).catch(() => {})
+      setMyData(d => ({ ...d, tenseUnlockSeen: { ...(d?.tenseUnlockSeen || {}), past: true } }))
+    }
+  }, [myMasteredCount]) // eslint-disable-line
   const cefrIdx = cefr ? CEFR_LEVELS.indexOf(cefr) : -1
   const nextCefr = cefrIdx >= 0 && cefrIdx < CEFR_LEVELS.length - 1 ? CEFR_LEVELS[cefrIdx + 1] : null
   const cefrFrom = cefr ? (CEFR_MASTERY_REQ[cefr] || 0) : 0
@@ -4566,15 +4588,19 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
     const langA = isMarkLang ? 'en' : 'de'
     const langB = isMarkLang ? 'de' : 'en'
 
+    const tenseUnlocks = getTenseUnlocks(myMasteredCount)
+    const tenseNote = !tenseUnlocks.past ? 'Use present tense only (infinitive/base forms).' : !tenseUnlocks.future ? 'May use present or past tense forms.' : 'May use present, past, or future tense forms.'
     const prompt = isMarkLang
       ? `Generate 10 useful single English words for a German speaker learning English.
 NOT phrases, NOT sentences — only single words or simple infinitives like 'to run'.
 Avoid these already known words: ${exclusionList}
-Return ONLY JSON: [{"front": "English word", "back": "Deutsche Übersetzung", "category": "vocabulary"}]`
+${tenseNote}
+Return ONLY JSON: [{"front": "English word", "back": "Deutsche Übersetzung", "category": "vocabulary", "tense": "present"}]`
       : `Generate 10 useful single German words for an English speaker learning German.
 NOT phrases, NOT sentences — only single words or simple infinitives like 'to run'.
 Avoid these already known words: ${exclusionList}
-Return ONLY JSON: [{"front": "German word", "back": "English translation", "category": "vocabulary"}]`
+${tenseNote}
+Return ONLY JSON: [{"front": "German word", "back": "English translation", "category": "vocabulary", "tense": "present"}]`
 
     try {
       const res = await fetch('/api/chat', {
@@ -4612,6 +4638,7 @@ Return ONLY JSON: [{"front": "German word", "back": "English translation", "cate
           front: c.front.trim(),
           back: c.back.trim(),
           category: 'vocabulary',
+          tense: c.tense || 'present',
           langA, langB,
           source: 'ai-vocab',
           createdAt: ts,
@@ -4665,10 +4692,13 @@ Return ONLY JSON: [{"front": "German word", "back": "English translation", "cate
       ? (isMarkLang ? 'Auf der Straße — KI erstellt erste Phrasen…' : 'On the Street — AI creating first phrases…')
       : (isMarkLang ? 'Und zu Hause — KI erstellt erste Phrasen…' : 'At Home — AI creating first phrases…')
     setEmptyCategoryMsg(label)
+    const catTenseUnlocks = getTenseUnlocks(myMasteredCount)
+    const catTenseNote = !catTenseUnlocks.past ? 'Use present tense only.' : !catTenseUnlocks.future ? 'May use present or past tense.' : 'May use present, past, or future tense.'
     const prompt = `Generate exactly 5 natural ${typeDesc} flashcards for a ${toLangName} learner whose native language is ${fromLangName}.
 Front language: ${fromLangName}. Back language: ${toLangName}. Category: ${category}.
 For street/slang: use real informal expressions. For home: use family/romantic/daily household phrases.
-Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","context":"usage note in 1 sentence"}]`
+${catTenseNote}
+Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","tense":"present|past|future","context":"usage note in 1 sentence"}]`
     try {
       const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, system: CARD_GEN_SYSTEM, messages: [{ role: 'user', content: prompt }] }) })
@@ -4678,7 +4708,7 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
       const ts = Date.now()
       const newCards = parsed.map((c, i) => ({
         ...c, id: `${category}_ai_${ts}_${i}`, langA, langB, source: `ai-${category}`, createdAt: ts,
-        targetLang: langB
+        targetLang: langB, tense: c.tense || 'present',
       }))
       const updatedAiCards = [...(myData?.aiCards || []), ...newCards]
       const updatedProgress = { ...(myData?.cardProgress || {}) }
@@ -5685,45 +5715,6 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         )
       })()}
 
-      {/* ── ZEITFORMEN STUFEN-SYSTEM ── */}
-      {(() => {
-        const unlocks = getTenseUnlocks(myMasteredCount)
-        const nextTense = !unlocks.past ? 'past' : !unlocks.future ? 'future' : null
-        if (!nextTense && unlocks.future) return (
-          <div style={{ marginBottom: '14px', padding: '10px 14px', background: th.card, border: `1px solid ${th.border}`, borderRadius: '14px' }}>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              {['present','past','future'].map(t2 => (
-                <span key={t2} style={{ fontSize: '0.76rem', color: '#00BFA5', fontWeight: '600' }}>
-                  {TENSE_LABELS[t2].emoji} {lang === 'de' ? TENSE_LABELS[t2].de : TENSE_LABELS[t2].en}
-                </span>
-              ))}
-            </div>
-          </div>
-        )
-        const threshold = nextTense === 'past' ? TENSE_THRESHOLDS.past : TENSE_THRESHOLDS.future
-        const prevThreshold = nextTense === 'past' ? 0 : TENSE_THRESHOLDS.past
-        const pct = Math.min(100, Math.round(((myMasteredCount - prevThreshold) / (threshold - prevThreshold)) * 100))
-        const nextLabel = TENSE_LABELS[nextTense]
-        return (
-          <div style={{ marginBottom: '14px', padding: '10px 14px', background: th.card, border: `1px solid ${th.border}`, borderRadius: '14px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                {['present','past','future'].map(t2 => (
-                  <span key={t2} style={{ fontSize: '0.76rem', color: unlocks[t2] ? '#00BFA5' : th.sub, opacity: unlocks[t2] ? 1 : 0.4 }}>
-                    {TENSE_LABELS[t2].emoji}
-                  </span>
-                ))}
-              </div>
-              <span style={{ color: th.sub, fontSize: '0.72rem' }}>
-                {isMarkLang ? `${nextLabel.emoji} ${nextLabel.de} bei ${threshold} Karten` : `${nextLabel.emoji} ${nextLabel.en} at ${threshold} cards`} · {myMasteredCount}/{threshold}
-              </span>
-            </div>
-            <div style={{ height: '4px', background: th.border, borderRadius: '4px', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${pct}%`, background: th.accent, borderRadius: '4px', transition: 'width 0.5s ease' }} />
-            </div>
-          </div>
-        )
-      })()}
 
       {/* ── SECONDARY NAVIGATION ── */}
       <div className="vocara-nav-section" style={{ marginTop: '4px', marginBottom: '10px' }}>
@@ -5806,6 +5797,39 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           🎉 {lang === 'de' ? 'Monatsbonus freigeschaltet!' : 'Monthly bonus unlocked!'}
         </div>
       )}
+
+      {/* ── TENSE UNLOCK CELEBRATION ── */}
+      {tenseUnlockCelebration && (() => {
+        const tl = TENSE_LABELS[tenseUnlockCelebration]
+        return (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', animation: 'vocaraFadeIn 0.3s ease both' }}
+            onClick={() => setTenseUnlockCelebration(null)}>
+            <div style={{ background: th.card, border: `1px solid ${th.accent}66`, borderRadius: '24px', padding: '36px 28px', maxWidth: '340px', width: '100%', textAlign: 'center', animation: 'vocaraFadeIn 0.4s ease both' }}
+              onClick={e => e.stopPropagation()}>
+              <p style={{ fontSize: '3rem', margin: '0 0 12px', lineHeight: 1 }}>{tl.emoji}</p>
+              <p style={{ color: th.accent, fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 8px' }}>
+                {isMarkLang ? 'Neue Zeitform freigeschaltet!' : 'New tense unlocked!'}
+              </p>
+              <p style={{ color: th.text, fontSize: '1.4rem', fontWeight: '800', margin: '0 0 8px', fontFamily: "'Playfair Display', Georgia, serif" }}>
+                {isMarkLang ? tl.de : tl.en}
+              </p>
+              <p style={{ color: th.sub, fontSize: '0.85rem', lineHeight: 1.5, margin: '0 0 24px' }}>
+                {isMarkLang
+                  ? tenseUnlockCelebration === 'past'
+                    ? `Du hast ${TENSE_THRESHOLDS.past} Karten gemeistert. Ab jetzt erscheinen auch Vergangenheits-Formen in deinen Karten.`
+                    : `Du hast ${TENSE_THRESHOLDS.future} Karten gemeistert. Alle drei Zeitformen sind jetzt aktiv.`
+                  : tenseUnlockCelebration === 'past'
+                    ? `You've mastered ${TENSE_THRESHOLDS.past} cards. Past tense will now appear in your cards.`
+                    : `You've mastered ${TENSE_THRESHOLDS.future} cards. All three tenses are now active.`
+                }
+              </p>
+              <button onClick={() => setTenseUnlockCelebration(null)} style={{ ...s.button, marginBottom: 0 }}>
+                {isMarkLang ? 'Verstanden ✓' : 'Got it ✓'}
+              </button>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* ── SOFT PAYWALL MODAL ── */}
       {softPaywall && (() => {
