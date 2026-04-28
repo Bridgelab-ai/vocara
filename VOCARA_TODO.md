@@ -1,5 +1,14 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 28.04.2026)
 
+## ✅ Implementiert (28.04.2026 Session 19) — V01.023.022
+- SHARED CARDS POOL: api/weekly-pool.js schreibt nach Firestore sharedCards/{langPair}_{weekStr} ✅
+- fetchSharedCards() Helper: liest Pool-Doc vor KI-Generierung ✅
+- generateVocabWords: prüft sharedCards zuerst, fällt auf /api/chat zurück ✅
+- generateCategoryCards: prüft sharedCards (category-gefiltert) ✅
+- generateUrlaubCards: prüft sharedCards (urlaub-gefiltert) ✅
+- Vercel Cron 0 3 * * 0 (Sonntag 3 Uhr UTC) — bereits in vercel.json ✅
+- VERSION V01.023.022 ✅
+
 ## ✅ Implementiert (28.04.2026 Session 18) — V01.022.022
 - ASYNC LOCALE LOADING: public/locales/de.json + en.json (~170 Keys) erstellt ✅
 - loadLocale() Funktion (async fetch /locales/{lang}.json) auf Modul-Ebene ✅
