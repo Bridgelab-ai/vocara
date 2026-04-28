@@ -1,5 +1,13 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 28.04.2026)
 
+## ✅ Implementiert (28.04.2026 Session 18) — V01.022.022
+- ASYNC LOCALE LOADING: public/locales/de.json + en.json (~170 Keys) erstellt ✅
+- loadLocale() Funktion (async fetch /locales/{lang}.json) auf Modul-Ebene ✅
+- MenuScreen: useState + useEffect für async t-Objekt — sofort T[lang] Fallback, dann JSON override ✅
+- t={t} Prop an alle 6 Sub-Screens übergeben: Ki/Satz/Rhythmus/Kontext/Stats/KarteErstellen ✅
+- Sub-Screens: t prop akzeptiert mit T[lang] Fallback — kein Flash bei Initialisierung ✅
+- VERSION V01.022.022 ✅
+
 ## ✅ Implementiert (28.04.2026 Session 17) — V01.022.021
 - FULL UI LOCALIZATION: T object erweitert auf 80+ Keys (ResultScreen, Settings, SatzTraining, Rhythmus, Kontextwechsel, Stats, KI, tense celebration, general) ✅
 - BUGS BEHOBEN: isMarkLang/isDE in KiGespraechScreen, SatzTrainingScreen, RhythmusScreen, KontextwechselScreen waren undefined — jetzt const t = T[lang] in allen Komponenten ✅
