@@ -1,5 +1,12 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 28.04.2026)
 
+## ✅ Implementiert (28.04.2026 Session 15) — V01.022.019
+- URLAUB PAYWALL: Free = 3/10 Karten sichtbar + paywall Note in ResultScreen — Premium = alle 10 — Prompt mit tense:'present', register:'formal' ✅
+- KONTEXTWECHSEL SCREEN: KontextwechselScreen — nach Session mit gemeisterten Karten (interval>=3) zeigt ResultScreen 🔄 Button — KI (Haiku) generiert 3 Varianten (Formell/Informell/Romantisch) — User wählt eine → wird als neue Karte gespeichert ✅
+- RHYTHMUS OPTIONAL: Auto-Redirect nach Satz-Session entfernt — stattdessen optionaler "🎵 Rhythmus üben" Button in ResultScreen ✅
+- MUBERT MUSIK: ambientEnableMubert() — Web Audio sofort, dann async Mubert-Track via /api/mubert Proxy — URL 6h in Firestore sharedConfig gecacht — Fallback auf Web Audio bei Fehler — api/mubert.js (GetServiceAccess + TTM), MUBERT_KEY Env-Var nötig ✅
+- VERSION V01.022.019 ✅
+
 ## ✅ Implementiert (28.04.2026 Session 14) — V01.018.019
 - KI-TANK ENERGIE-BALKEN: Teal-Bar auf Home-Screen — Free: X/3 diese Woche, Premium: Unbegrenzt — depletes with use, tappable → paywall wenn leer ✅
 - ZEITFORMEN STUFEN-SYSTEM: Präsens sofort / Vergangenheit bei 20 / Zukunft bei 50 gemeisterten Karten — Emoji-Tiles + Progress-Bar auf Home-Screen ✅
