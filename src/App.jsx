@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.023.022'
+const APP_VERSION = 'V01.024.022'
 
 // ── SOZIALES REGISTER ───────────────────────────────────────────
 const SOCIAL_REGISTERS = [
@@ -1370,7 +1370,7 @@ const T = {
     monthlyTestSub: 'Teste dein aktuelles Niveau',
     menuWorte: 'Meine\nWorte', menuSaetze: 'werden\nSätze', menuStraße: 'Auf der\nStraße', menuHause: 'und zu\nHause',
     menuAlle: 'Wir lernen alles, überall',
-    menuGrundlagen: 'Die\nGrundlagen', menuUrlaub: '✈️\nUrlaub',
+    menuGrundlagen: 'Die\nGrundlagen', menuUrlaub: '✈️\nIm Urlaub',
     menuKi: 'KI-Gespräch', menuSatz: 'Satztraining',
     menuAddCards: 'Karten hinzufügen', menuCategorize: 'Kategorisieren', menuSettings: 'Einstellungen', menuSignOut: 'Abmelden',
     menuPartnerConnect: 'Partner verbinden', menuPartnerLabel: 'Partner',
@@ -1564,7 +1564,7 @@ const WEEK_AREAS = [
   { key: 'home', labelDe: 'Zuhause', labelEn: 'Home', tipDe: 'Zu Hause – diese Woche noch nicht geübt', tipEn: 'At Home – not practiced this week' },
   { key: 'satztraining', labelDe: 'Training', labelEn: 'Training', tipDe: 'Satztraining – diese Woche noch nicht geübt', tipEn: 'Sentence Training – not practiced this week' },
   { key: 'basics', labelDe: 'Grundlagen', labelEn: 'Basics', tipDe: 'Grundlagen – noch nicht geübt', tipEn: 'Basics – not practiced yet' },
-  { key: 'urlaub', labelDe: 'Urlaub', labelEn: 'Travel', tipDe: 'Urlaub – noch nicht geübt', tipEn: 'Travel – not practiced yet' },
+  { key: 'urlaub', labelDe: 'Im Urlaub', labelEn: 'Travel', tipDe: 'Im Urlaub – noch nicht geübt', tipEn: 'Travel – not practiced yet' },
 ]
 
 // ── ONBOARDING SCREEN ─────────────────────────────────────────
@@ -4929,7 +4929,7 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
     const _LNF = { en: 'English', de: 'German', sw: 'Swahili', th: 'Thai', es: 'Spanish', fr: 'French' }
     const toLangFull = _LNF[langA] || langA
     const fromLangFull = _LNF[fromLangCode] || fromLangCode
-    setEmptyCategoryMsg(isMarkLang ? '✈️ Urlaub — KI erstellt Reisephrasen…' : '✈️ Travel — AI creating phrases…')
+    setEmptyCategoryMsg(isMarkLang ? '✈️ Im Urlaub — KI erstellt Reisephrasen…' : '✈️ Travel — AI creating phrases…')
 
     // Check weekly shared pool before calling AI
     const poolUrlaub = await fetchSharedCards(fromLangCode, langA)
@@ -5021,10 +5021,10 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
       generateVocabWords(cards) // pass existing cards so they're included in the session
       return
     }
+    if (category === 'urlaub' && cards.length < 10) { generateUrlaubCards(); return }
     if (cards.length === 0) {
       if (category === 'street') { generateCategoryCards('street'); return }
       if (category === 'home') { generateCategoryCards('home'); return }
-      if (category === 'urlaub') { generateUrlaubCards(); return }
       setEmptyCategoryMsg(isMarkLang ? 'Hier wartet noch nichts — aber das ändert sich.' : 'Nothing here yet — but that changes now.')
       setTimeout(() => setEmptyCategoryMsg(null), 3500)
       return
@@ -5803,7 +5803,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
               </button>
               <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '8.2s', position: 'relative' }}
                 onClick={() => checkFreeLimit('urlaub') && startCategorySession('urlaub')}>
-                {(t.menuUrlaub || '✈️\nUrlaub').split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
+                {(t.menuUrlaub || '✈️\nIm Urlaub').split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
                 {freeBadge('urlaub')}
               </button>
             </div>
@@ -6053,7 +6053,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
 
       {/* ── SOFT PAYWALL MODAL ── */}
       {softPaywall && (() => {
-        const areaLabels = { street: isMarkLang ? 'Straße' : 'Street', home: isMarkLang ? 'Zuhause' : 'Home', urlaub: isMarkLang ? 'Urlaub' : 'Travel', ki: isMarkLang ? 'KI-Gespräch' : 'AI Chat', satz: isMarkLang ? 'Satztraining' : 'Sentence Training' }
+        const areaLabels = { street: isMarkLang ? 'Straße' : 'Street', home: isMarkLang ? 'Zuhause' : 'Home', urlaub: isMarkLang ? 'Im Urlaub' : 'Travel', ki: isMarkLang ? 'KI-Gespräch' : 'AI Chat', satz: isMarkLang ? 'Satztraining' : 'Sentence Training' }
         const areaLabel = areaLabels[softPaywall.area] || softPaywall.area
         const isWeekly = softPaywall.weekly
         const limitText = isWeekly
