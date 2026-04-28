@@ -49,7 +49,8 @@ Use natural, modern, useful language. Mix single words and short phrases. Vary d
 }
 
 async function writePoolToFirestore(fromLang, toLang, cards, weekStr) {
-  const docPath = `${FIRESTORE_BASE}/weeklyPool/${weekStr}_${fromLang}_${toLang}`
+  const langPair = `${fromLang}_${toLang}`
+  const docPath = `${FIRESTORE_BASE}/sharedCards/${langPair}_${weekStr}`
   const fields = {
     fromLang: { stringValue: fromLang },
     toLang: { stringValue: toLang },

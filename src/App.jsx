@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.022.022'
+const APP_VERSION = 'V01.023.022'
 
 // ── SOZIALES REGISTER ───────────────────────────────────────────
 const SOCIAL_REGISTERS = [
@@ -1543,6 +1543,18 @@ const loadLocale = async (lang) => {
     const r = await fetch('/locales/' + (lang || 'de').toLowerCase() + '.json')
     return r.json()
   } catch { return {} }
+}
+
+// Check Firestore sharedCards pool before individual KI generation
+const fetchSharedCards = async (fromLang, toLang) => {
+  try {
+    const weekStr = getISOWeekStr()
+    const langPair = `${fromLang}_${toLang}`
+    const snap = await getDoc(doc(db, 'sharedCards', `${langPair}_${weekStr}`))
+    if (!snap.exists()) return null
+    const cards = snap.data()?.cards
+    return Array.isArray(cards) && cards.length > 0 ? cards : null
+  } catch { return null }
 }
 
 const WEEK_AREAS = [
@@ -4719,6 +4731,35 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
     const langA = isMarkLang ? 'en' : 'de'
     const langB = isMarkLang ? 'de' : 'en'
 
+    // Check weekly shared pool before calling AI
+    const poolVocab = await fetchSharedCards(langA, langB)
+    if (poolVocab?.length > 0) {
+      const existingFrontsSet = new Set(allFronts.map(f => (f || '').toLowerCase().trim()))
+      const ts = Date.now()
+      const newCards = poolVocab
+        .filter(c => c.front?.trim() && c.back?.trim())
+        .filter(c => { const w = c.front.trim().split(' ').filter(Boolean); return w.length === 1 || (w.length === 2 && w[0].toLowerCase() === 'to') })
+        .filter(c => { const k = c.front.trim().toLowerCase(); if (existingFrontsSet.has(k)) return false; existingFrontsSet.add(k); return true })
+        .slice(0, 10)
+        .map((c, i) => ({ id: `vocab_pool_${ts}_${i}`, front: c.front.trim(), back: c.back.trim(), category: 'vocabulary', tense: c.tense || 'present', langA, langB, source: 'weekly-pool', createdAt: ts }))
+      if (newCards.length > 0) {
+        const snap2 = await getDoc(doc(db, 'users', user.uid))
+        const data2 = snap2.exists() ? snap2.data() : {}
+        const updatedAiCards = [...(data2.aiCards || []), ...newCards]
+        const updatedProgress = { ...(data2.cardProgress || {}) }
+        newCards.forEach(c => { updatedProgress[c.id] = { interval: 0, consecutiveFast: 0, wrongSessions: 0, nextReview: todayStr() } })
+        await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress })
+        setMyData(d => ({ ...d, aiCards: updatedAiCards, cardProgress: updatedProgress }))
+        setEmptyCategoryMsg(t.firstWordsReady || 'Deine ersten Wörter sind bereit ✓')
+        setTimeout(() => setEmptyCategoryMsg(null), 2000)
+        const allVocabForSession = [...existingVocabCards, ...newCards.flatMap(buildCardPair)]
+        const sess = [...allVocabForSession].sort(() => Math.random() - 0.5).slice(0, SESSION_SIZE)
+        setCurrentSessionMode('vocabulary')
+        setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+        return
+      }
+    }
+
     const tenseUnlocks = getTenseUnlocks(myMasteredCount)
     const tenseNote = !tenseUnlocks.past ? 'Use present tense only (infinitive/base forms).' : !tenseUnlocks.future ? 'May use present or past tense forms.' : 'May use present, past, or future tense forms.'
     const prompt = isMarkLang
@@ -4823,6 +4864,29 @@ Return ONLY JSON: [{"front": "German word", "back": "English translation", "cate
       ? (isMarkLang ? 'Auf der Straße — KI erstellt erste Phrasen…' : 'On the Street — AI creating first phrases…')
       : (isMarkLang ? 'Und zu Hause — KI erstellt erste Phrasen…' : 'At Home — AI creating first phrases…')
     setEmptyCategoryMsg(label)
+
+    // Check weekly shared pool before calling AI
+    const poolCat = await fetchSharedCards(langA, langB)
+    const poolCatFiltered = poolCat?.filter(c => c.category === category || !c.category)
+    if (poolCatFiltered?.length > 0) {
+      const ts = Date.now()
+      const newCards = poolCatFiltered.slice(0, 5).map((c, i) => ({
+        ...c, id: `${category}_pool_${ts}_${i}`, langA, langB, source: `weekly-pool`, createdAt: ts,
+        category, tense: c.tense || 'present',
+      }))
+      const updatedAiCards = [...(myData?.aiCards || []), ...newCards]
+      const updatedProgress = { ...(myData?.cardProgress || {}) }
+      newCards.forEach(c => { updatedProgress[c.id] = { interval: 0, consecutiveRight: 0, wrongSessions: 0, nextReview: todayStr() } })
+      await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress })
+      setMyData(d => ({ ...d, aiCards: updatedAiCards, cardProgress: updatedProgress }))
+      setEmptyCategoryMsg(t.phrasesReady || 'Erste Phrasen bereit ✓')
+      setTimeout(() => setEmptyCategoryMsg(null), 2000)
+      const sess = [...newCards.flatMap(buildCardPair)].sort(() => Math.random() - 0.5).slice(0, SESSION_SIZE)
+      setCurrentSessionMode(category)
+      setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+      return
+    }
+
     const catTenseUnlocks = getTenseUnlocks(myMasteredCount)
     const catTenseNote = !catTenseUnlocks.past ? 'Use present tense only.' : !catTenseUnlocks.future ? 'May use present or past tense.' : 'May use present, past, or future tense.'
     const prompt = `Generate exactly 5 natural ${typeDesc} flashcards for a ${toLangName} learner whose native language is ${fromLangName}.
@@ -4866,6 +4930,31 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
     const toLangFull = _LNF[langA] || langA
     const fromLangFull = _LNF[fromLangCode] || fromLangCode
     setEmptyCategoryMsg(isMarkLang ? '✈️ Urlaub — KI erstellt Reisephrasen…' : '✈️ Travel — AI creating phrases…')
+
+    // Check weekly shared pool before calling AI
+    const poolUrlaub = await fetchSharedCards(fromLangCode, langA)
+    const poolUrlaubFiltered = poolUrlaub?.filter(c => c.category === 'urlaub' || !c.category)
+    if (poolUrlaubFiltered?.length > 0) {
+      const ts = Date.now()
+      const newCards = poolUrlaubFiltered.filter(c => c.front && c.back).slice(0, 10).map((c, i) => ({
+        ...c, id: `urlaub_pool_${ts}_${i}`, langA: fromLangCode, langB: langA, category: 'urlaub', source: 'weekly-pool', createdAt: ts,
+      }))
+      if (newCards.length > 0) {
+        const updatedAiCards = [...(myData?.aiCards || []), ...newCards]
+        const updatedProgress = { ...(myData?.cardProgress || {}) }
+        newCards.forEach(c => { updatedProgress[c.id] = { interval: 0, consecutiveRight: 0, wrongSessions: 0, nextReview: todayStr() } })
+        await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress })
+        setMyData(d => ({ ...d, aiCards: updatedAiCards, cardProgress: updatedProgress }))
+        setEmptyCategoryMsg(t.travelReady || 'Reisephrasen bereit ✓')
+        setTimeout(() => setEmptyCategoryMsg(null), 2000)
+        const sessionCards = isPremium ? newCards : newCards.slice(0, 3)
+        const sess = [...sessionCards.flatMap(buildCardPair)].sort(() => Math.random() - 0.5).slice(0, SESSION_SIZE)
+        setCurrentSessionMode('urlaub')
+        setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+        return
+      }
+    }
+
     try {
       const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 900, system: CARD_GEN_SYSTEM,
