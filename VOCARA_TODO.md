@@ -1,4 +1,12 @@
-# Vocara – Vollständige ToDo & Ideen-Liste (Stand 28.04.2026)
+# Vocara – Vollständige ToDo & Ideen-Liste (Stand 29.04.2026)
+
+## ✅ Implementiert (29.04.2026 Session 21) — V01.024.023
+- I18N KI PROMPTS: kiRespondIn(lang) in coachMsg Prompt — KI-Tutor antwortet immer in der Muttersprache des Users ✅
+- EINSTUFUNGSTEST: testCount ("Test #3") aus Firestore testHistory + Antwort-Pattern-Erkennung (orange Banner bei 5x gleiche Option) ✅
+- KARTEN-WORTART TAGS: wordType + article in vocab-Generierungsprompt; subtiler Badge top-right auf Karte; Batch-Erkennung on app-load (max 10/Tag, lastWordTypeBatch Guard) ✅
+- NIE WIEDER LERNEN VOLLSTÄNDIG: 3-Option Context-Menu (⭐ Favorit / 🚫 Nie wieder / Abbrechen); favoriteCards in Firestore; Einstellungen: Ausgeschlossene Karten-Liste mit Wiederherstellen-Button ✅
+- STATISTIKEN LIEBLINGSBEREICH: getWeeklyFavArea() nutzt area-Feld aus sessionHistory; "Diese Woche" in StatsScreen solo + Partner-Vergleich ✅
+- VERSION V01.024.023 ✅
 
 ## ✅ Implementiert (28.04.2026 Session 20) — V01.023.023
 - SATZTRAINING 5 MODI: Mode E (Übersetzung) hinzugefügt — KI evaluiert semantisch via /api/chat für tense+translation ✅
