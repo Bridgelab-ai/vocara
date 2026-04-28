@@ -1,4 +1,9 @@
-# Vocara – Vollständige ToDo & Ideen-Liste (Stand 27.04.2026)
+# Vocara – Vollständige ToDo & Ideen-Liste (Stand 28.04.2026)
+
+## ✅ Implementiert (28.04.2026 Session 11)
+- FREE TIER SOFT PAYWALL: Eleganter Bottom-Sheet statt Toast — "Du hast X von Y Karten genutzt", Premium-CTA mit Features, 'Vielleicht später' Button — KI-Gespräch limit ebenfalls soft paywall ✅
+- HORIZONT TEXT: 'Kultur & Auswandern' → 'Kultur & Sprache' / 'Culture & Language' auf allen Screens ✅
+- VERSION V01.007.016 ✅
 
 ## ✅ Implementiert (28.04.2026 Session 10)
 - URLAUB KATEGORIE: ✈️ Urlaub als 6. Lernbereich im Grid (Row 3 links) — KI generiert 10 Reisephrasen bei 0 Karten mit Coverage Hotel/Flughafen/Restaurant/Notfälle/Transport/Shopping/Banking ✅
