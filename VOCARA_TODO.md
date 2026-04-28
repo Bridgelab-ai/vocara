@@ -1,5 +1,14 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 28.04.2026)
 
+## ✅ Implementiert (28.04.2026 Session 14) — V01.018.019
+- KI-TANK ENERGIE-BALKEN: Teal-Bar auf Home-Screen — Free: X/3 diese Woche, Premium: Unbegrenzt — depletes with use, tappable → paywall wenn leer ✅
+- ZEITFORMEN STUFEN-SYSTEM: Präsens sofort / Vergangenheit bei 20 / Zukunft bei 50 gemeisterten Karten — Emoji-Tiles + Progress-Bar auf Home-Screen ✅
+- STATISTIKEN ERWEITERT: Zeitformen-Level Card in StatsScreen (3 Tiles locked/unlocked), Reaktionszeit Section (avg, schnellste, schwierigste Karte) ✅
+- KARTE ERSTELLEN SOZIALES REGISTER: socialRegister aus myData an KarteErstellenScreen + kiFill-Prompt → tone-appropriate Übersetzungen ✅
+- WÖCHENTLICHER AUTO-POOL: api/weekly-pool.js — Claude Sonnet 4.6 generiert 20 Karten/Sprachpaar, schreibt in Firestore weeklyPool Collection ✅
+- VERCEL CRON: vercel.json mit cron schedule (0 3 * * 0 = jeden Sonntag 3:00 Uhr) ✅
+- VERSION V01.018.019 ✅
+
 ## ✅ Implementiert (28.04.2026 Session 13)
 - MUSIK PHASE 1: Web Audio API Ambient Engine — 3 Theme-Sounds (Hamburg: Harbor-Töne, Nairobi: Warm Sine+LFO, Welt: Kosmisch) — 🔇/🎵 Toggle im Home-Header — Lautstärkeregler in Einstellungen — Firestore + localStorage Persistenz — Fade-out/in bei Theme-Wechsel ✅
 - STREAK FREEZE PREMIUM: Free = 0 Freezes, Premium = 1x/Monat — Mark+Elosy immer Premium — Einstellungen zeigt Badge ✅
