@@ -1,0 +1,27 @@
+{
+  "name": "Vocara",
+  "short_name": "Vocara",
+  "description": "Sprachenlernen mit Partner — powered by Bridgelab",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0A0800",
+  "background_color": "#0A0800",
+  "lang": "de",
+  "icons": [
+    {
+      "src": "/vocara-logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/vocara-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education", "lifestyle"],
+  "screenshots": []
+}

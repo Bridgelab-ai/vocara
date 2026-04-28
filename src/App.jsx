@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.007.017'
+const APP_VERSION = 'V01.008.019'
 const MARK_UID = 'aiNZh4Myn8Y0KfYkGGrkNNW0HC72'
 const ELOSY_UID = 'NIX3DYenRdbRjmr2EHsIad9GcqG3'
 const SESSION_SIZE = 15
@@ -2435,7 +2435,7 @@ function RhythmusScreen({ lang, theme, onBack, allCards, cardProgress, userToLan
   )
 }
 
-function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveState, onSaveSessionProgress, onStop, onSaveExample, mode = 'all', startIndex = 0, startProgress = null, userToLang = 'en' }) {
+function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, onSaveState, onSaveSessionProgress, onStop, onSaveExample, mode = 'all', startIndex = 0, startProgress = null, userToLang = 'en' }) {
   const [index, setIndex] = useState(startIndex)
   const [queue, setQueue] = useState(session)
   const [revealed, setRevealed] = useState(false)
@@ -2564,9 +2564,9 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
     }).catch(() => {})
   }, [revealed, index])
 
-  // Load note for current card
+  // Load note for current card (newProgress takes priority — written in this session)
   useEffect(() => {
-    setNoteText(cardProgress[item.id]?._note || '')
+    setNoteText(newProgress[item.id]?._note || cardProgress[item.id]?._note || '')
     setNoteOpen(false)
     setKiExplanation(null)
     setKontextVariation(null); setKontextOpen(false)
@@ -3003,6 +3003,8 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
                 <button onClick={async () => {
                   const updated = { ...newProgress, [item.id]: { ...(newProgress[item.id] || {}), _note: noteText } }
                   setNewProgress(updated); setNoteOpen(false)
+                  // Immediate Firestore write so note persists even if session is abandoned
+                  if (user) updateDoc(doc(db, 'users', user.uid), { [`cardProgress.${item.id}._note`]: noteText }).catch(() => {})
                   await onSaveState?.(queue, index, updated)
                 }} style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '10px', padding: '7px 16px', color: '#e0e0e0', fontSize: '0.82rem', cursor: 'pointer', fontWeight: '600' }}>
                   ✓ {lang === 'de' ? 'Speichern' : 'Save'}
@@ -3135,7 +3137,7 @@ function ResultScreen({ correct, wrong, fast, easy, weakestCard, strongestCard, 
   )
 }
 
-function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setMyData, allCards, lang, onPartner, onLightModeChange, onCardSizeChange }) {
+function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setMyData, allCards, lang, onPartner, onLightModeChange, onCardSizeChange, musicEnabled, musicVolume, onMusicToggle, onMusicVolume }) {
   const th = THEMES[theme]
   const pausedLanguages = myData?.pausedLanguages || []
   const uniqueTargetLangs = [...new Set((allCards || []).map(c => c.targetLang).filter(Boolean))]
@@ -3236,6 +3238,33 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
           ))}
         </div>
       </div>
+
+      {/* ── MUSIK ── */}
+      {onMusicToggle && (
+        <div style={s.card}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: musicEnabled ? '14px' : 0 }}>
+            <p style={{ ...s.cardLabel, margin: 0 }}>🎵 {isDE ? 'Hintergrundmusik' : 'Background music'}</p>
+            <button onClick={() => onMusicToggle(!musicEnabled)}
+              style={{ background: musicEnabled ? th.accent : 'transparent', border: `1px solid ${musicEnabled ? th.accent : th.border}`, borderRadius: '20px', padding: '4px 14px', color: musicEnabled ? (th.btnTextColor || '#111') : th.sub, fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
+              {musicEnabled ? (isDE ? 'An' : 'On') : (isDE ? 'Aus' : 'Off')}
+            </button>
+          </div>
+          {musicEnabled && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                <span style={{ color: th.sub, fontSize: '0.72rem' }}>{isDE ? 'Lautstärke' : 'Volume'}</span>
+                <span style={{ color: th.accent, fontSize: '0.72rem', fontWeight: '700' }}>{Math.round((musicVolume || 0) * 100)}%</span>
+              </div>
+              <input type="range" min={0} max={100} value={Math.round((musicVolume || 0) * 100)}
+                onChange={e => onMusicVolume(parseInt(e.target.value) / 100)}
+                style={{ width: '100%', accentColor: th.accent, cursor: 'pointer' }} />
+              <p style={{ color: th.sub, fontSize: '0.7rem', marginTop: '6px', marginBottom: 0, opacity: 0.7 }}>
+                {isDE ? `Ambient-Klang für das ${theme.charAt(0).toUpperCase()+theme.slice(1)}-Theme` : `Ambient sound for the ${theme.charAt(0).toUpperCase()+theme.slice(1)} theme`}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── TAGESZIEL ── */}
       <div style={s.card}>
@@ -3353,6 +3382,13 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
       <div style={s.card}>
         <p style={{ ...s.cardLabel, marginBottom: '12px' }}>🧊 {isDE ? 'Streak-Schutz' : 'Streak Protection'}</p>
         {(() => {
+          const sfIsPremium = (user.uid === MARK_UID || user.uid === ELOSY_UID) || (myData?.plan && myData.plan !== 'free')
+          if (!sfIsPremium) return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ color: th.sub, fontSize: '0.85rem', flex: 1 }}>{isDE ? '0 Freezes verfügbar — Premium: 1x/Monat' : '0 freezes available — Premium: 1x/month'}</span>
+              <span style={{ background: `${th.gold}18`, color: th.gold, border: `1px solid ${th.gold}44`, borderRadius: '20px', padding: '2px 10px', fontSize: '0.7rem', fontWeight: '700', whiteSpace: 'nowrap' }}>Premium</span>
+            </div>
+          )
           const isAvail = freezeAvailable || (freeze.lastReset !== currentMonth)
           return (
             <>
@@ -3787,7 +3823,7 @@ function VocaraLogoSVG({ withSlogans = false, animate = false, isDE = true }) {
   )
 }
 
-function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSaveProgress, theme, onThemeChange, onLightModeChange, onCardSizeChange, onPartnerUpdate, onSaveCefr, onBack }) {
+function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSaveProgress, theme, onThemeChange, onLightModeChange, onCardSizeChange, onPartnerUpdate, onSaveCefr, musicEnabled, musicVolume, onMusicToggle, onMusicVolume, onBack }) {
   const [screen, setScreen] = useState('menu')
   const [session, setSession] = useState(null)
   const [result, setResult] = useState(null)
@@ -3868,6 +3904,8 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
     const sessionsStr = lastSessions.length > 0 ? lastSessions.map(s => `${s.correct}/${s.total}`).join(',') : 'none'
     const phoneticCards = Object.values(cardProg).filter(p => p?._phonetic).length
     const phoneticStr = phoneticCards > 0 ? ` ${phoneticCards} cards have pronunciation guides.` : ''
+    const noteCards = Object.entries(cardProg).filter(([, p]) => p?._note).slice(0, 3)
+    const notesStr = noteCards.length > 0 ? ` User notes on ${noteCards.length} card(s): ${noteCards.map(([id, p]) => `"${p._note}"`).join(', ')}.` : ''
     const AREA_KEYS = ['vocabulary','street','home','sentence','basics']
     let bestArea = 'vocabulary'; let bestDue = -1
     AREA_KEYS.forEach(key => {
@@ -3879,7 +3917,7 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
     fetch('/api/chat', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 45,
-        messages: [{ role: 'user', content: `You are a personal language tutor for a ${fromLangName} speaker learning ${toLangName}. Stats: ${catStats}. Last sessions: ${sessionsStr}. Streak: ${streak} days. Level: ${level}.${phoneticStr} Give ONE specific coaching tip (max 20 words) in ${fromLangName} about what to focus on NOW to speak ${toLangName} faster. Be practical and direct. Bridgelab tone: warm, no fluff. Return ONLY the tip, no quotes or markdown.` }]
+        messages: [{ role: 'user', content: `You are a personal language tutor for a ${fromLangName} speaker learning ${toLangName}. Stats: ${catStats}. Last sessions: ${sessionsStr}. Streak: ${streak} days. Level: ${level}.${phoneticStr}${notesStr} Give ONE specific coaching tip (max 20 words) in ${fromLangName} about what to focus on NOW to speak ${toLangName} faster. If user has notes, you may briefly reference one. Bridgelab tone: warm, no fluff. Return ONLY the tip, no quotes or markdown.` }]
       })
     }).then(r => r.json()).then(d => {
       const msg = d.content?.[0]?.text?.trim()
@@ -4980,10 +5018,10 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     }
   }
 
-  if (screen === 'cards' && session) return <>{homeFloat}<CardScreen session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} onSaveSessionProgress={saveSessionProgress} onStop={handleSessionStop} onSaveExample={handleSaveExample} mode={currentSessionMode} startIndex={resumeStartIndex} startProgress={resumeStartProgress} userToLang={activeToLang} /></>
+  if (screen === 'cards' && session) return <>{homeFloat}<CardScreen user={user} session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} onSaveSessionProgress={saveSessionProgress} onStop={handleSessionStop} onSaveExample={handleSaveExample} mode={currentSessionMode} startIndex={resumeStartIndex} startProgress={resumeStartProgress} userToLang={activeToLang} /></>
   if (screen === 'rhythmus') return <>{homeFloat}<RhythmusScreen lang={lang} theme={theme} onBack={() => { setScreen('result') }} allCards={allCards} cardProgress={cardProgress} userToLang={activeToLang} /></>
   if (screen === 'result') return <>{homeFloat}<ResultScreen correct={result.correct} wrong={result.wrong} fast={result.fast} easy={result.easy} weakestCard={result.weakestCard} strongestCard={result.strongestCard} masteryUnlocked={masteryUnlocked} t={t} lang={lang} onBack={() => { setScreen('menu'); setSession(null) }} onReplay={result.originalSession ? () => { setSession(result.originalSession); setResumeStartIndex(0); setResumeStartProgress(null); setScreen('cards') } : null} s={s} th={th} /></>
-  if (screen === 'settings') return <>{homeFloat}<SettingsScreen t={t} s={s} theme={theme} onThemeChange={onThemeChange} onBack={() => setScreen('menu')} user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} onPartner={() => setScreen('partner')} onLightModeChange={onLightModeChange} onCardSizeChange={onCardSizeChange} /></>
+  if (screen === 'settings') return <>{homeFloat}<SettingsScreen t={t} s={s} theme={theme} onThemeChange={onThemeChange} onBack={() => setScreen('menu')} user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} onPartner={() => setScreen('partner')} onLightModeChange={onLightModeChange} onCardSizeChange={onCardSizeChange} musicEnabled={musicEnabled} musicVolume={musicVolume} onMusicToggle={onMusicToggle} onMusicVolume={onMusicVolume} /></>
   if (screen === 'meinekarten') return <>{homeFloat}<MeineKartenScreen user={user} myData={myData} setMyData={setMyData} allCards={allCards} cardProgress={cardProgress} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
   if (screen === 'geschenkkarte') return <>{homeFloat}<GeschenkkarteScreen user={user} myData={myData} lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} /></>
   if (screen === 'karteerstellen') return <>{homeFloat}<KarteErstellenScreen user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
@@ -5000,7 +5038,15 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     <div style={s.container} className="vocara-screen vocara-home-outer"><div style={{ ...s.homeBox, paddingTop: '12px' }} className="vocara-home-box">
 
       {/* ── LOGO ── */}
-      <div className="vocara-logo-section" style={{ textAlign: 'center', paddingTop: '16px', paddingBottom: '10px' }}>
+      <div className="vocara-logo-section" style={{ textAlign: 'center', paddingTop: '16px', paddingBottom: '10px', position: 'relative' }}>
+        {onMusicToggle && (
+          <button
+            onClick={() => onMusicToggle(!musicEnabled)}
+            title={musicEnabled ? (isMarkLang ? 'Musik aus' : 'Music off') : (isMarkLang ? 'Musik an' : 'Music on')}
+            style={{ position: 'absolute', top: 0, right: 0, background: musicEnabled ? `${th.accent}22` : 'transparent', border: `1px solid ${musicEnabled ? th.accent : th.border}`, borderRadius: '10px', padding: '5px 9px', color: musicEnabled ? th.accent : th.sub, fontSize: '1rem', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', lineHeight: 1 }}>
+            {musicEnabled ? '🎵' : '🔇'}
+          </button>
+        )}
         <p style={{ fontFamily: 'Georgia, serif', fontSize: '42px', fontWeight: '700', color: '#FFD700', margin: '0 auto', letterSpacing: '3px', lineHeight: 1 }}>Vocara</p>
         <p style={{ color: th.sub, fontSize: '0.55rem', opacity: 0.3, margin: '2px 0 0', letterSpacing: '1px', textAlign: 'center' }}>{APP_VERSION}</p>
         <p className="vocara-logo-greeting" style={{ ...s.greeting, marginTop: '8px', marginBottom: uniqueTargetLangs.length > 0 ? '6px' : 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px' }}>
@@ -7257,6 +7303,59 @@ class ErrorBoundary extends Component {
   }
 }
 
+// ── AMBIENT AUDIO ENGINE ──────────────────────────────────────────────────────
+let _ambCtx = null; let _ambNodes = []; let _ambMaster = null; let _ambTheme = null
+
+function _ambInit() {
+  if (_ambCtx) return true
+  const AC = window.AudioContext || window.webkitAudioContext
+  if (!AC) return false
+  _ambCtx = new AC()
+  _ambMaster = _ambCtx.createGain(); _ambMaster.gain.value = 0
+  _ambMaster.connect(_ambCtx.destination)
+  return true
+}
+function _ambBuild(theme) {
+  _ambNodes.forEach(n => { try { n.osc.stop(); n.lfo?.stop() } catch(e) {} })
+  _ambNodes = []
+  if (!_ambCtx) return
+  const configs = {
+    nairobi: [{ f:55,t:'sine',g:.12 },{ f:110,t:'sine',g:.055 },{ f:165,t:'triangle',g:.025 }],
+    hamburg: [{ f:65.4,t:'triangle',g:.10 },{ f:130.8,t:'sine',g:.045 },{ f:196,t:'sine',g:.02 }],
+    welt:    [{ f:48,t:'sine',g:.09 },{ f:96,t:'sine',g:.04 },{ f:144,t:'triangle',g:.02 },{ f:192,t:'sine',g:.01 }],
+  }
+  ;(configs[theme] || configs.welt).forEach(({ f, t, g }) => {
+    const osc = _ambCtx.createOscillator(); const gn = _ambCtx.createGain()
+    const lfo = _ambCtx.createOscillator(); const lg = _ambCtx.createGain()
+    lfo.frequency.value = 0.08 + Math.random() * 0.12; lg.gain.value = f * 0.004
+    osc.type = t; osc.frequency.value = f; gn.gain.value = g
+    lfo.connect(lg); lg.connect(osc.frequency)
+    osc.connect(gn); gn.connect(_ambMaster)
+    osc.start(); lfo.start()
+    _ambNodes.push({ osc, gn, lfo, lg })
+  })
+  _ambTheme = theme
+}
+function ambientEnable(theme, vol) {
+  if (!_ambInit()) return
+  if (_ambCtx.state === 'suspended') _ambCtx.resume()
+  if (_ambTheme !== theme) _ambBuild(theme)
+  _ambMaster.gain.setTargetAtTime(Math.max(0, Math.min(1, vol)) * 0.45, _ambCtx.currentTime, 0.8)
+}
+function ambientSetVol(vol) {
+  if (!_ambMaster) return
+  _ambMaster.gain.setTargetAtTime(Math.max(0, Math.min(1, vol)) * 0.45, _ambCtx.currentTime, 0.5)
+}
+function ambientDisable() {
+  if (!_ambMaster || !_ambCtx) return
+  _ambMaster.gain.setTargetAtTime(0, _ambCtx.currentTime, 0.8)
+}
+function ambientSwitchTheme(theme, vol) {
+  if (!_ambCtx || !_ambMaster) return
+  _ambMaster.gain.setTargetAtTime(0, _ambCtx.currentTime, 0.5)
+  setTimeout(() => { _ambBuild(theme); _ambMaster.gain.setTargetAtTime(Math.max(0, Math.min(1, vol)) * 0.45, _ambCtx.currentTime, 1.0) }, 600)
+}
+
 function App() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -7270,7 +7369,10 @@ function App() {
   const [needsLangSetup, setNeedsLangSetup] = useState(false)
   const [needsOnboarding, setNeedsOnboarding] = useState(false)
   const [isNewUser, setIsNewUser] = useState(false)
-  const [mainNav, setMainNav] = useState('main') // 'main' | 'sprechen' | 'entdecken' | 'horizont' | 'livesession'
+  const [mainNav, setMainNav] = useState('main')
+  const [musicEnabled, setMusicEnabled] = useState(() => { try { return localStorage.getItem('vocara_music') === 'true' } catch { return false } })
+  const [musicVolume, setMusicVolume] = useState(() => { try { return parseFloat(localStorage.getItem('vocara_music_vol') || '0.35') } catch { return 0.35 } })
+  const [isOffline, setIsOffline] = useState(!navigator.onLine)
 
   useEffect(() => {
     const id = 'vocara-global-css'
@@ -7279,6 +7381,39 @@ function App() {
       document.head.appendChild(el)
     }
   }, [])
+
+  // ── OFFLINE DETECTION ─────────────────────────────────────
+  useEffect(() => {
+    const on = () => setIsOffline(false); const off = () => setIsOffline(true)
+    window.addEventListener('online', on); window.addEventListener('offline', off)
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off) }
+  }, [])
+
+  // ── MUSIC CONTROL ─────────────────────────────────────────
+  useEffect(() => {
+    if (musicEnabled && user) ambientEnable(theme, musicVolume)
+    else ambientDisable()
+  }, [musicEnabled, musicVolume, user]) // eslint-disable-line
+
+  const prevThemeRef = useRef(theme)
+  useEffect(() => {
+    if (theme !== prevThemeRef.current) {
+      prevThemeRef.current = theme
+      if (musicEnabled) ambientSwitchTheme(theme, musicVolume)
+    }
+  }, [theme]) // eslint-disable-line
+
+  const handleMusicToggle = async (val) => {
+    setMusicEnabled(val)
+    try { localStorage.setItem('vocara_music', val ? 'true' : 'false') } catch {}
+    if (user) setDoc(doc(db, 'users', user.uid, 'settings', 'music'), { enabled: val }, { merge: true }).catch(() => {})
+  }
+  const handleMusicVolume = async (vol) => {
+    setMusicVolume(vol)
+    try { localStorage.setItem('vocara_music_vol', String(vol)) } catch {}
+    if (musicEnabled) ambientSetVol(vol)
+    if (user) setDoc(doc(db, 'users', user.uid, 'settings', 'music'), { volume: vol }, { merge: true }).catch(() => {})
+  }
 
   // Auto-generate German-phonetic pronunciation for aiCards missing it
   useEffect(() => {
@@ -7477,6 +7612,13 @@ function App() {
             await setDoc(doc(db, 'userProfiles', u.uid), pubProfile, { merge: true })
           } catch (e) { console.warn('[Vocara] userProfiles write skipped:', e?.code) }
           setMyData(data)
+          // Load music settings from Firestore
+          getDoc(doc(db, 'users', u.uid, 'settings', 'music')).then(mSnap => {
+            if (!mSnap.exists()) return
+            const md = mSnap.data()
+            if (md.enabled !== undefined) { setMusicEnabled(md.enabled); try { localStorage.setItem('vocara_music', md.enabled ? 'true' : 'false') } catch {} }
+            if (md.volume !== undefined) { setMusicVolume(md.volume); try { localStorage.setItem('vocara_music_vol', String(md.volume)) } catch {} }
+          }).catch(() => {})
           // Load partner: try userProfiles first (public), fall back to users/, then hardcoded name
           const loadPartner = async (partnerUID) => {
             try {
@@ -7644,7 +7786,14 @@ function App() {
             theme={theme} onThemeChange={handleThemeChange}
             onLightModeChange={handleLightModeChange} onCardSizeChange={handleCardSizeChange}
             onPartnerUpdate={handlePartnerUpdate} onSaveCefr={handleSaveCefr}
+            musicEnabled={musicEnabled} musicVolume={musicVolume}
+            onMusicToggle={handleMusicToggle} onMusicVolume={handleMusicVolume}
             onBack={() => setMainNav('main')} />
+        )}
+        {isOffline && (
+          <div style={{ position: 'fixed', top: '10px', right: '10px', background: 'rgba(50,50,60,0.92)', color: '#bbb', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '10px', padding: '5px 12px', fontSize: '0.72rem', fontWeight: '600', zIndex: 9998, backdropFilter: 'blur(8px)' }}>
+            📵 Offline
+          </div>
         )}
         {mainNav === 'entdecken' && (
           <SetsScreen user={user} myData={myData} setMyData={setMyData} partnerData={partnerData}
