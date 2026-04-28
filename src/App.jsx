@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.007.000'
+const APP_VERSION = 'V01.007.016'
 const MARK_UID = 'aiNZh4Myn8Y0KfYkGGrkNNW0HC72'
 const ELOSY_UID = 'NIX3DYenRdbRjmr2EHsIad9GcqG3'
 const SESSION_SIZE = 15
@@ -4091,6 +4091,28 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   // Free/Premium plan — Mark and Elosy always premium
   const userPlan = (user.uid === MARK_UID || user.uid === ELOSY_UID) ? 'premium' : (myData?.plan || 'free')
   const isPremium = userPlan !== 'free'
+  const [softPaywall, setSoftPaywall] = useState(null) // null | {area, used, limit}
+
+  // Free usage: count unique cards with any progress per category (derived from existing data)
+  const freeUsed = (category) => {
+    if (isPremium) return 0
+    return (allCards || []).filter(c => c.category === category && (cardProgress[c.id]?.interval || 0) > 0).length
+  }
+  const FREE_LIMITS = { street: 5, home: 5, urlaub: 3 }
+
+  const checkFreeLimit = (category) => {
+    if (isPremium) return true
+    const limit = FREE_LIMITS[category]
+    if (!limit) return true
+    const used = freeUsed(category)
+    if (used >= limit) {
+      setSoftPaywall({ area: category, used, limit })
+      // Also write to Firestore usage subcollection
+      setDoc(doc(db, 'users', user.uid, 'usage', category), { used, limit, updatedAt: Date.now() }, { merge: true }).catch(() => {})
+      return false
+    }
+    return true
+  }
   useEffect(() => {
     if (!user) return
     const settingsRef = doc(db, 'users', user.uid, 'settings', 'preferences')
@@ -4514,6 +4536,19 @@ Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","
   }
 
   const startSatzSession = async () => {
+    // Free tier: 5 satz sessions / month
+    if (!isPremium) {
+      const nowMonth = new Date().toISOString().slice(0, 7)
+      const used = myData?.satzMonthStr === nowMonth ? (myData?.satzMonthCount || 0) : 0
+      if (used >= 5) {
+        setSoftPaywall({ area: 'satz', used, limit: 5 })
+        setDoc(doc(db, 'users', user.uid, 'usage', 'satz'), { used, limit: 5, month: nowMonth }, { merge: true }).catch(() => {})
+        return
+      }
+      const newCount = used + 1
+      updateDoc(doc(db, 'users', user.uid), { satzMonthCount: newCount, satzMonthStr: nowMonth }).catch(() => {})
+      setMyData(d => ({ ...d, satzMonthCount: newCount, satzMonthStr: nowMonth }))
+    }
     const LANG_NAMES = { en: 'English', de: 'German', sw: 'Swahili' }
     // Only cards with mastery >= 2 (answered correctly at least twice = interval >= 2)
     const knownVocabCards = activeCards.filter(c =>
@@ -5169,13 +5204,20 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
 
       {/* ── 6-BUTTON GRID ── */}
       {(() => {
-        const lockStyle = { position: 'relative', overflow: 'hidden' }
-        const lockOverlay = (label) => (
-          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', borderRadius: 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2px', pointerEvents: 'none' }}>
-            <span style={{ fontSize: '1rem' }}>🔒</span>
-            <span style={{ color: '#FFD700', fontSize: '0.6rem', fontWeight: '700', letterSpacing: '0.5px', textTransform: 'uppercase' }}>{label}</span>
-          </div>
-        )
+        // Soft hint badge for free users near limit
+        const freeBadge = (category) => {
+          if (isPremium) return null
+          const limit = FREE_LIMITS[category]
+          if (!limit) return null
+          const used = freeUsed(category)
+          if (used === 0) return null
+          const pct = Math.round(used / limit * 100)
+          return (
+            <div style={{ position: 'absolute', bottom: '5px', right: '6px', background: used >= limit ? `${th.gold}22` : 'rgba(0,0,0,0.35)', borderRadius: '8px', padding: '1px 5px', pointerEvents: 'none' }}>
+              <span style={{ color: used >= limit ? th.gold : 'rgba(255,255,255,0.55)', fontSize: '0.58rem', fontWeight: '700' }}>{used}/{limit}</span>
+            </div>
+          )
+        }
         return (
           <div className="vocara-cat-grid" style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '12px' }}>
             <div style={{ display: 'flex', gap: '12px' }}>
@@ -5187,27 +5229,26 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
               </button>
             </div>
             <div style={{ display: 'flex', gap: '12px' }}>
-              <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '3.5s', ...(!isPremium ? lockStyle : {}) }}
-                onClick={() => isPremium ? startCategorySession('street') : null}>
+              <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '3.5s', position: 'relative' }}
+                onClick={() => checkFreeLimit('street') && startCategorySession('street')}>
                 {t.menuStraße.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
-                {!isPremium && lockOverlay('Premium')}
+                {freeBadge('street')}
               </button>
-              <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '5.2s', ...(!isPremium ? lockStyle : {}) }}
-                onClick={() => isPremium ? startCategorySession('home') : null}>
+              <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '5.2s', position: 'relative' }}
+                onClick={() => checkFreeLimit('home') && startCategorySession('home')}>
                 {t.menuHause.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
-                {!isPremium && lockOverlay('Premium')}
+                {freeBadge('home')}
               </button>
             </div>
             <div style={{ display: 'flex', gap: '12px' }}>
-              <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '6.8s', ...(!isPremium ? lockStyle : {}), opacity: basicsLoading ? 0.6 : 1 }}
-                onClick={() => isPremium ? startBasicsSession() : null} disabled={basicsLoading}>
+              <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '6.8s', opacity: basicsLoading ? 0.6 : 1 }}
+                onClick={startBasicsSession} disabled={basicsLoading}>
                 {basicsLoading ? '...' : (t.menuGrundlagen || 'Die\nGrundlagen').split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
-                {!isPremium && lockOverlay('Premium')}
               </button>
-              <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '8.2s', ...(!isPremium ? lockStyle : {}) }}
-                onClick={() => isPremium ? startCategorySession('urlaub') : null}>
+              <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '8.2s', position: 'relative' }}
+                onClick={() => checkFreeLimit('urlaub') && startCategorySession('urlaub')}>
                 {(t.menuUrlaub || '✈️\nUrlaub').split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
-                {!isPremium && lockOverlay('Premium')}
+                {freeBadge('urlaub')}
               </button>
             </div>
             <button className="vocara-alle-btn" style={{ ...s.button, padding: '13px 28px', fontSize: '0.9rem', letterSpacing: '0.2px', marginBottom: 0, '--gleam-delay': '2.5s' }} onClick={() => startCategorySession('all')}>
@@ -5344,8 +5385,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
             const nowWeek = getISOWeekStr()
             const usedThisWeek = myData?.kiWeekStr === nowWeek ? (myData?.kiWeekCount || 0) : 0
             if (usedThisWeek >= 3) {
-              setEmptyCategoryMsg(isMarkLang ? '🔒 KI-Gespräch: 3x diese Woche genutzt — Premium freischalten' : '🔒 AI Chat: 3 sessions used this week — upgrade to Premium')
-              setTimeout(() => setEmptyCategoryMsg(null), 3500)
+              setSoftPaywall({ area: 'ki', used: usedThisWeek, limit: 3, weekly: true })
               return
             }
             const newCount = usedThisWeek + 1
@@ -5414,6 +5454,50 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           🎉 {lang === 'de' ? 'Monatsbonus freigeschaltet!' : 'Monthly bonus unlocked!'}
         </div>
       )}
+
+      {/* ── SOFT PAYWALL MODAL ── */}
+      {softPaywall && (() => {
+        const areaLabels = { street: isMarkLang ? 'Straße' : 'Street', home: isMarkLang ? 'Zuhause' : 'Home', urlaub: isMarkLang ? 'Urlaub' : 'Travel', ki: isMarkLang ? 'KI-Gespräch' : 'AI Chat', satz: isMarkLang ? 'Satztraining' : 'Sentence Training' }
+        const areaLabel = areaLabels[softPaywall.area] || softPaywall.area
+        const isWeekly = softPaywall.weekly
+        const limitText = isWeekly
+          ? (isMarkLang ? `Du hast ${softPaywall.limit}/${softPaywall.limit} KI-Gespräche diese Woche genutzt` : `You've used ${softPaywall.limit}/${softPaywall.limit} AI chats this week`)
+          : (isMarkLang ? `Du hast ${softPaywall.used} von ${softPaywall.limit} kostenlosen ${areaLabel}-Karten genutzt` : `You've used ${softPaywall.used} of ${softPaywall.limit} free ${areaLabel} cards`)
+        const cta = isMarkLang ? 'Unbegrenzt mit Premium weitermachen' : 'Go unlimited with Premium'
+        return (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 9000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: '0 0 24px', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', animation: 'vocaraFadeIn 0.25s ease both' }}
+            onClick={() => setSoftPaywall(null)}>
+            <div style={{ background: th.card, border: `1px solid ${th.accent}55`, borderRadius: '24px 24px 20px 20px', padding: '28px 24px 20px', maxWidth: '420px', width: '100%', animation: 'vocaraSlideIn 0.3s ease both', boxShadow: `0 -8px 40px ${th.glowColor}44` }}
+              onClick={e => e.stopPropagation()}>
+              <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+                <span style={{ fontSize: '2.2rem' }}>✨</span>
+                <h3 style={{ color: th.text, fontSize: '1.1rem', fontWeight: '700', margin: '8px 0 6px', fontFamily: "'Playfair Display', Georgia, serif" }}>
+                  {isMarkLang ? 'Premium freischalten' : 'Unlock Premium'}
+                </h3>
+                <p style={{ color: th.sub, fontSize: '0.88rem', margin: 0, lineHeight: 1.5 }}>{limitText}</p>
+              </div>
+              <div style={{ background: `${th.accent}11`, border: `1px solid ${th.accent}33`, borderRadius: '14px', padding: '14px 16px', marginBottom: '16px' }}>
+                <p style={{ color: th.text, fontSize: '0.85rem', margin: 0, lineHeight: 1.6, fontWeight: '500' }}>
+                  {cta}
+                </p>
+                <ul style={{ color: th.sub, fontSize: '0.78rem', margin: '8px 0 0', paddingLeft: '18px', lineHeight: 1.7 }}>
+                  <li>{isMarkLang ? 'Alle Lernbereiche unlimitiert' : 'All areas unlimited'}</li>
+                  <li>{isMarkLang ? 'Unbegrenzte KI-Gespräche' : 'Unlimited AI conversations'}</li>
+                  <li>{isMarkLang ? 'Satztraining ohne Limit' : 'Sentence training without limits'}</li>
+                </ul>
+              </div>
+              <button style={{ width: '100%', background: `linear-gradient(135deg, ${th.accent}, ${th.gold})`, color: '#111', border: 'none', borderRadius: '14px', padding: '13px', fontSize: '0.95rem', fontWeight: '700', cursor: 'pointer', marginBottom: '8px', fontFamily: "'Inter', system-ui, sans-serif" }}
+                onClick={() => { setSoftPaywall(null); setScreen('settings') }}>
+                {isMarkLang ? 'Premium testen →' : 'Try Premium →'}
+              </button>
+              <button style={{ width: '100%', background: 'transparent', color: th.sub, border: 'none', borderRadius: '12px', padding: '10px', fontSize: '0.83rem', cursor: 'pointer', fontFamily: "'Inter', system-ui, sans-serif" }}
+                onClick={() => setSoftPaywall(null)}>
+                {isMarkLang ? 'Vielleicht später' : 'Maybe later'}
+              </button>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* ── GIMMICK FREISCHALTUNG POPUP ── */}
       {gimmickPopup && (() => {
@@ -6505,7 +6589,7 @@ function MainSelectionScreen({ lang, theme, firstName, uniqueTargetLangs, paused
         </div>
         {glassBtn('vocara', onSprechen, 'Vocara', isDE ? 'Sprache' : 'Language', isDE ? 'Wörter, Sätze & Gespräche' : 'Words, sentences & conversation', false)}
         {glassBtn('entdecken', onEntdecken, 'Katara', 'Strukturiertes Lernen', 'Lern was du willst. Wann du willst.', false)}
-        {glassBtn('horizont', onHorizont, isDE ? 'Horizont' : 'Horizon', null, isDE ? 'Kultur & Auswandern' : 'Culture & emigration', true)}
+        {glassBtn('horizont', onHorizont, isDE ? 'Horizont' : 'Horizon', null, isDE ? 'Kultur & Sprache' : 'Culture & Language', true)}
       </div>
     </div>
   )
@@ -6521,7 +6605,7 @@ function HorizontScreen({ lang, theme, onBack }) {
         <div style={{ textAlign: 'center', marginTop: '60px' }}>
           <span style={{ fontSize: '3rem' }}>🌐</span>
           <h2 style={{ color: th.text, fontSize: '1.8rem', fontFamily: "'Playfair Display', Georgia, serif", margin: '16px 0 10px', fontWeight: '700' }}>{isDE ? 'Horizont' : 'Horizon'}</h2>
-          <p style={{ color: th.sub, fontSize: '0.95rem', marginBottom: '24px', lineHeight: 1.6 }}>{isDE ? 'Kultur & Auswandern' : 'Culture & emigration'}</p>
+          <p style={{ color: th.sub, fontSize: '0.95rem', marginBottom: '24px', lineHeight: 1.6 }}>{isDE ? 'Kultur & Sprache' : 'Culture & Language'}</p>
           <div style={{ background: `${th.gold}12`, border: `1px solid ${th.gold}33`, borderRadius: '20px', padding: '20px 24px', display: 'inline-block' }}>
             <p style={{ color: th.gold, fontWeight: '700', fontSize: '1rem', margin: 0 }}>{isDE ? 'Bald verfügbar' : 'Coming soon'}</p>
           </div>
