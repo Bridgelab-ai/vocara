@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.024.022'
+const APP_VERSION = 'V01.022.023'
 
 // ── SOZIALES REGISTER ───────────────────────────────────────────
 const SOCIAL_REGISTERS = [
@@ -846,6 +846,10 @@ html, body, #root {
   from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+@keyframes vocaraKontextGlow {
+  0%, 100% { box-shadow: 0 0 10px rgba(0,191,165,0.3), 0 0 0 2px rgba(0,191,165,0.06); }
+  50%       { box-shadow: 0 0 22px rgba(0,191,165,0.6), 0 0 0 4px rgba(0,191,165,0.12); }
+}
 @keyframes vocaraFadeOut {
   from { opacity: 1; }
   to   { opacity: 0; }
@@ -1348,7 +1352,7 @@ const T = {
     progressBtn: '📈 Fortschritt', logout: 'Abmelden',
     myProgress: 'Dein Fortschritt', notActive: 'Noch kein Partner',
     card: 'Karte', of: 'von', showSolution: 'Lösung anzeigen',
-    correct: 'Richtig', wrong: 'Falsch', fast: 'Fast', easy: '⚡ Easy', stop: '✕ Beenden',
+    correct: 'Richtig', wrong: 'Falsch', fast: 'Fast', easy: 'Easy', stop: '✕ Beenden',
     stopConfirm: 'Session wirklich beenden?', done: 'Heute. Gut gemacht.', back: 'Zurück',
     masteryMsg: 'Deine Stimme wächst. 3 neue Karten.',
     comingSoon: 'Kommt bald', chooseTheme: 'Wähle dein Theme', settingsTitle: 'Einstellungen',
@@ -1445,7 +1449,7 @@ const T = {
     progressBtn: '📈 Progress', logout: 'Sign out',
     myProgress: 'Your progress', notActive: 'No partner yet',
     card: 'Card', of: 'of', showSolution: 'Show answer',
-    correct: 'Correct', wrong: 'Wrong', fast: 'Fast', easy: '⚡ Easy', stop: '✕ Stop',
+    correct: 'Correct', wrong: 'Wrong', fast: 'Fast', easy: 'Easy', stop: '✕ Stop',
     stopConfirm: 'Stop this session?', done: 'Well done.', back: 'Back',
     masteryMsg: 'Your voice is growing. 3 new cards.',
     comingSoon: 'Coming soon', chooseTheme: 'Choose your theme', settingsTitle: 'Settings',
@@ -2244,16 +2248,49 @@ Mix all 4 types. Return ONLY valid JSON array, no markdown:
 
 function PlacementTest({ lang, theme, user, onBack, onSaveCefr }) {
   const th = THEMES[theme]; const s = makeStyles(th); const t = T[lang]
-  const questions = lang === 'de' ? PLACEMENT_EN : PLACEMENT_DE
+  const [questions, setQuestions] = useState(null) // null = loading
+  const [seenIds, setSeenIds] = useState(new Set())
   const [index, setIndex] = useState(0)
   const [selected, setSelected] = useState(null)
   const [revealed, setRevealed] = useState(false)
   const [wrongStreak, setWrongStreak] = useState(0)
   const [scores, setScores] = useState({})
-  const [done, setDone] = useState(false)
-  const [finalLevel, setFinalLevel] = useState(null)
   const [stopped, setStopped] = useState(false)
-  const q = questions[index]
+
+  // Load test history, shuffle questions + answer options — new batch every test
+  useEffect(() => {
+    const init = async () => {
+      let seen = new Set()
+      if (user) {
+        try {
+          const snap = await getDoc(doc(db, 'users', user.uid, 'testHistory', 'placement'))
+          if (snap.exists()) seen = new Set(snap.data()?.seenIds || [])
+        } catch {}
+      }
+      setSeenIds(seen)
+      const base = lang === 'de' ? PLACEMENT_EN : PLACEMENT_DE
+      const sh = arr => [...arr].sort(() => Math.random() - 0.5)
+      const byLevel = {}
+      for (const q of base) { if (!byLevel[q.level]) byLevel[q.level] = []; byLevel[q.level].push(q) }
+      const picked = []
+      for (const lvl of CEFR_LEVELS) {
+        const pool = byLevel[lvl] || []
+        const unseen = pool.filter(q => !seen.has(q.id))
+        // Prefer unseen; fall back to full pool if fewer than 5 unseen remain
+        picked.push(...sh(unseen.length >= 5 ? unseen : pool).slice(0, 10))
+      }
+      // Shuffle answer options, remap correct answer index
+      const shuffled = picked.map(q => {
+        const opts = q.options.map((opt, i) => ({ opt, isCorrect: i === q.correct }))
+        const shOpts = sh(opts)
+        return { ...q, options: shOpts.map(x => x.opt), correct: shOpts.findIndex(x => x.isCorrect) }
+      })
+      setQuestions(shuffled)
+    }
+    init()
+  }, []) // eslint-disable-line
+
+  const q = questions?.[index]
   const calcLevel = (sc) => {
     for (let i = CEFR_LEVELS.length - 1; i >= 0; i--) {
       const lvl = CEFR_LEVELS[i]; const data = sc[lvl]
@@ -2262,53 +2299,38 @@ function PlacementTest({ lang, theme, user, onBack, onSaveCefr }) {
     return 'A1'
   }
   const handleSelect = (optIdx) => {
-    if (revealed) return
+    if (revealed || !q || !questions) return
     setSelected(optIdx); setRevealed(true)
     const isCorrect = optIdx === q.correct
     const lvl = q.level; const prev = scores[lvl] || { correct: 0, total: 0 }
     const newScores = { ...scores, [lvl]: { correct: prev.correct + (isCorrect ? 1 : 0), total: prev.total + 1 } }
     setScores(newScores)
     const newStreak = isCorrect ? 0 : wrongStreak + 1
+    if (newStreak >= 3) setStopped(true)
     setTimeout(() => {
       if (newStreak >= 3 || index + 1 >= questions.length) {
         try {
           const level = calcLevel(newScores)
+          // Save shown question IDs to testHistory; reset when >75% of pool seen
+          if (user) {
+            const base = lang === 'de' ? PLACEMENT_EN : PLACEMENT_DE
+            const shownIds = questions.slice(0, index + 1).map(q => q.id)
+            const allSeen = [...seenIds, ...shownIds]
+            const finalSeen = allSeen.length > base.length * 0.75 ? [] : [...new Set(allSeen)]
+            setDoc(doc(db, 'users', user.uid, 'testHistory', 'placement'), { seenIds: finalSeen, lastTest: todayStr() }, { merge: true }).catch(() => {})
+          }
           try { onSaveCefr(level) } catch(e) { console.warn('[Vocara] onSaveCefr error:', e) }
           window.location.reload()
-        } catch(completionErr) {
-          console.error('[Vocara] test completion crashed:', completionErr)
-          window.location.reload()
-        }
+        } catch(completionErr) { console.error('[Vocara] test completion crashed:', completionErr); window.location.reload() }
       } else { setWrongStreak(newStreak); setIndex(i => i + 1); setSelected(null); setRevealed(false) }
     }, 1200)
   }
-  if (done) {
-    const totalCorrect = Object.values(scores).reduce((a, b) => a + b.correct, 0)
-    const totalQ = Object.values(scores).reduce((a, b) => a + b.total, 0)
-    return (
-      <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
-        <button style={s.backBtn} onClick={onBack}>← {t.back}</button>
-        <h2 style={{ color: th.gold, fontSize: '1.3rem', marginBottom: '8px' }}>{t.testDone}</h2>
-        <div style={{ background: CEFR_COLORS[finalLevel] + '22', border: `2px solid ${CEFR_COLORS[finalLevel]}`, borderRadius: '16px', padding: '24px', marginBottom: '16px' }}>
-          <p style={{ color: CEFR_COLORS[finalLevel], fontSize: '3rem', fontWeight: 'bold', margin: 0 }}>{finalLevel}</p>
-          <p style={{ color: th.text, margin: '8px 0 0 0', fontSize: '1.1rem' }}>{CEFR_DESC[lang][finalLevel]}</p>
-        </div>
-        {stopped && <p style={{ color: th.sub, fontSize: '0.85rem', marginBottom: '12px' }}>{t.testStop3}</p>}
-        <div style={s.card}>
-          {CEFR_LEVELS.map(lvl => scores[lvl] ? (
-            <div key={lvl} style={{ ...s.langRow, marginBottom: '8px' }}>
-              <span style={{ color: CEFR_COLORS[lvl], fontWeight: 'bold', fontSize: '0.9rem' }}>{lvl}</span>
-              <span style={s.langPct}>{scores[lvl].correct}/{scores[lvl].total}</span>
-            </div>
-          ) : null)}
-          <div style={{ ...s.langRow, marginTop: '8px', paddingTop: '8px', borderTop: `1px solid ${th.border}` }}>
-            <span style={s.lang}>{t.testScore}</span><span style={s.langPct}>{totalCorrect}/{totalQ}</span>
-          </div>
-        </div>
-        <button style={s.button} onClick={onBack}>← Zurück zur Startseite</button>
-      </div></div>
-    )
-  }
+
+  if (!questions) return (
+    <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
+      <p style={{ color: th.sub, textAlign: 'center', padding: '40px', fontSize: '1.1rem', animation: 'vocaraPulse 1.2s infinite' }}>…</p>
+    </div></div>
+  )
   const pct = (index / questions.length) * 100
   return (
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
@@ -2328,6 +2350,7 @@ function PlacementTest({ lang, theme, user, onBack, onSaveCefr }) {
           {String.fromCharCode(65 + i)}. {opt ?? '—'}
         </button>
       ))}
+      {stopped && <p style={{ color: th.sub, fontSize: '0.78rem', textAlign: 'center', marginTop: '8px' }}>{t.testStop3}</p>}
     </div></div>
   )
 }
@@ -2436,9 +2459,15 @@ function PartnerScreen({ user, myData, lang, theme, onBack, onPartnerUpdate }) {
     try {
       const partnerSnap = await getDoc(doc(db, 'users', partnerUID)).catch(() => null)
       const partnerName = partnerSnap?.exists() ? partnerSnap.data().name : 'Partner'
-      await updateDoc(doc(db, 'users', user.uid), { partnerUID, partnerName })
+      const isNewPartner = myData?.partnerUID && myData.partnerUID !== partnerUID
+      const connectedAt = Date.now()
+      // Reset shared comparison stats when connecting a new partner; keep all personal data
+      const resetFields = isNewPartner
+        ? { weeklyMinutesComparison: null, streakComparison: null, partnerConnectedAt: connectedAt }
+        : { partnerConnectedAt: connectedAt }
+      await updateDoc(doc(db, 'users', user.uid), { partnerUID, partnerName, ...resetFields })
       try {
-        await updateDoc(doc(db, 'users', partnerUID), { partnerUID: user.uid, partnerName: user.displayName })
+        await updateDoc(doc(db, 'users', partnerUID), { partnerUID: user.uid, partnerName: user.displayName, partnerConnectedAt: connectedAt })
       } catch (e) { console.warn('[Vocara] partner link write skipped (users/' + partnerUID + '):', e?.code || e?.message) }
       onPartnerUpdate(partnerUID); setPendingData(null); window.history.replaceState({}, '', window.location.pathname)
     } catch (e) { setStatus('Verbindung fehlgeschlagen / Connection failed.') }
@@ -2622,7 +2651,7 @@ function KontextwechselScreen({ card, lang, theme, userToLang = 'en', user, onBa
   const th = THEMES[theme]; const s = makeStyles(th); const t = tProp || T[lang] || T.en
   const [variants, setVariants] = useState(null) // [{type, prompt, answer}]
   const [loading, setLoading] = useState(true)
-  const [saved, setSaved] = useState(null) // saved variant type
+  const [saved, setSaved] = useState(new Set()) // set of saved variant types
 
   const VARIANT_DEFS = [
     { type: 'formal',   icon: '👔', labelDe: 'Formell',   labelEn: 'Formal',   promptDe: `Wie sagst du "${card?.front}" in einer formellen E-Mail oder einem Meeting?`, promptEn: `How would you use "${card?.front}" in a formal email or meeting?` },
@@ -2662,7 +2691,7 @@ Return ONLY JSON array: [
   }, []) // eslint-disable-line
 
   const handleSave = async (variant) => {
-    if (!user || !card || saved) return
+    if (!user || !card || saved.has(variant.type)) return
     const newCard = {
       id: `kontext_${card.id}_${variant.type}_${Date.now()}`,
       front: card.front,
@@ -2673,7 +2702,7 @@ Return ONLY JSON array: [
       kontextType: variant.type,
     }
     await onSaveCard(newCard)
-    setSaved(variant.type)
+    setSaved(prev => new Set([...prev, variant.type]))
   }
 
   return (
@@ -2698,7 +2727,7 @@ Return ONLY JSON array: [
           {VARIANT_DEFS.map(def => {
             const v = variants.find(x => x.type === def.type)
             if (!v) return null
-            const isSaved = saved === def.type
+            const isSaved = saved.has(def.type)
             return (
               <div key={def.type} style={{ ...s.card, border: isSaved ? '1px solid #00BFA5' : `1px solid ${th.border}`, background: isSaved ? 'rgba(0,191,165,0.1)' : th.card }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
@@ -2707,15 +2736,15 @@ Return ONLY JSON array: [
                     <p style={{ color: th.text, fontSize: '0.9rem', fontWeight: '500', margin: '0 0 4px', lineHeight: 1.4 }}>{v.sentence}</p>
                     {v.note && <p style={{ color: th.sub, fontSize: '0.75rem', margin: 0, fontStyle: 'italic' }}>{v.note}</p>}
                   </div>
-                  <button onClick={() => handleSave(v)} disabled={!!saved}
-                    style={{ background: isSaved ? 'rgba(0,191,165,0.2)' : `${th.accent}22`, border: `1px solid ${isSaved ? '#00BFA5' : th.accent}55`, color: isSaved ? '#00BFA5' : th.accent, borderRadius: '10px', padding: '6px 12px', fontSize: '0.75rem', fontWeight: '700', cursor: saved ? 'default' : 'pointer', flexShrink: 0, WebkitTapHighlightColor: 'transparent' }}>
+                  <button onClick={() => handleSave(v)} disabled={isSaved}
+                    style={{ background: isSaved ? 'rgba(0,191,165,0.2)' : `${th.accent}22`, border: `1px solid ${isSaved ? '#00BFA5' : th.accent}55`, color: isSaved ? '#00BFA5' : th.accent, borderRadius: '10px', padding: '6px 12px', fontSize: '0.75rem', fontWeight: '700', cursor: isSaved ? 'default' : 'pointer', flexShrink: 0, WebkitTapHighlightColor: 'transparent' }}>
                     {isSaved ? '✓' : t.learn}
                   </button>
                 </div>
               </div>
             )
           })}
-          {saved && (
+          {saved.size > 0 && (
             <div style={{ textAlign: 'center', animation: 'vocaraFadeIn 0.3s ease both', marginTop: '8px' }}>
               <p style={{ color: '#00BFA5', fontSize: '0.85rem', fontWeight: '600', margin: '0 0 12px' }}>✓ {t.variantSaved}</p>
               <button style={{ ...s.button }} onClick={onBack}>{t.finishDone}</button>
@@ -3397,9 +3426,9 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
       )}
       {revealed && (
         <div style={s.answerRow}>
-          <button style={s.wrongBtn} onClick={() => handleAnswerAnimated(false)}>❌ {t.wrong}</button>
-          <button style={s.fastBtn} onClick={handleFastAnimated}>😕 {t.fast}</button>
-          <button style={s.rightBtn} onClick={() => handleAnswerAnimated(true)}>✅ {t.correct}</button>
+          <button style={s.wrongBtn} onClick={() => handleAnswerAnimated(false)}>{t.wrong}</button>
+          <button style={s.fastBtn} onClick={handleFastAnimated}>{t.fast}</button>
+          <button style={s.rightBtn} onClick={() => handleAnswerAnimated(true)}>{t.correct}</button>
           <button style={s.easyBtn} onClick={handleEasyAnimated}>{t.easy}</button>
         </div>
       )}
@@ -3412,6 +3441,15 @@ function ResultScreen({ correct, wrong, fast, easy, weakestCard, strongestCard, 
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
       <h1 style={s.title}>{t.done} 🎉</h1>
       {masteryUnlocked && <div style={{ ...s.card, borderLeft: '3px solid #4CAF50' }}><p style={{ color: '#4CAF50', margin: 0, fontSize: '0.85rem' }}>{t.masteryMsg}</p></div>}
+      {kontextCard && onKontext && (
+        <button
+          style={{ ...s.button, background: 'rgba(0,191,165,0.12)', color: '#00BFA5', marginBottom: '8px',
+            border: '1.5px solid #00BFA5', boxShadow: '0 0 12px rgba(0,191,165,0.35), 0 0 0 2px rgba(0,191,165,0.08)',
+            animation: 'vocaraKontextGlow 2s ease-in-out infinite' }}
+          onClick={onKontext}>
+          🔄 {lang === 'de' ? `Kontext: "${kontextCard.front}"` : `Context: "${kontextCard.front}"`}
+        </button>
+      )}
       <div style={s.card}>
         <div style={s.langRow}><span style={s.lang}>❌ {t.wrong}</span><span style={{ ...s.langPct, color: '#e06c75' }}>{wrong}</span></div>
         {fast > 0 && <div style={s.langRow}><span style={s.lang}>😕 {t.fast}</span><span style={{ ...s.langPct, color: '#FFA500' }}>{fast}</span></div>}
@@ -3442,11 +3480,6 @@ function ResultScreen({ correct, wrong, fast, easy, weakestCard, strongestCard, 
           <p style={{ color: th?.sub || '#888', fontSize: '0.78rem', margin: '0 0 10px' }}>{t.urlaubPremiumNote}</p>
           {onUnlockUrlaub && <button onClick={onUnlockUrlaub} style={{ background: `${th?.accent || '#FFD700'}22`, border: `1px solid ${th?.accent || '#FFD700'}55`, color: th?.accent || '#FFD700', borderRadius: '10px', padding: '6px 16px', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>✨ Premium</button>}
         </div>
-      )}
-      {kontextCard && onKontext && (
-        <button style={{ ...s.button, background: `rgba(0,191,165,0.15)`, border: '1px solid rgba(0,191,165,0.4)', color: '#00BFA5', marginBottom: '8px' }} onClick={onKontext}>
-          🔄 {lang === 'de' ? `Kontext: "${kontextCard.front}"` : `Context: "${kontextCard.front}"`}
-        </button>
       )}
       {showRhythmus && onRhythmus && (
         <button style={{ ...s.button, background: `rgba(103,58,183,0.15)`, border: '1px solid rgba(103,58,183,0.4)', color: '#9c7bf0', marginBottom: '8px' }} onClick={onRhythmus}>
@@ -8240,14 +8273,12 @@ function App() {
             // setDoc+merge works even if field was missing; updateDoc would fail
             try { await setDoc(userRef, { partnerUID: CORRECT_PARTNER, partnerName: CORRECT_PARTNER_NAME }, { merge: true }) } catch (_) {}
           }
-          // Store partnerUID in localStorage as failsafe
-          try { localStorage.setItem('vocara_partnerUID_' + u.uid, data.partnerUID || '') } catch (_) {}
-          // Store in settings subcollection as second backup
-          if (data.partnerUID) {
-            try {
-              await setDoc(doc(db, 'users', u.uid, 'settings', 'partner'),
-                { partnerUID: data.partnerUID, partnerName: data.partnerName || null }, { merge: true })
-            } catch (_) {}
+          // Store partnerUid in THREE places simultaneously for permanent stability
+          const pUid = data.partnerUID || data.partnerUid || null
+          if (pUid) {
+            try { localStorage.setItem('vocara_partnerUID_' + u.uid, pUid) } catch (_) {}
+            try { await setDoc(doc(db, 'users', u.uid, 'settings', 'partner'), { partnerUID: pUid, partnerName: data.partnerName || null }, { merge: true }) } catch (_) {}
+            try { await setDoc(doc(db, 'shared', u.uid), { partnerUID: pUid, partnerName: data.partnerName || null, updatedAt: Date.now() }, { merge: true }) } catch (_) {}
           }
           // Write full public profile to userProfiles/{uid} (readable by partner)
           // Never write partnerUID: null for known UIDs — only write if we have a value
@@ -8267,22 +8298,34 @@ function App() {
             if (md.enabled !== undefined) { setMusicEnabled(md.enabled); try { localStorage.setItem('vocara_music', md.enabled ? 'true' : 'false') } catch {} }
             if (md.volume !== undefined) { setMusicVolume(md.volume); try { localStorage.setItem('vocara_music_vol', String(md.volume)) } catch {} }
           }).catch(() => {})
-          // Load partner: try userProfiles first (public), fall back to users/, then hardcoded name
+          // Load partner from 3 sources in order: localStorage → userProfiles → users/ → hardcoded
           const loadPartner = async (partnerUID) => {
+            // 1. Try localStorage (fastest, no network)
+            try {
+              const lsName = localStorage.getItem('vocara_partnerName_' + partnerUID)
+              if (lsName) { setPartnerData({ name: lsName, displayName: lsName, _fromCache: true }); }
+            } catch (_) {}
+            // 2. Try userProfiles/{uid} (public, always up to date)
             try {
               const pubSnap = await getDoc(doc(db, 'userProfiles', partnerUID))
-              if (pubSnap.exists()) { setPartnerData(pubSnap.data()); return }
+              if (pubSnap.exists()) { setPartnerData(pubSnap.data()); try { localStorage.setItem('vocara_partnerName_' + partnerUID, pubSnap.data().name || pubSnap.data().displayName || '') } catch {} ; return }
             } catch (_) {}
+            // 3. Try shared/{uid}
+            try {
+              const sharedSnap = await getDoc(doc(db, 'shared', partnerUID))
+              if (sharedSnap.exists()) { setPartnerData(sharedSnap.data()); return }
+            } catch (_) {}
+            // 4. Try users/{uid}
             try {
               const pSnap = await getDoc(doc(db, 'users', partnerUID))
               if (pSnap.exists()) { setPartnerData(pSnap.data()); return }
             } catch (_) {}
-            // Hardcoded fallback for known UIDs
+            // 5. Hardcoded fallback — never crash
             if (partnerUID === ELOSY_UID) setPartnerData({ name: 'Elosy', displayName: 'Elosy', lastActive: null })
             else if (partnerUID === MARK_UID) setPartnerData({ name: 'Mark', displayName: 'Mark', lastActive: null })
             else console.warn('[Vocara] partner load failed for uid=' + partnerUID)
           }
-          const resolvedPartnerUID = data.partnerUID ||
+          const resolvedPartnerUID = data.partnerUID || data.partnerUid ||
             (u.uid === MARK_UID ? ELOSY_UID : u.uid === ELOSY_UID ? MARK_UID : null)
           if (resolvedPartnerUID) await loadPartner(resolvedPartnerUID)
         }
