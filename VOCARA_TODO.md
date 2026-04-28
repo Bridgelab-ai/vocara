@@ -1,5 +1,12 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 28.04.2026)
 
+## ✅ Implementiert (28.04.2026 Session 16) — V01.022.020
+- ZEITFORMEN VOLLAUTOMATISCH: Home-Screen Widget (Progress-Bar) komplett entfernt — keine manuelle Auswahl — tenseUnlockSeen Flag in Firestore verhindert wiederholte Celebration ✅
+- ZEITFORMEN CELEBRATION MODAL: Einmalige Overlay-Feier wenn Schwelle überschritten (20→Vergangenheit, 50→Zukunft) — dismissbar per Button oder Backdrop-Tap ✅
+- KI GENERATION TENSE-CONSTRAINT: generateVocabWords + generateCategoryCards Prompts respektieren freigeschaltete Zeitformen — nur erlaubte Tenses werden generiert ✅
+- KARTEN TENSE TAG: Subtiler Eck-Badge unten-links (nur bei Vergangenheit/Zukunft sichtbar) — Präsens-Karten zeigen keinen Tag (sind die Norm) ✅
+- VERSION V01.022.020 ✅
+
 ## ✅ Implementiert (28.04.2026 Session 15) — V01.022.019
 - URLAUB PAYWALL: Free = 3/10 Karten sichtbar + paywall Note in ResultScreen — Premium = alle 10 — Prompt mit tense:'present', register:'formal' ✅
 - KONTEXTWECHSEL SCREEN: KontextwechselScreen — nach Session mit gemeisterten Karten (interval>=3) zeigt ResultScreen 🔄 Button — KI (Haiku) generiert 3 Varianten (Formell/Informell/Romantisch) — User wählt eine → wird als neue Karte gespeichert ✅
