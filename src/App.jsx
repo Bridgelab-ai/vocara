@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.007.016'
+const APP_VERSION = 'V01.007.017'
 const MARK_UID = 'aiNZh4Myn8Y0KfYkGGrkNNW0HC72'
 const ELOSY_UID = 'NIX3DYenRdbRjmr2EHsIad9GcqG3'
 const SESSION_SIZE = 15
@@ -3830,8 +3830,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const [floatingMessage, setFloatingMessage] = useState(null) // incoming whisper text
   const [wordOfDayBanner, setWordOfDayBanner] = useState(null) // {front, back}
   const [freezeAvailable, setFreezeAvailable] = useState(true)
-  const [karteMenu, setKarteMenu] = useState(false)
-  const [dotTooltip, setDotTooltip] = useState(null) // area key
+const [dotTooltip, setDotTooltip] = useState(null) // area key
   const [pendingGift, setPendingGift] = useState(null) // gift object
   const [coachMsg, setCoachMsg] = useState(null)
   const [tutorCollapsed, setTutorCollapsed] = useState(() => !!(myData?.tutorCollapsed))
@@ -5012,44 +5011,6 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
             </span>
           )}
         </p>
-        {(() => {
-          // toLangs config takes priority over legacy toLang array
-          const toLangsConfig = myData?.toLangs
-          const toLangOptions = toLangsConfig && toLangsConfig.length > 0
-            ? toLangsConfig.map(l => l.lang)
-            : Array.isArray(myData?.toLang) ? myData.toLang.map(l => l.toLowerCase())
-            : myData?.toLang ? [myData.toLang.toLowerCase()] : [lang === 'de' ? 'en' : 'de']
-          if (toLangOptions.length > 1) {
-            return (
-              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }}>
-                <span style={{ background: `${th.accent}1A`, border: `1px solid ${th.accent}33`, borderRadius: '20px', padding: '2px 8px', fontSize: '0.7rem', fontWeight: '600', color: th.accent }}>
-                  {lang.toUpperCase()}
-                </span>
-                <span style={{ color: th.sub, fontSize: '0.7rem', opacity: 0.5 }}>→</span>
-                <select
-                  value={activeToLang}
-                  onChange={(e) => handleChangeActiveToLang(e.target.value)}
-                  style={{ padding: '3px 8px', borderRadius: '6px', border: `1.5px solid ${th.accent}`, background: th.card, color: th.text, fontSize: '0.82rem', cursor: 'pointer', outline: 'none' }}
-                >
-                  {toLangOptions.map(l => {
-                    const pct = toLangsConfig?.find(t => t.lang === l)?.percent
-                    return <option key={l} value={l}>{LANG_FLAGS[l] || ''} {l.toUpperCase()}{pct ? ` ${pct}%` : ''}</option>
-                  })}
-                </select>
-              </div>
-            )
-          }
-          const fromFlag = LANG_FLAGS[lang] || ''
-          const toFlag = LANG_FLAGS[activeToLang] || ''
-          if (!fromFlag && !toFlag) return null
-          return (
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
-              <span style={{ background: `${th.accent}1A`, border: `1px solid ${th.accent}33`, borderRadius: '20px', padding: '2px 10px', fontSize: '0.7rem', fontWeight: '600', color: th.accent, letterSpacing: '0.5px' }}>
-                {lang.toUpperCase()} → {(Array.isArray(myData?.toLang) ? myData.toLang[0] : myData?.toLang || 'EN').toUpperCase()}
-              </span>
-            </div>
-          )
-        })()}
       </div>
 
       {/* ── MONTHLY TEST BANNER ── */}
@@ -5258,25 +5219,6 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         )
       })()}
 
-      {/* ── KARTE BUTTON ── */}
-      <button style={{ ...s.navBtn, marginBottom: karteMenu ? '2px' : '12px', fontSize: '0.9rem', fontWeight: '600', textAlign: 'center' }}
-        onClick={() => setKarteMenu(m => !m)}>
-        🃏 {isMarkLang ? 'Karte' : 'Card'} {karteMenu ? '▲' : '▼'}
-      </button>
-      {karteMenu && (
-        <div style={{ background: th.card, border: `1px solid ${th.border}`, borderRadius: '14px', padding: '4px', marginBottom: '12px', animation: 'vocaraFadeIn 0.2s ease both' }}>
-          <button style={{ ...s.navBtn, marginBottom: '2px', textAlign: 'left', paddingLeft: '16px' }} onClick={() => { setKarteMenu(false); setScreen('meinekarten') }}>
-            📋 {isMarkLang ? 'Meine Karten' : 'My Cards'}
-          </button>
-          <button style={{ ...s.navBtn, marginBottom: '2px', textAlign: 'left', paddingLeft: '16px' }} onClick={() => { setKarteMenu(false); setScreen('karteerstellen') }}>
-            ✏️ {isMarkLang ? 'Karte erstellen' : 'Create card'}
-          </button>
-          <button style={{ ...s.navBtn, marginBottom: 0, textAlign: 'left', paddingLeft: '16px', opacity: myData?.partnerUID ? 1 : 0.4 }}
-            onClick={() => { if (!myData?.partnerUID) return; setKarteMenu(false); setScreen('geschenkkarte') }}>
-            🎁 {isMarkLang ? 'Geschenkkarte senden' : 'Send gift card'}
-          </button>
-        </div>
-      )}
 
       {/* ── TÄGLICHES LERNZIEL ── */}
       <div style={{ marginBottom: '14px', padding: '0 2px' }}>
@@ -5412,6 +5354,8 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           {myData?.partnerUID ? `${t.menuPartnerLabel}: ${partnerName}` : t.menuPartnerConnect}
         </button>
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('karteerstellen')}>＋ {isMarkLang ? 'Karte kreieren' : 'Create card'}</button>
+        <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('meinekarten')}>📋 {isMarkLang ? 'Meine Karten' : 'My Cards'}</button>
+        {myData?.partnerUID && <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('geschenkkarte')}>🎁 {isMarkLang ? 'Geschenkkarte senden' : 'Send gift card'}</button>}
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('settings')}>{t.menuSettings}</button>
         <button className="vocara-nav-btn" style={{ ...s.navBtn, marginBottom: 0 }} onClick={() => signOut(auth)}>{t.menuSignOut}</button>
       </div>
@@ -6518,7 +6462,7 @@ function GeschenkkarteScreen({ user, myData, lang, theme, onBack, allCards, card
   )
 }
 
-function MainSelectionScreen({ lang, theme, firstName, uniqueTargetLangs, pausedLanguages, onSprechen, onEntdecken, onHorizont }) {
+function MainSelectionScreen({ lang, theme, firstName, uniqueTargetLangs, pausedLanguages, onSprechen, onEntdecken }) {
   const th = THEMES[theme]; const s = makeStyles(th)
   const isDE = lang === 'de'
   const [pressedBtn, setPressedBtn] = React.useState(null)
@@ -6589,31 +6533,11 @@ function MainSelectionScreen({ lang, theme, firstName, uniqueTargetLangs, paused
         </div>
         {glassBtn('vocara', onSprechen, 'Vocara', isDE ? 'Sprache' : 'Language', isDE ? 'Wörter, Sätze & Gespräche' : 'Words, sentences & conversation', false)}
         {glassBtn('entdecken', onEntdecken, 'Katara', 'Strukturiertes Lernen', 'Lern was du willst. Wann du willst.', false)}
-        {glassBtn('horizont', onHorizont, isDE ? 'Horizont' : 'Horizon', null, isDE ? 'Kultur & Sprache' : 'Culture & Language', true)}
       </div>
     </div>
   )
 }
 
-function HorizontScreen({ lang, theme, onBack }) {
-  const th = THEMES[theme]; const s = makeStyles(th)
-  const isDE = lang === 'de'
-  return (
-    <div style={s.container} className="vocara-screen">
-      <div style={{ ...s.homeBox, paddingTop: '24px' }}>
-        <button style={s.backBtn} onClick={onBack}>← {isDE ? 'Zurück' : 'Back'}</button>
-        <div style={{ textAlign: 'center', marginTop: '60px' }}>
-          <span style={{ fontSize: '3rem' }}>🌐</span>
-          <h2 style={{ color: th.text, fontSize: '1.8rem', fontFamily: "'Playfair Display', Georgia, serif", margin: '16px 0 10px', fontWeight: '700' }}>{isDE ? 'Horizont' : 'Horizon'}</h2>
-          <p style={{ color: th.sub, fontSize: '0.95rem', marginBottom: '24px', lineHeight: 1.6 }}>{isDE ? 'Kultur & Sprache' : 'Culture & Language'}</p>
-          <div style={{ background: `${th.gold}12`, border: `1px solid ${th.gold}33`, borderRadius: '20px', padding: '20px 24px', display: 'inline-block' }}>
-            <p style={{ color: th.gold, fontWeight: '700', fontSize: '1rem', margin: 0 }}>{isDE ? 'Bald verfügbar' : 'Coming soon'}</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCards, cardProgress, coupleId, onBack, onLiveSession }) {
   const th = THEMES[theme]; const s = makeStyles(th)
@@ -7711,7 +7635,6 @@ function App() {
             uniqueTargetLangs={uniqueTargetLangsAll} pausedLanguages={myData?.pausedLanguages || []}
             onSprechen={() => setMainNav('sprechen')}
             onEntdecken={() => { window.open('https://katara-eta.vercel.app', '_blank'); }}
-            onHorizont={() => setMainNav('horizont')}
           />
         )}
         {mainNav === 'sprechen' && (
@@ -7729,10 +7652,7 @@ function App() {
             coupleId={coupleId}
             onBack={() => setMainNav('main')} onLiveSession={() => setMainNav('livesession')} />
         )}
-        {mainNav === 'horizont' && (
-          <HorizontScreen lang={lang} theme={theme} onBack={() => setMainNav('main')} />
-        )}
-        {mainNav === 'livesession' && coupleId && (
+{mainNav === 'livesession' && coupleId && (
           <LiveSessionScreen user={user} myData={myData} partnerData={partnerData} coupleId={coupleId}
             allCards={allCards} lang={lang} theme={theme} onBack={() => setMainNav('entdecken')} />
         )}
