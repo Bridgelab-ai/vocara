@@ -1,5 +1,10 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 27.04.2026)
 
+## ✅ Implementiert (28.04.2026 Session 9)
+- KARTE ERSTELLEN NEU (#1): 4-Schritt-Flow — Sprachen (multi-select Ausgangssprache mit % Slider, Zielsprache), Karte eingeben (Seiten-Toggle, textarea, KI ergänzt mit Pronunciation), Kategorie & Ziel (Für mich/Partner/Beide), Speichern ✅
+- % GEWICHTUNG SESSION: fromLangs session weighting nach langA — DE 70%/EN 30% → Session spiegelt Aufteilung, gespeichert in users/{uid}/settings/langWeights ✅
+- VERSION V01.005.013 ✅
+
 ## ✅ Implementiert (27.04.2026 Session 8)
 - ANIMIERTE KARTEN-ÜBERGÄNGE (#17): vocaraSlideIn keyframe, cardSlideIn state — next card slides in from left after any answer ✅
 - KARTEN-WEGFLIEGE-ANIMATION (#47): particleBurst + sparkleRing CSS keyframes, triggerBurst() — gold particles on Richtig, rainbow burst on Easy ✅

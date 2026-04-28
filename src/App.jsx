@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.005.012'
+const APP_VERSION = 'V01.005.013'
 const MARK_UID = 'aiNZh4Myn8Y0KfYkGGrkNNW0HC72'
 const ELOSY_UID = 'NIX3DYenRdbRjmr2EHsIad9GcqG3'
 const SESSION_SIZE = 15
@@ -4381,10 +4381,22 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
       return
     }
     const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
-    // Percentage-based language mixing if user has multiple toLangs configured
+    // Percentage-based mixing: target languages (toLangs) and source languages (fromLangs)
     const toLangsConfig = myData?.toLangs
+    const fromLangsConfig = myData?.fromLangs
     let sess
-    if (toLangsConfig && toLangsConfig.length > 1) {
+    if (fromLangsConfig && fromLangsConfig.length > 1) {
+      // Source-language weighted mixing: cards by langA
+      const mixed = []
+      for (const { lang: lc, percent } of fromLangsConfig) {
+        const langCards = cards.filter(c => (c.langA || '').toLowerCase() === lc)
+        if (langCards.length === 0) continue
+        const count = Math.max(1, Math.round(percent / 100 * SESSION_SIZE))
+        const built = buildSession(langCards, cardProgress)
+        mixed.push(...(built.length > 0 ? built.slice(0, count) : shuffle(langCards).slice(0, count)))
+      }
+      sess = mixed.length > 0 ? shuffle(mixed).slice(0, SESSION_SIZE) : buildSession(cards, cardProgress)
+    } else if (toLangsConfig && toLangsConfig.length > 1) {
       const mixed = []
       for (const { lang: lc, percent } of toLangsConfig) {
         const langCards = cards.filter(c => (c.langB || c.targetLang || '').toLowerCase() === lc || (c.langA || '').toLowerCase() === lc)
@@ -5896,178 +5908,371 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
 function KarteErstellenScreen({ user, myData, setMyData, allCards, lang, theme, onBack }) {
   const th = THEMES[theme]; const s = makeStyles(th)
   const isDE = lang === 'de'
-  const [forPartner, setForPartner] = useState(false)
-  const [front, setFront] = useState('')
-  const [back, setBack] = useState('')
-  const [backLoading, setBackLoading] = useState(false)
-  const [kiPartnerLoading, setKiPartnerLoading] = useState(false)
-  const [cat, setCat] = useState('vocabulary')
-  const [status, setStatus] = useState(null)
-  const translateTimerRef = useRef(null)
-  const lastTranslatedFront = useRef('')
+
+  const LANG_NAMES = { en: 'Englisch', de: 'Deutsch', sw: 'Swahili', fr: 'Französisch', es: 'Spanisch', th: 'Thai' }
+  const LANG_NAMES_EN = { en: 'English', de: 'German', sw: 'Swahili', fr: 'French', es: 'Spanish', th: 'Thai' }
+  const LANG_LIST = [
+    { code: 'de', label: 'Deutsch', flag: '🇩🇪' },
+    { code: 'en', label: 'English', flag: '🇬🇧' },
+    { code: 'sw', label: 'Swahili', flag: '🇰🇪' },
+    { code: 'es', label: 'Español', flag: '🇪🇸' },
+    { code: 'fr', label: 'Français', flag: '🇫🇷' },
+    { code: 'th', label: 'ภาษาไทย', flag: '🇹🇭' },
+  ]
+
   const myPartnerUID = myData?.partnerUID || (user.uid === MARK_UID ? ELOSY_UID : user.uid === ELOSY_UID ? MARK_UID : null)
   const partnerName = myData?.partnerName || (user.uid === MARK_UID ? 'Elosy' : user.uid === ELOSY_UID ? 'Mark' : null)
 
-  // Determine language pair: for Mark (de), front=EN, back=DE
-  const baseCard = (allCards || []).find(c => !/_r(_\d+)?$/.test(c.id))
-  const langA = baseCard?.langA || (lang === 'de' ? 'en' : 'de')
-  const langB = baseCard?.langB || lang
-  const LANG_NAMES = { en: 'Englisch', de: 'Deutsch', sw: 'Swahili', fr: 'Französisch', es: 'Spanisch', th: 'Thai' }
-  const LANG_NAMES_EN = { en: 'English', de: 'German', sw: 'Swahili', fr: 'French', es: 'Spanish', th: 'Thai' }
-  const fromLangName = LANG_NAMES_EN[langA] || langA
-  const toLangName = LANG_NAMES_EN[langB] || langB
+  // ── STEP 1: Language preferences ─────────────────────────
+  const initSrcLangs = () => {
+    if (myData?.fromLangs?.length > 0) return myData.fromLangs
+    return [{ lang: lang === 'de' ? 'de' : 'en', percent: 100 }]
+  }
+  const initTgtLang = () => myData?.cardTgtLang || (lang === 'de' ? 'en' : 'de')
 
-  const autoTranslate = async (text) => {
-    if (!text.trim() || text === lastTranslatedFront.current) return
-    setBackLoading(true)
+  const [srcLangs, setSrcLangs] = useState(initSrcLangs)
+  const [tgtLang, setTgtLang] = useState(initTgtLang)
+
+  const saveLangPrefs = async (newSrc, newTgt) => {
     try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 60,
-          messages: [{ role: 'user', content: `Translate "${text}" from ${fromLangName} to ${toLangName} as a natural short phrase or word. Return ONLY the translation, nothing else, no quotes, no explanation.` }]
-        })
-      })
-      const data = await res.json()
-      const translation = (data.content?.[0]?.text || '').trim()
-      if (translation) {
-        setBack(translation)
-        lastTranslatedFront.current = text
-      }
-    } catch (e) {
-      console.warn('Auto-translate failed:', e)
-    }
-    setBackLoading(false)
+      await setDoc(doc(db, 'users', user.uid, 'settings', 'langWeights'), { fromLangs: newSrc, tgtLang: newTgt }, { merge: true }).catch(() => {})
+      await updateDoc(doc(db, 'users', user.uid), { fromLangs: newSrc, cardTgtLang: newTgt }).catch(() => {})
+      setMyData(d => ({ ...d, fromLangs: newSrc, cardTgtLang: newTgt }))
+    } catch(e) {}
   }
 
-  const kiFillPartnerCard = async () => {
-    if (!front.trim()) return
-    setKiPartnerLoading(true)
+  const addSrcLang = (code) => {
+    if (srcLangs.find(l => l.lang === code) || srcLangs.length >= 4) return
+    const pct = 30
+    const adj = srcLangs.map(l => ({ ...l, percent: Math.round(l.percent * (100 - pct) / 100) }))
+    const next = [...adj, { lang: code, percent: pct }]
+    const diff = 100 - next.reduce((a, b) => a + b.percent, 0)
+    next[0].percent += diff
+    setSrcLangs(next); saveLangPrefs(next, tgtLang)
+  }
+
+  const removeSrcLang = (code) => {
+    if (srcLangs.length <= 1) return
+    const rest = srcLangs.filter(l => l.lang !== code)
+    const total = rest.reduce((a, b) => a + b.percent, 0)
+    const next = rest.map(l => ({ ...l, percent: Math.round(l.percent * 100 / total) }))
+    const diff = 100 - next.reduce((a, b) => a + b.percent, 0)
+    if (next.length > 0) next[0].percent += diff
+    setSrcLangs(next); saveLangPrefs(next, tgtLang)
+    if (activeSrcLang === code) setActiveSrcLang(next[0]?.lang || 'de')
+  }
+
+  const updateSrcPercent = (code, raw) => {
+    const pct = Math.max(10, Math.min(80, raw))
+    const others = srcLangs.filter(l => l.lang !== code)
+    const rest = 100 - pct
+    const otherTotal = others.reduce((a, b) => a + b.percent, 0)
+    const adj = otherTotal === 0
+      ? others.map(l => ({ ...l, percent: Math.round(rest / others.length) }))
+      : others.map(l => ({ ...l, percent: Math.round(l.percent * rest / otherTotal) }))
+    const diff = 100 - pct - adj.reduce((a, b) => a + b.percent, 0)
+    if (adj.length > 0) adj[adj.length - 1].percent += diff
+    const next = srcLangs.map(l => l.lang === code ? { ...l, percent: pct } : (adj.find(a => a.lang === l.lang) || l))
+    setSrcLangs(next)
+    clearTimeout(window.__lwSave)
+    window.__lwSave = setTimeout(() => saveLangPrefs(next, tgtLang), 700)
+  }
+
+  const setTgtAndSave = (code) => { setTgtLang(code); saveLangPrefs(srcLangs, code) }
+
+  // ── STEP 2: Card input ────────────────────────────────────
+  const [inputSide, setInputSide] = useState('source') // 'source' | 'target'
+  const [activeSrcLang, setActiveSrcLang] = useState(() => srcLangs[0]?.lang || (lang === 'de' ? 'de' : 'en'))
+  const [frontText, setFrontText] = useState('')
+  const [backText, setBackText] = useState('')
+  const [pronunciation, setPronunciation] = useState('')
+  const [detectedCat, setDetectedCat] = useState(null)
+  const [kiLoading, setKiLoading] = useState(false)
+  const [kiDone, setKiDone] = useState(false)
+
+  // ── STEP 3: Category + destination ────────────────────────
+  const [cat, setCat] = useState('vocabulary')
+  const [destination, setDestination] = useState('me') // 'me' | 'partner' | 'both'
+
+  // ── Save ─────────────────────────────────────────────────
+  const [status, setStatus] = useState(null)
+  const [saving, setSaving] = useState(false)
+
+  const entryLang = inputSide === 'source' ? activeSrcLang : tgtLang
+  const otherLang = inputSide === 'source' ? tgtLang : activeSrcLang
+
+  const kiFill = async () => {
+    if (!frontText.trim() || kiLoading) return
+    setKiLoading(true)
     try {
+      const fromName = LANG_NAMES_EN[entryLang] || entryLang
+      const toName = LANG_NAMES_EN[otherLang] || otherLang
       const res = await fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001', max_tokens: 100,
-          messages: [{ role: 'user', content: `For a language learning card with front: "${front}" (${fromLangName}), provide: 1) translation to ${toLangName}, 2) category (vocabulary or street). Reply as JSON: {"back":"...","category":"vocabulary|street"}. No explanation.` }]
+          model: 'claude-haiku-4-5-20251001', max_tokens: 150, system: CARD_GEN_SYSTEM,
+          messages: [{ role: 'user', content: `Translate "${frontText.trim()}" from ${fromName} to ${toName}. Return ONLY a JSON: {"front":"${frontText.trim()}","back":"[translation]","pronunciation":"[German-style phonetic syllables e.g. WI-der-SE-hen, or empty string if not needed]","category":"vocabulary|sentence|slang|formal"}. 100% accurate, natural, never literal.` }]
         })
       })
       const data = await res.json()
       const raw = (data.content?.[0]?.text || '').trim()
       const match = raw.match(/\{[\s\S]*\}/)
       if (match) {
-        const parsed = JSON.parse(match[0])
-        if (parsed.back) setBack(parsed.back)
-        if (parsed.category === 'street') setCat('street')
-        else setCat('vocabulary')
-        lastTranslatedFront.current = front
+        const p = JSON.parse(match[0])
+        if (p.back) setBackText(p.back)
+        if (p.pronunciation) setPronunciation(p.pronunciation)
+        const validCats = ['vocabulary','sentence','slang','formal']
+        if (p.category && validCats.includes(p.category)) { setDetectedCat(p.category); setCat(p.category === 'slang' ? 'street' : p.category) }
+        setKiDone(true)
       }
-    } catch (e) { console.warn('KI fill failed:', e) }
-    setKiPartnerLoading(false)
-  }
-
-  const handleFrontChange = (val) => {
-    setFront(val)
-    if (translateTimerRef.current) clearTimeout(translateTimerRef.current)
-    if (val.trim().length >= 2) {
-      translateTimerRef.current = setTimeout(() => autoTranslate(val.trim()), 500)
-    }
-  }
-
-  const handleFrontBlur = () => {
-    if (front.trim().length >= 2) {
-      if (translateTimerRef.current) clearTimeout(translateTimerRef.current)
-      autoTranslate(front.trim())
-    }
+    } catch(e) { console.warn('KI fill failed:', e) }
+    setKiLoading(false)
   }
 
   const save = async () => {
-    if (!front.trim() || !back.trim()) return
-    const card = { id: `custom_${Date.now()}`, front: front.trim(), back: back.trim(), category: cat, langA, langB, source: 'custom', createdAt: Date.now() }
+    if (!frontText.trim() || !backText.trim() || saving) return
+    setSaving(true)
+    const isEntrySource = inputSide === 'source'
+    const card = {
+      id: `custom_${Date.now()}`,
+      front: isEntrySource ? frontText.trim() : backText.trim(),
+      back: isEntrySource ? backText.trim() : frontText.trim(),
+      ...(pronunciation.trim() ? { pronunciation: pronunciation.trim() } : {}),
+      category: cat === 'slang' ? 'street' : cat,
+      langA: isEntrySource ? entryLang : otherLang,
+      langB: isEntrySource ? otherLang : entryLang,
+      source: 'custom', createdAt: Date.now()
+    }
     try {
-      if (forPartner && myPartnerUID) {
-        const senderName = user.displayName?.split(' ')[0] || 'Partner'
-        // Write as daily surprise card — partner will see animated popup
+      const senderName = user.displayName?.split(' ')[0] || 'Partner'
+      if ((destination === 'partner' || destination === 'both') && myPartnerUID) {
         await updateDoc(doc(db, 'users', myPartnerUID), {
           surpriseCard: { ...card, sharedBy: senderName, sharedAt: Date.now() },
-          surpriseSeenDate: null // reset so partner sees it today
+          surpriseSeenDate: null
         })
-        setStatus(isDE ? `🎁 Überraschungskarte an ${partnerName} gesendet ✓` : `🎁 Surprise card sent to ${partnerName} ✓`)
-      } else {
+      }
+      if (destination === 'me' || destination === 'both') {
         const updated = [...(myData?.aiCards || []), card]
         await updateDoc(doc(db, 'users', user.uid), { aiCards: updated })
         setMyData(d => ({ ...d, aiCards: updated }))
-        setStatus(isDE ? 'Karte gespeichert ✓' : 'Card saved ✓')
       }
-      setFront(''); setBack(''); setCat('vocabulary'); lastTranslatedFront.current = ''
+      setStatus(
+        destination === 'partner' ? (isDE ? `🎁 An ${partnerName} gesendet ✓` : `🎁 Sent to ${partnerName} ✓`) :
+        destination === 'both' ? (isDE ? '💫 Für dich & Partner ✓' : '💫 For you & partner ✓') :
+        (isDE ? 'Karte gespeichert ✓' : 'Card saved ✓')
+      )
+      setFrontText(''); setBackText(''); setPronunciation(''); setKiDone(false); setDetectedCat(null)
       setTimeout(() => setStatus(null), 2500)
-    } catch (e) { console.warn(e); setStatus(isDE ? 'Fehler' : 'Error') }
+    } catch(e) { console.warn(e); setStatus(isDE ? 'Fehler' : 'Error') }
+    setSaving(false)
   }
 
+  const stepBadge = (n) => (
+    <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: th.accent, color: th.btnTextColor || '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.68rem', fontWeight: '800', flexShrink: 0 }}>{n}</div>
+  )
+  const sectionHead = (n, title) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+      {stepBadge(n)}
+      <p style={{ ...s.cardLabel, margin: 0 }}>{title}</p>
+    </div>
+  )
+
   return (
-    <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
-      <button style={s.backBtn} onClick={onBack}>← {isDE ? 'Zurück' : 'Back'}</button>
-      <h2 style={{ color: th.text, marginBottom: '16px', fontSize: '1.2rem', fontFamily: "'Playfair Display', Georgia, serif" }}>
-        ✏️ {isDE ? 'Neue Karte' : 'New Card'}
-      </h2>
-      <div style={{ ...s.card, marginBottom: '10px', ...(forPartner ? { border: `1px solid`, borderImage: `linear-gradient(135deg, ${th.gold}, #4ECDC4) 1`, borderRadius: '14px', animation: 'goldShimmer 2.5s ease-in-out infinite' } : {}) }}>
-        <p style={{ ...s.cardLabel, marginBottom: '10px' }}>{isDE ? 'Für wen?' : 'For whom?'}</p>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button onClick={() => setForPartner(false)}
-            style={{ flex: 1, padding: '9px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.85rem', background: !forPartner ? th.accent : 'transparent', color: !forPartner ? (th.btnTextColor || '#111') : th.sub, border: `1px solid ${!forPartner ? th.accent : th.border}` }}>
-            {isDE ? 'Für mich' : 'For me'}
-          </button>
-          {myPartnerUID && (
-            <button onClick={() => setForPartner(true)}
-              style={{ flex: 1, padding: '9px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.85rem', background: forPartner ? `linear-gradient(135deg, ${th.gold}30, #4ECDC420)` : 'transparent', color: forPartner ? th.gold : th.sub, border: `1px solid ${forPartner ? th.gold : th.border}` }}>
-              🎁 {isDE ? `Für ${partnerName}` : `For ${partnerName}`}
+    <div style={s.container} className="vocara-screen">
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, background: th.bg, borderBottom: `1px solid ${th.border}`, display: 'flex', alignItems: 'center', padding: '0 16px', minHeight: '52px' }}>
+        <button onClick={onBack} style={{ background: 'none', border: 'none', color: th.accent, cursor: 'pointer', fontSize: '1.1rem', fontWeight: '700', padding: '12px 8px 12px 0', WebkitTapHighlightColor: 'transparent' }}>←</button>
+        <span style={{ color: th.text, fontWeight: '700', fontSize: '1rem', fontFamily: "'Playfair Display', Georgia, serif" }}>✏️ {isDE ? 'Neue Karte' : 'New Card'}</span>
+      </div>
+      <div style={{ ...s.homeBox, paddingTop: '68px' }}>
+
+      {/* ── SECTION 1: SPRACHEN ── */}
+      <div style={{ ...s.card, marginBottom: '12px' }}>
+        {sectionHead('1', isDE ? 'Sprachen' : 'Languages')}
+
+        <p style={{ color: th.sub, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
+          {isDE ? 'Ausgangssprache(n)' : 'Source language(s)'}
+        </p>
+        {srcLangs.map(({ lang: lc, percent }) => {
+          const info = LANG_LIST.find(l => l.code === lc)
+          return (
+            <div key={lc} style={{ marginBottom: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: srcLangs.length > 1 ? '4px' : '0' }}>
+                <span style={{ fontSize: '1.1rem' }}>{info?.flag || ''}</span>
+                <span style={{ color: th.text, fontSize: '0.88rem', fontWeight: '600', flex: 1 }}>{info?.label || lc}</span>
+                {srcLangs.length > 1 && <span style={{ color: th.accent, fontWeight: '700', fontSize: '0.85rem', minWidth: '34px', textAlign: 'right' }}>{percent}%</span>}
+                {srcLangs.length > 1 && (
+                  <button onClick={() => removeSrcLang(lc)} style={{ background: 'transparent', border: 'none', color: th.sub, cursor: 'pointer', fontSize: '0.75rem', padding: '2px 6px', WebkitTapHighlightColor: 'transparent' }}>✕</button>
+                )}
+              </div>
+              {srcLangs.length > 1 && (
+                <input type="range" min={10} max={80} value={percent} onChange={e => updateSrcPercent(lc, parseInt(e.target.value))}
+                  style={{ width: '100%', accentColor: th.accent, cursor: 'pointer' }} />
+              )}
+            </div>
+          )
+        })}
+        {srcLangs.length < 4 && (
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px', marginBottom: '14px' }}>
+            {LANG_LIST.filter(l => !srcLangs.find(s2 => s2.lang === l.code) && l.code !== tgtLang).map(l => (
+              <button key={l.code} onClick={() => addSrcLang(l.code)}
+                style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '0.75rem', cursor: 'pointer', background: 'transparent', color: th.sub, border: `1px solid ${th.border}`, WebkitTapHighlightColor: 'transparent' }}>
+                + {l.flag} {l.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <p style={{ color: th.sub, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
+          {isDE ? 'Zielsprache' : 'Target language'}
+        </p>
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+          {LANG_LIST.filter(l => !srcLangs.find(s2 => s2.lang === l.code)).map(l => (
+            <button key={l.code} onClick={() => setTgtAndSave(l.code)}
+              style={{ padding: '6px 12px', borderRadius: '20px', fontSize: '0.82rem', cursor: 'pointer', fontWeight: tgtLang === l.code ? '700' : '400', background: tgtLang === l.code ? th.accent : 'transparent', color: tgtLang === l.code ? (th.btnTextColor || '#111') : th.sub, border: `1px solid ${tgtLang === l.code ? th.accent : th.border}`, WebkitTapHighlightColor: 'transparent' }}>
+              {l.flag} {l.label}
             </button>
-          )}
+          ))}
         </div>
-        {forPartner && front.trim().length >= 2 && (
-          <button onClick={kiFillPartnerCard} disabled={kiPartnerLoading}
-            style={{ marginTop: '8px', width: '100%', background: `${th.gold}15`, border: `1px solid ${th.gold}44`, color: th.gold, borderRadius: '10px', padding: '8px', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer', opacity: kiPartnerLoading ? 0.6 : 1 }}>
-            {kiPartnerLoading ? '🤖 …' : `🤖 ${isDE ? 'KI ausfüllen' : 'AI fill'}`}
-          </button>
+      </div>
+
+      {/* ── SECTION 2: KARTE EINGEBEN ── */}
+      <div style={{ ...s.card, marginBottom: '12px' }}>
+        {sectionHead('2', isDE ? 'Karte eingeben' : 'Enter card')}
+
+        {/* Side toggle */}
+        <div style={{ display: 'flex', gap: '4px', background: `${th.border}55`, borderRadius: '10px', padding: '3px', marginBottom: '12px' }}>
+          {['source', 'target'].map(side => {
+            const lc = side === 'source' ? activeSrcLang : tgtLang
+            const info = LANG_LIST.find(l => l.code === lc)
+            const active = inputSide === side
+            return (
+              <button key={side} onClick={() => setInputSide(side)}
+                style={{ flex: 1, padding: '7px 6px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: active ? '700' : '400', background: active ? th.accent : 'transparent', color: active ? (th.btnTextColor || '#111') : th.sub, fontSize: '0.78rem', transition: 'all 0.18s', WebkitTapHighlightColor: 'transparent' }}>
+                {isDE ? 'Ich tippe' : 'I type'}: {info?.flag} {info?.label || lc}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Active source lang picker when multiple */}
+        {srcLangs.length > 1 && inputSide === 'source' && (
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' }}>
+            {srcLangs.map(({ lang: lc }) => {
+              const info = LANG_LIST.find(l => l.code === lc)
+              return (
+                <button key={lc} onClick={() => setActiveSrcLang(lc)}
+                  style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '0.78rem', cursor: 'pointer', fontWeight: activeSrcLang === lc ? '700' : '400', background: activeSrcLang === lc ? `${th.accent}30` : 'transparent', color: activeSrcLang === lc ? th.accent : th.sub, border: `1px solid ${activeSrcLang === lc ? th.accent : th.border}`, WebkitTapHighlightColor: 'transparent' }}>
+                  {info?.flag} {info?.label || lc}
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Input field */}
+        <p style={{ color: th.sub, fontSize: '0.72rem', marginBottom: '4px' }}>
+          {LANG_LIST.find(l => l.code === entryLang)?.flag} {LANG_NAMES[entryLang] || entryLang}
+        </p>
+        <textarea
+          style={{ ...s.input, minHeight: '68px', resize: 'vertical', fontFamily: 'inherit', lineHeight: '1.5', marginBottom: '10px' }}
+          placeholder={isDE ? 'Wort oder Satz eingeben…' : 'Enter word or sentence…'}
+          value={frontText}
+          onChange={e => { setFrontText(e.target.value); setKiDone(false) }}
+        />
+
+        {/* KI button */}
+        <button onClick={kiFill} disabled={!frontText.trim() || kiLoading}
+          style={{ width: '100%', padding: '11px', borderRadius: '10px', border: `1px solid ${th.gold}55`, background: kiDone ? `${th.accent}18` : `${th.gold}12`, color: kiDone ? th.accent : th.gold, fontWeight: '700', fontSize: '0.88rem', cursor: frontText.trim() ? 'pointer' : 'not-allowed', opacity: (!frontText.trim() || kiLoading) ? 0.5 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px', WebkitTapHighlightColor: 'transparent' }}>
+          {kiLoading
+            ? <><div style={{ width: '14px', height: '14px', border: `2px solid ${th.gold}44`, borderTopColor: th.gold, borderRadius: '50%', animation: 'spin 0.7s linear infinite', flexShrink: 0 }} />{isDE ? 'KI übersetzt…' : 'AI translating…'}</>
+            : kiDone ? `✓ ${isDE ? 'KI hat ergänzt — nochmal' : 'AI filled — redo'}` : `🤖 ${isDE ? 'KI ergänzt den Rest' : 'AI fills the rest'}`}
+        </button>
+
+        {/* Translation + pronunciation */}
+        {kiDone && (
+          <div style={{ marginTop: '12px', animation: 'vocaraFadeIn 0.3s ease both' }}>
+            <p style={{ color: th.sub, fontSize: '0.72rem', marginBottom: '4px' }}>
+              {LANG_LIST.find(l => l.code === otherLang)?.flag} {LANG_NAMES[otherLang] || otherLang}
+            </p>
+            <textarea
+              style={{ ...s.input, minHeight: '56px', resize: 'vertical', fontFamily: 'inherit', lineHeight: '1.5', marginBottom: '6px' }}
+              value={backText}
+              onChange={e => setBackText(e.target.value)}
+              placeholder={isDE ? 'Übersetzung…' : 'Translation…'}
+            />
+            {pronunciation && (
+              <>
+                <p style={{ color: th.sub, fontSize: '0.72rem', marginBottom: '4px' }}>🔉 {isDE ? 'Aussprache' : 'Pronunciation'}</p>
+                <input style={{ ...s.input, fontSize: '0.82rem', fontStyle: 'italic', marginBottom: 0 }}
+                  value={pronunciation} onChange={e => setPronunciation(e.target.value)} />
+              </>
+            )}
+          </div>
         )}
       </div>
-      <div style={s.card}>
-        <p style={{ ...s.cardLabel, marginBottom: '6px' }}>
-          {LANG_NAMES[langA] || langA} → {LANG_NAMES[langB] || langB}
-        </p>
-        <input
-          style={{ ...s.input, marginBottom: '8px' }}
-          placeholder={isDE ? `${LANG_NAMES[langA] || langA} — Vorderseite` : `${LANG_NAMES_EN[langA] || langA} — front`}
-          value={front}
-          onChange={e => handleFrontChange(e.target.value)}
-          onBlur={handleFrontBlur}
-        />
-        {/* Back field with auto-translate indicator */}
-        <div style={{ position: 'relative', marginBottom: '12px' }}>
-          <input
-            style={{ ...s.input, marginBottom: 0, paddingRight: backLoading ? '36px' : undefined }}
-            placeholder={backLoading
-              ? (isDE ? 'KI übersetzt…' : 'AI translating…')
-              : (isDE ? `${LANG_NAMES[langB] || langB} — Rückseite (KI-Vorschlag)` : `${LANG_NAMES_EN[langB] || langB} — back (AI suggestion)`)
-            }
-            value={back}
-            onChange={e => { setBack(e.target.value); lastTranslatedFront.current = '' }}
-          />
-          {backLoading && (
-            <div style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', width: '16px', height: '16px', border: `2px solid ${th.gold}44`, borderTopColor: th.gold, borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+
+      {/* ── SECTION 3: KATEGORIE & ZIEL ── */}
+      {kiDone && backText && (
+        <div style={{ ...s.card, marginBottom: '12px', animation: 'vocaraFadeIn 0.25s ease both' }}>
+          {sectionHead('3', isDE ? 'Kategorie & Ziel' : 'Category & Destination')}
+
+          <p style={{ color: th.sub, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
+            {isDE ? 'Kategorie' : 'Category'}
+            {detectedCat && <span style={{ color: th.accent, marginLeft: '8px', fontStyle: 'italic', fontWeight: '600', textTransform: 'none', letterSpacing: 0 }}>· KI: {detectedCat}</span>}
+          </p>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '14px' }}>
+            {[
+              ['vocabulary', isDE ? 'Meine Worte' : 'Word', '#8A8A9A'],
+              ['sentence', isDE ? 'Satz' : 'Sentence', '#6A9BBA'],
+              ['street', 'Slang', '#C8922A'],
+              ['home', isDE ? 'Zuhause' : 'Home', '#7A8A6A'],
+            ].map(([key, label, color]) => (
+              <button key={key} onClick={() => setCat(key)}
+                style={{ padding: '6px 12px', borderRadius: '20px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: cat === key ? '700' : '400', background: cat === key ? `${color}22` : 'transparent', color: cat === key ? color : th.sub, border: `1px solid ${cat === key ? color : th.border}`, WebkitTapHighlightColor: 'transparent' }}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <p style={{ color: th.sub, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
+            {isDE ? 'Für wen?' : 'For whom?'}
+          </p>
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <button onClick={() => setDestination('me')}
+              style={{ flex: 1, padding: '8px 6px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem', background: destination === 'me' ? th.accent : 'transparent', color: destination === 'me' ? (th.btnTextColor || '#111') : th.sub, border: `1px solid ${destination === 'me' ? th.accent : th.border}`, WebkitTapHighlightColor: 'transparent' }}>
+              {isDE ? 'Für mich' : 'For me'}
+            </button>
+            {myPartnerUID && <>
+              <button onClick={() => setDestination('partner')}
+                style={{ flex: 1, padding: '8px 6px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem', background: destination === 'partner' ? `${th.gold}22` : 'transparent', color: destination === 'partner' ? th.gold : th.sub, border: `1px solid ${destination === 'partner' ? th.gold : th.border}`, animation: destination === 'partner' ? 'goldShimmer 2.5s ease-in-out infinite' : undefined, WebkitTapHighlightColor: 'transparent' }}>
+                🎁 {partnerName}
+              </button>
+              <button onClick={() => setDestination('both')}
+                style={{ flex: 1, padding: '8px 6px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem', background: destination === 'both' ? `linear-gradient(135deg,${th.accent}22,${th.gold}18)` : 'transparent', color: destination === 'both' ? th.accent : th.sub, border: `1px solid ${destination === 'both' ? th.accent : th.border}`, WebkitTapHighlightColor: 'transparent' }}>
+                💫 {isDE ? 'Beide' : 'Both'}
+              </button>
+            </>}
+          </div>
+        </div>
+      )}
+
+      {/* ── SECTION 4: SPEICHERN ── */}
+      {kiDone && frontText && backText && (
+        <div style={{ marginBottom: '40px', animation: 'vocaraFadeIn 0.25s ease both' }}>
+          <button style={{ ...s.button, marginBottom: 0, opacity: saving ? 0.6 : 1 }} onClick={save} disabled={saving}>
+            {saving ? (isDE ? 'Speichern…' : 'Saving…') :
+              destination === 'partner' ? (isDE ? `🎁 An ${partnerName} senden` : `🎁 Send to ${partnerName}`) :
+              destination === 'both' ? (isDE ? '💫 Für dich & Partner' : '💫 For you & partner') :
+              (isDE ? 'Karte speichern ✓' : 'Save card ✓')}
+          </button>
+          {status && (
+            <p style={{ color: th.accent, fontSize: '0.88rem', marginTop: '10px', textAlign: 'center', fontWeight: '600', animation: 'vocaraFadeIn 0.3s ease both' }}>{status}</p>
           )}
         </div>
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-          <button onClick={() => setCat('vocabulary')} style={{ flex: 1, padding: '8px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem', background: cat !== 'street' ? 'rgba(140,140,155,0.25)' : 'transparent', color: cat !== 'street' ? '#A0A0B8' : th.sub, border: `1px solid ${cat !== 'street' ? 'rgba(140,140,155,0.45)' : th.border}` }}>Hochsprache</button>
-          <button onClick={() => setCat('street')} style={{ flex: 1, padding: '8px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem', background: cat === 'street' ? 'rgba(180,120,30,0.2)' : 'transparent', color: cat === 'street' ? '#C8922A' : th.sub, border: `1px solid ${cat === 'street' ? 'rgba(180,120,30,0.4)' : th.border}` }}>Slang</button>
-        </div>
-        <button style={{ ...s.button, marginBottom: 0, opacity: (!front.trim() || !back.trim() || backLoading) ? 0.45 : 1 }} onClick={save} disabled={!front.trim() || !back.trim() || backLoading}>
-          {forPartner && partnerName ? (isDE ? `🎁 An ${partnerName} senden` : `🎁 Send to ${partnerName}`) : (isDE ? 'Karte speichern' : 'Save card')}
-        </button>
-        {status && <p style={{ color: th.accent, fontSize: '0.82rem', marginTop: '8px', textAlign: 'center' }}>{status}</p>}
+      )}
+
       </div>
-    </div></div>
+    </div>
   )
 }
 
