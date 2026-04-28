@@ -43,7 +43,10 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.023.023'
+const APP_VERSION = 'V01.024.023'
+
+// Returns a language instruction appended to KI prompts so the AI responds in the user's native language
+const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
 
 // ── SOZIALES REGISTER ───────────────────────────────────────────
 const SOCIAL_REGISTERS = [
@@ -770,8 +773,8 @@ function getLast7Days(history) {
   }
   return result
 }
-async function saveSessionHistory(uid, correct, total, currentHistory, extraUpdate) {
-  const entry = { date: todayStr(), correct, total, ts: Date.now() }
+async function saveSessionHistory(uid, correct, total, currentHistory, extraUpdate, area) {
+  const entry = { date: todayStr(), correct, total, ts: Date.now(), ...(area ? { area } : {}) }
   const updated = [entry, ...(currentHistory || [])].slice(0, 60)
   await updateDoc(doc(db, 'users', uid), { sessionHistory: updated, ...(extraUpdate || {}) })
   return updated
@@ -2286,26 +2289,31 @@ Mix all 5 types equally. Return ONLY valid JSON array, no markdown:
 
 function PlacementTest({ lang, theme, user, onBack, onSaveCefr }) {
   const th = THEMES[theme]; const s = makeStyles(th); const t = T[lang]
-  const [questions, setQuestions] = useState(null) // null = loading
+  const [questions, setQuestions] = useState(null)
   const [seenIds, setSeenIds] = useState(new Set())
+  const [testCount, setTestCount] = useState(1)
   const [index, setIndex] = useState(0)
   const [selected, setSelected] = useState(null)
   const [revealed, setRevealed] = useState(false)
   const [wrongStreak, setWrongStreak] = useState(0)
   const [scores, setScores] = useState({})
   const [stopped, setStopped] = useState(false)
+  const answerChoicesRef = useRef([]) // track which option-index user picks for pattern detection
+  const [patternWarning, setPatternWarning] = useState(null)
 
-  // Load test history, shuffle questions + answer options — new batch every test
   useEffect(() => {
     const init = async () => {
-      let seen = new Set()
+      let seen = new Set(); let count = 0
       if (user) {
         try {
           const snap = await getDoc(doc(db, 'users', user.uid, 'testHistory', 'placement'))
-          if (snap.exists()) seen = new Set(snap.data()?.seenIds || [])
+          if (snap.exists()) {
+            seen = new Set(snap.data()?.seenIds || [])
+            count = snap.data()?.testCount || 0
+          }
         } catch {}
       }
-      setSeenIds(seen)
+      setSeenIds(seen); setTestCount(count + 1)
       const base = lang === 'de' ? PLACEMENT_EN : PLACEMENT_DE
       const sh = arr => [...arr].sort(() => Math.random() - 0.5)
       const byLevel = {}
@@ -2314,10 +2322,8 @@ function PlacementTest({ lang, theme, user, onBack, onSaveCefr }) {
       for (const lvl of CEFR_LEVELS) {
         const pool = byLevel[lvl] || []
         const unseen = pool.filter(q => !seen.has(q.id))
-        // Prefer unseen; fall back to full pool if fewer than 5 unseen remain
         picked.push(...sh(unseen.length >= 5 ? unseen : pool).slice(0, 10))
       }
-      // Shuffle answer options, remap correct answer index
       const shuffled = picked.map(q => {
         const opts = q.options.map((opt, i) => ({ opt, isCorrect: i === q.correct }))
         const shOpts = sh(opts)
@@ -2336,8 +2342,25 @@ function PlacementTest({ lang, theme, user, onBack, onSaveCefr }) {
     }
     return 'A1'
   }
+
+  const checkAnswerPattern = (choices) => {
+    if (choices.length < 5) return
+    const last5 = choices.slice(-5)
+    const allSame = last5.every(c => c === last5[0])
+    if (allSame) {
+      const optLetter = String.fromCharCode(65 + last5[0])
+      setPatternWarning(lang === 'de'
+        ? `Tipp: Du wählst oft Option ${optLetter} — überprüfe dein Wissen sorgfältig!`
+        : `Hint: You often pick option ${optLetter} — review carefully!`)
+      setTimeout(() => setPatternWarning(null), 4000)
+    }
+  }
+
   const handleSelect = (optIdx) => {
     if (revealed || !q || !questions) return
+    const newChoices = [...answerChoicesRef.current, optIdx]
+    answerChoicesRef.current = newChoices
+    checkAnswerPattern(newChoices)
     setSelected(optIdx); setRevealed(true)
     const isCorrect = optIdx === q.correct
     const lvl = q.level; const prev = scores[lvl] || { correct: 0, total: 0 }
@@ -2349,13 +2372,12 @@ function PlacementTest({ lang, theme, user, onBack, onSaveCefr }) {
       if (newStreak >= 3 || index + 1 >= questions.length) {
         try {
           const level = calcLevel(newScores)
-          // Save shown question IDs to testHistory; reset when >75% of pool seen
           if (user) {
             const base = lang === 'de' ? PLACEMENT_EN : PLACEMENT_DE
             const shownIds = questions.slice(0, index + 1).map(q => q.id)
             const allSeen = [...seenIds, ...shownIds]
             const finalSeen = allSeen.length > base.length * 0.75 ? [] : [...new Set(allSeen)]
-            setDoc(doc(db, 'users', user.uid, 'testHistory', 'placement'), { seenIds: finalSeen, lastTest: todayStr() }, { merge: true }).catch(() => {})
+            setDoc(doc(db, 'users', user.uid, 'testHistory', 'placement'), { seenIds: finalSeen, lastTest: todayStr(), testCount }, { merge: true }).catch(() => {})
           }
           try { onSaveCefr(level) } catch(e) { console.warn('[Vocara] onSaveCefr error:', e) }
           window.location.reload()
@@ -2375,10 +2397,18 @@ function PlacementTest({ lang, theme, user, onBack, onSaveCefr }) {
       <div style={s.cardHeader}>
         <div>
           <p style={s.greeting}>{t.testQuestion} {index + 1} {t.testOf} {questions.length}</p>
-          <span style={{ color: CEFR_COLORS[q.level], fontSize: '0.75rem', fontWeight: 'bold' }}>{q.level}</span>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <span style={{ color: CEFR_COLORS[q.level], fontSize: '0.75rem', fontWeight: 'bold' }}>{q.level}</span>
+            <span style={{ color: th.sub, fontSize: '0.65rem', opacity: 0.7 }}>Test #{testCount}</span>
+          </div>
         </div>
         <button style={s.stopBtn} onClick={onBack}>{t.stop}</button>
       </div>
+      {patternWarning && (
+        <div style={{ background: 'rgba(255,165,0,0.12)', border: '1px solid rgba(255,165,0,0.35)', borderRadius: '10px', padding: '8px 12px', marginBottom: '8px', animation: 'vocaraFadeIn 0.3s ease both' }}>
+          <p style={{ color: '#FFA500', fontSize: '0.75rem', margin: 0 }}>💡 {patternWarning}</p>
+        </div>
+      )}
       <div style={s.progressBar}><div style={{ ...s.progressFill, width: `${pct}%`, background: CEFR_COLORS[q.level] }} /></div>
       <div style={{ ...s.bigCard, marginTop: '12px', minHeight: '100px' }}>
         <p style={{ ...s.cardFront, marginBottom: 0 }}>{q.question}</p>
@@ -3266,6 +3296,12 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
               {TENSE_LABELS[item.tense].emoji} {lang === 'de' ? TENSE_LABELS[item.tense].de : TENSE_LABELS[item.tense].en}
             </div>
           )}
+          {/* WordType tag — top-right, only when no gold/gift badge */}
+          {item.wordType && !(newProgress[item.id]?.isGolden || cardProgress[item.id]?.isGolden) && !item.sharedBy && (
+            <div style={{ position: 'absolute', top: '8px', right: '10px', background: 'rgba(60,140,200,0.14)', color: '#70b0d8', border: '1px solid rgba(60,140,200,0.28)', borderRadius: '6px', padding: '2px 7px', fontSize: '9px', fontWeight: '600', letterSpacing: '0.4px', pointerEvents: 'none' }}>
+              {item.article ? `${item.article} · ` : ''}{item.wordType}
+            </div>
+          )}
           {/* Note icon — bottom-right of card */}
           <button onClick={() => setNoteOpen(o => !o)} style={{ position: 'absolute', bottom: '8px', right: '10px', background: noteText ? 'rgba(255,255,255,0.10)' : 'transparent', border: noteText ? '1px solid rgba(255,255,255,0.18)' : 'none', borderRadius: '8px', padding: '3px 7px', color: noteText ? '#e0c060' : '#8A8A9A', fontSize: '0.75rem', cursor: 'pointer', opacity: 0.85, lineHeight: 1, zIndex: 2 }}>
             📝
@@ -3981,6 +4017,38 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
         })()}
       </div>
 
+      {/* ── AUSGESCHLOSSENE KARTEN ── */}
+      {(() => {
+        const excludedMap = myData?.excludedCards || {}
+        const excludedIds = Object.keys(excludedMap)
+        if (excludedIds.length === 0) return null
+        return (
+          <div style={s.card}>
+            <p style={{ ...s.cardLabel, marginBottom: '10px' }}>🚫 {isDE ? `Ausgeschlossene Karten (${excludedIds.length})` : `Hidden cards (${excludedIds.length})`}</p>
+            {excludedIds.slice(0, 10).map(id => {
+              const card = (allCards || []).find(c => c.id === id)
+              if (!card) return null
+              return (
+                <div key={id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${th.border}` }}>
+                  <span style={{ color: th.text, fontSize: '0.82rem', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>„{card.front}"</span>
+                  <button style={{ background: 'transparent', border: `1px solid ${th.border}`, borderRadius: '8px', padding: '3px 10px', color: th.sub, fontSize: '0.72rem', cursor: 'pointer', flexShrink: 0, marginLeft: '8px' }} onClick={async () => {
+                    const updated = { ...excludedMap }
+                    delete updated[id]
+                    try {
+                      await updateDoc(doc(db, 'users', user.uid), { excludedCards: updated })
+                      setMyData(d => ({ ...d, excludedCards: updated }))
+                    } catch(e) {}
+                  }}>
+                    {isDE ? 'Wiederherstellen' : 'Restore'}
+                  </button>
+                </div>
+              )
+            })}
+            {excludedIds.length > 10 && <p style={{ color: th.sub, fontSize: '0.72rem', marginTop: '6px', opacity: 0.6 }}>+{excludedIds.length - 10} {isDE ? 'weitere' : 'more'}</p>}
+          </div>
+        )
+      })()}
+
       {/* ── ABMELDEN ── */}
       <button style={{ ...s.logoutBtn, marginTop: '8px', color: '#e06c75', border: '1px solid rgba(224,108,117,0.35)' }}
         onClick={() => { if (window.confirm(isDE ? 'Wirklich abmelden?' : 'Sign out?')) signOut(auth) }}>
@@ -4068,7 +4136,7 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
   const myWeekLearnSec = sessionHistory.filter(weekFilter).reduce((a, b) => a + (b.total || 0) * 15, 0)
   const partnerWeekLearnSec = partnerHistory.filter(weekFilter).reduce((a, b) => a + (b.total || 0) * 15, 0)
   const fmtMin = (s) => s < 60 ? `${s}s` : `${Math.round(s / 60)} min`
-  const AREA_LABEL_MAP = { vocabulary: lang === 'de' ? 'Worte' : 'Words', sentence: lang === 'de' ? 'Sätze' : 'Sentences', street: lang === 'de' ? 'Straße' : 'Street', home: lang === 'de' ? 'Zuhause' : 'Home' }
+  const AREA_LABEL_MAP = { vocabulary: lang === 'de' ? 'Worte' : 'Words', sentence: lang === 'de' ? 'Sätze' : 'Sentences', street: lang === 'de' ? 'Straße' : 'Street', home: lang === 'de' ? 'Zuhause' : 'Home', basics: lang === 'de' ? 'Grundlagen' : 'Basics', urlaub: lang === 'de' ? '✈️ Urlaub' : '✈️ Travel' }
   const getFavArea = (progress) => {
     const counts = {}
     Object.keys(progress).forEach(id => {
@@ -4078,8 +4146,20 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
     const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]
     return top ? (AREA_LABEL_MAP[top[0]] || top[0]) : '—'
   }
+  const getWeeklyFavArea = (history) => {
+    const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7)
+    const weekStr = weekAgo.toISOString().slice(0, 10)
+    const counts = {}
+    history.filter(h => h.date >= weekStr && h.area).forEach(h => {
+      counts[h.area] = (counts[h.area] || 0) + 1
+    })
+    const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]
+    return top ? (AREA_LABEL_MAP[top[0]] || top[0]) : null
+  }
   const myFavArea = getFavArea(cardProgress)
   const partnerFavArea = getFavArea(partnerProgress)
+  const myWeeklyFavArea = getWeeklyFavArea(sessionHistory)
+  const partnerWeeklyFavArea = getWeeklyFavArea(partnerHistory)
 
   const myName = myData?.name?.split(' ')[0] || user.displayName?.split(' ')[0] || 'Ich'
   const partnerName = myData?.partnerName || partnerData?.name?.split(' ')[0] || 'Partner'
@@ -4160,12 +4240,21 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
       </div>
 
       {/* ── LIEBLINGSBEREICH solo (#29) ── */}
-      {!hasPartner && myFavArea !== '—' && (
-        <div style={{ ...s.card, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '1.4rem' }}>🔥</span>
-          <div>
-            <p style={{ margin: 0, color: th.sub, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t.favArea}</p>
-            <p style={{ margin: '2px 0 0', color: th.text, fontWeight: '700', fontSize: '1rem' }}>{myFavArea}</p>
+      {!hasPartner && (myFavArea !== '—' || myWeeklyFavArea) && (
+        <div style={{ ...s.card, marginBottom: '16px' }}>
+          <div style={{ display: 'flex', gap: '16px' }}>
+            {myFavArea !== '—' && (
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: 0, color: th.sub, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>🔥 {t.favArea}</p>
+                <p style={{ margin: '3px 0 0', color: th.text, fontWeight: '700', fontSize: '0.95rem' }}>{myFavArea}</p>
+              </div>
+            )}
+            {myWeeklyFavArea && (
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: 0, color: th.sub, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>📅 {lang === 'de' ? 'Diese Woche' : 'This week'}</p>
+                <p style={{ margin: '3px 0 0', color: th.accent, fontWeight: '700', fontSize: '0.95rem' }}>{myWeeklyFavArea}</p>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -4262,6 +4351,7 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
           {compRow(lang === 'de' ? 'Längster Streak 🏆' : 'Best streak 🏆', myLongestStreak, partnerLongestStreak)}
           {compRow(lang === 'de' ? 'Lerntage gesamt' : 'Total learning days', myLearningDays, partnerLearningDays)}
           {compRow(t.favArea, myFavArea, partnerFavArea)}
+          {(myWeeklyFavArea || partnerWeeklyFavArea) && compRow(lang === 'de' ? '📅 Diese Woche' : '📅 This week', myWeeklyFavArea || '—', partnerWeeklyFavArea || '—')}
           {/* ── LERNZEIT BARS ── */}
           {(() => {
             const nowWeek = getISOWeekStr()
@@ -4440,7 +4530,7 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
     fetch('/api/chat', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 45,
-        messages: [{ role: 'user', content: `You are a personal language tutor for a ${fromLangName} speaker learning ${toLangName}. Stats: ${catStats}. Last sessions: ${sessionsStr}. Streak: ${streak} days. Level: ${level}.${phoneticStr}${notesStr} Give ONE specific coaching tip (max 20 words) in ${fromLangName} about what to focus on NOW to speak ${toLangName} faster. If user has notes, you may briefly reference one. Bridgelab tone: warm, no fluff. Return ONLY the tip, no quotes or markdown.` }]
+        messages: [{ role: 'user', content: `You are a personal language tutor for a ${fromLangName} speaker learning ${toLangName}. Stats: ${catStats}. Last sessions: ${sessionsStr}. Streak: ${streak} days. Level: ${level}.${phoneticStr}${notesStr} Give ONE specific coaching tip (max 20 words) in ${fromLangName} about what to focus on NOW to speak ${toLangName} faster. If user has notes, you may briefly reference one. Bridgelab tone: warm, no fluff. Return ONLY the tip, no quotes or markdown. ${kiRespondIn(lang)}` }]
       })
     }).then(r => r.json()).then(d => {
       const msg = d.content?.[0]?.text?.trim()
@@ -4849,12 +4939,14 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
 NOT phrases, NOT sentences — only single words or simple infinitives like 'to run'.
 Avoid these already known words: ${exclusionList}
 ${tenseNote}
-Return ONLY JSON: [{"front": "English word", "back": "Deutsche Übersetzung", "category": "vocabulary", "tense": "present"}]`
+For each word: wordType = one of Noun/Verb/Adjective/Adverb/Phrase. For Nouns: article = "the" or "a". Others: article = "".
+Return ONLY JSON: [{"front":"English word","back":"Deutsche Übersetzung","category":"vocabulary","tense":"present","wordType":"Noun","article":"the"}]`
       : `Generate 10 useful single German words for an English speaker learning German.
-NOT phrases, NOT sentences — only single words or simple infinitives like 'to run'.
+NOT phrases, NOT sentences — only single words or simple infinitives like 'laufen'.
 Avoid these already known words: ${exclusionList}
 ${tenseNote}
-Return ONLY JSON: [{"front": "German word", "back": "English translation", "category": "vocabulary", "tense": "present"}]`
+For each word: wordType = one of Nomen/Verb/Adjektiv/Adverb/Phrase. For Nomen: article = "der"|"die"|"das". Others: article = "".
+Return ONLY JSON: [{"front":"German word","back":"English translation","category":"vocabulary","tense":"present","wordType":"Nomen","article":"der"}]`
 
     try {
       const res = await fetch('/api/chat', {
@@ -4893,6 +4985,8 @@ Return ONLY JSON: [{"front": "German word", "back": "English translation", "cate
           back: c.back.trim(),
           category: 'vocabulary',
           tense: c.tense || 'present',
+          wordType: c.wordType || null,
+          article: c.article || null,
           langA, langB,
           source: 'ai-vocab',
           createdAt: ts,
@@ -5623,7 +5717,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     const newWeeklyMinutes = prevWeekly + sessionMinutes
     const newTotalMinutes = (myData?.totalMinutes || 0) + sessionMinutes
     const timeUpdate = { monthlyMinutes: newMonthlyMinutes, weeklyMinutes: newWeeklyMinutes, totalMinutes: newTotalMinutes, learningMonth: nowMonth, learningWeek: nowWeek }
-    const updatedHistory = await saveSessionHistory(user.uid, correct, correct + wrong, sessionHistory, timeUpdate)
+    const updatedHistory = await saveSessionHistory(user.uid, correct, correct + wrong, sessionHistory, timeUpdate, currentSessionMode)
     setMyData(d => ({ ...d, sessionHistory: updatedHistory, ...timeUpdate }))
     // Publish time stats to public profile so partner can read them
     setDoc(doc(db, 'userProfiles', user.uid), { weeklyMinutes: newWeeklyMinutes, monthlyMinutes: newMonthlyMinutes, totalMinutes: newTotalMinutes, learningWeek: nowWeek, learningMonth: nowMonth }, { merge: true }).catch(() => {})
@@ -5840,19 +5934,31 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         </div>
       )}
 
-      {/* ── NEVER-LEARN MODAL ── */}
+      {/* ── CARD CONTEXT MENU (long-press) ── */}
       {neverLearnModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-          <div style={{ ...s.card, maxWidth: '340px', width: '100%', padding: '24px', textAlign: 'center' }}>
-            <p style={{ color: th.text, fontSize: '1rem', fontWeight: '700', marginBottom: '8px' }}>
-              🚫 {isMarkLang ? 'Nie wieder lernen?' : 'Never learn again?'}
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={() => setNeverLearnModal(null)}>
+          <div style={{ ...s.card, maxWidth: '340px', width: '100%', padding: '20px', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+            <p style={{ color: th.sub, fontSize: '0.78rem', marginBottom: '4px', opacity: 0.7 }}>
+              „{neverLearnModal.front}"
             </p>
-            <p style={{ color: th.sub, fontSize: '0.83rem', marginBottom: '20px', lineHeight: 1.5 }}>
-              „{neverLearnModal.front}" — {isMarkLang ? 'Diese Karte wird aus allen Sessions ausgeblendet.' : 'This card will be hidden from all sessions.'}
-            </p>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button style={{ ...s.logoutBtn, flex: 1, textAlign: 'center', marginTop: 0, padding: '10px' }} onClick={() => setNeverLearnModal(null)}>{t.cancel}</button>
-              <button style={{ ...s.button, flex: 1, marginBottom: 0, padding: '10px', background: 'rgba(244,67,54,0.15)', color: '#f44336', border: '1px solid rgba(244,67,54,0.4)' }} onClick={async () => {
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '14px' }}>
+              {/* Favorit */}
+              <button style={{ ...s.button, marginBottom: 0, padding: '11px', background: 'rgba(255,215,0,0.12)', color: th.gold, border: `1px solid rgba(255,215,0,0.35)`, textAlign: 'left', display: 'flex', alignItems: 'center', gap: '10px' }} onClick={async () => {
+                const cardId = neverLearnModal.id
+                const isFav = !!(myData?.favoriteCards?.[cardId])
+                const updated = { ...(myData?.favoriteCards || {}) }
+                if (isFav) delete updated[cardId]; else updated[cardId] = true
+                try {
+                  await updateDoc(doc(db, 'users', user.uid), { favoriteCards: updated })
+                  setMyData(d => ({ ...d, favoriteCards: updated }))
+                } catch(e) {}
+                setNeverLearnModal(null)
+              }}>
+                <span>⭐</span>
+                <span>{myData?.favoriteCards?.[neverLearnModal.id] ? (isMarkLang ? 'Favorit entfernen' : 'Remove favourite') : (isMarkLang ? 'Als Favorit markieren' : 'Mark as favourite')}</span>
+              </button>
+              {/* Nie wieder lernen */}
+              <button style={{ ...s.button, marginBottom: 0, padding: '11px', background: 'rgba(244,67,54,0.10)', color: '#f44336', border: '1px solid rgba(244,67,54,0.35)', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '10px' }} onClick={async () => {
                 const cardId = neverLearnModal.id
                 try {
                   const excl = { ...(myData?.excludedCards || {}), [cardId]: true }
@@ -5861,8 +5967,11 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
                 } catch (e) { console.warn('excludeCard failed:', e) }
                 setNeverLearnModal(null)
               }}>
-                🚫 {isMarkLang ? 'Ausblenden' : 'Hide'}
+                <span>🚫</span>
+                <span>{isMarkLang ? 'Nie wieder lernen' : 'Never learn again'}</span>
               </button>
+              {/* Abbrechen */}
+              <button style={{ ...s.logoutBtn, marginTop: 0, padding: '10px', textAlign: 'center' }} onClick={() => setNeverLearnModal(null)}>{t.cancel}</button>
             </div>
           </div>
         </div>
@@ -8224,6 +8333,43 @@ function App() {
     }
     generate()
   }, [myData?.aiCards?.length, user?.uid])
+
+  // Batch-detect wordType for vocabulary aiCards missing it (max 10/day)
+  useEffect(() => {
+    if (!user || !myData) return
+    const today = todayStr()
+    if (myData.lastWordTypeBatch === today) return
+    const vocabCards = (myData.aiCards || []).filter(c => c.category === 'vocabulary' && !/_r(_\d+)?$/.test(c.id) && !c.wordType)
+    const batch = vocabCards.slice(0, 10)
+    if (batch.length === 0) return
+    const detect = async () => {
+      const isMarkLang = (myData.fromLang || 'de').toLowerCase() === 'de'
+      const langInstr = isMarkLang ? 'English' : 'German'
+      const list = batch.map(c => `"${c.front}"`).join(', ')
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'claude-haiku-4-5-20251001', max_tokens: 400,
+            messages: [{ role: 'user', content: `For each ${langInstr} word/phrase, return its word type and (for nouns) the article. Word types: ${isMarkLang ? 'Noun/Verb/Adjective/Adverb/Phrase' : 'Nomen/Verb/Adjektiv/Adverb/Phrase'}. Return ONLY JSON array: [{"front":"word","wordType":"Noun","article":"the"}]. Words: [${list}]` }]
+          })
+        })
+        const data = await res.json()
+        const raw = (data.content?.[0]?.text || '').trim()
+        const match = raw.match(/\[[\s\S]*\]/)
+        if (!match) return
+        const results = JSON.parse(match[0])
+        const updatedCards = (myData.aiCards || []).map(c => {
+          const r = results.find(r => r.front?.toLowerCase() === c.front?.toLowerCase())
+          if (!r || c.wordType) return c
+          return { ...c, wordType: r.wordType || null, article: r.article || null }
+        })
+        await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedCards, lastWordTypeBatch: today })
+        setMyData(d => ({ ...d, aiCards: updatedCards, lastWordTypeBatch: today }))
+      } catch(e) {}
+    }
+    detect()
+  }, [myData?.aiCards?.length, user?.uid]) // eslint-disable-line
 
   // #9 Schedule daily notification based on notificationTime setting
   useEffect(() => {
