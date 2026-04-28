@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.018.019'
+const APP_VERSION = 'V01.022.019'
 
 // ── SOZIALES REGISTER ───────────────────────────────────────────
 const SOCIAL_REGISTERS = [
@@ -2473,6 +2473,117 @@ function RhythmusScreen({ lang, theme, onBack, allCards, cardProgress, userToLan
   )
 }
 
+// ── KONTEXTWECHSEL SCREEN ──────────────────────────────────────
+function KontextwechselScreen({ card, lang, theme, userToLang = 'en', user, onBack, onSaveCard }) {
+  const th = THEMES[theme]; const s = makeStyles(th)
+  const isDE = lang === 'de'
+  const [variants, setVariants] = useState(null) // [{type, prompt, answer}]
+  const [loading, setLoading] = useState(true)
+  const [saved, setSaved] = useState(null) // saved variant type
+
+  const VARIANT_DEFS = [
+    { type: 'formal',   icon: '👔', labelDe: 'Formell',   labelEn: 'Formal',   promptDe: `Wie sagst du "${card?.front}" in einer formellen E-Mail oder einem Meeting?`, promptEn: `How would you use "${card?.front}" in a formal email or meeting?` },
+    { type: 'informal', icon: '😄', labelDe: 'Informell',  labelEn: 'Informal', promptDe: `Wie sagst du "${card?.front}" zu einem guten Freund?`, promptEn: `How would you say "${card?.front}" to a close friend?` },
+    { type: 'romantic', icon: '💑', labelDe: 'Romantisch', labelEn: 'Romantic', promptDe: `Wie verwendest du "${card?.front}" mit deinem Partner?`, promptEn: `How would you use "${card?.front}" with your partner?` },
+  ]
+
+  useEffect(() => {
+    if (!card) { setLoading(false); return }
+    const toLangName = { en: 'English', de: 'German', sw: 'Swahili', fr: 'French', es: 'Spanish', th: 'Thai' }[userToLang] || userToLang
+    fetch('/api/chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001', max_tokens: 400,
+        system: 'You are a language teacher. Generate context variants for vocabulary. Return ONLY valid JSON.',
+        messages: [{
+          role: 'user',
+          content: `For the word/phrase "${card.front}" (${toLangName} translation: "${card.back}"), generate 3 context-variant sentences in ${toLangName}.
+Return ONLY JSON array: [
+  {"type":"formal","sentence":"[formal usage sentence]","note":"[brief context note]"},
+  {"type":"informal","sentence":"[casual usage sentence]","note":"[brief context note]"},
+  {"type":"romantic","sentence":"[romantic/affectionate usage]","note":"[brief context note]"}
+]`
+        }]
+      })
+    }).then(r => r.json()).then(data => {
+      const raw = (data.content?.[0]?.text || '').trim()
+      const match = raw.match(/\[[\s\S]*\]/)
+      if (match) {
+        try {
+          const parsed = JSON.parse(match[0])
+          setVariants(parsed)
+        } catch(e) { setVariants(null) }
+      }
+      setLoading(false)
+    }).catch(() => { setVariants(null); setLoading(false) })
+  }, []) // eslint-disable-line
+
+  const handleSave = async (variant) => {
+    if (!user || !card || saved) return
+    const newCard = {
+      id: `kontext_${card.id}_${variant.type}_${Date.now()}`,
+      front: card.front,
+      back: variant.sentence,
+      category: card.category || 'vocabulary',
+      langA: card.langA, langB: card.langB || userToLang,
+      source: 'kontext', createdAt: Date.now(),
+      kontextType: variant.type,
+    }
+    await onSaveCard(newCard)
+    setSaved(variant.type)
+  }
+
+  return (
+    <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
+      <button style={s.backBtn} onClick={onBack}>← {isDE ? 'Zurück' : 'Back'}</button>
+      <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+        <p style={{ color: '#00BFA5', fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', margin: '0 0 6px' }}>🔄 {isDE ? 'Kontextwechsel' : 'Context Switch'}</p>
+        <p style={{ color: th.text, fontSize: '1.1rem', fontWeight: '700', margin: '0 0 4px' }}>{card?.front}</p>
+        <p style={{ color: th.sub, fontSize: '0.85rem', margin: 0, fontStyle: 'italic' }}>{card?.back}</p>
+      </div>
+      {loading ? (
+        <div style={{ ...s.card, textAlign: 'center', padding: '32px' }}>
+          <p style={{ color: th.sub, fontSize: '0.88rem', animation: 'vocaraPulse 1.2s infinite' }}>🔄 {isDE ? 'KI erstellt Varianten…' : 'AI generating variants…'}</p>
+        </div>
+      ) : !variants ? (
+        <div style={{ ...s.card, textAlign: 'center' }}>
+          <p style={{ color: th.sub, fontSize: '0.88rem' }}>{isDE ? 'Varianten nicht verfügbar.' : 'Variants not available.'}</p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <p style={{ color: th.sub, fontSize: '0.78rem', textAlign: 'center', margin: '0 0 4px' }}>{isDE ? 'Wähle einen Kontext zum Hinzufügen:' : 'Choose a context to add:'}</p>
+          {VARIANT_DEFS.map(def => {
+            const v = variants.find(x => x.type === def.type)
+            if (!v) return null
+            const isSaved = saved === def.type
+            return (
+              <div key={def.type} style={{ ...s.card, border: isSaved ? '1px solid #00BFA5' : `1px solid ${th.border}`, background: isSaved ? 'rgba(0,191,165,0.1)' : th.card }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ color: '#00BFA5', fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 6px' }}>{def.icon} {isDE ? def.labelDe : def.labelEn}</p>
+                    <p style={{ color: th.text, fontSize: '0.9rem', fontWeight: '500', margin: '0 0 4px', lineHeight: 1.4 }}>{v.sentence}</p>
+                    {v.note && <p style={{ color: th.sub, fontSize: '0.75rem', margin: 0, fontStyle: 'italic' }}>{v.note}</p>}
+                  </div>
+                  <button onClick={() => handleSave(v)} disabled={!!saved}
+                    style={{ background: isSaved ? 'rgba(0,191,165,0.2)' : `${th.accent}22`, border: `1px solid ${isSaved ? '#00BFA5' : th.accent}55`, color: isSaved ? '#00BFA5' : th.accent, borderRadius: '10px', padding: '6px 12px', fontSize: '0.75rem', fontWeight: '700', cursor: saved ? 'default' : 'pointer', flexShrink: 0, WebkitTapHighlightColor: 'transparent' }}>
+                    {isSaved ? '✓' : isDE ? 'Lernen' : 'Learn'}
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+          {saved && (
+            <div style={{ textAlign: 'center', animation: 'vocaraFadeIn 0.3s ease both', marginTop: '8px' }}>
+              <p style={{ color: '#00BFA5', fontSize: '0.85rem', fontWeight: '600', margin: '0 0 12px' }}>✓ {isDE ? 'Variante gespeichert!' : 'Variant saved!'}</p>
+              <button style={{ ...s.button }} onClick={onBack}>{isDE ? 'Fertig' : 'Done'}</button>
+            </div>
+          )}
+        </div>
+      )}
+    </div></div>
+  )
+}
+
 function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, onSaveState, onSaveSessionProgress, onStop, onSaveExample, mode = 'all', startIndex = 0, startProgress = null, userToLang = 'en', socialRegister = 'friends' }) {
   const [index, setIndex] = useState(startIndex)
   const [queue, setQueue] = useState(session)
@@ -3147,7 +3258,7 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
   )
 }
 
-function ResultScreen({ correct, wrong, fast, easy, weakestCard, strongestCard, masteryUnlocked, t, lang, onBack, onReplay, s, th }) {
+function ResultScreen({ correct, wrong, fast, easy, weakestCard, strongestCard, masteryUnlocked, t, lang, onBack, onReplay, onRhythmus, onKontext, showRhythmus, urlaubNote, onUnlockUrlaub, kontextCard, s, th }) {
   const isMarkLang = lang === 'de'
   return (
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
@@ -3176,6 +3287,23 @@ function ResultScreen({ correct, wrong, fast, easy, weakestCard, strongestCard, 
             </div>
           )}
         </div>
+      )}
+      {urlaubNote && (
+        <div style={{ ...s.card, borderLeft: `3px solid ${th?.accent || '#FFD700'}`, marginBottom: '8px' }}>
+          <p style={{ color: th?.text || '#fff', fontWeight: '600', fontSize: '0.85rem', margin: '0 0 6px' }}>✈️ {isMarkLang ? '3 von 10 Karten freigeschaltet' : '3 of 10 cards unlocked'}</p>
+          <p style={{ color: th?.sub || '#888', fontSize: '0.78rem', margin: '0 0 10px' }}>{isMarkLang ? 'Premium schaltet alle Reisephrasen frei.' : 'Premium unlocks all travel phrases.'}</p>
+          {onUnlockUrlaub && <button onClick={onUnlockUrlaub} style={{ background: `${th?.accent || '#FFD700'}22`, border: `1px solid ${th?.accent || '#FFD700'}55`, color: th?.accent || '#FFD700', borderRadius: '10px', padding: '6px 16px', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>✨ Premium</button>}
+        </div>
+      )}
+      {kontextCard && onKontext && (
+        <button style={{ ...s.button, background: `rgba(0,191,165,0.15)`, border: '1px solid rgba(0,191,165,0.4)', color: '#00BFA5', marginBottom: '8px' }} onClick={onKontext}>
+          🔄 {isMarkLang ? `Kontext: "${kontextCard.front}"` : `Context: "${kontextCard.front}"`}
+        </button>
+      )}
+      {showRhythmus && onRhythmus && (
+        <button style={{ ...s.button, background: `rgba(103,58,183,0.15)`, border: '1px solid rgba(103,58,183,0.4)', color: '#9c7bf0', marginBottom: '8px' }} onClick={onRhythmus}>
+          🎵 {isMarkLang ? 'Rhythmus üben' : 'Rhythm practice'}
+        </button>
       )}
       {onReplay && (
         <button style={{ ...s.button, marginBottom: '8px' }} onClick={onReplay}>
@@ -4038,7 +4166,8 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
   const [tutorRecommendedArea, setTutorRecommendedArea] = useState(null)
   const [sessionCompleteCount, setSessionCompleteCount] = useState(0)
   const [basicsLoading, setBasicsLoading] = useState(false)
-  const VALID_SCREENS = new Set(['menu','cards','result','settings','partner','test','impressum','stats','ki','satz','diary','meinekarten','geschenkkarte','karteerstellen','admin'])
+  const [kontextCard, setKontextCard] = useState(null)
+  const VALID_SCREENS = new Set(['menu','cards','result','settings','partner','test','impressum','stats','ki','satz','diary','meinekarten','geschenkkarte','karteerstellen','admin','rhythmus','kontext'])
   if (!VALID_SCREENS.has(screen)) { setScreen('menu'); return null }
 
   // ── KI-TUTOR BANNER ──────────────────────────────────────────
@@ -4579,7 +4708,7 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
     try {
       const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 900, system: CARD_GEN_SYSTEM,
-          messages: [{ role: 'user', content: `Generate 10 essential travel phrases for a ${fromLangFull} speaker in a ${toLangFull}-speaking country. Cover: hotel check-in, ordering food, asking directions, emergencies, transport, shopping, banking. Natural, practical, not textbook. Front language: ${fromLangFull}. Back language: ${toLangFull}. Return ONLY a valid JSON array: [{"front":"...","back":"...","pronunciation":"...","category":"urlaub"}]` }]
+          messages: [{ role: 'user', content: `Generate 10 essential travel phrases for a ${fromLangFull} speaker in a ${toLangFull}-speaking country. Cover: hotel check-in, ordering food, asking directions, emergencies, transport, shopping, banking. Natural, practical, not textbook. Front language: ${fromLangFull}. Back language: ${toLangFull}. Return ONLY a valid JSON array: [{"front":"...","back":"...","pronunciation":"...","category":"urlaub","tense":"present","register":"formal"}]` }]
         })
       })
       const data = await res.json()
@@ -4597,7 +4726,8 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
       setEmptyCategoryMsg(isMarkLang ? 'Reisephrasen bereit ✓' : 'Travel phrases ready ✓')
       setTimeout(() => setEmptyCategoryMsg(null), 2000)
       const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
-      const sess = shuffle(newCards.flatMap(buildCardPair)).slice(0, SESSION_SIZE)
+      const sessionCards = isPremium ? newCards : newCards.slice(0, 3)
+      const sess = shuffle(sessionCards.flatMap(buildCardPair)).slice(0, SESSION_SIZE)
       setCurrentSessionMode('urlaub')
       setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
     } catch(e) {
@@ -5171,21 +5301,25 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     const strongestEntry = statsEntries.filter(([, v]) => v.wrongs === 0 && v.fastestMs < Infinity).sort((a, b) => a[1].fastestMs - b[1].fastestMs)[0]
     const weakestCard = weakestEntry ? session?.find(c => c.id === weakestEntry[0]) : null
     const strongestCard = strongestEntry ? session?.find(c => c.id === strongestEntry[0]) : null
-    setResult({ correct, wrong, easy: easy || 0, fast: fast || 0, weakestCard, strongestCard, originalSession: session })
+    // ── Kontext: find a card mastered in this session (interval >= 3)
+    const masteredInSession = session?.filter(c => !/_r(_\d+)?$/.test(c.id) && (finalProgress[c.id]?.interval || 0) >= 3) || []
+    const kontextCard = masteredInSession.length > 0 ? masteredInSession[Math.floor(Math.random() * masteredInSession.length)] : null
+    setResult({
+      correct, wrong, easy: easy || 0, fast: fast || 0, weakestCard, strongestCard, originalSession: session,
+      showRhythmus: currentSessionMode === 'sentence',
+      urlaubNote: currentSessionMode === 'urlaub' && !isPremium,
+      kontextCard,
+    })
     // Refresh tutor with fresh progress & history so due counts are accurate post-session
     fetchTutorMsg(finalProgress, updatedHistory)
     setSessionCompleteCount(n => n + 1)
-    // #31 After sentence session, offer rhythm training before result
-    if (currentSessionMode === 'sentence') {
-      setScreen('rhythmus')
-    } else {
-      setScreen('result')
-    }
+    setScreen('result')
   }
 
   if (screen === 'cards' && session) return <>{homeFloat}<CardScreen user={user} session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} onSaveSessionProgress={saveSessionProgress} onStop={handleSessionStop} onSaveExample={handleSaveExample} mode={currentSessionMode} startIndex={resumeStartIndex} startProgress={resumeStartProgress} userToLang={activeToLang} socialRegister={myData?.socialRegister || 'friends'} /></>
   if (screen === 'rhythmus') return <>{homeFloat}<RhythmusScreen lang={lang} theme={theme} onBack={() => { setScreen('result') }} allCards={allCards} cardProgress={cardProgress} userToLang={activeToLang} /></>
-  if (screen === 'result') return <>{homeFloat}<ResultScreen correct={result.correct} wrong={result.wrong} fast={result.fast} easy={result.easy} weakestCard={result.weakestCard} strongestCard={result.strongestCard} masteryUnlocked={masteryUnlocked} t={t} lang={lang} onBack={() => { setScreen('menu'); setSession(null) }} onReplay={result.originalSession ? () => { setSession(result.originalSession); setResumeStartIndex(0); setResumeStartProgress(null); setScreen('cards') } : null} s={s} th={th} /></>
+  if (screen === 'kontext' && kontextCard) return <>{homeFloat}<KontextwechselScreen card={kontextCard} lang={lang} theme={theme} userToLang={activeToLang} user={user} onBack={() => setScreen('result')} onSaveCard={async (newCard) => { const updated = [...(myData?.aiCards || []), newCard]; await updateDoc(doc(db, 'users', user.uid), { aiCards: updated }).catch(() => {}); setMyData(d => ({ ...d, aiCards: updated })) }} /></>
+  if (screen === 'result' && result) return <>{homeFloat}<ResultScreen correct={result.correct} wrong={result.wrong} fast={result.fast} easy={result.easy} weakestCard={result.weakestCard} strongestCard={result.strongestCard} masteryUnlocked={masteryUnlocked} showRhythmus={result.showRhythmus} urlaubNote={result.urlaubNote} kontextCard={result.kontextCard} onUnlockUrlaub={() => setSoftPaywall({ area: 'urlaub', used: 3, limit: 10 })} onRhythmus={() => setScreen('rhythmus')} onKontext={result.kontextCard ? () => { setKontextCard(result.kontextCard); setScreen('kontext') } : null} t={t} lang={lang} onBack={() => { setScreen('menu'); setSession(null) }} onReplay={result.originalSession ? () => { setSession(result.originalSession); setResumeStartIndex(0); setResumeStartProgress(null); setScreen('cards') } : null} s={s} th={th} /></>
   if (screen === 'settings') return <>{homeFloat}<SettingsScreen t={t} s={s} theme={theme} onThemeChange={onThemeChange} onBack={() => setScreen('menu')} user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} onPartner={() => setScreen('partner')} onLightModeChange={onLightModeChange} onCardSizeChange={onCardSizeChange} musicEnabled={musicEnabled} musicVolume={musicVolume} onMusicToggle={onMusicToggle} onMusicVolume={onMusicVolume} /></>
   if (screen === 'meinekarten') return <>{homeFloat}<MeineKartenScreen user={user} myData={myData} setMyData={setMyData} allCards={allCards} cardProgress={cardProgress} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
   if (screen === 'geschenkkarte') return <>{homeFloat}<GeschenkkarteScreen user={user} myData={myData} lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} /></>
@@ -7533,6 +7667,49 @@ class ErrorBoundary extends Component {
 
 // ── AMBIENT AUDIO ENGINE ──────────────────────────────────────────────────────
 let _ambCtx = null; let _ambNodes = []; let _ambMaster = null; let _ambTheme = null
+let _mubertAudio = null; let _mubertCache = {} // theme → url
+
+async function _fetchMubertUrl(theme) {
+  if (_mubertCache[theme]) return _mubertCache[theme]
+  try {
+    const snap = await getDoc(doc(db, 'sharedConfig', `music_${theme}`))
+    if (snap.exists() && snap.data()?.url && (snap.data()?.expires || 0) > Date.now()) {
+      return (_mubertCache[theme] = snap.data().url)
+    }
+  } catch(e) {}
+  try {
+    const r = await fetch(`/api/mubert?theme=${encodeURIComponent(theme)}`)
+    const d = await r.json()
+    if (d?.url) {
+      _mubertCache[theme] = d.url
+      setDoc(doc(db, 'sharedConfig', `music_${theme}`), { url: d.url, theme, expires: Date.now() + 3600000 * 6, generatedAt: new Date().toISOString() }).catch(() => {})
+      return d.url
+    }
+  } catch(e) {}
+  return null
+}
+
+async function ambientEnableMubert(theme, vol) {
+  ambientEnable(theme, vol) // Web Audio starts immediately as fallback
+  const url = await _fetchMubertUrl(theme)
+  if (!url) return // Web Audio stays
+  ambientDisable() // Fade out Web Audio since Mubert is available
+  if (!_mubertAudio) { _mubertAudio = new Audio(); _mubertAudio.loop = true; _mubertAudio.crossOrigin = 'anonymous' }
+  if (_mubertAudio.src !== url) _mubertAudio.src = url
+  _mubertAudio.volume = Math.max(0, Math.min(1, vol)) * 0.7
+  _mubertAudio.play().catch(() => ambientEnable(theme, vol)) // Fallback to Web Audio if Mubert play fails
+}
+
+function ambientDisableAll() {
+  ambientDisable()
+  if (_mubertAudio) { try { _mubertAudio.pause(); _mubertAudio.src = '' } catch(e) {} }
+}
+
+function ambientSwitchThemeMubert(theme, vol) {
+  ambientSwitchTheme(theme, vol)
+  if (_mubertAudio) { try { _mubertAudio.pause() } catch(e) {} }
+  setTimeout(() => ambientEnableMubert(theme, vol), 700)
+}
 
 function _ambInit() {
   if (_ambCtx) return true
@@ -7619,15 +7796,15 @@ function App() {
 
   // ── MUSIC CONTROL ─────────────────────────────────────────
   useEffect(() => {
-    if (musicEnabled && user) ambientEnable(theme, musicVolume)
-    else ambientDisable()
+    if (musicEnabled && user) ambientEnableMubert(theme, musicVolume)
+    else ambientDisableAll()
   }, [musicEnabled, musicVolume, user]) // eslint-disable-line
 
   const prevThemeRef = useRef(theme)
   useEffect(() => {
     if (theme !== prevThemeRef.current) {
       prevThemeRef.current = theme
-      if (musicEnabled) ambientSwitchTheme(theme, musicVolume)
+      if (musicEnabled) ambientSwitchThemeMubert(theme, musicVolume)
     }
   }, [theme]) // eslint-disable-line
 
