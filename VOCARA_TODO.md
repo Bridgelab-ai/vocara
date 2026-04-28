@@ -1,5 +1,11 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 28.04.2026)
 
+## ✅ Implementiert (28.04.2026 Session 12)
+- UI DUPLIKATE ENTFERNT: Zielsprache-Pill vom Home-Screen entfernt (nur noch in Einstellungen), karteMenu-Dropdown entfernt → standalone Nav-Buttons (Karte kreieren / Meine Karten / Geschenkkarte) ✅
+- HORIZONT ENTFERNT: HorizontScreen, glassBtn + Routing komplett entfernt — standalone Horizont-App in Planung ✅
+- FREE TIER BESTÄTIGT: softPaywall + checkFreeLimit + freeBadge aus Session 11 vollständig aktiv ✅
+- VERSION V01.007.017 ✅
+
 ## ✅ Implementiert (28.04.2026 Session 11)
 - FREE TIER SOFT PAYWALL: Eleganter Bottom-Sheet statt Toast — "Du hast X von Y Karten genutzt", Premium-CTA mit Features, 'Vielleicht später' Button — KI-Gespräch limit ebenfalls soft paywall ✅
 - HORIZONT TEXT: 'Kultur & Auswandern' → 'Kultur & Sprache' / 'Culture & Language' auf allen Screens ✅
