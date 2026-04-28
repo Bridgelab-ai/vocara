@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.022.021'
+const APP_VERSION = 'V01.022.022'
 
 // ── SOZIALES REGISTER ───────────────────────────────────────────
 const SOCIAL_REGISTERS = [
@@ -1538,6 +1538,13 @@ const T = {
   }
 }
 
+const loadLocale = async (lang) => {
+  try {
+    const r = await fetch('/locales/' + (lang || 'de').toLowerCase() + '.json')
+    return r.json()
+  } catch { return {} }
+}
+
 const WEEK_AREAS = [
   { key: 'vocabulary', labelDe: 'Wörter', labelEn: 'Words', tipDe: 'Meine Worte – diese Woche noch nicht geübt', tipEn: 'My Words – not practiced this week' },
   { key: 'sentence', labelDe: 'Sätze', labelEn: 'Sentences', tipDe: 'Sätze – diese Woche noch nicht geübt', tipEn: 'Sentences – not practiced this week' },
@@ -1837,8 +1844,8 @@ function StreakWidget({ history, th, t }) {
 }
 
 // ── KI-GESPRÄCH ───────────────────────────────────────────────
-function KiGespraechScreen({ lang, theme, onBack, userName, userToLang = 'en', socialRegister = 'friends', myData, partnerData }) {
-  const th = THEMES[theme]; const s = makeStyles(th); const t = T[lang]
+function KiGespraechScreen({ lang, theme, onBack, userName, userToLang = 'en', socialRegister = 'friends', myData, partnerData, t: tProp }) {
+  const th = THEMES[theme]; const s = makeStyles(th); const t = tProp || T[lang] || T.en
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -1973,8 +1980,8 @@ function KiGespraechScreen({ lang, theme, onBack, userName, userToLang = 'en', s
   )
 }
 
-function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userName, userToLang = 'en' }) {
-  const th = THEMES[theme]; const s = makeStyles(th); const t = T[lang]
+function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userName, userToLang = 'en', t: tProp }) {
+  const th = THEMES[theme]; const s = makeStyles(th); const t = tProp || T[lang] || T.en
   const LANG_NAMES_FULL = { en: 'English', de: 'German', sw: 'Swahili', th: 'Thai', es: 'Spanish', fr: 'French', ar: 'Arabic', tr: 'Turkish', pt: 'Portuguese' }
   const ttsLangCode = userToLang.toLowerCase()
   const targetLang = LANG_NAMES_FULL[ttsLangCode] || ttsLangCode
@@ -2485,8 +2492,8 @@ function PartnerScreen({ user, myData, lang, theme, onBack, onPartnerUpdate }) {
 }
 
 // ── SPRACHRHYTHMUS-TRAINING (#31) ──────────────────────────────
-function RhythmusScreen({ lang, theme, onBack, allCards, cardProgress, userToLang = 'en' }) {
-  const th = THEMES[theme]; const s = makeStyles(th); const t = T[lang]
+function RhythmusScreen({ lang, theme, onBack, allCards, cardProgress, userToLang = 'en', t: tProp }) {
+  const th = THEMES[theme]; const s = makeStyles(th); const t = tProp || T[lang] || T.en
   const [sentence, setSentence] = useState(null)
   const [micState, setMicState] = useState('idle') // idle | listening | done
   const [transcript, setTranscript] = useState('')
@@ -2599,8 +2606,8 @@ function RhythmusScreen({ lang, theme, onBack, allCards, cardProgress, userToLan
 }
 
 // ── KONTEXTWECHSEL SCREEN ──────────────────────────────────────
-function KontextwechselScreen({ card, lang, theme, userToLang = 'en', user, onBack, onSaveCard }) {
-  const th = THEMES[theme]; const s = makeStyles(th); const t = T[lang]
+function KontextwechselScreen({ card, lang, theme, userToLang = 'en', user, onBack, onSaveCard, t: tProp }) {
+  const th = THEMES[theme]; const s = makeStyles(th); const t = tProp || T[lang] || T.en
   const [variants, setVariants] = useState(null) // [{type, prompt, answer}]
   const [loading, setLoading] = useState(true)
   const [saved, setSaved] = useState(null) // saved variant type
@@ -3933,8 +3940,8 @@ function StatRow({ label, mastered, active, total, s }) {
   )
 }
 
-function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack, cardProgress }) {
-  const th = THEMES[theme]; const s = makeStyles(th); const t = T[lang]
+function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack, cardProgress, t: tProp }) {
+  const th = THEMES[theme]; const s = makeStyles(th); const t = tProp || T[lang] || T.en
   const today = todayStr()
   const tom = new Date(); tom.setDate(tom.getDate() + 1)
   const tomorrow = tom.toISOString().slice(0, 10)
@@ -4541,7 +4548,9 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
   )
 
   const { lightMode, cardSize } = React.useContext(AppPrefsContext)
-  const t = T[lang]; const th = resolveTheme(theme, lightMode); const s = makeStyles(th)
+  const [t, setT] = useState(() => T[lang] || T.en)
+  const th = resolveTheme(theme, lightMode); const s = makeStyles(th)
+  useEffect(() => { loadLocale(lang).then(loaded => setT({ ...(T[lang] || T.en), ...loaded })).catch(() => {}) }, [lang])
   const firstName = user.displayName?.split(' ')[0] || user.displayName
   const cardProgress = myData?.cardProgress || {}
   const isMarkLang = lang === 'de'
@@ -5469,19 +5478,19 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
   }
 
   if (screen === 'cards' && session) return <>{homeFloat}<CardScreen user={user} session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} onSaveSessionProgress={saveSessionProgress} onStop={handleSessionStop} onSaveExample={handleSaveExample} mode={currentSessionMode} startIndex={resumeStartIndex} startProgress={resumeStartProgress} userToLang={activeToLang} socialRegister={myData?.socialRegister || 'friends'} /></>
-  if (screen === 'rhythmus') return <>{homeFloat}<RhythmusScreen lang={lang} theme={theme} onBack={() => { setScreen('result') }} allCards={allCards} cardProgress={cardProgress} userToLang={activeToLang} /></>
-  if (screen === 'kontext' && kontextCard) return <>{homeFloat}<KontextwechselScreen card={kontextCard} lang={lang} theme={theme} userToLang={activeToLang} user={user} onBack={() => setScreen('result')} onSaveCard={async (newCard) => { const updated = [...(myData?.aiCards || []), newCard]; await updateDoc(doc(db, 'users', user.uid), { aiCards: updated }).catch(() => {}); setMyData(d => ({ ...d, aiCards: updated })) }} /></>
+  if (screen === 'rhythmus') return <>{homeFloat}<RhythmusScreen lang={lang} theme={theme} onBack={() => { setScreen('result') }} allCards={allCards} cardProgress={cardProgress} userToLang={activeToLang} t={t} /></>
+  if (screen === 'kontext' && kontextCard) return <>{homeFloat}<KontextwechselScreen card={kontextCard} lang={lang} theme={theme} userToLang={activeToLang} user={user} onBack={() => setScreen('result')} onSaveCard={async (newCard) => { const updated = [...(myData?.aiCards || []), newCard]; await updateDoc(doc(db, 'users', user.uid), { aiCards: updated }).catch(() => {}); setMyData(d => ({ ...d, aiCards: updated })) }} t={t} /></>
   if (screen === 'result' && result) return <>{homeFloat}<ResultScreen correct={result.correct} wrong={result.wrong} fast={result.fast} easy={result.easy} weakestCard={result.weakestCard} strongestCard={result.strongestCard} masteryUnlocked={masteryUnlocked} showRhythmus={result.showRhythmus} urlaubNote={result.urlaubNote} kontextCard={result.kontextCard} onUnlockUrlaub={() => setSoftPaywall({ area: 'urlaub', used: 3, limit: 10 })} onRhythmus={() => setScreen('rhythmus')} onKontext={result.kontextCard ? () => { setKontextCard(result.kontextCard); setScreen('kontext') } : null} t={t} lang={lang} onBack={() => { setScreen('menu'); setSession(null) }} onReplay={result.originalSession ? () => { setSession(result.originalSession); setResumeStartIndex(0); setResumeStartProgress(null); setScreen('cards') } : null} s={s} th={th} /></>
   if (screen === 'settings') return <>{homeFloat}<SettingsScreen t={t} s={s} theme={theme} onThemeChange={onThemeChange} onBack={() => setScreen('menu')} user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} onPartner={() => setScreen('partner')} onLightModeChange={onLightModeChange} onCardSizeChange={onCardSizeChange} musicEnabled={musicEnabled} musicVolume={musicVolume} onMusicToggle={onMusicToggle} onMusicVolume={onMusicVolume} /></>
   if (screen === 'meinekarten') return <>{homeFloat}<MeineKartenScreen user={user} myData={myData} setMyData={setMyData} allCards={allCards} cardProgress={cardProgress} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
   if (screen === 'geschenkkarte') return <>{homeFloat}<GeschenkkarteScreen user={user} myData={myData} lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} /></>
-  if (screen === 'karteerstellen') return <>{homeFloat}<KarteErstellenScreen user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} theme={theme} onBack={() => setScreen('menu')} socialRegister={myData?.socialRegister || 'friends'} /></>
+  if (screen === 'karteerstellen') return <>{homeFloat}<KarteErstellenScreen user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} theme={theme} onBack={() => setScreen('menu')} socialRegister={myData?.socialRegister || 'friends'} t={t} /></>
   if (screen === 'partner') return <>{homeFloat}<PartnerScreen user={user} myData={myData} lang={lang} theme={theme} onBack={() => setScreen('menu')} onPartnerUpdate={(uid) => { onPartnerUpdate(uid); setScreen('menu') }} /></>
   if (screen === 'test') return <>{homeFloat}<PlacementTest lang={lang} theme={theme} user={user} onBack={() => setScreen('menu')} onSaveCefr={onSaveCefr} /></>
   if (screen === 'impressum') return <>{homeFloat}<ImpressumScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
-  if (screen === 'stats') return <>{homeFloat}<StatsScreen user={user} myData={myData} partnerData={partnerData} allCards={allCards} lang={lang} theme={theme} onBack={() => setScreen('menu')} cardProgress={cardProgress} /></>
-  if (screen === 'ki') return <>{homeFloat}<KiGespraechScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={activeToLang} socialRegister={myData?.socialRegister || 'friends'} myData={myData} partnerData={partnerData} /></>
-  if (screen === 'satz') return <>{homeFloat}<SatzTrainingScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={activeToLang} /></>
+  if (screen === 'stats') return <>{homeFloat}<StatsScreen user={user} myData={myData} partnerData={partnerData} allCards={allCards} lang={lang} theme={theme} onBack={() => setScreen('menu')} cardProgress={cardProgress} t={t} /></>
+  if (screen === 'ki') return <>{homeFloat}<KiGespraechScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={activeToLang} socialRegister={myData?.socialRegister || 'friends'} myData={myData} partnerData={partnerData} t={t} /></>
+  if (screen === 'satz') return <>{homeFloat}<SatzTrainingScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={activeToLang} t={t} /></>
   if (screen === 'diary') return <>{homeFloat}<DiaryScreen user={user} myData={myData} setMyData={setMyData} partnerData={partnerData} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
   if (screen === 'admin' && user.uid === MARK_UID) return <>{homeFloat}<AdminScreen user={user} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
 
@@ -6574,8 +6583,8 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
   )
 }
 
-function KarteErstellenScreen({ user, myData, setMyData, allCards, lang, theme, onBack, socialRegister = 'friends' }) {
-  const th = THEMES[theme]; const s = makeStyles(th); const t = T[lang]; const isDE = lang === 'de'
+function KarteErstellenScreen({ user, myData, setMyData, allCards, lang, theme, onBack, socialRegister = 'friends', t: tProp }) {
+  const th = THEMES[theme]; const s = makeStyles(th); const t = tProp || T[lang] || T.en; const isDE = lang === 'de'
 
   const LANG_NAMES = { en: 'Englisch', de: 'Deutsch', sw: 'Swahili', fr: 'Französisch', es: 'Spanisch', th: 'Thai' }
   const LANG_NAMES_EN = { en: 'English', de: 'German', sw: 'Swahili', fr: 'French', es: 'Spanish', th: 'Thai' }
