@@ -1,5 +1,16 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 28.04.2026)
 
+## ✅ Implementiert (28.04.2026 Session 20) — V01.023.023
+- SATZTRAINING 5 MODI: Mode E (Übersetzung) hinzugefügt — KI evaluiert semantisch via /api/chat für tense+translation ✅
+- SEMANTISCHE BEWERTUNG: Haiku evaluiert ob Übersetzung/Zeitform sinngemäß korrekt ist, gibt kurzes Feedback in fromLang ✅
+- PROGRESSION: difficultyScore (0-10) steigt mit richtig/leicht, sinkt bei Falsch — Sterne-Anzeige ab Score 4 ✅
+- TYPO-TOLERANZ: Levenshtein-Distanz ≤ 1 für Konjugation (1 Tippfehler erlaubt) ✅
+- RANDOM MODE ORDER: exercises werden nach Generierung zufällig gemischt ✅
+- STUFEN-SYSTEM: Lvl 1/2/3 Badges auf allen 6 Kategoriebuttons (ab 1/5/15 gemeisterten Karten) ✅
+- NIE WIEDER LERNEN: 700ms Long-Press auf Karte → Bestätigungsmodal → excludedCards in Firestore ✅
+- EXCLUDED CARDS: aus allen Sessions gefiltert via excludedCardIds Set + activeCards Filter ✅
+- VERSION V01.023.023 ✅
+
 ## ✅ Implementiert (28.04.2026 Session 19) — V01.023.022
 - SHARED CARDS POOL: api/weekly-pool.js schreibt nach Firestore sharedCards/{langPair}_{weekStr} ✅
 - fetchSharedCards() Helper: liest Pool-Doc vor KI-Generierung ✅

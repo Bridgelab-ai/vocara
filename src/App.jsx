@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.022.023'
+const APP_VERSION = 'V01.023.023'
 
 // ── SOZIALES REGISTER ───────────────────────────────────────────
 const SOCIAL_REGISTERS = [
@@ -2018,34 +2018,44 @@ function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userN
   const [selfRating, setSelfRating] = useState(null)
   const [correct, setCorrect] = useState(0)
   const [done, setDone] = useState(false)
+  const [semanticResult, setSemanticResult] = useState(null) // null | 'loading' | {ok, feedback}
+  const [difficultyScore, setDifficultyScore] = useState(0) // 0-10
 
   const ex = exercises[index]
 
-  useEffect(() => {
-    if (knownVocab.length >= 5) generateExercises()
-  }, [])
+  useEffect(() => { if (knownVocab.length >= 5) generateExercises() }, [])
+
+  const levenshtein = (a, b) => {
+    const m = a.length, n = b.length
+    const dp = Array.from({ length: m + 1 }, (_, i) => Array.from({ length: n + 1 }, (_, j) => i === 0 ? j : j === 0 ? i : 0))
+    for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++)
+      dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j-1], dp[i-1][j], dp[i][j-1])
+    return dp[m][n]
+  }
 
   const generateExercises = async () => {
     setLoading(true); setError(null); setIndex(0); setDone(false)
-    setCorrect(0); setRevealed(false); setSelfRating(null); setUserInput('')
+    setCorrect(0); setRevealed(false); setSelfRating(null); setUserInput(''); setSemanticResult(null)
     const wordList = knownVocab.map(c => c.back).slice(0, 30).join(', ')
-    const prompt = `Create 8 grammar exercises for a ${targetLang} learner (${fromLang} native speaker).
+    const prompt = `Create 8 varied grammar exercises for a ${targetLang} learner (${fromLang} native speaker).
 Use these known words where possible: ${wordList}
-Mix all 4 types. Return ONLY valid JSON array, no markdown:
-[{"type":"gap","question":"She [___] to school every day.","answer":"goes","hint":"3rd person singular","explanation":"In English, add -s/-es to verbs in 3rd person singular present tense."},
-{"type":"order","question":"Arrange the words in the correct order:","chips":["goes","she","school","to","every","day"],"answer":"She goes to school every day.","explanation":"Standard English word order: Subject + Verb + Object."},
-{"type":"tense","question":"She goes to school. (Past tense →)","answer":"She went to school.","hint":"irregular verb","explanation":"go is irregular: go → went → gone."},
-{"type":"conjugation","question":"sein + wir →","answer":"sind","hint":"irregular","explanation":"sein is irregular: ich bin, du bist, er ist, wir sind, ihr seid, sie sind."}]`
+Mix all 5 types equally. Return ONLY valid JSON array, no markdown:
+[{"type":"gap","question":"She [___] to school every day.","answer":"goes","hint":"3rd person singular present","explanation":"Add -s/-es in 3rd person singular present."},
+{"type":"order","question":"Arrange the words:","chips":["goes","she","school","to","every","day"],"answer":"She goes to school every day.","explanation":"English word order: Subject + Verb + Object."},
+{"type":"tense","question":"She goes to school. (Past →)","answer":"She went to school.","hint":"irregular verb","explanation":"go → went (irregular)."},
+{"type":"conjugation","question":"sein + wir →","answer":"sind","hint":"irregular","explanation":"wir sind (irregular)."},
+{"type":"translation","question":"Translate: 'I want to go home.'","answer":"Ich möchte nach Hause gehen.","hint":"use möchten","explanation":"möchten = would like to / want to."}]`
     try {
       const res = await fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1800, messages: [{ role: 'user', content: prompt }] })
+        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 2200, messages: [{ role: 'user', content: prompt }] })
       })
       const data = await res.json()
       const text = data.content?.[0]?.text || ''
       const parsed = JSON.parse(text.replace(/```json|```/g, '').trim())
-      setExercises(parsed)
-      if (parsed[0]?.type === 'order') initChips(parsed[0])
+      const shuffled = [...parsed].sort(() => Math.random() - 0.5)
+      setExercises(shuffled)
+      if (shuffled[0]?.type === 'order') initChips(shuffled[0])
     } catch (e) { setError('api') }
     setLoading(false)
   }
@@ -2057,24 +2067,40 @@ Mix all 4 types. Return ONLY valid JSON array, no markdown:
     setChipBank(chips); setChipOrder([])
   }
 
-  const handleCheck = () => {
-    if (ex.type === 'order') {
-      speak(ex.answer, ttsLangCode)
-    } else if (userInput.trim()) {
-      speak(ex.answer, ttsLangCode)
-    } else return
+  const needsSemanticEval = (type) => type === 'tense' || type === 'translation'
+
+  const handleCheck = async () => {
+    const hasInput = ex.type === 'order' ? chipOrder.length > 0 : userInput.trim()
+    if (!hasInput) return
+    speak(ex.answer, ttsLangCode)
     setRevealed(true)
+    if (needsSemanticEval(ex.type)) {
+      setSemanticResult('loading')
+      try {
+        const evalPrompt = ex.type === 'translation'
+          ? `Exercise: "${ex.question}"\nExpected: "${ex.answer}"\nUser wrote: "${userInput.trim()}"\nIs the meaning the same (minor grammar differences OK)? Reply ONLY JSON: {"ok":true/false,"feedback":"1 short ${fromLang} sentence"}`
+          : `Exercise: "${ex.question}"\nExpected: "${ex.answer}"\nUser wrote: "${userInput.trim()}"\nIs the tense conversion correct? Reply ONLY JSON: {"ok":true/false,"feedback":"1 short grammar tip in ${fromLang}"}`
+        const evalRes = await fetch('/api/chat', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 100, messages: [{ role: 'user', content: evalPrompt }] })
+        })
+        const evalData = await evalRes.json()
+        const evalText = (evalData.content?.[0]?.text || '').trim()
+        setSemanticResult(JSON.parse(evalText.replace(/```json|```/g, '').trim()))
+      } catch { setSemanticResult({ ok: false, feedback: '' }) }
+    }
   }
 
   const handleRate = (rating) => {
     setSelfRating(rating)
-    if (rating === 'right' || rating === 'easy') setCorrect(c => c + 1)
+    if (rating === 'right' || rating === 'easy') { setCorrect(c => c + 1); setDifficultyScore(d => Math.min(10, d + 1)) }
+    else setDifficultyScore(d => Math.max(0, d - 1))
   }
 
   const handleNext = () => {
     const next = index + 1
     if (next >= exercises.length) { setDone(true); return }
-    setIndex(next); setUserInput(''); setRevealed(false); setSelfRating(null)
+    setIndex(next); setUserInput(''); setRevealed(false); setSelfRating(null); setSemanticResult(null)
     const nextEx = exercises[next]
     if (nextEx?.type === 'order') initChips(nextEx)
     else { setChipBank([]); setChipOrder([]) }
@@ -2084,28 +2110,28 @@ Mix all 4 types. Return ONLY valid JSON array, no markdown:
   const removeChip = (chip) => { if (revealed) return; setChipBank(b => [...b, chip]); setChipOrder(o => o.filter(c => c.id !== chip.id)) }
 
   const isAnswerCorrect = () => {
-    if (ex.type === 'order') {
-      return chipOrder.map(c => c.word).join(' ').toLowerCase() === ex.answer.toLowerCase()
-    }
-    const norm = s => s.trim().toLowerCase().replace(/[.,!?]/g, '')
-    return norm(userInput) === norm(ex.answer)
+    if (ex.type === 'order') return chipOrder.map(c => c.word).join(' ').toLowerCase() === ex.answer.toLowerCase()
+    if (needsSemanticEval(ex.type)) return semanticResult && semanticResult !== 'loading' ? semanticResult.ok : null
+    const norm = str => str.trim().toLowerCase().replace(/[.,!?]/g, '')
+    const u = norm(userInput), a = norm(ex.answer)
+    if (ex.type === 'conjugation') return u === a || levenshtein(u, a) <= 1
+    return u === a
   }
 
-  const typeLabel = (type) => {
-    const labels = { gap: lang === 'de' ? '✏️ Lückentext' : '✏️ Fill the gap', order: lang === 'de' ? '🔀 Wortstellung' : '🔀 Word order', tense: lang === 'de' ? '⏰ Zeitformen' : '⏰ Tense', conjugation: lang === 'de' ? '🔤 Konjugation' : '🔤 Conjugation' }
-    return labels[type] || type
-  }
+  const typeLabel = (type) => ({
+    gap: lang === 'de' ? '✏️ Lückentext' : '✏️ Fill the gap',
+    order: lang === 'de' ? '🔀 Wortstellung' : '🔀 Word order',
+    tense: lang === 'de' ? '⏰ Zeitformen' : '⏰ Tense',
+    conjugation: lang === 'de' ? '🔤 Konjugation' : '🔤 Conjugation',
+    translation: lang === 'de' ? '🌐 Übersetzung' : '🌐 Translation',
+  })[type] || type
 
   if (knownVocab.length < 5) return (
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
       <button style={s.backBtn} onClick={onBack}>←</button>
       <p style={{ color: th.accent, fontSize: '2rem', marginBottom: '12px' }}>📚</p>
-      <p style={{ color: th.text, fontSize: '1rem', marginBottom: '8px', fontWeight: '600' }}>
-        {t.satzNotEnough}
-      </p>
-      <p style={{ color: th.sub, fontSize: '0.88rem', marginBottom: '20px', lineHeight: 1.5 }}>
-        {t.satzNotEnoughDesc}
-      </p>
+      <p style={{ color: th.text, fontSize: '1rem', marginBottom: '8px', fontWeight: '600' }}>{t.satzNotEnough}</p>
+      <p style={{ color: th.sub, fontSize: '0.88rem', marginBottom: '20px', lineHeight: 1.5 }}>{t.satzNotEnoughDesc}</p>
       <button style={s.logoutBtn} onClick={onBack}>{t.back}</button>
     </div></div>
   )
@@ -2136,6 +2162,7 @@ Mix all 4 types. Return ONLY valid JSON array, no markdown:
         <p style={{ color: th.sub, fontSize: '0.9rem', marginTop: '8px' }}>
           {correct === exercises.length ? '🏆 Perfekt!' : correct >= exercises.length * 0.7 ? '💪 Sehr gut!' : '📚 Weiter üben!'}
         </p>
+        {difficultyScore >= 6 && <p style={{ color: th.accent, fontSize: '0.78rem', marginTop: '8px' }}>⬆️ {lang === 'de' ? 'Schwierigkeitsgrad steigt' : 'Difficulty increasing'}</p>}
       </div>
       <button style={s.button} onClick={generateExercises}>{t.newExercises}</button>
       <button style={s.logoutBtn} onClick={onBack}>{t.back}</button>
@@ -2143,7 +2170,7 @@ Mix all 4 types. Return ONLY valid JSON array, no markdown:
   )
 
   if (!ex) return null
-  const correct_bool = revealed ? isAnswerCorrect() : null
+  const correct_bool = revealed && semanticResult !== 'loading' ? isAnswerCorrect() : null
 
   return (
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
@@ -2155,6 +2182,7 @@ Mix all 4 types. Return ONLY valid JSON array, no markdown:
 
       <p style={{ color: th.sub, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '1px', margin: '14px 0 10px' }}>
         {typeLabel(ex.type)}
+        {difficultyScore >= 4 && <span style={{ marginLeft: '6px', color: th.gold }}>{'★'.repeat(Math.min(3, Math.floor(difficultyScore / 3)))}</span>}
       </p>
 
       {/* QUESTION CARD */}
@@ -2163,22 +2191,22 @@ Mix all 4 types. Return ONLY valid JSON array, no markdown:
         {ex.hint && <p style={{ color: th.sub, fontSize: '0.72rem', fontStyle: 'italic', margin: 0 }}>💡 {ex.hint}</p>}
       </div>
 
-      {/* INPUT AREA */}
-      {(ex.type === 'gap' || ex.type === 'tense' || ex.type === 'conjugation') && (
+      {/* INPUT AREA — gap / tense / conjugation / translation */}
+      {(ex.type === 'gap' || ex.type === 'tense' || ex.type === 'conjugation' || ex.type === 'translation') && (
         <div style={{ marginBottom: '14px' }}>
           <input
             value={userInput}
             onChange={e => !revealed && setUserInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !revealed && userInput.trim()) handleCheck() }}
-            placeholder={t.yourAnswer}
+            placeholder={ex.type === 'translation' ? (lang === 'de' ? 'Übersetzung eingeben…' : 'Enter translation…') : t.yourAnswer}
             disabled={revealed}
-            style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: `1px solid ${revealed ? (correct_bool ? '#4CAF50' : '#f44336') : th.border}`, background: th.card, color: th.text, fontSize: '1rem', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
+            style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: `1px solid ${revealed ? (correct_bool === null ? th.border : correct_bool ? '#4CAF50' : '#f44336') : th.border}`, background: th.card, color: th.text, fontSize: '1rem', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
             autoFocus
           />
         </div>
       )}
 
-      {/* CHIP AREA for order type */}
+      {/* CHIP AREA — order type */}
       {ex.type === 'order' && (
         <>
           <div style={{ ...s.bigCard, minHeight: '60px', flexWrap: 'wrap', gap: '8px', padding: '12px', justifyContent: 'flex-start', alignItems: 'flex-start', marginBottom: '8px' }}>
@@ -2203,12 +2231,22 @@ Mix all 4 types. Return ONLY valid JSON array, no markdown:
         </>
       )}
 
+      {/* SEMANTIC EVAL LOADING */}
+      {revealed && semanticResult === 'loading' && (
+        <p style={{ color: th.sub, fontSize: '0.78rem', textAlign: 'center', marginBottom: '10px' }}>✦ {lang === 'de' ? 'KI bewertet…' : 'AI evaluating…'}</p>
+      )}
+
       {/* REVEAL RESULT */}
-      {revealed && (
+      {revealed && semanticResult !== 'loading' && (
         <div style={{ marginBottom: '14px', animation: 'vocaraFadeIn 0.3s ease both' }}>
           <p style={{ color: correct_bool ? '#4CAF50' : '#f44336', fontWeight: 'bold', fontSize: '1rem', marginBottom: '8px' }}>
-            {correct_bool ? `✓ ${ex.answer}` : `✗ ${t.correct}: ${ex.answer}`}
+            {correct_bool ? `✓ ${ex.answer}` : `✗ ${lang === 'de' ? 'Lösung' : 'Answer'}: ${ex.answer}`}
           </p>
+          {semanticResult?.feedback && (
+            <div style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${th.border}`, borderRadius: '10px', padding: '8px 12px', marginBottom: '6px' }}>
+              <p style={{ color: correct_bool ? '#81c784' : '#FFB74D', fontSize: '0.78rem', margin: 0, lineHeight: 1.5 }}>💬 {semanticResult.feedback}</p>
+            </div>
+          )}
           <div style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${th.border}`, borderRadius: '10px', padding: '10px 14px' }}>
             <p style={{ color: th.sub, fontSize: '0.78rem', margin: 0, lineHeight: 1.6 }}>📖 {ex.explanation}</p>
           </div>
@@ -2227,17 +2265,17 @@ Mix all 4 types. Return ONLY valid JSON array, no markdown:
       )}
 
       {/* SELF RATING AFTER REVEAL */}
-      {revealed && !selfRating && (
+      {revealed && semanticResult !== 'loading' && !selfRating && (
         <div style={{ ...s.answerRow, marginTop: '8px' }}>
-          <button style={s.wrongBtn} onClick={() => handleRate('wrong')}>❌ {t.wrong}</button>
-          <button style={s.fastBtn} onClick={() => handleRate('fast')}>😕 Fast</button>
-          <button style={s.rightBtn} onClick={() => handleRate('right')}>✅ {t.correct}</button>
-          <button style={s.easyBtn} onClick={() => handleRate('easy')}>⚡ Easy</button>
+          <button style={s.wrongBtn} onClick={() => handleRate('wrong')}>{t.wrong}</button>
+          <button style={s.fastBtn} onClick={() => handleRate('fast')}>{t.fast}</button>
+          <button style={s.rightBtn} onClick={() => handleRate('right')}>{t.correct}</button>
+          <button style={s.easyBtn} onClick={() => handleRate('easy')}>{t.easy}</button>
         </div>
       )}
 
       {/* NEXT BUTTON after rating */}
-      {revealed && selfRating && (
+      {revealed && semanticResult !== 'loading' && selfRating && (
         <button style={s.button} onClick={handleNext}>
           {index + 1 < exercises.length ? t.nextBtn : t.finishBtn}
         </button>
@@ -2756,7 +2794,7 @@ Return ONLY JSON array: [
   )
 }
 
-function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, onSaveState, onSaveSessionProgress, onStop, onSaveExample, mode = 'all', startIndex = 0, startProgress = null, userToLang = 'en', socialRegister = 'friends' }) {
+function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, onSaveState, onSaveSessionProgress, onStop, onSaveExample, mode = 'all', startIndex = 0, startProgress = null, userToLang = 'en', socialRegister = 'friends', onNeverLearn }) {
   const [index, setIndex] = useState(startIndex)
   const [queue, setQueue] = useState(session)
   const [revealed, setRevealed] = useState(false)
@@ -2786,6 +2824,12 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
   const easyCountRef = useRef(0)
   const fastCountRef = useRef(0)
   const cardStatsRef = useRef({})
+  const longPressTimer = useRef(null)
+  const handleCardPressStart = () => {
+    if (!onNeverLearn) return
+    longPressTimer.current = setTimeout(() => { if (onNeverLearn) onNeverLearn(item) }, 700)
+  }
+  const handleCardPressEnd = () => { clearTimeout(longPressTimer.current) }
 
   useEffect(() => {
     if (!window.DeviceOrientationEvent) return
@@ -3166,7 +3210,10 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
           ? `vocara${cardAnim.charAt(0).toUpperCase() + cardAnim.slice(1)} ${cardAnim === 'shake' ? '0.48s' : '0.35s'} ease forwards`
           : cardSlideIn ? 'vocaraSlideIn 0.32s ease-out forwards' : undefined,
       }}>
-        <div className="vocara-big-card" style={{
+        <div className="vocara-big-card"
+          onTouchStart={handleCardPressStart} onTouchEnd={handleCardPressEnd} onTouchMove={handleCardPressEnd}
+          onMouseDown={handleCardPressStart} onMouseUp={handleCardPressEnd} onMouseLeave={handleCardPressEnd}
+          style={{
           ...s.bigCard,
           border: (newProgress[item.id]?.isGolden || cardProgress[item.id]?.isGolden)
             ? '1px solid rgba(255,215,0,0.60)'
@@ -4348,6 +4395,7 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
   const [basicsLoading, setBasicsLoading] = useState(false)
   const [kontextCard, setKontextCard] = useState(null)
   const [tenseUnlockCelebration, setTenseUnlockCelebration] = useState(null) // 'past' | 'future' | null
+  const [neverLearnModal, setNeverLearnModal] = useState(null) // card object | null
   const VALID_SCREENS = new Set(['menu','cards','result','settings','partner','test','impressum','stats','ki','satz','diary','meinekarten','geschenkkarte','karteerstellen','admin','rhythmus','kontext'])
   if (!VALID_SCREENS.has(screen)) { setScreen('menu'); return null }
 
@@ -4647,11 +4695,12 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
   const yd = new Date(); yd.setDate(yd.getDate() - 1)
   const yesterday = `${yd.getFullYear()}-${String(yd.getMonth() + 1).padStart(2, '0')}-${String(yd.getDate()).padStart(2, '0')}`
   const pausedLanguages = myData?.pausedLanguages || []
+  const excludedCardIds = new Set(Object.keys(myData?.excludedCards || {}))
   const safeCards = allCards || []
   const uniqueTargetLangs = [...new Set(safeCards.map(c => c.targetLang).filter(Boolean))]
-  const activeCards = pausedLanguages.length > 0
-    ? safeCards.filter(c => !pausedLanguages.includes(c.targetLang))
-    : safeCards
+  const activeCards = safeCards
+    .filter(c => !excludedCardIds.has(c.id))
+    .filter(c => pausedLanguages.length === 0 || !pausedLanguages.includes(c.targetLang))
 
   // ── WORT DES TAGES ────────────────────────────────────────
   const wordOfDay = (() => {
@@ -5599,7 +5648,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     setScreen('result')
   }
 
-  if (screen === 'cards' && session) return <>{homeFloat}<CardScreen user={user} session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} onSaveSessionProgress={saveSessionProgress} onStop={handleSessionStop} onSaveExample={handleSaveExample} mode={currentSessionMode} startIndex={resumeStartIndex} startProgress={resumeStartProgress} userToLang={activeToLang} socialRegister={myData?.socialRegister || 'friends'} /></>
+  if (screen === 'cards' && session) return <>{homeFloat}<CardScreen user={user} session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} onSaveSessionProgress={saveSessionProgress} onStop={handleSessionStop} onSaveExample={handleSaveExample} mode={currentSessionMode} startIndex={resumeStartIndex} startProgress={resumeStartProgress} userToLang={activeToLang} socialRegister={myData?.socialRegister || 'friends'} onNeverLearn={(card) => setNeverLearnModal(card)} /></>
   if (screen === 'rhythmus') return <>{homeFloat}<RhythmusScreen lang={lang} theme={theme} onBack={() => { setScreen('result') }} allCards={allCards} cardProgress={cardProgress} userToLang={activeToLang} t={t} /></>
   if (screen === 'kontext' && kontextCard) return <>{homeFloat}<KontextwechselScreen card={kontextCard} lang={lang} theme={theme} userToLang={activeToLang} user={user} onBack={() => setScreen('result')} onSaveCard={async (newCard) => { const updated = [...(myData?.aiCards || []), newCard]; await updateDoc(doc(db, 'users', user.uid), { aiCards: updated }).catch(() => {}); setMyData(d => ({ ...d, aiCards: updated })) }} t={t} /></>
   if (screen === 'result' && result) return <>{homeFloat}<ResultScreen correct={result.correct} wrong={result.wrong} fast={result.fast} easy={result.easy} weakestCard={result.weakestCard} strongestCard={result.strongestCard} masteryUnlocked={masteryUnlocked} showRhythmus={result.showRhythmus} urlaubNote={result.urlaubNote} kontextCard={result.kontextCard} onUnlockUrlaub={() => setSoftPaywall({ area: 'urlaub', used: 3, limit: 10 })} onRhythmus={() => setScreen('rhythmus')} onKontext={result.kontextCard ? () => { setKontextCard(result.kontextCard); setScreen('kontext') } : null} t={t} lang={lang} onBack={() => { setScreen('menu'); setSession(null) }} onReplay={result.originalSession ? () => { setSession(result.originalSession); setResumeStartIndex(0); setResumeStartProgress(null); setScreen('cards') } : null} s={s} th={th} /></>
@@ -5791,6 +5840,34 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         </div>
       )}
 
+      {/* ── NEVER-LEARN MODAL ── */}
+      {neverLearnModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div style={{ ...s.card, maxWidth: '340px', width: '100%', padding: '24px', textAlign: 'center' }}>
+            <p style={{ color: th.text, fontSize: '1rem', fontWeight: '700', marginBottom: '8px' }}>
+              🚫 {isMarkLang ? 'Nie wieder lernen?' : 'Never learn again?'}
+            </p>
+            <p style={{ color: th.sub, fontSize: '0.83rem', marginBottom: '20px', lineHeight: 1.5 }}>
+              „{neverLearnModal.front}" — {isMarkLang ? 'Diese Karte wird aus allen Sessions ausgeblendet.' : 'This card will be hidden from all sessions.'}
+            </p>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button style={{ ...s.logoutBtn, flex: 1, textAlign: 'center', marginTop: 0, padding: '10px' }} onClick={() => setNeverLearnModal(null)}>{t.cancel}</button>
+              <button style={{ ...s.button, flex: 1, marginBottom: 0, padding: '10px', background: 'rgba(244,67,54,0.15)', color: '#f44336', border: '1px solid rgba(244,67,54,0.4)' }} onClick={async () => {
+                const cardId = neverLearnModal.id
+                try {
+                  const excl = { ...(myData?.excludedCards || {}), [cardId]: true }
+                  await updateDoc(doc(db, 'users', user.uid), { excludedCards: excl })
+                  setMyData(d => ({ ...d, excludedCards: excl }))
+                } catch (e) { console.warn('excludeCard failed:', e) }
+                setNeverLearnModal(null)
+              }}>
+                🚫 {isMarkLang ? 'Ausblenden' : 'Hide'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── 6-BUTTON GRID ── */}
       {(() => {
         // Soft hint badge for free users near limit
@@ -5800,44 +5877,61 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           if (!limit) return null
           const used = freeUsed(category)
           if (used === 0) return null
-          const pct = Math.round(used / limit * 100)
           return (
             <div style={{ position: 'absolute', bottom: '5px', right: '6px', background: used >= limit ? `${th.gold}22` : 'rgba(0,0,0,0.35)', borderRadius: '8px', padding: '1px 5px', pointerEvents: 'none' }}>
               <span style={{ color: used >= limit ? th.gold : 'rgba(255,255,255,0.55)', fontSize: '0.58rem', fontWeight: '700' }}>{used}/{limit}</span>
             </div>
           )
         }
+        // Stufen badge: level based on mastered cards per category
+        const levelBadge = (category) => {
+          const n = safeCards.filter(c => {
+            const baseId = c.id.replace(/_r(_\d+)?$/, '')
+            return c.category === category && !/_r(_\d+)?$/.test(c.id) && (cardProgress[baseId]?.interval || cardProgress[c.id]?.interval || 0) >= 3
+          }).length
+          if (n === 0) return null
+          const lv = n < 5 ? 1 : n < 15 ? 2 : 3
+          const col = lv === 3 ? '#FFD700' : lv === 2 ? th.gold : '#81c784'
+          return (
+            <div style={{ position: 'absolute', top: '5px', left: '6px', background: 'rgba(0,0,0,0.38)', borderRadius: '6px', padding: '1px 5px', pointerEvents: 'none' }}>
+              <span style={{ color: col, fontSize: '0.56rem', fontWeight: '700' }}>Lvl {lv}</span>
+            </div>
+          )
+        }
         return (
           <div className="vocara-cat-grid" style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '12px' }}>
             <div style={{ display: 'flex', gap: '12px' }}>
-              <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '0s' }} onClick={() => startCategorySession('vocabulary')}>
+              <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '0s', position: 'relative' }} onClick={() => startCategorySession('vocabulary')}>
                 {t.menuWorte.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
+                {levelBadge('vocabulary')}
               </button>
-              <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '1.8s', opacity: satzLoading ? 0.6 : 1 }} onClick={startSatzSession} disabled={satzLoading}>
+              <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '1.8s', opacity: satzLoading ? 0.6 : 1, position: 'relative' }} onClick={startSatzSession} disabled={satzLoading}>
                 {satzLoading ? '...' : t.menuSaetze.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
+                {!satzLoading && levelBadge('sentence')}
               </button>
             </div>
             <div style={{ display: 'flex', gap: '12px' }}>
               <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '3.5s', position: 'relative' }}
                 onClick={() => checkFreeLimit('street') && startCategorySession('street')}>
                 {t.menuStraße.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
-                {freeBadge('street')}
+                {levelBadge('street')}{freeBadge('street')}
               </button>
               <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '5.2s', position: 'relative' }}
                 onClick={() => checkFreeLimit('home') && startCategorySession('home')}>
                 {t.menuHause.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
-                {freeBadge('home')}
+                {levelBadge('home')}{freeBadge('home')}
               </button>
             </div>
             <div style={{ display: 'flex', gap: '12px' }}>
-              <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '6.8s', opacity: basicsLoading ? 0.6 : 1 }}
+              <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '6.8s', opacity: basicsLoading ? 0.6 : 1, position: 'relative' }}
                 onClick={startBasicsSession} disabled={basicsLoading}>
                 {basicsLoading ? '...' : (t.menuGrundlagen || 'Die\nGrundlagen').split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
+                {!basicsLoading && levelBadge('basics')}
               </button>
               <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '8.2s', position: 'relative' }}
                 onClick={() => checkFreeLimit('urlaub') && startCategorySession('urlaub')}>
                 {(t.menuUrlaub || '✈️\nIm Urlaub').split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
-                {freeBadge('urlaub')}
+                {levelBadge('urlaub')}{freeBadge('urlaub')}
               </button>
             </div>
             <button className="vocara-alle-btn" style={{ ...s.button, padding: '13px 28px', fontSize: '0.9rem', letterSpacing: '0.2px', marginBottom: 0, '--gleam-delay': '2.5s' }} onClick={() => startCategorySession('all')}>
