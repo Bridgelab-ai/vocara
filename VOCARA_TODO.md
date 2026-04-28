@@ -1,5 +1,12 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 28.04.2026)
 
+## ✅ Implementiert (28.04.2026 Session 17) — V01.022.021
+- FULL UI LOCALIZATION: T object erweitert auf 80+ Keys (ResultScreen, Settings, SatzTraining, Rhythmus, Kontextwechsel, Stats, KI, tense celebration, general) ✅
+- BUGS BEHOBEN: isMarkLang/isDE in KiGespraechScreen, SatzTrainingScreen, RhythmusScreen, KontextwechselScreen waren undefined — jetzt const t = T[lang] in allen Komponenten ✅
+- ALLE SCREENS LOKALISIERT: ResultScreen, SettingsScreen, StatsScreen, RhythmusScreen, KontextwechselScreen, KarteErstellenScreen, KiGespraechScreen — t.key statt ternary ✅
+- ELOSY sieht vollständig Englisch, MARK sieht vollständig Deutsch ✅
+- VERSION V01.022.021 ✅
+
 ## ✅ Implementiert (28.04.2026 Session 16) — V01.022.020
 - ZEITFORMEN VOLLAUTOMATISCH: Home-Screen Widget (Progress-Bar) komplett entfernt — keine manuelle Auswahl — tenseUnlockSeen Flag in Firestore verhindert wiederholte Celebration ✅
 - ZEITFORMEN CELEBRATION MODAL: Einmalige Overlay-Feier wenn Schwelle überschritten (20→Vergangenheit, 50→Zukunft) — dismissbar per Button oder Backdrop-Tap ✅
