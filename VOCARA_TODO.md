@@ -1,5 +1,13 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 28.04.2026)
 
+## ✅ Implementiert (28.04.2026 Session 13)
+- MUSIK PHASE 1: Web Audio API Ambient Engine — 3 Theme-Sounds (Hamburg: Harbor-Töne, Nairobi: Warm Sine+LFO, Welt: Kosmisch) — 🔇/🎵 Toggle im Home-Header — Lautstärkeregler in Einstellungen — Firestore + localStorage Persistenz — Fade-out/in bei Theme-Wechsel ✅
+- STREAK FREEZE PREMIUM: Free = 0 Freezes, Premium = 1x/Monat — Mark+Elosy immer Premium — Einstellungen zeigt Badge ✅
+- KARTEN-NOTIZ VERBESSERT: Note lädt aus newProgress (aktuelle Session), dann cardProgress — Sofortiges Firestore Write (`cardProgress.{id}._note`) bei Speichern — KI-Tutor referenziert Notizen im Coaching-Prompt ✅
+- OFFLINE INDIKATOR: 📵 Offline Pill oben rechts wenn kein Internet ✅
+- PWA: manifest.json, sw.js Service Worker (network-first/cache-first), index.html mit theme-color + apple-meta + manifest-Link, main.jsx SW-Registrierung ✅
+- VERSION V01.008.019 ✅
+
 ## ✅ Implementiert (28.04.2026 Session 12)
 - UI DUPLIKATE ENTFERNT: Zielsprache-Pill vom Home-Screen entfernt (nur noch in Einstellungen), karteMenu-Dropdown entfernt → standalone Nav-Buttons (Karte kreieren / Meine Karten / Geschenkkarte) ✅
 - HORIZONT ENTFERNT: HorizontScreen, glassBtn + Routing komplett entfernt — standalone Horizont-App in Planung ✅
