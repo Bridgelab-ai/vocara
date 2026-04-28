@@ -43,7 +43,38 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.008.019'
+const APP_VERSION = 'V01.018.019'
+
+// ── SOZIALES REGISTER ───────────────────────────────────────────
+const SOCIAL_REGISTERS = [
+  { key: 'friends',   emoji: '👥', labelDe: 'Kumpel',      labelEn: 'Friends'    },
+  { key: 'couple',    emoji: '💑', labelDe: 'Große Liebe', labelEn: 'Partner'    },
+  { key: 'colleague', emoji: '👔', labelDe: 'Kollege',     labelEn: 'Colleague'  },
+  { key: 'family',    emoji: '👨‍👩‍👧', labelDe: 'Familie',    labelEn: 'Family'    },
+]
+const socialRegisterLabel = (key, lang) => {
+  const r = SOCIAL_REGISTERS.find(r => r.key === key) || SOCIAL_REGISTERS[0]
+  return `${r.emoji} ${lang === 'de' ? r.labelDe : r.labelEn}`
+}
+const socialRegisterContext = (key) => ({
+  friends: 'close friends learning together (casual, warm, fun)',
+  couple: 'romantic partners (intimate, playful, affectionate)',
+  colleague: 'work colleagues (professional, respectful, practical)',
+  family: 'family members (warm, supportive, generational)',
+}[key] || 'friends')
+
+// ── ZEITFORMEN STUFEN ───────────────────────────────────────────
+const TENSE_THRESHOLDS = { past: 20, future: 50 }
+const getTenseUnlocks = (mastered) => ({
+  present: true,
+  past:    mastered >= TENSE_THRESHOLDS.past,
+  future:  mastered >= TENSE_THRESHOLDS.future,
+})
+const TENSE_LABELS = {
+  present: { de: 'Präsens',        en: 'Present', emoji: '⚡' },
+  past:    { de: 'Vergangenheit',  en: 'Past',    emoji: '📖' },
+  future:  { de: 'Zukunft',       en: 'Future',  emoji: '🔮' },
+}
 const MARK_UID = 'aiNZh4Myn8Y0KfYkGGrkNNW0HC72'
 const ELOSY_UID = 'NIX3DYenRdbRjmr2EHsIad9GcqG3'
 const SESSION_SIZE = 15
@@ -1680,7 +1711,7 @@ function StreakWidget({ history, th, t }) {
 }
 
 // ── KI-GESPRÄCH ───────────────────────────────────────────────
-function KiGespraechScreen({ lang, theme, onBack, userName, userToLang = 'en' }) {
+function KiGespraechScreen({ lang, theme, onBack, userName, userToLang = 'en', socialRegister = 'friends', myData, partnerData }) {
   const th = THEMES[theme]; const s = makeStyles(th)
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
@@ -1692,7 +1723,14 @@ function KiGespraechScreen({ lang, theme, onBack, userName, userToLang = 'en' })
   const LANG_NAMES_FULL = { en: 'English', de: 'German', sw: 'Swahili', th: 'Thai', es: 'Spanish', fr: 'French', ar: 'Arabic', tr: 'Turkish', pt: 'Portuguese' }
   const targetLang = LANG_NAMES_FULL[ttsLangCode] || ttsLangCode
   const nativeLang = LANG_NAMES_FULL[lang] || lang
-  const systemPrompt = `You are Vocara, a friendly language tutor helping ${userName} learn ${targetLang}. You must respond ONLY in ${targetLang}. Never use ${nativeLang} in your response. If the user writes in ${nativeLang}, still respond entirely in ${targetLang} and gently encourage them to try in ${targetLang} too. If the user makes a grammar mistake in ${targetLang}, have a natural conversation first, then add a short gentle correction at the end like "💡 Small tip: ..." Keep responses short (2-4 sentences). Be warm and natural — like a friend who happens to be a language expert. The Vocara philosophy: The voice is the bridge.`
+  const regCtx = socialRegisterContext(socialRegister)
+  // ── Diary context: last 3 entries from both partners ─────────
+  const myDiary = (myData?.diaryEntries || []).slice(-3).map(e => `[${e.date}] ${e.text}`).join(' | ')
+  const partnerDiary = (partnerData?.diaryEntries || []).slice(-3).map(e => `[${e.date}] ${e.text}`).join(' | ')
+  const diaryCtx = (myDiary || partnerDiary)
+    ? ` Couple's recent diary context (reference naturally if relevant): ${myDiary ? `My diary: "${myDiary}"` : ''}${partnerDiary ? ` Partner diary: "${partnerDiary}"` : ''}.`
+    : ''
+  const systemPrompt = `You are Vocara, a friendly language tutor helping ${userName} learn ${targetLang}. Social context: ${regCtx}.${diaryCtx} You must respond ONLY in ${targetLang}. Never use ${nativeLang} in your response. If the user writes in ${nativeLang}, still respond entirely in ${targetLang} and gently encourage them to try in ${targetLang} too. If the user makes a grammar mistake, have a natural conversation first, then add a short gentle correction like "💡 Small tip: ..." Keep responses short (2-4 sentences). Be warm and natural — like a friend who happens to be a language expert. The Vocara philosophy: The voice is the bridge.`
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, loading])
 
@@ -2435,7 +2473,7 @@ function RhythmusScreen({ lang, theme, onBack, allCards, cardProgress, userToLan
   )
 }
 
-function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, onSaveState, onSaveSessionProgress, onStop, onSaveExample, mode = 'all', startIndex = 0, startProgress = null, userToLang = 'en' }) {
+function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, onSaveState, onSaveSessionProgress, onStop, onSaveExample, mode = 'all', startIndex = 0, startProgress = null, userToLang = 'en', socialRegister = 'friends' }) {
   const [index, setIndex] = useState(startIndex)
   const [queue, setQueue] = useState(session)
   const [revealed, setRevealed] = useState(false)
@@ -2453,6 +2491,7 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
   const [flipPhase, setFlipPhase] = useState(false) // true = mid-flip (card turned sideways)
   const [patternTip, setPatternTip] = useState(null) // null | 'loading' | string
   const wrongCardsRef = useRef([]) // accumulates wrong cards for pattern analysis
+  const reactionTimesRef = useRef({}) // cardId → ms
   const [kiExplanation, setKiExplanation] = useState(null) // null | 'loading' | string
   const [noteOpen, setNoteOpen] = useState(false)
   const [noteText, setNoteText] = useState('')
@@ -2573,23 +2612,31 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
     setMicState('idle'); setMicResult(null)
   }, [index])
 
-  // ── FEHLER-MUSTER ANALYSE (#33) ──────────────────────────────
+  // ── FEHLER-MUSTER ANALYSE (Sonnet after 10 wrong) ────────────
   useEffect(() => {
     if (wrong < 10 || patternTip !== null) return
     setPatternTip('loading')
     const cards = wrongCardsRef.current.slice(0, 10)
-    const cardList = cards.map(c => `"${c.front}" → "${c.back}"`).join('; ')
+    const cardList = cards.map(c => `"${c.front}" → "${c.back}" (reacted in ${c.reactionMs ? Math.round(c.reactionMs/1000)+'s' : '?'})`).join('; ')
     const tipLang = lang === 'de' ? 'German' : 'English'
+    const regCtx = socialRegisterContext(socialRegister)
     fetch('/api/chat', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 100,
-        messages: [{ role: 'user', content: `A language learner answered these ${cards.length} cards incorrectly: ${cardList}. In exactly 1 sentence in ${tipLang}, name one specific grammar pattern or memory tip connecting these mistakes. Be concrete and brief, not generic.` }]
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 120,
+        messages: [{ role: 'user', content: `A language learner (social context: ${regCtx}) answered these ${cards.length} cards incorrectly: ${cardList}. In exactly 1 sentence in ${tipLang}, name the specific grammar pattern or memory trick that connects these mistakes. Consider reaction times — slow reactions signal active recall failure, not just gaps. Suggest an appropriate tense focus (present/past/future). Be concrete, practical, not generic.` }]
       })
-    }).then(r => r.json()).then(d => {
+    }).then(r => r.json()).then(async d => {
       const tip = d.content?.[0]?.text?.trim()
       setPatternTip(tip || null)
+      // Save to Firestore errorPatterns
+      if (user && tip) {
+        const entry = { tip, date: todayStr(), wrongCards: cards.slice(0, 5).map(c => c.front), register: socialRegister }
+        updateDoc(doc(db, 'users', user.uid), { errorPatterns: [entry] }).catch(() => {
+          setDoc(doc(db, 'users', user.uid, 'analysis', 'errorPatterns'), { patterns: [entry] }, { merge: true }).catch(() => {})
+        })
+      }
     }).catch(() => setPatternTip(null))
-  }, [wrong])
+  }, [wrong]) // eslint-disable-line
 
   // Example sentence for vocabulary cards
   const [exampleSentence, setExampleSentence] = useState(null)
@@ -2727,22 +2774,24 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
   }
   const handleAnswer = (isCorrect) => {
     const elapsed = (Date.now() - startTime.current) / 1000
+    const elapsedMs = elapsed * 1000
     const cardId = item.id
     answeredIds.current.add(cardId)
+    reactionTimesRef.current[cardId] = elapsedMs
     const st = cardStatsRef.current[cardId] || { wrongs: 0, fastestMs: Infinity }
     if (!isCorrect) {
       cardStatsRef.current[cardId] = { ...st, wrongs: st.wrongs + 1 }
       const prev = newProgress[cardId] || { interval: 0, consecutiveRight: 0, wrongSessions: 0 }
-      const updatedProgress = { ...prev, interval: 0, consecutiveRight: 0, wrongSessions: 3, nextReview: todayStr(), wrongCount: (prev.wrongCount || 0) + 1 }
+      const updatedProgress = { ...prev, interval: 0, consecutiveRight: 0, wrongSessions: 3, nextReview: todayStr(), wrongCount: (prev.wrongCount || 0) + 1, _lastReactionMs: Math.round(elapsedMs) }
       const finalNewProgress = { ...newProgress, [cardId]: updatedProgress }
       const newQueue = [...queue]
       newQueue.splice(index, 1)
       newQueue.splice(Math.min(index + 5, newQueue.length), 0, { ...item })
-      wrongCardsRef.current.push({ front: item.front, back: item.back })
+      wrongCardsRef.current.push({ front: item.front, back: item.back, reactionMs: Math.round(elapsedMs) })
       setQueue(newQueue); setNewProgress(finalNewProgress); setWrong(w => w + 1); setRevealed(false)
       onSaveState?.(newQueue, index, finalNewProgress)
     } else {
-      cardStatsRef.current[cardId] = { ...st, fastestMs: Math.min(st.fastestMs, elapsed * 1000) }
+      cardStatsRef.current[cardId] = { ...st, fastestMs: Math.min(st.fastestMs, elapsedMs) }
       const prev = newProgress[cardId] || { interval: 0, consecutiveRight: 0, wrongSessions: 0 }
       const newCR = (prev.consecutiveRight || 0) + 1
       const baseInterval = Math.max(2, (prev.interval || 0) + 1)
@@ -2750,8 +2799,11 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
       if (newCR >= 5) interval = Math.max(4, (prev.interval || 0) + 3)
       else if (newCR >= 3) interval = Math.max(3, (prev.interval || 0) + 2)
       else interval = baseInterval
+      // Reaction time modifier: fast <3s = boost, slow >10s = slight reduce
+      if (elapsed < 3 && interval > 1) interval = Math.min(interval + 1, interval + 1)
+      else if (elapsed > 10) interval = Math.max(1, interval - 1)
       const isGolden = interval >= 14
-      const updatedProgress = { ...prev, interval, consecutiveRight: newCR, wrongSessions: Math.max(0, (prev.wrongSessions || 0) - 1), nextReview: getNextReview(interval), rightCount: (prev.rightCount || 0) + 1, isGolden }
+      const updatedProgress = { ...prev, interval, consecutiveRight: newCR, wrongSessions: Math.max(0, (prev.wrongSessions || 0) - 1), nextReview: getNextReview(interval), rightCount: (prev.rightCount || 0) + 1, isGolden, _lastReactionMs: Math.round(elapsedMs) }
       const finalProgress = { ...newProgress, [cardId]: updatedProgress }
       setNewProgress(finalProgress)
       const newCorrect = correct + 1; setCorrect(newCorrect)
@@ -3407,6 +3459,44 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
         })()}
       </div>
 
+      {/* ── SOZIALES REGISTER ── */}
+      <div style={s.card}>
+        <p style={{ ...s.cardLabel, marginBottom: '12px' }}>🗣 {isDE ? 'Soziales Register' : 'Social Register'}</p>
+        <p style={{ color: th.sub, fontSize: '0.75rem', marginBottom: '8px' }}>{isDE ? 'Wie lernst ihr zusammen? Beeinflusst den Ton der KI.' : 'How do you learn together? Affects AI tone.'}</p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+          {SOCIAL_REGISTERS.map(r => {
+            const active = (myData?.socialRegister || 'friends') === r.key
+            return (
+              <button key={r.key} onClick={async () => {
+                await updateDoc(doc(db, 'users', user.uid), { socialRegister: r.key }).catch(() => {})
+                setMyData(d => ({ ...d, socialRegister: r.key }))
+              }} style={{ padding: '7px 12px', borderRadius: '20px', fontSize: '0.82rem', cursor: 'pointer', fontWeight: active ? '700' : '400', background: active ? th.accent : 'transparent', color: active ? (th.btnTextColor || '#111') : th.sub, border: `1px solid ${active ? th.accent : th.border}`, WebkitTapHighlightColor: 'transparent' }}>
+                {r.emoji} {isDE ? r.labelDe : r.labelEn}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* ── BEZIEHUNGSTYP ── */}
+      <div style={s.card}>
+        <p style={{ ...s.cardLabel, marginBottom: '8px' }}>❤️ {isDE ? 'Beziehungstyp' : 'Relationship type'}</p>
+        <p style={{ color: th.sub, fontSize: '0.75rem', marginBottom: '8px' }}>{isDE ? 'Prägt den Ton eurer Tageskarte.' : 'Shapes the tone of your daily card.'}</p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+          {[{ key:'couple',labelDe:'Paar',labelEn:'Couple',emoji:'💑' },{ key:'friends',labelDe:'Freunde',labelEn:'Friends',emoji:'👫' },{ key:'family',labelDe:'Familie',labelEn:'Family',emoji:'👨‍👩‍👧' },{ key:'colleagues',labelDe:'Kollegen',labelEn:'Colleagues',emoji:'👔' }].map(r => {
+            const active = (myData?.relationshipType || 'couple') === r.key
+            return (
+              <button key={r.key} onClick={async () => {
+                await updateDoc(doc(db, 'users', user.uid), { relationshipType: r.key }).catch(() => {})
+                setMyData(d => ({ ...d, relationshipType: r.key }))
+              }} style={{ padding: '7px 12px', borderRadius: '20px', fontSize: '0.82rem', cursor: 'pointer', fontWeight: active ? '700' : '400', background: active ? `${th.gold}22` : 'transparent', color: active ? th.gold : th.sub, border: `1px solid ${active ? th.gold : th.border}`, WebkitTapHighlightColor: 'transparent' }}>
+                {r.emoji} {isDE ? r.labelDe : r.labelEn}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
       {/* ── PARTNER VERBINDEN ── */}
       <button style={{ ...s.card, cursor: 'pointer', width: '100%', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
         onClick={onPartner}>
@@ -3724,6 +3814,81 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
           </div>
         </div>
       )}
+
+      {/* ── ZEITFORMEN FORTSCHRITT ── */}
+      {(() => {
+        const unlocks = getTenseUnlocks(myMastered)
+        const unlockedTenses = Object.entries(unlocks).filter(([, v]) => v).map(([k]) => k)
+        const nextTense = !unlocks.past ? 'past' : !unlocks.future ? 'future' : null
+        return (
+          <div style={{ ...s.card, marginBottom: '16px' }}>
+            <p style={{ ...s.cardLabel, marginBottom: '10px' }}>{isMarkLang ? '📚 Zeitformen-Level' : '📚 Tense Level'}</p>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: nextTense ? '10px' : 0 }}>
+              {['present','past','future'].map(tn => {
+                const tl = TENSE_LABELS[tn]; const on = unlocks[tn]
+                return (
+                  <div key={tn} style={{ flex: 1, textAlign: 'center', padding: '8px 4px', borderRadius: '10px', background: on ? `${th.accent}20` : th.border, border: `1px solid ${on ? th.accent : 'transparent'}`, opacity: on ? 1 : 0.4 }}>
+                    <div style={{ fontSize: '1.2rem' }}>{tl.emoji}</div>
+                    <div style={{ color: on ? th.accent : th.sub, fontSize: '0.7rem', fontWeight: '600', marginTop: '2px' }}>{isMarkLang ? tl.de : tl.en}</div>
+                  </div>
+                )
+              })}
+            </div>
+            {nextTense && (() => {
+              const threshold = nextTense === 'past' ? TENSE_THRESHOLDS.past : TENSE_THRESHOLDS.future
+              const prev = nextTense === 'past' ? 0 : TENSE_THRESHOLDS.past
+              const pct = Math.min(100, Math.round(((myMastered - prev) / (threshold - prev)) * 100))
+              return (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <span style={{ color: th.sub, fontSize: '0.72rem' }}>{isMarkLang ? `→ ${TENSE_LABELS[nextTense].de} freischalten` : `→ Unlock ${TENSE_LABELS[nextTense].en}`}</span>
+                    <span style={{ color: th.sub, fontSize: '0.72rem' }}>{myMastered}/{threshold}</span>
+                  </div>
+                  <div style={{ height: '5px', background: th.border, borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${pct}%`, background: th.accent, borderRadius: '4px', transition: 'width 0.6s ease' }} />
+                  </div>
+                </div>
+              )
+            })()}
+          </div>
+        )
+      })()}
+
+      {/* ── REAKTIONSZEIT & KARTEN-RECORDS ── */}
+      {(() => {
+        const entries = Object.entries(cardProgress)
+        const withReaction = entries.filter(([, p]) => p?._lastReactionMs > 0)
+        if (withReaction.length === 0) return null
+        const fastest = withReaction.sort((a, b) => a[1]._lastReactionMs - b[1]._lastReactionMs)[0]
+        const hardest = entries.filter(([, p]) => (p?.wrongCount || 0) > 0).sort((a, b) => (b[1].wrongCount || 0) - (a[1].wrongCount || 0))[0]
+        const avgMs = Math.round(withReaction.reduce((s, [, p]) => s + p._lastReactionMs, 0) / withReaction.length)
+        const fastCard = allCards.find(c => c.id === fastest?.[0])
+        const hardCard = allCards.find(c => c.id === hardest?.[0])
+        return (
+          <div style={{ ...s.card, marginBottom: '16px' }}>
+            <p style={{ ...s.cardLabel, marginBottom: '10px' }}>⚡ {isMarkLang ? 'Reaktionszeit' : 'Reaction time'}</p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <div style={{ textAlign: 'center' }}>
+                <p style={{ color: th.gold, fontSize: '1.4rem', fontWeight: '700', margin: '0 0 2px' }}>{(avgMs/1000).toFixed(1)}s</p>
+                <p style={{ color: th.sub, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.5px', margin: 0 }}>{isMarkLang ? 'Durchschnitt' : 'Average'}</p>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <p style={{ color: '#4CAF50', fontSize: '1.4rem', fontWeight: '700', margin: '0 0 2px' }}>{(fastest[1]._lastReactionMs/1000).toFixed(1)}s</p>
+                <p style={{ color: th.sub, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.5px', margin: 0 }}>{isMarkLang ? 'Schnellste' : 'Fastest'}</p>
+              </div>
+            </div>
+            {fastCard && <p style={{ color: th.sub, fontSize: '0.75rem', margin: '0 0 6px', textAlign: 'center', fontStyle: 'italic' }}>⚡ "{fastCard.front}"</p>}
+            {hardCard && (
+              <div style={{ padding: '8px 10px', background: `${th.accent}12`, borderRadius: '8px', border: `1px solid ${th.accent}30` }}>
+                <p style={{ color: th.sub, fontSize: '0.72rem', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  🎯 {isMarkLang ? 'Schwierigste Karte' : 'Hardest card'}
+                </p>
+                <p style={{ color: th.text, fontSize: '0.82rem', fontWeight: '600', margin: 0 }}>"{hardCard.front}" · {hardest[1].wrongCount}✗</p>
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {/* ── PARTNER COMPARISON ── */}
       {hasPartner && (
@@ -5018,18 +5183,18 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     }
   }
 
-  if (screen === 'cards' && session) return <>{homeFloat}<CardScreen user={user} session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} onSaveSessionProgress={saveSessionProgress} onStop={handleSessionStop} onSaveExample={handleSaveExample} mode={currentSessionMode} startIndex={resumeStartIndex} startProgress={resumeStartProgress} userToLang={activeToLang} /></>
+  if (screen === 'cards' && session) return <>{homeFloat}<CardScreen user={user} session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} onSaveSessionProgress={saveSessionProgress} onStop={handleSessionStop} onSaveExample={handleSaveExample} mode={currentSessionMode} startIndex={resumeStartIndex} startProgress={resumeStartProgress} userToLang={activeToLang} socialRegister={myData?.socialRegister || 'friends'} /></>
   if (screen === 'rhythmus') return <>{homeFloat}<RhythmusScreen lang={lang} theme={theme} onBack={() => { setScreen('result') }} allCards={allCards} cardProgress={cardProgress} userToLang={activeToLang} /></>
   if (screen === 'result') return <>{homeFloat}<ResultScreen correct={result.correct} wrong={result.wrong} fast={result.fast} easy={result.easy} weakestCard={result.weakestCard} strongestCard={result.strongestCard} masteryUnlocked={masteryUnlocked} t={t} lang={lang} onBack={() => { setScreen('menu'); setSession(null) }} onReplay={result.originalSession ? () => { setSession(result.originalSession); setResumeStartIndex(0); setResumeStartProgress(null); setScreen('cards') } : null} s={s} th={th} /></>
   if (screen === 'settings') return <>{homeFloat}<SettingsScreen t={t} s={s} theme={theme} onThemeChange={onThemeChange} onBack={() => setScreen('menu')} user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} onPartner={() => setScreen('partner')} onLightModeChange={onLightModeChange} onCardSizeChange={onCardSizeChange} musicEnabled={musicEnabled} musicVolume={musicVolume} onMusicToggle={onMusicToggle} onMusicVolume={onMusicVolume} /></>
   if (screen === 'meinekarten') return <>{homeFloat}<MeineKartenScreen user={user} myData={myData} setMyData={setMyData} allCards={allCards} cardProgress={cardProgress} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
   if (screen === 'geschenkkarte') return <>{homeFloat}<GeschenkkarteScreen user={user} myData={myData} lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} /></>
-  if (screen === 'karteerstellen') return <>{homeFloat}<KarteErstellenScreen user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
+  if (screen === 'karteerstellen') return <>{homeFloat}<KarteErstellenScreen user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} theme={theme} onBack={() => setScreen('menu')} socialRegister={myData?.socialRegister || 'friends'} /></>
   if (screen === 'partner') return <>{homeFloat}<PartnerScreen user={user} myData={myData} lang={lang} theme={theme} onBack={() => setScreen('menu')} onPartnerUpdate={(uid) => { onPartnerUpdate(uid); setScreen('menu') }} /></>
   if (screen === 'test') return <>{homeFloat}<PlacementTest lang={lang} theme={theme} user={user} onBack={() => setScreen('menu')} onSaveCefr={onSaveCefr} /></>
   if (screen === 'impressum') return <>{homeFloat}<ImpressumScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
   if (screen === 'stats') return <>{homeFloat}<StatsScreen user={user} myData={myData} partnerData={partnerData} allCards={allCards} lang={lang} theme={theme} onBack={() => setScreen('menu')} cardProgress={cardProgress} /></>
-  if (screen === 'ki') return <>{homeFloat}<KiGespraechScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={activeToLang} /></>
+  if (screen === 'ki') return <>{homeFloat}<KiGespraechScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={activeToLang} socialRegister={myData?.socialRegister || 'friends'} myData={myData} partnerData={partnerData} /></>
   if (screen === 'satz') return <>{homeFloat}<SatzTrainingScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={activeToLang} /></>
   if (screen === 'diary') return <>{homeFloat}<DiaryScreen user={user} myData={myData} setMyData={setMyData} partnerData={partnerData} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
   if (screen === 'admin' && user.uid === MARK_UID) return <>{homeFloat}<AdminScreen user={user} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
@@ -5359,6 +5524,69 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
             <span style={{ color: 'rgba(255,215,0,0.8)', fontSize: '0.78rem', fontWeight: '700', letterSpacing: '0.3px', animation: 'goldShimmer 2.4s ease-in-out infinite', display: 'inline-block', padding: '3px 10px', borderRadius: '20px', border: '1px solid rgba(255,215,0,0.28)', background: 'rgba(255,215,0,0.06)' }}>
               ⭐ {goldenCount} {isMarkLang ? 'goldene Karte' + (goldenCount !== 1 ? 'n' : '') + ' gemeistert' : `golden card${goldenCount !== 1 ? 's' : ''} mastered`}
             </span>
+          </div>
+        )
+      })()}
+
+      {/* ── KI-TANK ENERGIE-BALKEN ── */}
+      {(() => {
+        const nowWeek = getISOWeekStr()
+        const usedKi = myData?.kiWeekStr === nowWeek ? (myData?.kiWeekCount || 0) : 0
+        const kiLimit = 3
+        const pct = isPremium ? 100 : Math.max(0, Math.round(((kiLimit - usedKi) / kiLimit) * 100))
+        const barColor = usedKi >= kiLimit ? '#555' : '#00BFA5'
+        return (
+          <div style={{ marginBottom: '14px', padding: '10px 14px', background: th.card, border: `1px solid ${th.border}`, borderRadius: '14px', cursor: 'pointer' }}
+            onClick={() => { if (!isPremium && usedKi >= kiLimit) setSoftPaywall({ area: 'ki', used: usedKi, limit: kiLimit, weekly: true }) }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <span style={{ color: th.text, fontSize: '0.78rem', fontWeight: '600' }}>⚡ KI-Tank</span>
+              <span style={{ color: isPremium ? '#00BFA5' : usedKi >= kiLimit ? '#666' : '#00BFA5', fontSize: '0.75rem', fontWeight: '600' }}>
+                {isPremium ? (isMarkLang ? 'Unbegrenzt' : 'Unlimited') : `${kiLimit - usedKi}/${kiLimit} ${isMarkLang ? 'diese Woche' : 'this week'}`}
+              </span>
+            </div>
+            <div style={{ height: '4px', background: th.border, borderRadius: '4px', overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${pct}%`, background: barColor, borderRadius: '4px', transition: 'width 0.5s ease' }} />
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* ── ZEITFORMEN STUFEN-SYSTEM ── */}
+      {(() => {
+        const unlocks = getTenseUnlocks(myMasteredCount)
+        const nextTense = !unlocks.past ? 'past' : !unlocks.future ? 'future' : null
+        if (!nextTense && unlocks.future) return (
+          <div style={{ marginBottom: '14px', padding: '10px 14px', background: th.card, border: `1px solid ${th.border}`, borderRadius: '14px' }}>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              {['present','past','future'].map(t2 => (
+                <span key={t2} style={{ fontSize: '0.76rem', color: '#00BFA5', fontWeight: '600' }}>
+                  {TENSE_LABELS[t2].emoji} {lang === 'de' ? TENSE_LABELS[t2].de : TENSE_LABELS[t2].en}
+                </span>
+              ))}
+            </div>
+          </div>
+        )
+        const threshold = nextTense === 'past' ? TENSE_THRESHOLDS.past : TENSE_THRESHOLDS.future
+        const prevThreshold = nextTense === 'past' ? 0 : TENSE_THRESHOLDS.past
+        const pct = Math.min(100, Math.round(((myMasteredCount - prevThreshold) / (threshold - prevThreshold)) * 100))
+        const nextLabel = TENSE_LABELS[nextTense]
+        return (
+          <div style={{ marginBottom: '14px', padding: '10px 14px', background: th.card, border: `1px solid ${th.border}`, borderRadius: '14px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                {['present','past','future'].map(t2 => (
+                  <span key={t2} style={{ fontSize: '0.76rem', color: unlocks[t2] ? '#00BFA5' : th.sub, opacity: unlocks[t2] ? 1 : 0.4 }}>
+                    {TENSE_LABELS[t2].emoji}
+                  </span>
+                ))}
+              </div>
+              <span style={{ color: th.sub, fontSize: '0.72rem' }}>
+                {isMarkLang ? `${nextLabel.emoji} ${nextLabel.de} bei ${threshold} Karten` : `${nextLabel.emoji} ${nextLabel.en} at ${threshold} cards`} · {myMasteredCount}/{threshold}
+              </span>
+            </div>
+            <div style={{ height: '4px', background: th.border, borderRadius: '4px', overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${pct}%`, background: th.accent, borderRadius: '4px', transition: 'width 0.5s ease' }} />
+            </div>
           </div>
         )
       })()}
@@ -6066,7 +6294,7 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
   )
 }
 
-function KarteErstellenScreen({ user, myData, setMyData, allCards, lang, theme, onBack }) {
+function KarteErstellenScreen({ user, myData, setMyData, allCards, lang, theme, onBack, socialRegister = 'friends' }) {
   const th = THEMES[theme]; const s = makeStyles(th)
   const isDE = lang === 'de'
 
@@ -6172,7 +6400,7 @@ function KarteErstellenScreen({ user, myData, setMyData, allCards, lang, theme, 
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'claude-haiku-4-5-20251001', max_tokens: 150, system: CARD_GEN_SYSTEM,
-          messages: [{ role: 'user', content: `Translate "${frontText.trim()}" from ${fromName} to ${toName}. Return ONLY a JSON: {"front":"${frontText.trim()}","back":"[translation]","pronunciation":"[German-style phonetic syllables e.g. WI-der-SE-hen, or empty string if not needed]","category":"vocabulary|sentence|slang|formal"}. 100% accurate, natural, never literal.` }]
+          messages: [{ role: 'user', content: `Translate "${frontText.trim()}" from ${fromName} to ${toName}. Context: ${socialRegisterContext(socialRegister)}. Return ONLY a JSON: {"front":"${frontText.trim()}","back":"[translation]","pronunciation":"[German-style phonetic syllables e.g. WI-der-SE-hen, or empty string if not needed]","category":"vocabulary|sentence|slang|formal"}. 100% accurate, natural, tone-appropriate, never literal.` }]
         })
       })
       const data = await res.json()
