@@ -1,5 +1,12 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 27.04.2026)
 
+## ✅ Implementiert (28.04.2026 Session 10)
+- URLAUB KATEGORIE: ✈️ Urlaub als 6. Lernbereich im Grid (Row 3 links) — KI generiert 10 Reisephrasen bei 0 Karten mit Coverage Hotel/Flughafen/Restaurant/Notfälle/Transport/Shopping/Banking ✅
+- LERNZEIT PARTNER-VERGLEICH: Nach jeder Session werden weeklyMinutes/monthlyMinutes/totalMinutes in userProfiles/{uid} geschrieben — StatsScreen zeigt Balkendiagramm Woche/Monat/Gesamt für beide ✅
+- FREE/PREMIUM LINIE: userPlan state, Mark+Elosy immer premium, Free = nur Meine Worte + Sätze, andere Bereiche zeigen 🔒 Premium — KI-Gespräch 3x/Woche Counter ✅
+- THEMES AUF 3: Lyon, Sevilla, ChiangMai entfernt — nur Hamburg, Nairobi, Welt ✅
+- VERSION V01.007.000 ✅
+
 ## ✅ Implementiert (28.04.2026 Session 9)
 - KARTE ERSTELLEN NEU (#1): 4-Schritt-Flow — Sprachen (multi-select Ausgangssprache mit % Slider, Zielsprache), Karte eingeben (Seiten-Toggle, textarea, KI ergänzt mit Pronunciation), Kategorie & Ziel (Für mich/Partner/Beide), Speichern ✅
 - % GEWICHTUNG SESSION: fromLangs session weighting nach langA — DE 70%/EN 30% → Session spiegelt Aufteilung, gespeichert in users/{uid}/settings/langWeights ✅

@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.005.013'
+const APP_VERSION = 'V01.007.000'
 const MARK_UID = 'aiNZh4Myn8Y0KfYkGGrkNNW0HC72'
 const ELOSY_UID = 'NIX3DYenRdbRjmr2EHsIad9GcqG3'
 const SESSION_SIZE = 15
@@ -95,39 +95,6 @@ const THEMES = {
     btnFaceGrad: 'linear-gradient(90deg, #C77DFF 0%, #FF6B6B 16%, #FFD93D 33%, #6BCB77 50%, #4D96FF 66%, #C77DFF 83%, #FF6B6B 100%)',
     shadow3d: '0 1px 0 rgba(255,255,255,0.3) inset, 0 -1px 0 rgba(0,0,0,0.5) inset, 0 4px 0 #9B3BFF, 0 6px 0 #7B1BDF, 0 8px 0 #3D008F, 0 10px 20px rgba(0,0,0,0.75)',
     shadowPressed: '0 1px 0 rgba(255,255,255,0.15) inset, 0 -1px 0 rgba(0,0,0,0.4) inset, 0 1px 0 #7B1BDF, 0 3px 8px rgba(0,0,0,0.6)',
-  },
-  lyon: {
-    name: '🍷 Lyon',
-    bg: '#0D0000', card: '#1A0505', text: '#F5EDE0', sub: '#A0706A', border: '#3A1010',
-    accent: '#8B1A1A', gold: '#D4A017', glowColor: '#C0392B', btnTextColor: '#F5EDE0',
-    bgGrad: 'radial-gradient(ellipse at 50% 20%, #3A0808 0%, #1A0404 50%, #0D0000 100%)',
-    metalGrad: 'linear-gradient(145deg, #D4A017 0%, #8B1A1A 30%, #3D0C0C 52%, #8B1A1A 72%, #D4A017 100%)',
-    metalText: 'linear-gradient(90deg, #3D0C0C 0%, #D4A017 16%, #8B1A1A 33%, #D4A017 50%, #3D0C0C 66%, #D4A017 83%, #8B1A1A 100%)',
-    btnFaceGrad: 'linear-gradient(90deg, #3D0C0C 0%, #8B1A1A 20%, #B02020 40%, #D4A017 50%, #B02020 60%, #8B1A1A 80%, #3D0C0C 100%)',
-    shadow3d: '0 1px 0 rgba(212,160,23,0.4) inset, 0 -1px 0 rgba(0,0,0,0.5) inset, 0 4px 0 #5A0A0A, 0 6px 0 #3D0505, 0 8px 0 #200000, 0 10px 20px rgba(20,0,0,0.8)',
-    shadowPressed: '0 1px 0 rgba(212,160,23,0.2) inset, 0 -1px 0 rgba(0,0,0,0.4) inset, 0 1px 0 #5A0A0A, 0 3px 8px rgba(20,0,0,0.6)',
-  },
-  sevilla: {
-    name: '💃 Sevilla',
-    bg: '#0D0500', card: '#1A0A02', text: '#FFF0E0', sub: '#A07050', border: '#3A1800',
-    accent: '#C0392B', gold: '#F39C12', glowColor: '#E67E22', btnTextColor: '#FFF0E0',
-    bgGrad: 'radial-gradient(ellipse at 50% 20%, #3A1200 0%, #1A0700 50%, #0D0500 100%)',
-    metalGrad: 'linear-gradient(145deg, #F39C12 0%, #C0392B 30%, #6E1A0C 52%, #C0392B 72%, #F39C12 100%)',
-    metalText: 'linear-gradient(90deg, #6E1A0C 0%, #F39C12 16%, #C0392B 33%, #F39C12 50%, #6E1A0C 66%, #F39C12 83%, #C0392B 100%)',
-    btnFaceGrad: 'linear-gradient(90deg, #6E1A0C 0%, #C0392B 20%, #D45030 40%, #F39C12 50%, #D45030 60%, #C0392B 80%, #6E1A0C 100%)',
-    shadow3d: '0 1px 0 rgba(243,156,18,0.4) inset, 0 -1px 0 rgba(0,0,0,0.5) inset, 0 4px 0 #7A1500, 0 6px 0 #560E00, 0 8px 0 #300500, 0 10px 20px rgba(20,5,0,0.8)',
-    shadowPressed: '0 1px 0 rgba(243,156,18,0.2) inset, 0 -1px 0 rgba(0,0,0,0.4) inset, 0 1px 0 #7A1500, 0 3px 8px rgba(20,5,0,0.6)',
-  },
-  chiangmai: {
-    name: '🏯 Chiang Mai',
-    bg: '#2C1810', card: '#3D2318', text: '#FFF0D8', sub: '#D4A017', border: '#5C3820',
-    accent: '#D4A017', gold: '#FFD700', glowColor: '#D4A017', btnTextColor: '#2C1810',
-    bgGrad: 'radial-gradient(ellipse at 50% 20%, #6B3A20 0%, #3D2318 50%, #2C1810 100%)',
-    metalGrad: 'linear-gradient(145deg, #FFD700 0%, #D4A017 30%, #8B4513 52%, #D4A017 72%, #FFD700 100%)',
-    metalText: 'linear-gradient(90deg, #8B4513 0%, #FFD700 16%, #D4A017 33%, #FFD700 50%, #8B4513 66%, #FFD700 83%, #D4A017 100%)',
-    btnFaceGrad: 'linear-gradient(90deg, #5C3820 0%, #8B4513 20%, #C0832A 40%, #D4A017 50%, #C0832A 60%, #8B4513 80%, #5C3820 100%)',
-    shadow3d: '0 1px 0 rgba(255,215,0,0.4) inset, 0 -1px 0 rgba(0,0,0,0.5) inset, 0 4px 0 #5C3820, 0 6px 0 #3D2318, 0 8px 0 #2C1810, 0 10px 20px rgba(30,10,0,0.8)',
-    shadowPressed: '0 1px 0 rgba(255,215,0,0.2) inset, 0 -1px 0 rgba(0,0,0,0.4) inset, 0 1px 0 #5C3820, 0 3px 8px rgba(30,10,0,0.6)',
   },
 }
 
@@ -1372,7 +1339,7 @@ const T = {
     monthlyTestSub: 'Teste dein aktuelles Niveau',
     menuWorte: 'Meine\nWorte', menuSaetze: 'werden\nSätze', menuStraße: 'Auf der\nStraße', menuHause: 'und zu\nHause',
     menuAlle: 'Wir lernen alles, überall',
-    menuGrundlagen: 'Die\nGrundlagen',
+    menuGrundlagen: 'Die\nGrundlagen', menuUrlaub: '✈️\nUrlaub',
     menuKi: 'KI-Gespräch', menuSatz: 'Satztraining',
     menuAddCards: 'Karten hinzufügen', menuCategorize: 'Kategorisieren', menuSettings: 'Einstellungen', menuSignOut: 'Abmelden',
     menuPartnerConnect: 'Partner verbinden', menuPartnerLabel: 'Partner',
@@ -1406,7 +1373,7 @@ const T = {
     monthlyTestSub: 'Test your current level',
     menuWorte: 'My\nWords', menuSaetze: 'become\nSentences', menuStraße: 'On the\nStreet', menuHause: 'and at\nHome',
     menuAlle: 'We learn everything, everywhere',
-    menuGrundlagen: 'The\nBasics',
+    menuGrundlagen: 'The\nBasics', menuUrlaub: '✈️\nTravel',
     menuKi: 'AI Chat', menuSatz: 'Sentence training',
     menuAddCards: 'Add cards', menuCategorize: 'Categorize', menuSettings: 'Settings', menuSignOut: 'Sign out',
     menuPartnerConnect: 'Connect partner', menuPartnerLabel: 'Partner',
@@ -1421,6 +1388,7 @@ const WEEK_AREAS = [
   { key: 'home', labelDe: 'Zuhause', labelEn: 'Home', tipDe: 'Zu Hause – diese Woche noch nicht geübt', tipEn: 'At Home – not practiced this week' },
   { key: 'satztraining', labelDe: 'Training', labelEn: 'Training', tipDe: 'Satztraining – diese Woche noch nicht geübt', tipEn: 'Sentence Training – not practiced this week' },
   { key: 'basics', labelDe: 'Grundlagen', labelEn: 'Basics', tipDe: 'Grundlagen – noch nicht geübt', tipEn: 'Basics – not practiced yet' },
+  { key: 'urlaub', labelDe: 'Urlaub', labelEn: 'Travel', tipDe: 'Urlaub – noch nicht geübt', tipEn: 'Travel – not practiced yet' },
 ]
 
 // ── ONBOARDING SCREEN ─────────────────────────────────────────
@@ -3511,7 +3479,7 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
         {(() => {
           const total = myData?.unlockedGimmicks || 0
           const history = myData?.gimmickHistory || []
-          const themeNames = { nairobi: '🌙 Nairobi', hamburg: '⚓ Hamburg', welt: '🌍 Welt', lyon: '🍷 Lyon', sevilla: '💃 Sevilla', chiangmai: '🪷 Chiang Mai' }
+          const themeNames = { nairobi: '🌙 Nairobi', hamburg: '⚓ Hamburg', welt: '🌍 Welt' }
           if (total === 0) return <p style={{ color: th.sub, fontSize: '0.82rem', margin: 0 }}>{isDE ? 'Noch keine Gimmiks freigeschaltet.' : 'No gimmicks unlocked yet.'}</p>
           return (
             <>
@@ -3738,11 +3706,58 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
           {compRow(isMarkLang ? 'Längster Streak 🏆' : 'Best streak 🏆', myLongestStreak, partnerLongestStreak)}
           {compRow(isMarkLang ? 'Lerntage gesamt' : 'Total learning days', myLearningDays, partnerLearningDays)}
           {compRow(isMarkLang ? 'Lieblingsbereich' : 'Favourite area', myFavArea, partnerFavArea)}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0 0' }}>
-            <span style={{ color: th.text, fontWeight: '600', fontSize: '0.85rem', minWidth: '60px', textAlign: 'center' }}>{fmtMin(myWeekLearnSec)}</span>
-            <span style={{ color: th.sub, fontSize: '0.75rem', flex: 1, textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{isMarkLang ? 'Lernzeit Woche' : 'Study time week'}</span>
-            <span style={{ color: th.text, fontWeight: '600', fontSize: '0.85rem', minWidth: '60px', textAlign: 'center' }}>{fmtMin(partnerWeekLearnSec)}</span>
-          </div>
+          {/* ── LERNZEIT BARS ── */}
+          {(() => {
+            const nowWeek = getISOWeekStr()
+            const nowMonth = new Date().toISOString().slice(0, 7)
+            // My stats from myData (up-to-date)
+            const myW = myData?.learningWeek === nowWeek ? (myData?.weeklyMinutes || 0) : 0
+            const myM = myData?.learningMonth === nowMonth ? (myData?.monthlyMinutes || 0) : 0
+            const myT = myData?.totalMinutes || 0
+            // Partner stats from partnerData (published to userProfiles after each session)
+            const pW = partnerData?.learningWeek === nowWeek ? (partnerData?.weeklyMinutes || 0) : 0
+            const pM = partnerData?.learningMonth === nowMonth ? (partnerData?.monthlyMinutes || 0) : 0
+            const pT = partnerData?.totalMinutes || 0
+            const fmtM = (m) => m < 60 ? `${m}m` : `${Math.round(m/60)}h`
+            const BarPair = ({ label, myVal, pVal }) => {
+              const maxVal = Math.max(myVal, pVal, 1)
+              const myPct = Math.round(myVal / maxVal * 100)
+              const pPct = Math.round(pVal / maxVal * 100)
+              return (
+                <div style={{ padding: '8px 0', borderBottom: `1px solid ${th.border}` }}>
+                  <p style={{ color: th.sub, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'center', margin: '0 0 6px' }}>{label}</p>
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+                    <div style={{ flex: 1, textAlign: 'right' }}>
+                      <p style={{ color: th.accent, fontWeight: '700', fontSize: '0.82rem', margin: '0 0 3px' }}>{fmtM(myVal)}</p>
+                      <div style={{ height: '28px', background: th.border, borderRadius: '4px 4px 0 0', overflow: 'hidden', display: 'flex', alignItems: 'flex-end' }}>
+                        <div style={{ width: `${myPct}%`, height: '100%', background: th.accent, borderRadius: '4px 4px 0 0', transition: 'width 0.6s ease', marginLeft: 'auto' }} />
+                      </div>
+                    </div>
+                    <div style={{ width: '1px', background: th.border, height: '28px', flexShrink: 0 }} />
+                    <div style={{ flex: 1 }}>
+                      <p style={{ color: th.gold, fontWeight: '700', fontSize: '0.82rem', margin: '0 0 3px' }}>{fmtM(pVal)}</p>
+                      <div style={{ height: '28px', background: th.border, borderRadius: '4px 4px 0 0', overflow: 'hidden', display: 'flex', alignItems: 'flex-end' }}>
+                        <div style={{ width: `${pPct}%`, height: '100%', background: th.gold, borderRadius: '4px 4px 0 0', transition: 'width 0.6s ease' }} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            }
+            return (
+              <div style={{ marginTop: '8px' }}>
+                <BarPair label={isMarkLang ? 'Diese Woche' : 'This week'} myVal={myW} pVal={pW} />
+                <BarPair label={isMarkLang ? 'Dieser Monat' : 'This month'} myVal={myM} pVal={pM} />
+                <div style={{ padding: '8px 0 0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ color: th.accent, fontWeight: '700', fontSize: '0.82rem' }}>{fmtM(myT)}</span>
+                    <span style={{ color: th.sub, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{isMarkLang ? 'Gesamt' : 'Total'}</span>
+                    <span style={{ color: th.gold, fontWeight: '700', fontSize: '0.82rem' }}>{fmtM(pT)}</span>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
         </div>
       )}
     </div></div>
@@ -4073,6 +4088,9 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const cefr = myData?.cefr
   const sessionHistory = myData?.sessionHistory || []
   const partnerName = myData?.partnerName || partnerData?.name?.split(' ')[0] || 'Partner'
+  // Free/Premium plan — Mark and Elosy always premium
+  const userPlan = (user.uid === MARK_UID || user.uid === ELOSY_UID) ? 'premium' : (myData?.plan || 'free')
+  const isPremium = userPlan !== 'free'
   useEffect(() => {
     if (!user) return
     const settingsRef = doc(db, 'users', user.uid, 'settings', 'preferences')
@@ -4327,6 +4345,43 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
     }
   }
 
+  const generateUrlaubCards = async () => {
+    const langA = activeToLang || 'en'
+    const fromLangCode = lang
+    const _LNF = { en: 'English', de: 'German', sw: 'Swahili', th: 'Thai', es: 'Spanish', fr: 'French' }
+    const toLangFull = _LNF[langA] || langA
+    const fromLangFull = _LNF[fromLangCode] || fromLangCode
+    setEmptyCategoryMsg(isMarkLang ? '✈️ Urlaub — KI erstellt Reisephrasen…' : '✈️ Travel — AI creating phrases…')
+    try {
+      const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 900, system: CARD_GEN_SYSTEM,
+          messages: [{ role: 'user', content: `Generate 10 essential travel phrases for a ${fromLangFull} speaker in a ${toLangFull}-speaking country. Cover: hotel check-in, ordering food, asking directions, emergencies, transport, shopping, banking. Natural, practical, not textbook. Front language: ${fromLangFull}. Back language: ${toLangFull}. Return ONLY a valid JSON array: [{"front":"...","back":"...","pronunciation":"...","category":"urlaub"}]` }]
+        })
+      })
+      const data = await res.json()
+      const text = data.content?.[0]?.text || ''
+      const parsed = JSON.parse(text.replace(/```json|```/g, '').trim())
+      const ts = Date.now()
+      const newCards = parsed.filter(c => c.front && c.back).map((c, i) => ({
+        ...c, id: `urlaub_ai_${ts}_${i}`, langA: fromLangCode, langB: langA, category: 'urlaub', source: 'ai-urlaub', createdAt: ts
+      }))
+      const updatedAiCards = [...(myData?.aiCards || []), ...newCards]
+      const updatedProgress = { ...(myData?.cardProgress || {}) }
+      newCards.forEach(c => { updatedProgress[c.id] = { interval: 0, consecutiveRight: 0, wrongSessions: 0, nextReview: todayStr() } })
+      await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress })
+      setMyData(d => ({ ...d, aiCards: updatedAiCards, cardProgress: updatedProgress }))
+      setEmptyCategoryMsg(isMarkLang ? 'Reisephrasen bereit ✓' : 'Travel phrases ready ✓')
+      setTimeout(() => setEmptyCategoryMsg(null), 2000)
+      const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
+      const sess = shuffle(newCards.flatMap(buildCardPair)).slice(0, SESSION_SIZE)
+      setCurrentSessionMode('urlaub')
+      setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+    } catch(e) {
+      setEmptyCategoryMsg(isMarkLang ? 'KI-Generierung fehlgeschlagen.' : 'AI generation failed.')
+      setTimeout(() => setEmptyCategoryMsg(null), 3000)
+    }
+  }
+
   const startCategorySession = (category) => {
     console.log('[Vocara] startCategorySession:', category)
     // ── MEINE WORTE HARD FILTER ─────────────────────────────────
@@ -4363,14 +4418,9 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
       return
     }
     if (cards.length === 0) {
-      if (category === 'street') {
-        generateCategoryCards('street')
-        return
-      }
-      if (category === 'home') {
-        generateCategoryCards('home')
-        return
-      }
+      if (category === 'street') { generateCategoryCards('street'); return }
+      if (category === 'home') { generateCategoryCards('home'); return }
+      if (category === 'urlaub') { generateUrlaubCards(); return }
       setEmptyCategoryMsg(isMarkLang ? 'Hier wartet noch nichts — aber das ändert sich.' : 'Nothing here yet — but that changes now.')
       setTimeout(() => setEmptyCategoryMsg(null), 3500)
       return
@@ -4419,7 +4469,7 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
     // Show Wort des Tages banner for 2s before starting any session
     const startSession = () => {
       setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
-      if (['vocabulary', 'street', 'home', 'basics'].includes(category)) markAreaDone(category)
+      if (['vocabulary', 'street', 'home', 'basics', 'urlaub'].includes(category)) markAreaDone(category)
     }
     if (wordOfDay) {
       setWordOfDayBanner(wordOfDay)
@@ -4876,6 +4926,8 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     const timeUpdate = { monthlyMinutes: newMonthlyMinutes, weeklyMinutes: newWeeklyMinutes, totalMinutes: newTotalMinutes, learningMonth: nowMonth, learningWeek: nowWeek }
     const updatedHistory = await saveSessionHistory(user.uid, correct, correct + wrong, sessionHistory, timeUpdate)
     setMyData(d => ({ ...d, sessionHistory: updatedHistory, ...timeUpdate }))
+    // Publish time stats to public profile so partner can read them
+    setDoc(doc(db, 'userProfiles', user.uid), { weeklyMinutes: newWeeklyMinutes, monthlyMinutes: newMonthlyMinutes, totalMinutes: newTotalMinutes, learningWeek: nowWeek, learningMonth: nowMonth }, { merge: true }).catch(() => {})
     await clearSessionState(user.uid)
     const statsEntries = Object.entries(cardStats || {})
     const weakestEntry = statsEntries.filter(([, v]) => v.wrongs > 0).sort((a, b) => b[1].wrongs - a[1].wrongs)[0]
@@ -5115,31 +5167,55 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         </div>
       )}
 
-      {/* ── 5-BUTTON GRID ── */}
-      <div className="vocara-cat-grid" style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '12px' }}>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '0s' }} onClick={() => startCategorySession('vocabulary')}>
-            {t.menuWorte.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
-          </button>
-          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '1.8s', opacity: satzLoading ? 0.6 : 1 }} onClick={startSatzSession} disabled={satzLoading}>
-            {satzLoading ? '...' : t.menuSaetze.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
-          </button>
-        </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '3.5s' }} onClick={() => startCategorySession('street')}>
-            {t.menuStraße.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
-          </button>
-          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '5.2s' }} onClick={() => startCategorySession('home')}>
-            {t.menuHause.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
-          </button>
-        </div>
-        <button className="vocara-alle-btn" style={{ ...s.button, padding: '13px 28px', fontSize: '0.9rem', letterSpacing: '0.2px', marginBottom: 0, '--gleam-delay': '2.5s' }} onClick={() => startCategorySession('all')}>
-          {t.menuAlle}
-        </button>
-        <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '6.8s', width: '100%', opacity: basicsLoading ? 0.6 : 1 }} onClick={startBasicsSession} disabled={basicsLoading}>
-          {basicsLoading ? '...' : (t.menuGrundlagen || 'Die\nGrundlagen').split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
-        </button>
-      </div>
+      {/* ── 6-BUTTON GRID ── */}
+      {(() => {
+        const lockStyle = { position: 'relative', overflow: 'hidden' }
+        const lockOverlay = (label) => (
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', borderRadius: 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2px', pointerEvents: 'none' }}>
+            <span style={{ fontSize: '1rem' }}>🔒</span>
+            <span style={{ color: '#FFD700', fontSize: '0.6rem', fontWeight: '700', letterSpacing: '0.5px', textTransform: 'uppercase' }}>{label}</span>
+          </div>
+        )
+        return (
+          <div className="vocara-cat-grid" style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '12px' }}>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '0s' }} onClick={() => startCategorySession('vocabulary')}>
+                {t.menuWorte.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
+              </button>
+              <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '1.8s', opacity: satzLoading ? 0.6 : 1 }} onClick={startSatzSession} disabled={satzLoading}>
+                {satzLoading ? '...' : t.menuSaetze.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
+              </button>
+            </div>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '3.5s', ...(!isPremium ? lockStyle : {}) }}
+                onClick={() => isPremium ? startCategorySession('street') : null}>
+                {t.menuStraße.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
+                {!isPremium && lockOverlay('Premium')}
+              </button>
+              <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '5.2s', ...(!isPremium ? lockStyle : {}) }}
+                onClick={() => isPremium ? startCategorySession('home') : null}>
+                {t.menuHause.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
+                {!isPremium && lockOverlay('Premium')}
+              </button>
+            </div>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '6.8s', ...(!isPremium ? lockStyle : {}), opacity: basicsLoading ? 0.6 : 1 }}
+                onClick={() => isPremium ? startBasicsSession() : null} disabled={basicsLoading}>
+                {basicsLoading ? '...' : (t.menuGrundlagen || 'Die\nGrundlagen').split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
+                {!isPremium && lockOverlay('Premium')}
+              </button>
+              <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '8.2s', ...(!isPremium ? lockStyle : {}) }}
+                onClick={() => isPremium ? startCategorySession('urlaub') : null}>
+                {(t.menuUrlaub || '✈️\nUrlaub').split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
+                {!isPremium && lockOverlay('Premium')}
+              </button>
+            </div>
+            <button className="vocara-alle-btn" style={{ ...s.button, padding: '13px 28px', fontSize: '0.9rem', letterSpacing: '0.2px', marginBottom: 0, '--gleam-delay': '2.5s' }} onClick={() => startCategorySession('all')}>
+              {t.menuAlle}
+            </button>
+          </div>
+        )
+      })()}
 
       {/* ── KARTE BUTTON ── */}
       <button style={{ ...s.navBtn, marginBottom: karteMenu ? '2px' : '12px', fontSize: '0.9rem', fontWeight: '600', textAlign: 'center' }}
@@ -5263,7 +5339,21 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         <button className="vocara-nav-btn" style={{ ...s.navBtn, opacity: satzLoading ? 0.6 : 1 }} onClick={startSatzSession} disabled={satzLoading}>
           ✍️ {satzLoading ? '…' : t.menuSatz}
         </button>
-        <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('ki')}>{t.menuKi}</button>
+        <button className="vocara-nav-btn" style={s.navBtn} onClick={() => {
+          if (!isPremium) {
+            const nowWeek = getISOWeekStr()
+            const usedThisWeek = myData?.kiWeekStr === nowWeek ? (myData?.kiWeekCount || 0) : 0
+            if (usedThisWeek >= 3) {
+              setEmptyCategoryMsg(isMarkLang ? '🔒 KI-Gespräch: 3x diese Woche genutzt — Premium freischalten' : '🔒 AI Chat: 3 sessions used this week — upgrade to Premium')
+              setTimeout(() => setEmptyCategoryMsg(null), 3500)
+              return
+            }
+            const newCount = usedThisWeek + 1
+            updateDoc(doc(db, 'users', user.uid), { kiWeekCount: newCount, kiWeekStr: nowWeek }).catch(() => {})
+            setMyData(d => ({ ...d, kiWeekCount: newCount, kiWeekStr: nowWeek }))
+          }
+          setScreen('ki')
+        }}>{t.menuKi}{!isPremium && (() => { const w = getISOWeekStr(); const n = myData?.kiWeekStr === w ? (myData?.kiWeekCount || 0) : 0; return n > 0 ? ` (${n}/3)` : '' })()}</button>
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('stats')}>
           {t.progressBtn}
           <span style={{ marginLeft: '6px', fontSize: '0.76rem', color: th.gold }}>
@@ -5331,9 +5421,6 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           hamburg: { emoji: '⚓', title: isMarkLang ? 'Hafen-Gimmick freigeschaltet!' : 'Harbor gimmick unlocked!', desc: isMarkLang ? 'Die Elbe rauscht. Du hast 5 Wochen durchgehalten.' : 'The harbor is yours. 5 weeks completed.', bg: 'linear-gradient(135deg, #0a1a2e, #1a3a5e)', border: '#4ECDC4' },
           nairobi: { emoji: '🌅', title: isMarkLang ? 'Savanna-Gimmick freigeschaltet!' : 'Savanna gimmick unlocked!', desc: isMarkLang ? 'Die Sonne über Nairobi. Deine Stimme trägt weiter.' : 'The savanna glows. Your voice carries further.', bg: 'linear-gradient(135deg, #2d1a00, #5a3800)', border: '#FFB347' },
           welt: { emoji: '🌌', title: isMarkLang ? 'Aurora-Gimmick freigeschaltet!' : 'Aurora gimmick unlocked!', desc: isMarkLang ? 'Ein Nordlicht für deine Sprache. 5 Wochen.' : 'Northern lights for your language. 5 weeks.', bg: 'linear-gradient(135deg, #0a001a, #1a003a)', border: '#B088F9' },
-          lyon: { emoji: '🍷', title: isMarkLang ? 'Lyon-Gimmick freigeschaltet!' : 'Lyon gimmick unlocked!', desc: isMarkLang ? 'Burgunder und Gold. La langue s\'ouvre.' : 'Burgundy and gold. La langue s\'ouvre.', bg: 'linear-gradient(135deg, #1a0008, #3a0015)', border: '#D4A017' },
-          sevilla: { emoji: '💃', title: isMarkLang ? 'Flamenco-Gimmick freigeschaltet!' : 'Flamenco gimmick unlocked!', desc: isMarkLang ? 'Der Rhythmus Sevillas. 5 Wochen tanzen.' : 'The rhythm of Sevilla. 5 weeks dancing.', bg: 'linear-gradient(135deg, #1a0500, #3a1000)', border: '#F39C12' },
-          chiangmai: { emoji: '🪷', title: isMarkLang ? 'Chiang-Mai-Gimmick freigeschaltet!' : 'Chiang Mai gimmick unlocked!', desc: isMarkLang ? 'Lotus blüht. Die Stimme findet ihren Weg.' : 'Lotus blooms. The voice finds its way.', bg: 'linear-gradient(135deg, #0d0017, #200030)', border: '#CE93D8' },
         }
         const g = gimmickContent[theme] || gimmickContent.welt
         const themeAnim = {
