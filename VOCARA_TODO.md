@@ -1,5 +1,10 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 29.04.2026)
 
+## ✅ Implementiert (29.04.2026 Session 23) — V01.026.023
+- SOUND FIX: Alle AudioContext/OscillatorNode/Oscillator-Code entfernt — Summen/Brummen gestoppt; ambientEnable* = noops; Music-Section in Einstellungen zeigt "Kommt bald" ✅
+- LEVEL-SYSTEM 1-10: CAT_LEVEL_THRESHOLDS (1/5/10/15/20/30/40/50/65/80); CAT_LEVEL_NAMES DE+EN (Anfänger→Fließend); CAT_LEVEL_COLORS; levelBadge zeigt "Lvl N/10" + "+X bis nächstes Level" ✅
+- VERSION V01.026.023 ✅
+
 ## ✅ Implementiert (29.04.2026 Session 22) — V01.025.023
 - PARTNER VERBINDUNG PERMANENT: Login schreibt partnerUID in 5 Orte (users/profile/data, shared/{uid}, settings/partner, localStorage x2); loadPartner versucht users/{partnerUID}/profile/data als 3. Quelle ✅
 - PARTNER KARTEN SENDEN: GeschenkkarteScreen schreibt zusätzlich zu users/{partnerUID}/incomingCards/{id} Subcollection; App-Load prüft Subcollection wenn kein pendingGift; Accept/Decline löscht Subcollection-Eintrag ✅
