@@ -1,5 +1,13 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 29.04.2026)
 
+## ✅ Implementiert (29.04.2026 Session 22) — V01.025.023
+- PARTNER VERBINDUNG PERMANENT: Login schreibt partnerUID in 5 Orte (users/profile/data, shared/{uid}, settings/partner, localStorage x2); loadPartner versucht users/{partnerUID}/profile/data als 3. Quelle ✅
+- PARTNER KARTEN SENDEN: GeschenkkarteScreen schreibt zusätzlich zu users/{partnerUID}/incomingCards/{id} Subcollection; App-Load prüft Subcollection wenn kein pendingGift; Accept/Decline löscht Subcollection-Eintrag ✅
+- ELOSY FORTSCHRITT: Session-Finish publiziert totalCards/masteredCards/streak in userProfiles; StatsScreen nutzt published fields wenn cardProgress nicht verfügbar ✅
+- NEUE VERBINDUNG RESET: Schreibt users/{uid}/partnerStats bei neuer Partner-Verbindung ✅
+- THEMEN FREISPIELEN: 7 Themen (Kochen/Fußball/Musik/Reisen/Technik/Business/Natur) in Einstellungen; gesperrt bis Premium oder 5+ gemeisterte Karten; KI generiert 15 Karten on unlock; unlockedTopics in Firestore ✅
+- VERSION V01.025.023 ✅
+
 ## ✅ Implementiert (29.04.2026 Session 21) — V01.024.023
 - I18N KI PROMPTS: kiRespondIn(lang) in coachMsg Prompt — KI-Tutor antwortet immer in der Muttersprache des Users ✅
 - EINSTUFUNGSTEST: testCount ("Test #3") aus Firestore testHistory + Antwort-Pattern-Erkennung (orange Banner bei 5x gleiche Option) ✅
