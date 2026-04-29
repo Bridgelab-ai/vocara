@@ -1,5 +1,12 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 29.04.2026)
 
+## ✅ Implementiert (29.04.2026 Session 24) — V01.027.023
+- KONTEXT-KARTEN VERBESSERT: Button ABOVE Karte mit teal Shimmer-Glow während Session (vocaraKontextGlow); KontextwechselScreen: Varianten-Badges oben-links (Formell/Informell/Romantisch) und oben-rechts (Hochsprache/Slang); Back-Navigation kehrt korrekt zu cards oder result zurück ✅
+- AUSSPRACHE COACHING: _pronunciationHistory pro Karte in cardProgress (letzte 10 Scores); fetchTutorMsg analysiert gemeisterte Karten mit Ø<65% und nennt sie im KI-Prompt ✅
+- PUSH NOTIFICATIONS (Basis): Session-Finish schreibt Partner-Aktivitäts-Notif zu userProfiles/{partnerUID}/pendingNotifs; App-Login liest + zeigt Browser-Notification dann löscht Einträge ✅
+- I18N (bereits V01.022.022), WORTART TAGS (bereits V01.024.023), THEMEN FREISPIELEN (bereits V01.025.023) — confirmed existing ✅
+- VERSION V01.027.023 ✅
+
 ## ✅ Implementiert (29.04.2026 Session 23) — V01.026.023
 - SOUND FIX: Alle AudioContext/OscillatorNode/Oscillator-Code entfernt — Summen/Brummen gestoppt; ambientEnable* = noops; Music-Section in Einstellungen zeigt "Kommt bald" ✅
 - LEVEL-SYSTEM 1-10: CAT_LEVEL_THRESHOLDS (1/5/10/15/20/30/40/50/65/80); CAT_LEVEL_NAMES DE+EN (Anfänger→Fließend); CAT_LEVEL_COLORS; levelBadge zeigt "Lvl N/10" + "+X bis nächstes Level" ✅
