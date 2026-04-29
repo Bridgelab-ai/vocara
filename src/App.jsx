@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.026.023'
+const APP_VERSION = 'V01.027.023'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -2824,10 +2824,17 @@ Return ONLY JSON array: [
             if (!v) return null
             const isSaved = saved.has(def.type)
             return (
-              <div key={def.type} style={{ ...s.card, border: isSaved ? '1px solid #00BFA5' : `1px solid ${th.border}`, background: isSaved ? 'rgba(0,191,165,0.1)' : th.card }}>
+              <div key={def.type} style={{ ...s.card, border: isSaved ? '1px solid #00BFA5' : `1px solid ${th.border}`, background: isSaved ? 'rgba(0,191,165,0.1)' : th.card, position: 'relative', paddingTop: '28px' }}>
+                {/* Variant type badge top-left */}
+                <div style={{ position: 'absolute', top: '8px', left: '10px', background: def.type === 'formal' ? 'rgba(60,140,200,0.16)' : def.type === 'romantic' ? 'rgba(220,80,180,0.16)' : 'rgba(180,120,30,0.16)', color: def.type === 'formal' ? '#70b0d8' : def.type === 'romantic' ? '#e080c0' : '#C8922A', border: `1px solid ${def.type === 'formal' ? 'rgba(60,140,200,0.30)' : def.type === 'romantic' ? 'rgba(220,80,180,0.30)' : 'rgba(180,120,30,0.30)'}`, borderRadius: '6px', padding: '2px 7px', fontSize: '9px', fontWeight: '700', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                  {def.icon} {lang === 'de' ? def.labelDe : def.labelEn}
+                </div>
+                {/* Hochsprache/Slang register badge top-right */}
+                <div style={{ position: 'absolute', top: '8px', right: '10px', background: def.type === 'informal' || def.type === 'romantic' ? 'rgba(180,120,30,0.14)' : 'rgba(140,140,155,0.14)', color: def.type === 'informal' || def.type === 'romantic' ? '#C8922A' : '#8A8A9A', border: `1px solid ${def.type === 'informal' || def.type === 'romantic' ? 'rgba(180,120,30,0.28)' : 'rgba(140,140,155,0.22)'}`, borderRadius: '6px', padding: '2px 7px', fontSize: '9px', fontWeight: '600', letterSpacing: '0.4px', textTransform: 'uppercase' }}>
+                  {def.type === 'informal' || def.type === 'romantic' ? 'Slang' : 'Hochsprache'}
+                </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
                   <div style={{ flex: 1 }}>
-                    <p style={{ color: '#00BFA5', fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 6px' }}>{def.icon} {lang === 'de' ? def.labelDe : def.labelEn}</p>
                     <p style={{ color: th.text, fontSize: '0.9rem', fontWeight: '500', margin: '0 0 4px', lineHeight: 1.4 }}>{v.sentence}</p>
                     {v.note && <p style={{ color: th.sub, fontSize: '0.75rem', margin: 0, fontStyle: 'italic' }}>{v.note}</p>}
                   </div>
@@ -2851,7 +2858,7 @@ Return ONLY JSON array: [
   )
 }
 
-function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, onSaveState, onSaveSessionProgress, onStop, onSaveExample, mode = 'all', startIndex = 0, startProgress = null, userToLang = 'en', socialRegister = 'friends', onNeverLearn }) {
+function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, onSaveState, onSaveSessionProgress, onStop, onSaveExample, mode = 'all', startIndex = 0, startProgress = null, userToLang = 'en', socialRegister = 'friends', onNeverLearn, onKontext }) {
   const [index, setIndex] = useState(startIndex)
   const [queue, setQueue] = useState(session)
   const [revealed, setRevealed] = useState(false)
@@ -2963,6 +2970,11 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
       const pct = Math.round((words.filter(w => w.correct).length / Math.max(words.length, 1)) * 100)
       setMicResult({ score: pct, words, transcript })
       setMicState('done')
+      // track pronunciation score history per card for coaching
+      setNewProgress(prev => {
+        const hist = prev[item.id]?._pronunciationHistory || []
+        return { ...prev, [item.id]: { ...prev[item.id], _pronunciationHistory: [...hist, pct].slice(-10) } }
+      })
     }
     rec.onerror = () => { clearTimeout(timeout); setMicState('idle') }
     rec.onend = () => { clearTimeout(timeout); setMicState(s => s === 'listening' ? 'idle' : s) }
@@ -3260,6 +3272,12 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
           ))}
           <div style={{ position: 'absolute', width: '44px', height: '44px', borderRadius: '50%', border: '2px solid rgba(255,215,0,0.6)', top: '-22px', left: '-22px', animation: 'sparkleRing 0.5s ease-out forwards' }} />
         </div>
+      )}
+      {/* ── KONTEXT BUTTON ABOVE CARD ── */}
+      {onKontext && (
+        <button onClick={() => onKontext(item)} style={{ width: '100%', marginBottom: '10px', padding: '8px 16px', background: 'rgba(0,191,165,0.10)', border: '1.5px solid rgba(0,191,165,0.45)', borderRadius: '12px', color: '#00BFA5', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer', animation: 'vocaraKontextGlow 2s ease-in-out infinite', WebkitTapHighlightColor: 'transparent', letterSpacing: '0.3px' }}>
+          🔄 {lang === 'de' ? `Kontext: "${item.front}"` : `Context: "${item.front}"`}
+        </button>
       )}
       {/* ── FLIP CARD ── */}
       <div style={{ width: '100%', marginBottom: '16px', perspective: '900px',
@@ -4552,6 +4570,7 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
   const [sessionCompleteCount, setSessionCompleteCount] = useState(0)
   const [basicsLoading, setBasicsLoading] = useState(false)
   const [kontextCard, setKontextCard] = useState(null)
+  const [kontextPrevScreen, setKontextPrevScreen] = useState('result')
   const [tenseUnlockCelebration, setTenseUnlockCelebration] = useState(null) // 'past' | 'future' | null
   const [neverLearnModal, setNeverLearnModal] = useState(null) // card object | null
   const VALID_SCREENS = new Set(['menu','cards','result','settings','partner','test','impressum','stats','ki','satz','diary','meinekarten','geschenkkarte','karteerstellen','admin','rhythmus','kontext'])
@@ -4587,6 +4606,16 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
     const phoneticStr = phoneticCards > 0 ? ` ${phoneticCards} cards have pronunciation guides.` : ''
     const noteCards = Object.entries(cardProg).filter(([, p]) => p?._note).slice(0, 3)
     const notesStr = noteCards.length > 0 ? ` User notes on ${noteCards.length} card(s): ${noteCards.map(([id, p]) => `"${p._note}"`).join(', ')}.` : ''
+    const weakPronunciationCards = Object.entries(cardProg)
+      .filter(([, p]) => (p?.interval || 0) >= 7 && Array.isArray(p?._pronunciationHistory) && p._pronunciationHistory.length >= 2)
+      .map(([id, p]) => {
+        const avg = Math.round(p._pronunciationHistory.reduce((a, b) => a + b, 0) / p._pronunciationHistory.length)
+        const card = (allCards || []).find(c => c.id === id)
+        return { avg, front: card?.front }
+      }).filter(x => x.avg < 65 && x.front).slice(0, 3)
+    const pronunciationNote = weakPronunciationCards.length > 0
+      ? ` Pronunciation weak on mastered words: ${weakPronunciationCards.map(x => `"${x.front}" (${x.avg}%)`).join(', ')}.`
+      : ''
     const AREA_KEYS = ['vocabulary','street','home','sentence','basics']
     let bestArea = 'vocabulary'; let bestDue = -1
     AREA_KEYS.forEach(key => {
@@ -4598,7 +4627,7 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
     fetch('/api/chat', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 45,
-        messages: [{ role: 'user', content: `You are a personal language tutor for a ${fromLangName} speaker learning ${toLangName}. Stats: ${catStats}. Last sessions: ${sessionsStr}. Streak: ${streak} days. Level: ${level}.${phoneticStr}${notesStr} Give ONE specific coaching tip (max 20 words) in ${fromLangName} about what to focus on NOW to speak ${toLangName} faster. If user has notes, you may briefly reference one. Bridgelab tone: warm, no fluff. Return ONLY the tip, no quotes or markdown. ${kiRespondIn(lang)}` }]
+        messages: [{ role: 'user', content: `You are a personal language tutor for a ${fromLangName} speaker learning ${toLangName}. Stats: ${catStats}. Last sessions: ${sessionsStr}. Streak: ${streak} days. Level: ${level}.${phoneticStr}${notesStr}${pronunciationNote} Give ONE specific coaching tip (max 20 words) in ${fromLangName} about what to focus on NOW to speak ${toLangName} faster. If user has pronunciation weaknesses, prioritize that. Bridgelab tone: warm, no fluff. Return ONLY the tip, no quotes or markdown. ${kiRespondIn(lang)}` }]
       })
     }).then(r => r.json()).then(d => {
       const msg = d.content?.[0]?.text?.trim()
@@ -5792,6 +5821,14 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     const myStreakNow = calcStreak([...(sessionHistory || []), { date: todayStr(), correct, total: correct + wrong }])
     const pubStats = { weeklyMinutes: newWeeklyMinutes, monthlyMinutes: newMonthlyMinutes, totalMinutes: newTotalMinutes, learningWeek: nowWeek, learningMonth: nowMonth, totalCards: allCards.filter(c => !/_r(_\d+)?$/.test(c.id)).length, masteredCards: myMasteredNow, streak: myStreakNow, lastActive: todayStr(), name: user.displayName?.split(' ')[0] || 'Partner' }
     setDoc(doc(db, 'userProfiles', user.uid), pubStats, { merge: true }).catch(() => {})
+    // Notify partner of activity via Firestore pendingNotifs subcollection
+    if (myData?.partnerUID) {
+      const notifId = `session_${user.uid}_${Date.now()}`
+      setDoc(doc(db, 'userProfiles', myData.partnerUID, 'pendingNotifs', notifId), {
+        type: 'partner_session', fromName: user.displayName?.split(' ')[0] || 'Partner',
+        cards: correct + wrong, ts: Date.now()
+      }).catch(() => {})
+    }
     await clearSessionState(user.uid)
     const statsEntries = Object.entries(cardStats || {})
     const weakestEntry = statsEntries.filter(([, v]) => v.wrongs > 0).sort((a, b) => b[1].wrongs - a[1].wrongs)[0]
@@ -5813,10 +5850,10 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     setScreen('result')
   }
 
-  if (screen === 'cards' && session) return <>{homeFloat}<CardScreen user={user} session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} onSaveSessionProgress={saveSessionProgress} onStop={handleSessionStop} onSaveExample={handleSaveExample} mode={currentSessionMode} startIndex={resumeStartIndex} startProgress={resumeStartProgress} userToLang={activeToLang} socialRegister={myData?.socialRegister || 'friends'} onNeverLearn={(card) => setNeverLearnModal(card)} /></>
+  if (screen === 'cards' && session) return <>{homeFloat}<CardScreen user={user} session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} onSaveSessionProgress={saveSessionProgress} onStop={handleSessionStop} onSaveExample={handleSaveExample} mode={currentSessionMode} startIndex={resumeStartIndex} startProgress={resumeStartProgress} userToLang={activeToLang} socialRegister={myData?.socialRegister || 'friends'} onNeverLearn={(card) => setNeverLearnModal(card)} onKontext={(card) => { setKontextCard(card); setKontextPrevScreen('cards'); setScreen('kontext') }} /></>
   if (screen === 'rhythmus') return <>{homeFloat}<RhythmusScreen lang={lang} theme={theme} onBack={() => { setScreen('result') }} allCards={allCards} cardProgress={cardProgress} userToLang={activeToLang} t={t} /></>
-  if (screen === 'kontext' && kontextCard) return <>{homeFloat}<KontextwechselScreen card={kontextCard} lang={lang} theme={theme} userToLang={activeToLang} user={user} onBack={() => setScreen('result')} onSaveCard={async (newCard) => { const updated = [...(myData?.aiCards || []), newCard]; await updateDoc(doc(db, 'users', user.uid), { aiCards: updated }).catch(() => {}); setMyData(d => ({ ...d, aiCards: updated })) }} t={t} /></>
-  if (screen === 'result' && result) return <>{homeFloat}<ResultScreen correct={result.correct} wrong={result.wrong} fast={result.fast} easy={result.easy} weakestCard={result.weakestCard} strongestCard={result.strongestCard} masteryUnlocked={masteryUnlocked} showRhythmus={result.showRhythmus} urlaubNote={result.urlaubNote} kontextCard={result.kontextCard} onUnlockUrlaub={() => setSoftPaywall({ area: 'urlaub', used: 3, limit: 10 })} onRhythmus={() => setScreen('rhythmus')} onKontext={result.kontextCard ? () => { setKontextCard(result.kontextCard); setScreen('kontext') } : null} t={t} lang={lang} onBack={() => { setScreen('menu'); setSession(null) }} onReplay={result.originalSession ? () => { setSession(result.originalSession); setResumeStartIndex(0); setResumeStartProgress(null); setScreen('cards') } : null} s={s} th={th} /></>
+  if (screen === 'kontext' && kontextCard) return <>{homeFloat}<KontextwechselScreen card={kontextCard} lang={lang} theme={theme} userToLang={activeToLang} user={user} onBack={() => setScreen(kontextPrevScreen)} onSaveCard={async (newCard) => { const updated = [...(myData?.aiCards || []), newCard]; await updateDoc(doc(db, 'users', user.uid), { aiCards: updated }).catch(() => {}); setMyData(d => ({ ...d, aiCards: updated })) }} t={t} /></>
+  if (screen === 'result' && result) return <>{homeFloat}<ResultScreen correct={result.correct} wrong={result.wrong} fast={result.fast} easy={result.easy} weakestCard={result.weakestCard} strongestCard={result.strongestCard} masteryUnlocked={masteryUnlocked} showRhythmus={result.showRhythmus} urlaubNote={result.urlaubNote} kontextCard={result.kontextCard} onUnlockUrlaub={() => setSoftPaywall({ area: 'urlaub', used: 3, limit: 10 })} onRhythmus={() => setScreen('rhythmus')} onKontext={result.kontextCard ? () => { setKontextCard(result.kontextCard); setKontextPrevScreen('result'); setScreen('kontext') } : null} t={t} lang={lang} onBack={() => { setScreen('menu'); setSession(null) }} onReplay={result.originalSession ? () => { setSession(result.originalSession); setResumeStartIndex(0); setResumeStartProgress(null); setScreen('cards') } : null} s={s} th={th} /></>
   if (screen === 'settings') return <>{homeFloat}<SettingsScreen t={t} s={s} theme={theme} onThemeChange={onThemeChange} onBack={() => setScreen('menu')} user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} onPartner={() => setScreen('partner')} onLightModeChange={onLightModeChange} onCardSizeChange={onCardSizeChange} musicEnabled={musicEnabled} musicVolume={musicVolume} onMusicToggle={onMusicToggle} onMusicVolume={onMusicVolume} /></>
   if (screen === 'meinekarten') return <>{homeFloat}<MeineKartenScreen user={user} myData={myData} setMyData={setMyData} allCards={allCards} cardProgress={cardProgress} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
   if (screen === 'geschenkkarte') return <>{homeFloat}<GeschenkkarteScreen user={user} myData={myData} lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} /></>
@@ -8575,6 +8612,23 @@ function App() {
           const resolvedPartnerUID = data.partnerUID || data.partnerUid ||
             (u.uid === MARK_UID ? ELOSY_UID : u.uid === ELOSY_UID ? MARK_UID : null)
           if (resolvedPartnerUID) await loadPartner(resolvedPartnerUID)
+          // ── CHECK PARTNER ACTIVITY NOTIFS ──
+          try {
+            const notifSnap = await getDocs(collection(db, 'userProfiles', u.uid, 'pendingNotifs'))
+            if (!notifSnap.empty) {
+              notifSnap.docs.forEach(async (nd) => {
+                const n = nd.data()
+                if (n.type === 'partner_session' && 'Notification' in window && Notification.permission === 'granted') {
+                  const isDE = (data.language || data.fromLang || 'de') === 'de'
+                  const body = isDE
+                    ? `${n.fromName} hat gerade ${n.cards} Karten gelernt! 💪`
+                    : `${n.fromName} just practiced ${n.cards} cards! 💪`
+                  new Notification('Vocara', { body, icon: '/vite.svg' })
+                }
+                try { await deleteDoc(nd.ref) } catch (_) {}
+              })
+            }
+          } catch (_) {}
         }
       } catch (initErr) {
         console.error('[Vocara] app init failed, falling back to defaults:', initErr)
