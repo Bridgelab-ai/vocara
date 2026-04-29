@@ -43,10 +43,23 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.025.023'
+const APP_VERSION = 'V01.026.023'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
+
+// ── KATEGORIE-LEVELS (1-10) ─────────────────────────────────────
+const CAT_LEVEL_THRESHOLDS = [0, 1, 5, 10, 15, 20, 30, 40, 50, 65, 80] // index = level; value = min mastered to reach it
+const CAT_LEVEL_NAMES = {
+  de: ['', 'Anfänger', 'Grundlagen', 'Aufbau', 'Mittelstufe', 'Fortgeschritten', 'Sicher', 'Gewandt', 'Kompetent', 'Experte', 'Fließend'],
+  en: ['', 'Beginner', 'Basics', 'Building', 'Intermediate', 'Advanced', 'Confident', 'Fluent', 'Competent', 'Expert', 'Fluent'],
+}
+const getCatLevel = (masteredCount) => {
+  let lv = 0
+  for (let i = 1; i <= 10; i++) { if (masteredCount >= CAT_LEVEL_THRESHOLDS[i]) lv = i }
+  return lv
+}
+const CAT_LEVEL_COLORS = ['','#81c784','#81c784','#4CAF50','#29b6f6','#1976d2','#7c4dff','#9c27b0','#e91e63','#ff5722','#FFD700']
 
 // ── THEMEN (Unlock-System) ──────────────────────────────────────
 const TOPICS_LIST = [
@@ -3700,27 +3713,15 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
       {/* ── MUSIK ── */}
       {onMusicToggle && (
         <div style={s.card}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: musicEnabled ? '14px' : 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <p style={{ ...s.cardLabel, margin: 0 }}>🎵 {t.music}</p>
-            <button onClick={() => onMusicToggle(!musicEnabled)}
-              style={{ background: musicEnabled ? th.accent : 'transparent', border: `1px solid ${musicEnabled ? th.accent : th.border}`, borderRadius: '20px', padding: '4px 14px', color: musicEnabled ? (th.btnTextColor || '#111') : th.sub, fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
-              {musicEnabled ? t.musicOn : t.musicOff}
-            </button>
+            <span style={{ background: `${th.gold}18`, color: th.sub, border: `1px solid ${th.border}`, borderRadius: '20px', padding: '3px 12px', fontSize: '0.75rem', opacity: 0.7 }}>
+              {isDE ? 'Kommt bald' : 'Coming soon'}
+            </span>
           </div>
-          {musicEnabled && (
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                <span style={{ color: th.sub, fontSize: '0.72rem' }}>{t.volumeLabel}</span>
-                <span style={{ color: th.accent, fontSize: '0.72rem', fontWeight: '700' }}>{Math.round((musicVolume || 0) * 100)}%</span>
-              </div>
-              <input type="range" min={0} max={100} value={Math.round((musicVolume || 0) * 100)}
-                onChange={e => onMusicVolume(parseInt(e.target.value) / 100)}
-                style={{ width: '100%', accentColor: th.accent, cursor: 'pointer' }} />
-              <p style={{ color: th.sub, fontSize: '0.7rem', marginTop: '6px', marginBottom: 0, opacity: 0.7 }}>
-                {lang === 'de' ? `Ambient-Klang für das ${theme.charAt(0).toUpperCase()+theme.slice(1)}-Theme` : `Ambient sound for the ${theme.charAt(0).toUpperCase()+theme.slice(1)} theme`}
-              </p>
-            </div>
-          )}
+          <p style={{ color: th.sub, fontSize: '0.72rem', margin: '6px 0 0', opacity: 0.6 }}>
+            {isDE ? 'Hintergrundmusik wird in einem kommenden Update verfügbar.' : 'Background music will be available in an upcoming update.'}
+          </p>
         </div>
       )}
 
@@ -6062,18 +6063,22 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
             </div>
           )
         }
-        // Stufen badge: level based on mastered cards per category
+        // Stufen badge: 10-level system per category
         const levelBadge = (category) => {
           const n = safeCards.filter(c => {
             const baseId = c.id.replace(/_r(_\d+)?$/, '')
             return c.category === category && !/_r(_\d+)?$/.test(c.id) && (cardProgress[baseId]?.interval || cardProgress[c.id]?.interval || 0) >= 3
           }).length
           if (n === 0) return null
-          const lv = n < 5 ? 1 : n < 15 ? 2 : 3
-          const col = lv === 3 ? '#FFD700' : lv === 2 ? th.gold : '#81c784'
+          const lv = getCatLevel(n)
+          if (lv === 0) return null
+          const col = CAT_LEVEL_COLORS[lv] || '#81c784'
+          const nextThresh = CAT_LEVEL_THRESHOLDS[lv + 1]
+          const toNext = nextThresh ? nextThresh - n : 0
           return (
-            <div style={{ position: 'absolute', top: '5px', left: '6px', background: 'rgba(0,0,0,0.38)', borderRadius: '6px', padding: '1px 5px', pointerEvents: 'none' }}>
-              <span style={{ color: col, fontSize: '0.56rem', fontWeight: '700' }}>Lvl {lv}</span>
+            <div style={{ position: 'absolute', top: '5px', left: '6px', background: 'rgba(0,0,0,0.45)', borderRadius: '6px', padding: '2px 6px', pointerEvents: 'none' }}>
+              <span style={{ color: col, fontSize: '0.54rem', fontWeight: '700', display: 'block', lineHeight: 1.2 }}>Lvl {lv}/10</span>
+              <span style={{ color: col, fontSize: '0.46rem', opacity: 0.8, display: 'block', lineHeight: 1.1 }}>{toNext > 0 ? `+${toNext}` : '★'}</span>
             </div>
           )
         }
@@ -8221,101 +8226,12 @@ class ErrorBoundary extends Component {
   }
 }
 
-// ── AMBIENT AUDIO ENGINE ──────────────────────────────────────────────────────
-let _ambCtx = null; let _ambNodes = []; let _ambMaster = null; let _ambTheme = null
-let _mubertAudio = null; let _mubertCache = {} // theme → url
-
-async function _fetchMubertUrl(theme) {
-  if (_mubertCache[theme]) return _mubertCache[theme]
-  try {
-    const snap = await getDoc(doc(db, 'sharedConfig', `music_${theme}`))
-    if (snap.exists() && snap.data()?.url && (snap.data()?.expires || 0) > Date.now()) {
-      return (_mubertCache[theme] = snap.data().url)
-    }
-  } catch(e) {}
-  try {
-    const r = await fetch(`/api/mubert?theme=${encodeURIComponent(theme)}`)
-    const d = await r.json()
-    if (d?.url) {
-      _mubertCache[theme] = d.url
-      setDoc(doc(db, 'sharedConfig', `music_${theme}`), { url: d.url, theme, expires: Date.now() + 3600000 * 6, generatedAt: new Date().toISOString() }).catch(() => {})
-      return d.url
-    }
-  } catch(e) {}
-  return null
-}
-
-async function ambientEnableMubert(theme, vol) {
-  ambientEnable(theme, vol) // Web Audio starts immediately as fallback
-  const url = await _fetchMubertUrl(theme)
-  if (!url) return // Web Audio stays
-  ambientDisable() // Fade out Web Audio since Mubert is available
-  if (!_mubertAudio) { _mubertAudio = new Audio(); _mubertAudio.loop = true; _mubertAudio.crossOrigin = 'anonymous' }
-  if (_mubertAudio.src !== url) _mubertAudio.src = url
-  _mubertAudio.volume = Math.max(0, Math.min(1, vol)) * 0.7
-  _mubertAudio.play().catch(() => ambientEnable(theme, vol)) // Fallback to Web Audio if Mubert play fails
-}
-
-function ambientDisableAll() {
-  ambientDisable()
-  if (_mubertAudio) { try { _mubertAudio.pause(); _mubertAudio.src = '' } catch(e) {} }
-}
-
-function ambientSwitchThemeMubert(theme, vol) {
-  ambientSwitchTheme(theme, vol)
-  if (_mubertAudio) { try { _mubertAudio.pause() } catch(e) {} }
-  setTimeout(() => ambientEnableMubert(theme, vol), 700)
-}
-
-function _ambInit() {
-  if (_ambCtx) return true
-  const AC = window.AudioContext || window.webkitAudioContext
-  if (!AC) return false
-  _ambCtx = new AC()
-  _ambMaster = _ambCtx.createGain(); _ambMaster.gain.value = 0
-  _ambMaster.connect(_ambCtx.destination)
-  return true
-}
-function _ambBuild(theme) {
-  _ambNodes.forEach(n => { try { n.osc.stop(); n.lfo?.stop() } catch(e) {} })
-  _ambNodes = []
-  if (!_ambCtx) return
-  const configs = {
-    nairobi: [{ f:55,t:'sine',g:.12 },{ f:110,t:'sine',g:.055 },{ f:165,t:'triangle',g:.025 }],
-    hamburg: [{ f:65.4,t:'triangle',g:.10 },{ f:130.8,t:'sine',g:.045 },{ f:196,t:'sine',g:.02 }],
-    welt:    [{ f:48,t:'sine',g:.09 },{ f:96,t:'sine',g:.04 },{ f:144,t:'triangle',g:.02 },{ f:192,t:'sine',g:.01 }],
-  }
-  ;(configs[theme] || configs.welt).forEach(({ f, t, g }) => {
-    const osc = _ambCtx.createOscillator(); const gn = _ambCtx.createGain()
-    const lfo = _ambCtx.createOscillator(); const lg = _ambCtx.createGain()
-    lfo.frequency.value = 0.08 + Math.random() * 0.12; lg.gain.value = f * 0.004
-    osc.type = t; osc.frequency.value = f; gn.gain.value = g
-    lfo.connect(lg); lg.connect(osc.frequency)
-    osc.connect(gn); gn.connect(_ambMaster)
-    osc.start(); lfo.start()
-    _ambNodes.push({ osc, gn, lfo, lg })
-  })
-  _ambTheme = theme
-}
-function ambientEnable(theme, vol) {
-  if (!_ambInit()) return
-  if (_ambCtx.state === 'suspended') _ambCtx.resume()
-  if (_ambTheme !== theme) _ambBuild(theme)
-  _ambMaster.gain.setTargetAtTime(Math.max(0, Math.min(1, vol)) * 0.45, _ambCtx.currentTime, 0.8)
-}
-function ambientSetVol(vol) {
-  if (!_ambMaster) return
-  _ambMaster.gain.setTargetAtTime(Math.max(0, Math.min(1, vol)) * 0.45, _ambCtx.currentTime, 0.5)
-}
-function ambientDisable() {
-  if (!_ambMaster || !_ambCtx) return
-  _ambMaster.gain.setTargetAtTime(0, _ambCtx.currentTime, 0.8)
-}
-function ambientSwitchTheme(theme, vol) {
-  if (!_ambCtx || !_ambMaster) return
-  _ambMaster.gain.setTargetAtTime(0, _ambCtx.currentTime, 0.5)
-  setTimeout(() => { _ambBuild(theme); _ambMaster.gain.setTargetAtTime(Math.max(0, Math.min(1, vol)) * 0.45, _ambCtx.currentTime, 1.0) }, 600)
-}
+// ── AMBIENT AUDIO ENGINE — DISABLED (oscillator hum removed) ──────────────────
+// Music feature is pending proper streaming integration. All audio noop for now.
+function ambientEnableMubert() {}
+function ambientDisableAll() {}
+function ambientSwitchThemeMubert() {}
+function ambientSetVol() {}
 
 function App() {
   const [user, setUser] = useState(null)
