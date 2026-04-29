@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.027.023'
+const APP_VERSION = 'V01.028.023'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -3217,12 +3217,13 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
       haptic(50)
     } else {
       haptic([100, 100, 100])
-      // Fetch KI explanation
+      // Fetch KI explanation for wrong answer
       setKiExplanation('loading')
+      const fromLangName = fromLang === 'de' ? 'German' : 'English'
       fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 100,
-          messages: [{ role: 'user', content: `The user got this card wrong. Front: "${item.front}" Back: "${item.back}". In 1-2 short sentences in ${fromLang === 'de' ? 'German' : 'English'}, explain the grammar rule or memory trick that helps remember this. Be brief and encouraging.` }]
+        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 80,
+          messages: [{ role: 'user', content: `The learner forgot this card. Question: "${item.front}". Correct answer: "${item.back}". Explain in ${fromLangName} in max 2 sentences why "${item.back}" is the correct answer. Be specific about the grammar rule or meaning. No intro — start directly with the explanation. ${kiRespondIn(fromLang)}` }]
         })
       }).then(r => r.json()).then(d => setKiExplanation(d.content?.[0]?.text?.trim() || null)).catch(() => setKiExplanation(null))
     }
@@ -3484,11 +3485,14 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
         </div>
       )}
       {kiExplanation && (
-        <div style={{ width: '100%', marginBottom: '8px', background: 'rgba(76,175,80,0.08)', border: '1px solid rgba(76,175,80,0.22)', borderRadius: '12px', padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+        <div style={{ width: '100%', marginBottom: '8px', background: 'rgba(229,57,53,0.07)', border: '1px solid rgba(229,57,53,0.22)', borderRadius: '12px', padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: '8px', animation: 'vocaraFadeIn 0.3s ease both' }}>
           <div style={{ flex: 1 }}>
             {kiExplanation === 'loading'
-              ? <p style={{ color: '#8A8A9A', fontSize: '0.78rem', margin: 0 }}>💡 {lang === 'de' ? 'KI erklärt…' : 'AI explaining…'}</p>
-              : <p style={{ color: '#81c784', fontSize: '0.78rem', margin: 0, lineHeight: 1.5 }}>💡 {kiExplanation}</p>
+              ? <p style={{ color: '#8A8A9A', fontSize: '0.78rem', margin: 0, animation: 'vocaraPulse 1.2s infinite' }}>💡 {lang === 'de' ? 'KI erklärt…' : 'AI explaining…'}</p>
+              : <>
+                  <p style={{ color: '#e57373', fontSize: '0.68rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 4px' }}>💡 {lang === 'de' ? 'KI erklärt:' : 'AI explains:'}</p>
+                  <p style={{ color: '#ffcdd2', fontSize: '0.8rem', margin: 0, lineHeight: 1.55 }}>{kiExplanation}</p>
+                </>
             }
           </div>
           {kiExplanation !== 'loading' && (

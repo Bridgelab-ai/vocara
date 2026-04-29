@@ -4,20 +4,7 @@ export const config = { api: { bodyParser: false } }
 const LANG_NAMES = { en: 'English', de: 'German', sw: 'Swahili', fr: 'French', es: 'Spanish', th: 'Thai' }
 const FIRESTORE_BASE = 'https://firestore.googleapis.com/v1/projects/vocara-ca2b7/databases/(default)/documents'
 
-const CARD_TOPICS = [
-  'everyday situations (shopping, transport, greetings)',
-  'emotions and relationships',
-  'food and cooking',
-  'work and career',
-  'travel and directions',
-  'health and body',
-  'weather and nature',
-  'technology and modern life',
-  'culture and traditions',
-  'time and planning',
-]
-
-async function generateCards(fromLang, toLang, topic) {
+async function generateCards(fromLang, toLang) {
   const fromName = LANG_NAMES[fromLang] || fromLang
   const toName = LANG_NAMES[toLang] || toLang
   const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -29,13 +16,15 @@ async function generateCards(fromLang, toLang, topic) {
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
-      max_tokens: 1500,
+      max_tokens: 2000,
       system: 'You are a language learning expert. Generate vocabulary flashcards. Return ONLY valid JSON array, no markdown.',
       messages: [{
         role: 'user',
-        content: `Generate 20 ${fromName}→${toName} flashcards about: ${topic}.
-Return a JSON array of objects: [{"front":"word/phrase in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic hint or empty","category":"vocabulary|sentence|street|home|basics|urlaub"}]
-Use natural, modern, useful language. Mix single words and short phrases. Vary difficulty. No duplicates.`,
+        content: `Generate 20 unique natural flashcards for ${fromName}→${toName}.
+Mix topics: daily life, emotions, work, travel, relationships.
+100% grammatically correct, natural expressions. Mix single words and short phrases. No duplicates.
+Return ONLY JSON array:
+[{"front":"word/phrase in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic hint or empty string","category":"vocabulary|sentence|street|home|basics|urlaub","tense":"present|past|future","register":"formal|informal|neutral","wordType":"noun|verb|adjective|phrase|expression"}]`,
       }],
     }),
   })
@@ -66,6 +55,9 @@ async function writePoolToFirestore(fromLang, toLang, cards, weekStr) {
               back: { stringValue: c.back || '' },
               pronunciation: { stringValue: c.pronunciation || '' },
               category: { stringValue: c.category || 'vocabulary' },
+              tense: { stringValue: c.tense || 'present' },
+              register: { stringValue: c.register || 'neutral' },
+              wordType: { stringValue: c.wordType || '' },
               langA: { stringValue: fromLang },
               langB: { stringValue: toLang },
               source: { stringValue: 'weekly-pool' },
@@ -103,12 +95,11 @@ export default async function handler(req, res) {
   ]
 
   const weekStr = getISOWeekStr()
-  const topic = CARD_TOPICS[new Date().getDay() % CARD_TOPICS.length]
   const results = []
 
   for (const { from, to } of LANG_PAIRS) {
     try {
-      const cards = await generateCards(from, to, topic)
+      const cards = await generateCards(from, to)
       if (cards.length > 0) {
         await writePoolToFirestore(from, to, cards, weekStr)
         results.push({ pair: `${from}→${to}`, count: cards.length })
@@ -118,5 +109,5 @@ export default async function handler(req, res) {
     }
   }
 
-  res.status(200).json({ week: weekStr, topic, results })
+  res.status(200).json({ week: weekStr, results })
 }
