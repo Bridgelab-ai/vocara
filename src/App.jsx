@@ -43,10 +43,21 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.024.023'
+const APP_VERSION = 'V01.025.023'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
+
+// ── THEMEN (Unlock-System) ──────────────────────────────────────
+const TOPICS_LIST = [
+  { key: 'cooking',  emoji: '🍳', de: 'Kochen',    en: 'Cooking'   },
+  { key: 'sports',   emoji: '⚽', de: 'Fußball',   en: 'Football'  },
+  { key: 'music',    emoji: '🎵', de: 'Musik',     en: 'Music'     },
+  { key: 'travel',   emoji: '✈️', de: 'Reisen',    en: 'Travel'    },
+  { key: 'tech',     emoji: '💻', de: 'Technik',   en: 'Tech'      },
+  { key: 'business', emoji: '💼', de: 'Business',  en: 'Business'  },
+  { key: 'nature',   emoji: '🌿', de: 'Natur',     en: 'Nature'    },
+]
 
 // ── SOZIALES REGISTER ───────────────────────────────────────────
 const SOCIAL_REGISTERS = [
@@ -2529,11 +2540,14 @@ function PartnerScreen({ user, myData, lang, theme, onBack, onPartnerUpdate }) {
       const partnerName = partnerSnap?.exists() ? partnerSnap.data().name : 'Partner'
       const isNewPartner = myData?.partnerUID && myData.partnerUID !== partnerUID
       const connectedAt = Date.now()
-      // Reset shared comparison stats when connecting a new partner; keep all personal data
+      // Reset comparison stats on new partner; keep ALL personal data
       const resetFields = isNewPartner
         ? { weeklyMinutesComparison: null, streakComparison: null, partnerConnectedAt: connectedAt }
         : { partnerConnectedAt: connectedAt }
       await updateDoc(doc(db, 'users', user.uid), { partnerUID, partnerName, ...resetFields })
+      if (isNewPartner) {
+        setDoc(doc(db, 'users', user.uid, 'partnerStats'), { connectedAt, comparisonWeeklyMinutes: 0 }, { merge: true }).catch(() => {})
+      }
       try {
         await updateDoc(doc(db, 'users', partnerUID), { partnerUID: user.uid, partnerName: user.displayName, partnerConnectedAt: connectedAt })
       } catch (e) { console.warn('[Vocara] partner link write skipped (users/' + partnerUID + '):', e?.code || e?.message) }
@@ -4049,6 +4063,59 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
         )
       })()}
 
+      {/* ── MEINE THEMEN ── */}
+      {(() => {
+        const unlockedTopics = myData?.unlockedTopics || []
+        const myMasteredTotal = Object.values(myData?.cardProgress || {}).filter(p => (p?.interval || 0) >= 7).length
+        const canUnlock = (user.uid === MARK_UID || user.uid === ELOSY_UID) || myMasteredTotal >= 5
+        const [generatingTopic, setGeneratingTopic] = React.useState(null)
+        const generateTopicCards = async (topic) => {
+          setGeneratingTopic(topic.key)
+          const langA = isDE ? 'en' : 'de'
+          const langB = isDE ? 'de' : 'en'
+          const fromLang = isDE ? 'German' : 'English'
+          const toLang = isDE ? 'English' : 'German'
+          try {
+            const res = await fetch('/api/chat', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 700, system: CARD_GEN_SYSTEM,
+                messages: [{ role: 'user', content: `Generate 15 useful vocabulary cards about "${topic.de}" (${topic.en}) for a ${fromLang} speaker learning ${toLang}. Mix words and short phrases. Return ONLY JSON: [{"front":"${toLang} word","back":"${fromLang} translation","category":"vocabulary","tense":"present","wordType":"Noun|Verb|Adjective|Phrase","article":""}]` }]
+              })
+            })
+            const raw = ((await res.json()).content?.[0]?.text || '[]').trim()
+            const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim())
+            const ts = Date.now()
+            const newCards = parsed.slice(0, 15).map((c, i) => ({ id: `topic_${topic.key}_${ts}_${i}`, front: c.front?.trim(), back: c.back?.trim(), category: 'vocabulary', tense: 'present', wordType: c.wordType || null, article: c.article || null, langA, langB, source: `topic-${topic.key}`, topic: topic.key, createdAt: ts })).filter(c => c.front && c.back)
+            const updatedCards = [...(myData?.aiCards || []), ...newCards]
+            const updatedTopics = [...new Set([...unlockedTopics, topic.key])]
+            await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedCards, unlockedTopics: updatedTopics })
+            setMyData(d => ({ ...d, aiCards: updatedCards, unlockedTopics: updatedTopics }))
+          } catch(e) { console.warn('topic generate failed:', e) }
+          setGeneratingTopic(null)
+        }
+        return (
+          <div style={s.card}>
+            <p style={{ ...s.cardLabel, marginBottom: '12px' }}>🎯 {isDE ? 'Meine Themen' : 'My Topics'}</p>
+            <p style={{ color: th.sub, fontSize: '0.75rem', marginBottom: '12px', lineHeight: 1.4 }}>
+              {isDE ? 'Themen freispielen und 15 Karten generieren lassen.' : 'Unlock topics and generate 15 cards each.'}
+              {!canUnlock && <span style={{ color: th.gold, display: 'block', marginTop: '4px' }}>{isDE ? '⭐ Premium oder 5+ gemeisterte Karten nötig.' : '⭐ Premium or 5+ mastered cards required.'}</span>}
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {TOPICS_LIST.map(topic => {
+                const isUnlocked = unlockedTopics.includes(topic.key)
+                const isGenerating = generatingTopic === topic.key
+                return (
+                  <button key={topic.key} disabled={!canUnlock || isGenerating} onClick={() => !isUnlocked ? generateTopicCards(topic) : null}
+                    style={{ padding: '8px 12px', borderRadius: '12px', fontSize: '0.82rem', cursor: canUnlock && !isUnlocked ? 'pointer' : 'default', fontWeight: isUnlocked ? '700' : '400', background: isUnlocked ? `${th.gold}18` : canUnlock ? `${th.card}` : 'transparent', color: isUnlocked ? th.gold : canUnlock ? th.text : th.sub, border: `1px solid ${isUnlocked ? th.gold + '55' : canUnlock ? th.border : 'rgba(255,255,255,0.08)'}`, opacity: !canUnlock && !isUnlocked ? 0.45 : 1, transition: 'all 0.2s' }}>
+                    {isGenerating ? '⏳' : isUnlocked ? '✓ ' : canUnlock ? '' : '🔒 '}{topic.emoji} {isDE ? topic.de : topic.en}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })()}
+
       {/* ── ABMELDEN ── */}
       <button style={{ ...s.logoutBtn, marginTop: '8px', color: '#e06c75', border: '1px solid rgba(224,108,117,0.35)' }}
         onClick={() => { if (window.confirm(isDE ? 'Wirklich abmelden?' : 'Sign out?')) signOut(auth) }}>
@@ -4115,12 +4182,12 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
   const myMastered = Object.values(cardProgress).filter(p => (p?.interval || 0) >= 7).length
 
   const partnerHistory = partnerData?.sessionHistory || []
-  const partnerStreak = calcStreak(partnerHistory)
+  const partnerStreak = partnerData?.streak ?? calcStreak(partnerHistory)
   const partnerTodayCorrect = partnerHistory.filter(h => h.date === today).reduce((a, b) => a + (b.correct || 0), 0)
   const partnerTodaySessions = partnerHistory.filter(h => h.date === today).length
   const partnerProgress = partnerData?.cardProgress || {}
-  const partnerMastered = Object.values(partnerProgress).filter(p => (p?.interval || 0) >= 7).length
-  const partnerActive = Object.keys(partnerProgress).length
+  const partnerMastered = partnerData?.masteredCards ?? Object.values(partnerProgress).filter(p => (p?.interval || 0) >= 7).length
+  const partnerActive = partnerData?.totalCards ?? Object.keys(partnerProgress).length
 
   // Extended comparison stats
   const myTotalLearned = sessionHistory.reduce((a, b) => a + (b.correct || 0), 0)
@@ -5719,8 +5786,11 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     const timeUpdate = { monthlyMinutes: newMonthlyMinutes, weeklyMinutes: newWeeklyMinutes, totalMinutes: newTotalMinutes, learningMonth: nowMonth, learningWeek: nowWeek }
     const updatedHistory = await saveSessionHistory(user.uid, correct, correct + wrong, sessionHistory, timeUpdate, currentSessionMode)
     setMyData(d => ({ ...d, sessionHistory: updatedHistory, ...timeUpdate }))
-    // Publish time stats to public profile so partner can read them
-    setDoc(doc(db, 'userProfiles', user.uid), { weeklyMinutes: newWeeklyMinutes, monthlyMinutes: newMonthlyMinutes, totalMinutes: newTotalMinutes, learningWeek: nowWeek, learningMonth: nowMonth }, { merge: true }).catch(() => {})
+    // Publish full stats to public profile so partner can read them
+    const myMasteredNow = Object.values(finalProgress).filter(p => (p?.interval || 0) >= 7).length
+    const myStreakNow = calcStreak([...(sessionHistory || []), { date: todayStr(), correct, total: correct + wrong }])
+    const pubStats = { weeklyMinutes: newWeeklyMinutes, monthlyMinutes: newMonthlyMinutes, totalMinutes: newTotalMinutes, learningWeek: nowWeek, learningMonth: nowMonth, totalCards: allCards.filter(c => !/_r(_\d+)?$/.test(c.id)).length, masteredCards: myMasteredNow, streak: myStreakNow, lastActive: todayStr(), name: user.displayName?.split(' ')[0] || 'Partner' }
+    setDoc(doc(db, 'userProfiles', user.uid), pubStats, { merge: true }).catch(() => {})
     await clearSessionState(user.uid)
     const statsEntries = Object.entries(cardStats || {})
     const weakestEntry = statsEntries.filter(([, v]) => v.wrongs > 0).sort((a, b) => b[1].wrongs - a[1].wrongs)[0]
@@ -6457,6 +6527,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
                   const giftCard = { id: `gift_${Date.now()}`, front: pendingGift.front, back: pendingGift.back, category: pendingGift.category || 'vocabulary', langA: pendingGift.langA || 'de', langB: pendingGift.langB || 'en', source: 'gift', sharedBy: pendingGift.fromName }
                   const updated = [...(myData?.aiCards || []), giftCard]
                   await updateDoc(doc(db, 'users', user.uid), { aiCards: updated, pendingGift: null, pendingGiftSeenDate: todayStr() }).catch(() => {})
+                  if (pendingGift._incomingId) deleteDoc(doc(db, 'users', user.uid, 'incomingCards', pendingGift._incomingId)).catch(() => {})
                   setMyData(d => ({ ...d, aiCards: updated, pendingGift: null, pendingGiftSeenDate: todayStr() }))
                   setPendingGift(null)
                 }}
@@ -6466,6 +6537,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
               <button
                 onClick={async () => {
                   await updateDoc(doc(db, 'users', user.uid), { pendingGift: null, pendingGiftSeenDate: todayStr() }).catch(() => {})
+                  if (pendingGift._incomingId) deleteDoc(doc(db, 'users', user.uid, 'incomingCards', pendingGift._incomingId)).catch(() => {})
                   setMyData(d => ({ ...d, pendingGift: null, pendingGiftSeenDate: todayStr() }))
                   setPendingGift(null)
                 }}
@@ -7295,8 +7367,13 @@ function GeschenkkarteScreen({ user, myData, lang, theme, onBack, allCards, card
     if (!selectedCard || !myPartnerUID) return
     setSending(true)
     try {
-      const gift = { front: selectedCard.front, back: selectedCard.back, category: selectedCard.category, langA: selectedCard.langA, langB: selectedCard.langB, message: message.trim().slice(0, 100), fromName, sentAt: Date.now(), date: todayStr() }
-      await updateDoc(doc(db, 'users', myPartnerUID), { pendingGift: gift })
+      const ts = Date.now()
+      const gift = { front: selectedCard.front, back: selectedCard.back, category: selectedCard.category, langA: selectedCard.langA, langB: selectedCard.langB, message: message.trim().slice(0, 100), fromName, fromUid: user.uid, sentAt: ts, date: todayStr() }
+      // Write to both pendingGift (legacy) and incomingCards subcollection
+      await Promise.all([
+        updateDoc(doc(db, 'users', myPartnerUID), { pendingGift: gift }),
+        setDoc(doc(db, 'users', myPartnerUID, 'incomingCards', `gift_${ts}`), gift),
+      ])
       setStatus(isDE ? `🎁 Geschenkt an ${partnerName} ✓` : `🎁 Gifted to ${partnerName} ✓`)
       setSelectedCard(null); setMessage('')
       setTimeout(() => { setStatus(null); onBack() }, 2000)
@@ -8510,16 +8587,25 @@ function App() {
             console.log('[Vocara] Restoring partner connection:', CORRECT_PARTNER)
             data.partnerUID = CORRECT_PARTNER
             data.partnerName = CORRECT_PARTNER_NAME
-            // setDoc+merge works even if field was missing; updateDoc would fail
             try { await setDoc(userRef, { partnerUID: CORRECT_PARTNER, partnerName: CORRECT_PARTNER_NAME }, { merge: true }) } catch (_) {}
           }
-          // Store partnerUid in THREE places simultaneously for permanent stability
+          // Store partnerUID in FIVE places simultaneously for maximum stability
           const pUid = data.partnerUID || data.partnerUid || null
           if (pUid) {
             try { localStorage.setItem('vocara_partnerUID_' + u.uid, pUid) } catch (_) {}
+            try { localStorage.setItem('vocara_partnerUid', pUid) } catch (_) {}
             try { await setDoc(doc(db, 'users', u.uid, 'settings', 'partner'), { partnerUID: pUid, partnerName: data.partnerName || null }, { merge: true }) } catch (_) {}
+            try { await setDoc(doc(db, 'users', u.uid, 'profile', 'data'), { partnerUid: pUid, partnerName: data.partnerName || null, uid: u.uid, updatedAt: Date.now() }, { merge: true }) } catch (_) {}
             try { await setDoc(doc(db, 'shared', u.uid), { partnerUID: pUid, partnerName: data.partnerName || null, updatedAt: Date.now() }, { merge: true }) } catch (_) {}
           }
+          // ── CHECK INCOMING CARDS (subcollection) ──
+          try {
+            const incomingSnap = await getDocs(collection(db, 'users', u.uid, 'incomingCards'))
+            if (!incomingSnap.empty && !data.pendingGift) {
+              const firstCard = incomingSnap.docs[0]
+              data.pendingGift = { ...firstCard.data(), _incomingId: firstCard.id }
+            }
+          } catch (_) {}
           // Write full public profile to userProfiles/{uid} (readable by partner)
           // Never write partnerUID: null for known UIDs — only write if we have a value
           try {
@@ -8550,17 +8636,22 @@ function App() {
               const pubSnap = await getDoc(doc(db, 'userProfiles', partnerUID))
               if (pubSnap.exists()) { setPartnerData(pubSnap.data()); try { localStorage.setItem('vocara_partnerName_' + partnerUID, pubSnap.data().name || pubSnap.data().displayName || '') } catch {} ; return }
             } catch (_) {}
-            // 3. Try shared/{uid}
+            // 3. Try users/{partnerUID}/profile/data subcollection
+            try {
+              const profSnap = await getDoc(doc(db, 'users', partnerUID, 'profile', 'data'))
+              if (profSnap.exists()) { setPartnerData(profSnap.data()); return }
+            } catch (_) {}
+            // 4. Try shared/{uid}
             try {
               const sharedSnap = await getDoc(doc(db, 'shared', partnerUID))
               if (sharedSnap.exists()) { setPartnerData(sharedSnap.data()); return }
             } catch (_) {}
-            // 4. Try users/{uid}
+            // 5. Try users/{uid}
             try {
               const pSnap = await getDoc(doc(db, 'users', partnerUID))
               if (pSnap.exists()) { setPartnerData(pSnap.data()); return }
             } catch (_) {}
-            // 5. Hardcoded fallback — never crash
+            // 6. Hardcoded fallback — never crash
             if (partnerUID === ELOSY_UID) setPartnerData({ name: 'Elosy', displayName: 'Elosy', lastActive: null })
             else if (partnerUID === MARK_UID) setPartnerData({ name: 'Mark', displayName: 'Mark', lastActive: null })
             else console.warn('[Vocara] partner load failed for uid=' + partnerUID)
