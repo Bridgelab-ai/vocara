@@ -1,5 +1,12 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 29.04.2026)
 
+## ✅ Implementiert (29.04.2026 Session 25) — V01.028.023
+- WÖCHENTLICHER AUTO-POOL: weekly-pool.js Prompt erweitert auf {front,back,pronunciation,category,tense,register,wordType}; Firestore-Write speichert alle neuen Felder; Topic-Rotation durch Mixed-Prompt ersetzt ✅ (Basis bereits V01.023.022)
+- FREE/PREMIUM SOFT PAYWALL: Bereits vollständig implementiert (V01.022.019 + V01.023.023): eleganter Modal-Overlay, "Vielleicht später", FREE_LIMITS, KI 3x/week, Mark+Elosy always premium ✅ (confirmed existing)
+- KARTE FALSCH → KI ERKLÄRT WARUM: Prompt verbessert — erklärt warum die korrekte Antwort richtig ist (Grammatikregel/Bedeutung); Panel rot gestaltet (Falsch-Kontext); Header "💡 KI erklärt:" hinzugefügt ✅ (Basis bereits, jetzt verbessert)
+- STREAK FREEZE PREMIUM: Bereits vollständig implementiert (V01.022.019): Settings-Section 🧊, handleStreakFreeze, 1x/Monat, Firestore streakFreeze-Objekt ✅ (confirmed existing)
+- VERSION V01.028.023 ✅
+
 ## ✅ Implementiert (29.04.2026 Session 24) — V01.027.023
 - KONTEXT-KARTEN VERBESSERT: Button ABOVE Karte mit teal Shimmer-Glow während Session (vocaraKontextGlow); KontextwechselScreen: Varianten-Badges oben-links (Formell/Informell/Romantisch) und oben-rechts (Hochsprache/Slang); Back-Navigation kehrt korrekt zu cards oder result zurück ✅
 - AUSSPRACHE COACHING: _pronunciationHistory pro Karte in cardProgress (letzte 10 Scores); fetchTutorMsg analysiert gemeisterte Karten mit Ø<65% und nennt sie im KI-Prompt ✅
