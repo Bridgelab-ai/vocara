@@ -19,7 +19,11 @@
       "Bash(git branch:*)",
       "mcp__claude_ai_Google_Drive__search_files",
       "mcp__claude_ai_Google_Drive__download_file_content",
-      "Bash(powershell *)"
+      "Bash(powershell *)",
+      "Bash(awk *)",
+      "Bash(grep -v \"^\\\\s*//\")",
+      "Bash(node --input-type=module --eval \"import './scripts/add-language.js'\")",
+      "Bash(wc *)"
     ]
   }
 }

@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.028.023'
+const APP_VERSION = 'V01.029.023'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -162,12 +162,15 @@ const VOICE_MAP = {
   'SW': ['sw-KE', 'sw-TZ'],
 }
 
-const CARD_GEN_SYSTEM = `You are a professional language teacher and certified linguist. Rules:
+const CARD_GEN_SYSTEM = `You are a professional native-level translator and linguist.
+STRICT RULES:
+- NEVER translate word-for-word or literally
+- Always use natural idiomatic expressions a native speaker would actually say
+- German must sound like real spoken German, not textbook German
+- Bad: 'Du musst wahrscheinlich aufhören aufzuschieben' — Good: 'Hör endlich auf zu prokrastinieren!'
+- Check: would a native speaker say this? If not, rewrite.
+- Prefer natural colloquial over grammatically perfect but unnatural
 - Every translation must be 100% grammatically correct
-- Use natural, idiomatic expressions — never word-for-word literal translation
-- Double-check every translation for accuracy
-- Appropriate register (formal/informal as context demands)
-- Never generate incorrect grammar
 Return ONLY valid JSON, no markdown, no explanation.`
 
 const AVAILABLE_LANGS = [
@@ -1886,116 +1889,219 @@ function StreakWidget({ history, th, t }) {
   )
 }
 
+// ── KI-GESPRÄCH 2.0 SZENARIEN ──────────────────────────────────
+const KI_SCENARIOS = [
+  { key: 'hotel',      emoji: '🏨', de: 'Hotel einchecken',      en: 'Hotel check-in',      role: 'hotel receptionist' },
+  { key: 'car',        emoji: '🚗', de: 'Auto mieten',            en: 'Car rental',          role: 'car rental agent' },
+  { key: 'directions', emoji: '🗺️', de: 'Nach dem Weg fragen',    en: 'Ask for directions',  role: 'local passerby' },
+  { key: 'restaurant', emoji: '🍽️', de: 'Restaurant bestellen',   en: 'Restaurant order',    role: 'waiter' },
+  { key: 'shopping',   emoji: '🛍️', de: 'Einkaufen',              en: 'Shopping',            role: 'shop assistant' },
+  { key: 'airport',    emoji: '✈️', de: 'Am Flughafen',           en: 'At the airport',      role: 'airline agent' },
+  { key: 'office',     emoji: '💼', de: 'Im Büro',                en: 'At the office',       role: 'colleague' },
+  { key: 'home',       emoji: '🏠', de: 'Zu Hause',               en: 'At home',             role: 'flatmate or partner' },
+  { key: 'school',     emoji: '🎓', de: 'In der Schule',          en: 'At school',           role: 'teacher or classmate' },
+  { key: 'smalltalk',  emoji: '💬', de: 'Smalltalk',              en: 'Small talk',          role: 'friendly stranger' },
+]
+
 // ── KI-GESPRÄCH ───────────────────────────────────────────────
-function KiGespraechScreen({ lang, theme, onBack, userName, userToLang = 'en', socialRegister = 'friends', myData, partnerData, t: tProp }) {
+function KiGespraechScreen({ lang, theme, onBack, userName, userToLang = 'en', socialRegister = 'friends', myData, partnerData, user, t: tProp }) {
   const th = THEMES[theme]; const s = makeStyles(th); const t = tProp || T[lang] || T.en
+  const isDE = lang === 'de'
+  const isPremium = (user?.uid === MARK_UID || user?.uid === ELOSY_UID) || (myData?.plan && myData.plan !== 'free')
+  const [scenario, setScenario] = useState(null) // null = pick, object = active scenario
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [translations, setTranslations] = useState({})
   const [translating, setTranslating] = useState(null)
+  const [feedback, setFeedback] = useState(null) // null | { strengths, weaknesses, level }
+  const [loadingFeedback, setLoadingFeedback] = useState(false)
   const bottomRef = useRef(null)
+  const exchangeCount = messages.filter(m => m.role === 'user').length
   const ttsLangCode = userToLang.toLowerCase()
   const LANG_NAMES_FULL = { en: 'English', de: 'German', sw: 'Swahili', th: 'Thai', es: 'Spanish', fr: 'French', ar: 'Arabic', tr: 'Turkish', pt: 'Portuguese' }
   const targetLang = LANG_NAMES_FULL[ttsLangCode] || ttsLangCode
   const nativeLang = LANG_NAMES_FULL[lang] || lang
-  const regCtx = socialRegisterContext(socialRegister)
-  // ── Diary context: last 3 entries from both partners ─────────
-  const myDiary = (myData?.diaryEntries || []).slice(-3).map(e => `[${e.date}] ${e.text}`).join(' | ')
-  const partnerDiary = (partnerData?.diaryEntries || []).slice(-3).map(e => `[${e.date}] ${e.text}`).join(' | ')
-  const diaryCtx = (myDiary || partnerDiary)
-    ? ` Couple's recent diary context (reference naturally if relevant): ${myDiary ? `My diary: "${myDiary}"` : ''}${partnerDiary ? ` Partner diary: "${partnerDiary}"` : ''}.`
-    : ''
-  const systemPrompt = `You are Vocara, a friendly language tutor helping ${userName} learn ${targetLang}. Social context: ${regCtx}.${diaryCtx} You must respond ONLY in ${targetLang}. Never use ${nativeLang} in your response. If the user writes in ${nativeLang}, still respond entirely in ${targetLang} and gently encourage them to try in ${targetLang} too. If the user makes a grammar mistake, have a natural conversation first, then add a short gentle correction like "💡 Small tip: ..." Keep responses short (2-4 sentences). Be warm and natural — like a friend who happens to be a language expert. The Vocara philosophy: The voice is the bridge.`
+
+  const getSystemPrompt = (sc) => {
+    if (!sc) return ''
+    return `You are playing the role of a ${sc.role} in a ${isDE ? sc.de : sc.en} scenario. The user ${userName} is practicing ${targetLang}.
+Stay in character throughout. Respond ONLY in ${targetLang}. Never switch to ${nativeLang}.
+If the user makes a grammar mistake, continue naturally, then add a brief tip like "💡 Tip: ..."
+Keep each response to 1-3 sentences. Be realistic and helpful for the scenario.
+After the user has sent 10 messages, add "---END---" at the end of your response.`
+  }
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, loading])
 
+  // Auto-generate feedback when scenario ends
+  useEffect(() => {
+    if (!scenario || feedback || loadingFeedback) return
+    const lastAI = messages.filter(m => m.role === 'assistant').slice(-1)[0]
+    if (lastAI?.content?.includes('---END---')) fetchFeedback()
+  }, [messages]) // eslint-disable-line
+
+  const startScenario = async (sc) => {
+    // Weekly limit check: free users get 1 scenario/week
+    if (!isPremium) {
+      const nowWeek = (() => { const d = new Date(); const jan4 = new Date(d.getFullYear(), 0, 4); const w = Math.floor((d - jan4) / (7*24*60*60*1000)) + 1; return `${d.getFullYear()}-W${String(w).padStart(2,'0')}` })()
+      const usedThisWeek = myData?.kiScenarioWeekStr === nowWeek ? (myData?.kiScenarioCount || 0) : 0
+      if (usedThisWeek >= 1) {
+        // Show paywall - can't directly call setSoftPaywall here, use alert as fallback
+        alert(isDE ? 'Freie Nutzer: 1 Szenario pro Woche. Premium für unbegrenzte Szenarien.' : 'Free: 1 scenario/week. Premium for unlimited.')
+        return
+      }
+      // Increment count
+      if (user) {
+        const nowWeekStr = (() => { const d = new Date(); const jan4 = new Date(d.getFullYear(), 0, 4); const w = Math.floor((d - jan4) / (7*24*60*60*1000)) + 1; return `${d.getFullYear()}-W${String(w).padStart(2,'0')}` })()
+        try { await updateDoc(doc(db, 'users', user.uid), { kiScenarioWeekStr: nowWeekStr, kiScenarioCount: usedThisWeek + 1 }) } catch(_) {}
+      }
+    }
+    setScenario(sc); setMessages([]); setFeedback(null); setInput('')
+    // Save to conversation history
+    if (user) {
+      const entry = { scenarioKey: sc.key, startedAt: Date.now(), lang: targetLang }
+      try { await setDoc(doc(db, 'users', user.uid, 'conversationHistory', String(Date.now())), entry) } catch(_) {}
+    }
+  }
+
   const sendMessage = async () => {
     const text = input.trim()
-    if (!text || loading) return
+    if (!text || loading || feedback) return
     const userMsg = { role: 'user', content: text }
     const newMessages = [...messages, userMsg]
     setMessages(newMessages); setInput(''); setLoading(true)
     try {
       const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5',
-          max_tokens: 300,
-          system: systemPrompt,
-          messages: newMessages,
-        })
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 250, system: getSystemPrompt(scenario), messages: newMessages })
       })
       const data = await response.json()
       const reply = data.content?.[0]?.text || '...'
       setMessages(prev => [...prev, { role: 'assistant', content: reply }])
     } catch (e) {
-      setMessages(prev => [...prev, { role: 'assistant', content: '⚠️ Verbindungsfehler. Bitte versuche es erneut.' }])
+      setMessages(prev => [...prev, { role: 'assistant', content: '⚠️ Verbindungsfehler.' }])
     }
     setLoading(false)
+  }
+
+  const fetchFeedback = async () => {
+    setLoadingFeedback(true)
+    const conversation = messages.map(m => `${m.role === 'user' ? userName : 'AI'}: ${m.content}`).join('\n')
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001', max_tokens: 300,
+          messages: [{ role: 'user', content: `Analyse this ${targetLang} conversation by a learner. Respond in ${nativeLang}.
+Conversation:
+${conversation}
+
+Return ONLY JSON: {"strengths":"2-3 things they did well (1-2 sentences)","weaknesses":"1-2 things to practice (1-2 sentences)","level":"A1|A2|B1|B2|C1"}` }]
+        })
+      })
+      const d = await res.json()
+      const raw = (d.content?.[0]?.text || '').trim()
+      const match = raw.match(/\{[\s\S]*\}/)
+      if (match) setFeedback(JSON.parse(match[0]))
+    } catch(_) {}
+    setLoadingFeedback(false)
   }
 
   const translateMessage = async (msgIndex, text) => {
     setTranslating(msgIndex)
     try {
       const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5',
-          max_tokens: 200,
-          messages: [{ role: 'user', content: `Translate this ${targetLang} text to ${nativeLang}. Return ONLY the translation, no explanation:\n\n"${text}"` }],
-        })
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 150, messages: [{ role: 'user', content: `Translate to ${nativeLang}. Return ONLY translation:\n"${text}"` }] })
       })
-      const data = await res.json()
-      const translation = (data.content?.[0]?.text || '').trim()
-      setTranslations(prev => ({ ...prev, [msgIndex]: translation }))
-    } catch (e) {
-      setTranslations(prev => ({ ...prev, [msgIndex]: '⚠️ Übersetzung fehlgeschlagen' }))
-    }
+      const d = await res.json()
+      setTranslations(prev => ({ ...prev, [msgIndex]: (d.content?.[0]?.text || '').trim() }))
+    } catch (_) { setTranslations(prev => ({ ...prev, [msgIndex]: '⚠️' })) }
     setTranslating(null)
   }
 
   const handleKey = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() } }
 
+  // ── SCENARIO PICKER ──
+  if (!scenario) return (
+    <div style={{ ...s.container, minHeight: '100vh' }} className="vocara-screen"><div style={s.homeBox}>
+      <button style={s.backBtn} onClick={onBack}>← {t.back}</button>
+      <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+        <p style={{ color: th.accent, fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', margin: '0 0 6px' }}>🤖 KI-Gespräch 2.0</p>
+        <p style={{ color: th.text, fontSize: '1.1rem', fontWeight: '700', margin: '0 0 4px' }}>{isDE ? 'Wähle ein Szenario:' : 'Choose a scenario:'}</p>
+        <p style={{ color: th.sub, fontSize: '0.8rem', margin: 0 }}>{isDE ? '10–15 Austausche · 5–8 Minuten' : '10–15 exchanges · 5–8 minutes'}</p>
+        {!isPremium && <p style={{ color: th.gold, fontSize: '0.72rem', margin: '6px 0 0', fontWeight: '600' }}>{isDE ? '🔓 Kostenfrei: 1 Szenario/Woche' : '🔓 Free: 1 scenario/week'}</p>}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+        {KI_SCENARIOS.map(sc => (
+          <button key={sc.key} onClick={() => startScenario(sc)}
+            style={{ background: th.card, border: `1px solid ${th.border}`, borderRadius: '14px', padding: '14px 10px', cursor: 'pointer', textAlign: 'center', WebkitTapHighlightColor: 'transparent', transition: 'border-color 0.2s' }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = th.accent}
+            onMouseLeave={e => e.currentTarget.style.borderColor = th.border}>
+            <div style={{ fontSize: '1.5rem', marginBottom: '6px' }}>{sc.emoji}</div>
+            <p style={{ color: th.text, fontSize: '0.78rem', fontWeight: '600', margin: 0, lineHeight: 1.3 }}>{isDE ? sc.de : sc.en}</p>
+          </button>
+        ))}
+      </div>
+    </div></div>
+  )
+
+  // ── FEEDBACK SCREEN ──
+  if (feedback) return (
+    <div style={{ ...s.container, minHeight: '100vh' }} className="vocara-screen"><div style={s.homeBox}>
+      <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+        <span style={{ fontSize: '2.5rem' }}>🎓</span>
+        <p style={{ color: th.accent, fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', margin: '8px 0 4px' }}>{isDE ? 'Feedback' : 'Feedback'}</p>
+        <p style={{ color: th.text, fontSize: '1.1rem', fontWeight: '700', margin: '0 0 4px' }}>{isDE ? `Dein Niveau: ${feedback.level}` : `Your level: ${feedback.level}`}</p>
+      </div>
+      <div style={{ ...s.card, borderLeft: '3px solid #4CAF50', marginBottom: '12px' }}>
+        <p style={{ color: '#81c784', fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', margin: '0 0 6px', letterSpacing: '0.5px' }}>{isDE ? '✓ Was gut war:' : '✓ What went well:'}</p>
+        <p style={{ color: th.text, fontSize: '0.88rem', margin: 0, lineHeight: 1.55 }}>{feedback.strengths}</p>
+      </div>
+      <div style={{ ...s.card, borderLeft: '3px solid #FFA500', marginBottom: '20px' }}>
+        <p style={{ color: '#FFA500', fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', margin: '0 0 6px', letterSpacing: '0.5px' }}>{isDE ? '💡 Was du üben kannst:' : '💡 Things to practice:'}</p>
+        <p style={{ color: th.text, fontSize: '0.88rem', margin: 0, lineHeight: 1.55 }}>{feedback.weaknesses}</p>
+      </div>
+      <button style={s.button} onClick={() => { setScenario(null); setMessages([]); setFeedback(null) }}>{isDE ? '🔄 Neues Szenario' : '🔄 New scenario'}</button>
+      <button style={{ ...s.button, background: 'transparent', color: th.sub, border: `1px solid ${th.border}` }} onClick={onBack}>{t.back}</button>
+    </div></div>
+  )
+
+  // ── CHAT SCREEN ──
   return (
     <div style={{ minHeight: '100vh', width: '100%', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', background: th.bg }} className="vocara-screen">
       <div style={{ width: '100%', maxWidth: '420px', display: 'flex', flexDirection: 'column', height: '100vh' }}>
-        <div style={{ padding: '16px 20px 10px', background: th.bg, borderBottom: `1px solid ${th.border}`, display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
-          <button style={{ ...s.backBtn, marginBottom: 0 }} onClick={onBack}>←</button>
-          <div>
-            <p style={{ color: th.text, fontWeight: 'bold', margin: 0, fontSize: '1rem' }}>🤖 KI-Gespräch</p>
-            <p style={{ color: th.sub, fontSize: '0.75rem', margin: 0 }}>{lang === 'de' ? `Übe ${targetLang} mit KI` : `Practice ${targetLang} with AI`}</p>
+        <div style={{ padding: '12px 16px 10px', background: th.bg, borderBottom: `1px solid ${th.border}`, display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+          <button style={{ ...s.backBtn, marginBottom: 0 }} onClick={() => setScenario(null)}>←</button>
+          <div style={{ flex: 1 }}>
+            <p style={{ color: th.text, fontWeight: 'bold', margin: 0, fontSize: '0.95rem' }}>{scenario.emoji} {isDE ? scenario.de : scenario.en}</p>
+            <p style={{ color: th.sub, fontSize: '0.72rem', margin: 0 }}>{isDE ? `KI spielt: ${scenario.role}` : `AI plays: ${scenario.role}`} · {exchangeCount}/10</p>
           </div>
+          {exchangeCount >= 6 && !loadingFeedback && (
+            <button onClick={fetchFeedback} style={{ background: `${th.accent}22`, border: `1px solid ${th.accent}55`, color: th.accent, borderRadius: '10px', padding: '5px 10px', fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer' }}>
+              {isDE ? 'Feedback' : 'Feedback'}
+            </button>
+          )}
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {messages.length === 0 && (
             <div style={{ textAlign: 'center', marginTop: '40px' }}>
-              <p style={{ color: th.sub, fontSize: '0.9rem', lineHeight: '1.6' }}>
-                {lang === 'de' ? `Schreib auf ${targetLang} oder ${nativeLang} — die KI antwortet immer auf ${targetLang}.` : `Write in ${targetLang} or ${nativeLang} — the AI always responds in ${targetLang}.`}
-              </p>
+              <p style={{ color: th.sub, fontSize: '0.88rem', lineHeight: 1.6 }}>{isDE ? `Starte das Gespräch auf ${targetLang}!` : `Start the conversation in ${targetLang}!`}</p>
             </div>
           )}
           {messages.map((msg, i) => (
             <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
-              <div style={{ maxWidth: '85%', padding: '10px 14px', borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px', background: msg.role === 'user' ? th.accent : th.card, border: msg.role === 'assistant' ? `1px solid ${th.border}` : 'none', color: th.text, fontSize: '0.9rem', lineHeight: '1.5' }}>
-                {msg.content}
+              <div style={{ maxWidth: '85%', padding: '10px 14px', borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px', background: msg.role === 'user' ? th.accent : th.card, border: msg.role === 'assistant' ? `1px solid ${th.border}` : 'none', color: msg.role === 'user' ? (th.btnTextColor || '#111') : th.text, fontSize: '0.9rem', lineHeight: 1.5 }}>
+                {msg.content.replace('---END---', '').trim()}
               </div>
               {msg.role === 'assistant' && (
                 <div style={{ maxWidth: '85%', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <button
-                    onClick={() => speak(msg.content, ttsLangCode)}
-                    style={{ background: 'none', border: 'none', color: th.sub, fontSize: '1rem', cursor: 'pointer', padding: '2px 4px', opacity: 0.6, flexShrink: 0 }}
-                  >🔊</button>
+                  <button onClick={() => speak(msg.content, ttsLangCode)} style={{ background: 'none', border: 'none', color: th.sub, fontSize: '1rem', cursor: 'pointer', padding: '2px 4px', opacity: 0.6 }}>🔊</button>
                   {translations[i] ? (
-                    <p style={{ color: th.sub, fontSize: '0.78rem', margin: 0, lineHeight: '1.4', fontStyle: 'italic', padding: '0 4px' }}>{translations[i]}</p>
+                    <p style={{ color: th.sub, fontSize: '0.75rem', margin: 0, fontStyle: 'italic' }}>{translations[i]}</p>
                   ) : (
-                    <button
-                      onClick={() => translateMessage(i, msg.content)}
-                      disabled={translating === i}
-                      style={{ background: 'none', border: 'none', color: th.sub, fontSize: '0.75rem', cursor: 'pointer', padding: '2px 4px', opacity: translating === i ? 0.5 : 0.7, textDecoration: 'underline' }}
-                    >
+                    <button onClick={() => translateMessage(i, msg.content)} disabled={translating === i} style={{ background: 'none', border: 'none', color: th.sub, fontSize: '0.72rem', cursor: 'pointer', opacity: translating === i ? 0.5 : 0.7, textDecoration: 'underline' }}>
                       {translating === i ? '...' : t.kiTranslate}
                     </button>
                   )}
@@ -2003,20 +2109,15 @@ function KiGespraechScreen({ lang, theme, onBack, userName, userToLang = 'en', s
               )}
             </div>
           ))}
-          {loading && (
-            <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-              <div style={{ padding: '10px 14px', borderRadius: '16px 16px 16px 4px', background: th.card, border: `1px solid ${th.border}`, color: th.sub, fontSize: '1.2rem', letterSpacing: '4px' }}>···</div>
-            </div>
-          )}
+          {loading && <div style={{ display: 'flex' }}><div style={{ padding: '10px 14px', borderRadius: '16px 16px 16px 4px', background: th.card, border: `1px solid ${th.border}`, color: th.sub, fontSize: '1.2rem', letterSpacing: '4px' }}>···</div></div>}
+          {loadingFeedback && <div style={{ textAlign: 'center', padding: '20px' }}><p style={{ color: th.sub, fontSize: '0.85rem', animation: 'vocaraPulse 1.2s infinite' }}>🎓 {isDE ? 'Feedback wird generiert…' : 'Generating feedback…'}</p></div>}
           <div ref={bottomRef} />
         </div>
         <div style={{ padding: '12px 16px', background: th.bg, borderTop: `1px solid ${th.border}`, display: 'flex', gap: '8px', alignItems: 'flex-end', flexShrink: 0 }}>
-          <textarea
-            style={{ flex: 1, padding: '10px 14px', borderRadius: '12px', border: `1px solid ${th.border}`, background: th.card, color: th.text, fontSize: '0.95rem', resize: 'none', minHeight: '44px', maxHeight: '120px', fontFamily: 'inherit', outline: 'none', lineHeight: '1.4' }}
-            placeholder={lang === 'de' ? `Schreib auf ${targetLang}…` : `Write in ${targetLang}…`}
-            value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKey} rows={1}
-          />
-          <button style={{ background: th.accent, border: 'none', borderRadius: '12px', width: '44px', height: '44px', cursor: loading ? 'not-allowed' : 'pointer', fontSize: '1.1rem', opacity: loading ? 0.5 : 1, flexShrink: 0, color: '#fff' }} onClick={sendMessage} disabled={loading}>➤</button>
+          <textarea style={{ flex: 1, padding: '10px 14px', borderRadius: '12px', border: `1px solid ${th.border}`, background: th.card, color: th.text, fontSize: '0.95rem', resize: 'none', minHeight: '44px', maxHeight: '120px', fontFamily: 'inherit', outline: 'none', lineHeight: 1.4 }}
+            placeholder={isDE ? `Antworte auf ${targetLang}…` : `Reply in ${targetLang}…`}
+            value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKey} rows={1} />
+          <button style={{ background: th.accent, border: 'none', borderRadius: '12px', width: '44px', height: '44px', cursor: (loading || feedback) ? 'not-allowed' : 'pointer', fontSize: '1.1rem', opacity: (loading || feedback) ? 0.5 : 1, flexShrink: 0, color: '#fff' }} onClick={sendMessage} disabled={loading || !!feedback}>➤</button>
         </div>
       </div>
     </div>
@@ -2760,15 +2861,16 @@ function KontextwechselScreen({ card, lang, theme, userToLang = 'en', user, onBa
     fetch('/api/chat', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001', max_tokens: 400,
-        system: 'You are a language teacher. Generate context variants for vocabulary. Return ONLY valid JSON.',
+        model: 'claude-haiku-4-5-20251001', max_tokens: 300,
+        system: 'You are a language teacher. Generate context variants for vocabulary. Return ONLY valid JSON. Never add markdown or explanation.',
         messages: [{
           role: 'user',
-          content: `For the word/phrase "${card.front}" (${toLangName} translation: "${card.back}"), generate 3 context-variant sentences in ${toLangName}.
-Return ONLY JSON array: [
-  {"type":"formal","sentence":"[formal usage sentence]","note":"[brief context note]"},
-  {"type":"informal","sentence":"[casual usage sentence]","note":"[brief context note]"},
-  {"type":"romantic","sentence":"[romantic/affectionate usage]","note":"[brief context note]"}
+          content: `For "${card.front}" (translation: "${card.back}"), give 3 context variants in ${toLangName}. MAX 1 SHORT SENTENCE each. Include the translation in brackets.
+Return ONLY JSON array:
+[
+  {"type":"formal","sentence":"ONE short formal sentence [translation]"},
+  {"type":"informal","sentence":"ONE short casual sentence [translation]"},
+  {"type":"romantic","sentence":"ONE short romantic sentence [translation]"}
 ]`
         }]
       })
@@ -2880,6 +2982,7 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
   const [kiExplanation, setKiExplanation] = useState(null) // null | 'loading' | string
   const [noteOpen, setNoteOpen] = useState(false)
   const [noteText, setNoteText] = useState('')
+  const [reportedCards, setReportedCards] = useState(new Set()) // set of reported card ids
   const [kontextVariation, setKontextVariation] = useState(null) // null | 'loading' | {formal,informal,romantic}
   const [kontextOpen, setKontextOpen] = useState(false)
   const animLock = useRef(false)
@@ -2951,7 +3054,11 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
     const rec = new SR()
     const toLangResult = getToLangText(item, userToLang) || { text: item.back, langCode: userToLang }
     const { text: toLangText, langCode: toLangCode } = toLangResult
-    rec.lang = SPEECH_LANGS[toLangCode] || 'en-GB'
+    // Fix: detect question language so mic uses the answer language, not the question language
+    const questionLang = item.langA || toLangCode
+    const questionIsInToLang = questionLang === userToLang
+    const fromLangForMic = lang || 'de' // user's native language
+    rec.lang = questionIsInToLang ? (SPEECH_LANGS[fromLangForMic] || 'de-DE') : (SPEECH_LANGS[toLangCode] || 'en-GB')
     rec.interimResults = false; rec.maxAlternatives = 3
     const timeout = setTimeout(() => { try { rec.stop() } catch(e) {} }, 5000)
     rec.onresult = (e) => {
@@ -3349,8 +3456,16 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
             </div>
           )}
           {/* Note icon — bottom-right of card */}
-          <button onClick={() => setNoteOpen(o => !o)} style={{ position: 'absolute', bottom: '8px', right: '10px', background: noteText ? 'rgba(255,255,255,0.10)' : 'transparent', border: noteText ? '1px solid rgba(255,255,255,0.18)' : 'none', borderRadius: '8px', padding: '3px 7px', color: noteText ? '#e0c060' : '#8A8A9A', fontSize: '0.75rem', cursor: 'pointer', opacity: 0.85, lineHeight: 1, zIndex: 2 }}>
+          <button onClick={() => setNoteOpen(o => !o)} style={{ position: 'absolute', bottom: '8px', right: '32px', background: noteText ? 'rgba(255,255,255,0.10)' : 'transparent', border: noteText ? '1px solid rgba(255,255,255,0.18)' : 'none', borderRadius: '8px', padding: '3px 7px', color: noteText ? '#e0c060' : '#8A8A9A', fontSize: '0.75rem', cursor: 'pointer', opacity: 0.85, lineHeight: 1, zIndex: 2 }}>
             📝
+          </button>
+          {/* Report translation button — bottom-right */}
+          <button onClick={async () => {
+            if (reportedCards.has(item.id)) return
+            setReportedCards(prev => new Set([...prev, item.id]))
+            try { await setDoc(doc(db, 'reports', `${item.id}_${Date.now()}`), { cardId: item.id, front: item.front, back: item.back, reportedBy: user?.uid, ts: Date.now() }) } catch(_) {}
+          }} style={{ position: 'absolute', bottom: '8px', right: '10px', background: 'transparent', border: 'none', borderRadius: '8px', padding: '3px 5px', color: reportedCards.has(item.id) ? '#e57373' : '#8A8A9A', fontSize: '0.7rem', cursor: reportedCards.has(item.id) ? 'default' : 'pointer', opacity: reportedCards.has(item.id) ? 1 : 0.6, lineHeight: 1, zIndex: 2 }} title={lang === 'de' ? 'Übersetzung melden' : 'Report translation'}>
+            🚩
           </button>
           <p style={s.dirLabel}>{LANG_FLAGS[fromLang]} → {LANG_FLAGS[toLang]}</p>
           <p style={s.cardFront}>{question}</p>
@@ -5866,7 +5981,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
   if (screen === 'test') return <>{homeFloat}<PlacementTest lang={lang} theme={theme} user={user} onBack={() => setScreen('menu')} onSaveCefr={onSaveCefr} /></>
   if (screen === 'impressum') return <>{homeFloat}<ImpressumScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
   if (screen === 'stats') return <>{homeFloat}<StatsScreen user={user} myData={myData} partnerData={partnerData} allCards={allCards} lang={lang} theme={theme} onBack={() => setScreen('menu')} cardProgress={cardProgress} t={t} /></>
-  if (screen === 'ki') return <>{homeFloat}<KiGespraechScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={activeToLang} socialRegister={myData?.socialRegister || 'friends'} myData={myData} partnerData={partnerData} t={t} /></>
+  if (screen === 'ki') return <>{homeFloat}<KiGespraechScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={activeToLang} socialRegister={myData?.socialRegister || 'friends'} myData={myData} partnerData={partnerData} user={user} t={t} /></>
   if (screen === 'satz') return <>{homeFloat}<SatzTrainingScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={activeToLang} t={t} /></>
   if (screen === 'diary') return <>{homeFloat}<DiaryScreen user={user} myData={myData} setMyData={setMyData} partnerData={partnerData} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
   if (screen === 'admin' && user.uid === MARK_UID) return <>{homeFloat}<AdminScreen user={user} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
@@ -6156,9 +6271,32 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
               <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '8.2s', position: 'relative' }}
                 onClick={() => checkFreeLimit('urlaub') && startCategorySession('urlaub')}>
                 {(t.menuUrlaub || '✈️\nIm Urlaub').split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
-                {levelBadge('urlaub')}{freeBadge('urlaub')}
+                {freeBadge('urlaub')}
               </button>
             </div>
+            {/* ── MEINE THEMEN BUTTON ── */}
+            {(() => {
+              const unlockedTopics = myData?.unlockedTopics || []
+              const anyLvl2 = ['vocabulary','street','home','sentence','basics'].some(cat => {
+                const n = safeCards.filter(c => c.category === cat && !/_r(_\d+)?$/.test(c.id) && (cardProgress[c.id?.replace(/_r(_\d+)?$/,'')]?.interval || cardProgress[c.id]?.interval || 0) >= 3).length
+                return getCatLevel(n) >= 2
+              })
+              const topicsUnlocked = isPremium || anyLvl2
+              const topicCards = safeCards.filter(c => c.topic && (unlockedTopics.includes(c.topic) || topicsUnlocked) && !excludedCardIds.has(c.id))
+              if (topicCards.length === 0 && !topicsUnlocked) return null
+              return (
+                <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '9.5s', position: 'relative', width: '100%', justifyContent: 'center', background: `linear-gradient(135deg, ${th.accent}22, ${th.gold}15)`, border: `1px solid ${th.accent}44` }}
+                  onClick={() => {
+                    if (!topicsUnlocked) { setSoftPaywall({ area: 'topics', used: 0, limit: 1 }); return }
+                    if (topicCards.length === 0) { setScreen('settings'); return }
+                    const sess = [...topicCards.flatMap(buildCardPair)].sort(() => Math.random() - 0.5).slice(0, SESSION_SIZE)
+                    setCurrentSessionMode('topics'); setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+                  }}>
+                  <span>🎯{'\n'}Meine{'\n'}Themen</span>
+                  {topicCards.length > 0 && <div style={{ position: 'absolute', top: '5px', left: '6px', background: 'rgba(0,0,0,0.45)', borderRadius: '6px', padding: '2px 6px' }}><span style={{ color: th.accent, fontSize: '0.54rem', fontWeight: '700' }}>{topicCards.length}</span></div>}
+                </button>
+              )
+            })()}
             <button className="vocara-alle-btn" style={{ ...s.button, padding: '13px 28px', fontSize: '0.9rem', letterSpacing: '0.2px', marginBottom: 0, '--gleam-delay': '2.5s' }} onClick={() => startCategorySession('all')}>
               {t.menuAlle}
             </button>
@@ -8536,24 +8674,30 @@ function App() {
             if (!data.onboardingDone) setNeedsOnboarding(true)
             if (!data.languages || data.languages.length === 0) setNeedsLangSetup(true)
           }
-          // ── PARTNER CONNECTION: always restore from hardcoded backup for Mark/Elosy ──
+          // ── PARTNER CONNECTION: cost-optimized — only write when partnerUid actually changed ──
           const CORRECT_PARTNER = u.uid === MARK_UID ? ELOSY_UID : u.uid === ELOSY_UID ? MARK_UID : null
           const CORRECT_PARTNER_NAME = u.uid === MARK_UID ? 'Elosy' : u.uid === ELOSY_UID ? 'Mark' : null
-          const needsPartnerRestore = CORRECT_PARTNER && data.partnerUID !== CORRECT_PARTNER
-          if (needsPartnerRestore) {
-            console.log('[Vocara] Restoring partner connection:', CORRECT_PARTNER)
-            data.partnerUID = CORRECT_PARTNER
-            data.partnerName = CORRECT_PARTNER_NAME
+          if (CORRECT_PARTNER && data.partnerUID !== CORRECT_PARTNER) {
+            data.partnerUID = CORRECT_PARTNER; data.partnerName = CORRECT_PARTNER_NAME
             try { await setDoc(userRef, { partnerUID: CORRECT_PARTNER, partnerName: CORRECT_PARTNER_NAME }, { merge: true }) } catch (_) {}
           }
-          // Store partnerUID in FIVE places simultaneously for maximum stability
-          const pUid = data.partnerUID || data.partnerUid || null
+          const pUid = data.partnerUID || data.partnerUid || (u.uid === MARK_UID ? ELOSY_UID : u.uid === ELOSY_UID ? MARK_UID : null) || null
           if (pUid) {
             try { localStorage.setItem('vocara_partnerUID_' + u.uid, pUid) } catch (_) {}
-            try { localStorage.setItem('vocara_partnerUid', pUid) } catch (_) {}
-            try { await setDoc(doc(db, 'users', u.uid, 'settings', 'partner'), { partnerUID: pUid, partnerName: data.partnerName || null }, { merge: true }) } catch (_) {}
-            try { await setDoc(doc(db, 'users', u.uid, 'profile', 'data'), { partnerUid: pUid, partnerName: data.partnerName || null, uid: u.uid, updatedAt: Date.now() }, { merge: true }) } catch (_) {}
-            try { await setDoc(doc(db, 'shared', u.uid), { partnerUID: pUid, partnerName: data.partnerName || null, updatedAt: Date.now() }, { merge: true }) } catch (_) {}
+            const cachedPartnerUid = (() => { try { return localStorage.getItem('vocara_partnerUid') } catch(_) { return null } })()
+            if (cachedPartnerUid !== pUid) {
+              // Only Firestore-write when partnerUid changed — reduces costs
+              console.log('[Vocara] Partner sync: writing to Firestore', u.uid, '→', pUid)
+              await Promise.all([
+                setDoc(doc(db, 'users', u.uid, 'profile', 'data'), { partnerUid: pUid, partnerName: data.partnerName || null, uid: u.uid, updatedAt: Date.now() }, { merge: true }).catch(() => {}),
+                setDoc(doc(db, 'userProfiles', u.uid), { partnerUID: pUid, partnerName: data.partnerName || null }, { merge: true }).catch(() => {}),
+              ])
+              try { localStorage.setItem('vocara_partnerUid', pUid) } catch (_) {}
+            } else {
+              console.log('[Vocara] Partner sync: skipped (no change), partnerUid =', pUid)
+            }
+            // Debug: log partner profile for diagnosis
+            getDoc(doc(db, 'userProfiles', pUid)).then(ps => { if (ps.exists()) console.log('[Vocara] Partner profile:', ps.data()) }).catch(() => {})
           }
           // ── CHECK INCOMING CARDS (subcollection) ──
           try {
