@@ -1,5 +1,11 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 29.04.2026)
 
+## ✅ Implementiert (02.05.2026 Session 33) — V01.047.025
+- WERDEN SÄTZE RESTORED: startSatzSession() wiederhergestellt — generiert KI-Flashcards → CardScreen (flashcard mode) ✅
+- SATZTRAINING BUTTON NEU: Neuer Button im Grid → screen:'satz' (SatzTrainingScreen, interaktive Übungen); levelBadge('satztraining') ✅
+- satzLoading STATE: useState(false) wiederhergestellt; werden Sätze + Nav-Button nutzen satzLoading für opacity/disabled ✅
+- VERSION V01.047.025 ✅
+
 ## ✅ Implementiert (02.05.2026 Session 32) — V01.046.025
 - ONBOARDING SCHRITTE 5+6: Bereits implementiert (socialRegister + musicEnabled) ✅
 - SOZIALES REGISTER KI-GESPRÄCH: Bereits implementiert (Ton: Selector) ✅
