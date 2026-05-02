@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.032.023'
+const APP_VERSION = 'V01.032.024'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -5984,13 +5984,13 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     // Publish full stats to public profile so partner can read them
     const myMasteredNow = Object.values(finalProgress).filter(p => (p?.interval || 0) >= 7).length
     const myStreakNow = calcStreak([...(sessionHistory || []), { date: todayStr(), correct, total: correct + wrong }])
-    const pubStats = { weeklyMinutes: newWeeklyMinutes, monthlyMinutes: newMonthlyMinutes, totalMinutes: newTotalMinutes, learningWeek: nowWeek, learningMonth: nowMonth, totalCards: allCards.filter(c => !/_r(_\d+)?$/.test(c.id)).length, masteredCards: myMasteredNow, streak: myStreakNow, lastActive: todayStr(), name: user.displayName?.split(' ')[0] || 'Partner' }
-    setDoc(doc(db, 'userProfiles', user.uid), pubStats, { merge: true }).catch(() => {})
-    setDoc(doc(db, 'users', user.uid, 'profile', 'data'), pubStats, { merge: true }).catch(() => {})
-    // Notify partner of activity via Firestore pendingNotifs subcollection
+    const pubStats = { weeklyMinutes: newWeeklyMinutes, monthlyMinutes: newMonthlyMinutes, totalMinutes: newTotalMinutes, learningWeek: nowWeek, learningMonth: nowMonth, totalCards: allCards.filter(c => !/_r(_\d+)?$/.test(c.id)).length, masteredCards: myMasteredNow, streak: myStreakNow, lastActive: todayStr(), displayName: user.displayName || '', name: user.displayName?.split(' ')[0] || 'Partner' }
+    // Write partner-visible stats to users/{uid}/publicStats/data (covered by wildcard rule + explicit read rule)
+    setDoc(doc(db, 'users', user.uid, 'publicStats', 'data'), pubStats, { merge: true }).catch(() => {})
+    // Notify partner of activity
     if (myData?.partnerUID) {
       const notifId = `session_${user.uid}_${Date.now()}`
-      setDoc(doc(db, 'userProfiles', myData.partnerUID, 'pendingNotifs', notifId), {
+      setDoc(doc(db, 'users', myData.partnerUID, 'publicStats', 'pendingNotifs_' + notifId), {
         type: 'partner_session', fromName: user.displayName?.split(' ')[0] || 'Partner',
         cards: correct + wrong, ts: Date.now()
       }).catch(() => {})
@@ -8742,25 +8742,21 @@ function App() {
               console.log('[Vocara] Partner sync: writing to Firestore', u.uid, '→', pUid)
               await Promise.all([
                 setDoc(doc(db, 'users', u.uid, 'profile', 'data'), { partnerUid: pUid, partnerName: data.partnerName || null, uid: u.uid, updatedAt: Date.now() }, { merge: true }).catch(() => {}),
-                setDoc(doc(db, 'userProfiles', u.uid), { partnerUID: pUid, partnerName: data.partnerName || null }, { merge: true }).catch(() => {}),
+                setDoc(doc(db, 'users', u.uid, 'publicStats', 'data'), { partnerUID: pUid, partnerName: data.partnerName || null }, { merge: true }).catch(() => {}),
               ])
               try { localStorage.setItem('vocara_partnerUid', pUid) } catch (_) {}
             } else {
               console.log('[Vocara] Partner sync: skipped (no change), partnerUid =', pUid)
             }
-            // Debug: log both profiles for diagnosis
+            // Debug: log publicStats for both users
             ;(async () => {
               try {
-                const [myPub, myProf, pPub, pProf] = await Promise.all([
-                  getDoc(doc(db, 'userProfiles', u.uid)).catch(() => null),
-                  getDoc(doc(db, 'users', u.uid, 'profile', 'data')).catch(() => null),
-                  getDoc(doc(db, 'userProfiles', pUid)).catch(() => null),
-                  getDoc(doc(db, 'users', pUid, 'profile', 'data')).catch(() => null),
+                const [myPub, pPub] = await Promise.all([
+                  getDoc(doc(db, 'users', u.uid, 'publicStats', 'data')).catch(() => null),
+                  getDoc(doc(db, 'users', pUid, 'publicStats', 'data')).catch(() => null),
                 ])
-                console.log('[Vocara] MY  userProfiles/' + u.uid + ':', myPub?.exists() ? myPub.data() : 'MISSING')
-                console.log('[Vocara] MY  users/' + u.uid + '/profile/data:', myProf?.exists() ? myProf.data() : 'MISSING')
-                console.log('[Vocara] PTR userProfiles/' + pUid + ':', pPub?.exists() ? pPub.data() : 'MISSING')
-                console.log('[Vocara] PTR users/' + pUid + '/profile/data:', pProf?.exists() ? pProf.data() : 'MISSING')
+                console.log('[Vocara] MY  users/' + u.uid + '/publicStats/data:', myPub?.exists() ? myPub.data() : 'MISSING')
+                console.log('[Vocara] PTR users/' + pUid + '/publicStats/data:', pPub?.exists() ? pPub.data() : 'MISSING')
               } catch(e) { console.warn('[Vocara] profile debug failed', e) }
             })()
           }
@@ -8772,16 +8768,15 @@ function App() {
               data.pendingGift = { ...firstCard.data(), _incomingId: firstCard.id }
             }
           } catch (_) {}
-          // Write full public profile to userProfiles/{uid} (readable by partner)
-          // Never write partnerUID: null for known UIDs — only write if we have a value
+          // Write public profile to users/{uid}/publicStats/data (readable by partner via Firestore rule)
           try {
             const pubProfile = {
               displayName: u.displayName, name: data.name || u.displayName,
-              email: u.email, photoURL: u.photoURL || null, lastActive: todayStr()
+              lastActive: todayStr()
             }
             if (data.partnerUID) { pubProfile.partnerUID = data.partnerUID; pubProfile.partnerName = data.partnerName || null }
-            await setDoc(doc(db, 'userProfiles', u.uid), pubProfile, { merge: true })
-          } catch (e) { console.warn('[Vocara] userProfiles write skipped:', e?.code) }
+            await setDoc(doc(db, 'users', u.uid, 'publicStats', 'data'), pubProfile, { merge: true })
+          } catch (e) { console.warn('[Vocara] publicStats write skipped:', e?.code) }
           setMyData(data)
           // Load music settings from Firestore
           getDoc(doc(db, 'users', u.uid, 'settings', 'music')).then(mSnap => {
@@ -8790,34 +8785,28 @@ function App() {
             if (md.enabled !== undefined) { setMusicEnabled(md.enabled); try { localStorage.setItem('vocara_music', md.enabled ? 'true' : 'false') } catch {} }
             if (md.volume !== undefined) { setMusicVolume(md.volume); try { localStorage.setItem('vocara_music_vol', String(md.volume)) } catch {} }
           }).catch(() => {})
-          // Load partner from 3 sources in order: localStorage → userProfiles → users/ → hardcoded
+          // Load partner stats from users/{partnerUID}/publicStats/data (primary) with fallbacks
           const loadPartner = async (partnerUID) => {
-            // 1. Try localStorage (fastest, no network)
+            // 1. Try publicStats/data — the canonical partner-readable location
             try {
-              const lsName = localStorage.getItem('vocara_partnerName_' + partnerUID)
-              if (lsName) { setPartnerData({ name: lsName, displayName: lsName, _fromCache: true }); }
+              const pubSnap = await getDoc(doc(db, 'users', partnerUID, 'publicStats', 'data'))
+              if (pubSnap.exists()) {
+                setPartnerData(pubSnap.data())
+                try { localStorage.setItem('vocara_partnerName_' + partnerUID, pubSnap.data().name || pubSnap.data().displayName || '') } catch {}
+                return
+              }
             } catch (_) {}
-            // 2. Try userProfiles/{uid} (public, always up to date)
-            try {
-              const pubSnap = await getDoc(doc(db, 'userProfiles', partnerUID))
-              if (pubSnap.exists()) { setPartnerData(pubSnap.data()); try { localStorage.setItem('vocara_partnerName_' + partnerUID, pubSnap.data().name || pubSnap.data().displayName || '') } catch {} ; return }
-            } catch (_) {}
-            // 3. Try users/{partnerUID}/profile/data subcollection
+            // 2. Fallback: users/{partnerUID}/profile/data
             try {
               const profSnap = await getDoc(doc(db, 'users', partnerUID, 'profile', 'data'))
               if (profSnap.exists()) { setPartnerData(profSnap.data()); return }
             } catch (_) {}
-            // 4. Try shared/{uid}
+            // 3. Fallback: localStorage name only
             try {
-              const sharedSnap = await getDoc(doc(db, 'shared', partnerUID))
-              if (sharedSnap.exists()) { setPartnerData(sharedSnap.data()); return }
+              const lsName = localStorage.getItem('vocara_partnerName_' + partnerUID)
+              if (lsName) { setPartnerData({ name: lsName, displayName: lsName, _fromCache: true }); return }
             } catch (_) {}
-            // 5. Try users/{uid}
-            try {
-              const pSnap = await getDoc(doc(db, 'users', partnerUID))
-              if (pSnap.exists()) { setPartnerData(pSnap.data()); return }
-            } catch (_) {}
-            // 6. Hardcoded fallback — never crash
+            // 4. Hardcoded fallback — never crash
             if (partnerUID === ELOSY_UID) setPartnerData({ name: 'Elosy', displayName: 'Elosy', lastActive: null })
             else if (partnerUID === MARK_UID) setPartnerData({ name: 'Mark', displayName: 'Mark', lastActive: null })
             else console.warn('[Vocara] partner load failed for uid=' + partnerUID)
@@ -8827,7 +8816,7 @@ function App() {
           if (resolvedPartnerUID) await loadPartner(resolvedPartnerUID)
           // ── CHECK PARTNER ACTIVITY NOTIFS ──
           try {
-            const notifSnap = await getDocs(collection(db, 'userProfiles', u.uid, 'pendingNotifs'))
+            const notifSnap = await getDocs(collection(db, 'users', u.uid, 'publicStats'))
             if (!notifSnap.empty) {
               notifSnap.docs.forEach(async (nd) => {
                 const n = nd.data()
@@ -8880,7 +8869,7 @@ function App() {
     } catch (e) { console.warn('[Vocara] own data reload failed:', e?.code) }
     if (partnerUID) {
       let loaded = false
-      try { const pub = await getDoc(doc(db, 'userProfiles', partnerUID)); if (pub.exists()) { setPartnerData(pub.data()); loaded = true } } catch (_) {}
+      try { const pub = await getDoc(doc(db, 'users', partnerUID, 'publicStats', 'data')); if (pub.exists()) { setPartnerData(pub.data()); loaded = true } } catch (_) {}
       if (!loaded) {
         try { const p = await getDoc(doc(db, 'users', partnerUID)); if (p.exists()) setPartnerData(p.data()) }
         catch (e) { console.warn('[Vocara] partner load skipped (uid=' + partnerUID + '):', e?.code) }

@@ -1,0 +1,44 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users collection — own data + publicStats readable by any signed-in user
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // profile subcollection — own only
+      match /profile/{doc} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // publicStats — write own, read by any authenticated user (partner visibility)
+      match /publicStats/{doc} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // incomingCards — any authenticated user can write (send gift), only owner reads/deletes
+      match /incomingCards/{cardId} {
+        allow read, delete: if request.auth != null && request.auth.uid == userId;
+        allow create: if request.auth != null;
+      }
+
+      // conversationHistory — own only
+      match /conversationHistory/{doc} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // Shared card pool — any authenticated user can read, only server (no auth check) writes via API
+    match /sharedCards/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false; // written only by Vercel serverless functions
+    }
+
+    // Reports — any authenticated user can create
+    match /reports/{reportId} {
+      allow create: if request.auth != null;
+      allow read, update, delete: if false;
+    }
+  }
+}
