@@ -44,7 +44,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.053.064'
+const APP_VERSION = 'V01.054.067'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -116,9 +116,9 @@ const MONTHLY_TEST_DAYS = 30
 const THEMES = {
   nairobi: {
     name: '🌙 Nairobi',
-    bg: '#0A0800', card: '#0F0C00', text: '#FFFFFF', sub: '#B8860B', border: '#2A2200',
-    accent: '#FFD700', gold: '#FFD700', glowColor: '#FFD700', btnTextColor: '#0A0800',
-    bgGrad: 'radial-gradient(ellipse at 50% 100%, #1C1800 0%, #0F0C00 40%, #0A0800 70%), radial-gradient(ellipse at 65% 60%, #141000 0%, transparent 50%), radial-gradient(ellipse at 30% 40%, #0D0A00 0%, transparent 50%)',
+    bg: '#060400', card: '#0F0C00', text: '#FFFFFF', sub: '#B8860B', border: '#1C1600',
+    accent: '#FFD700', gold: '#FFD700', glowColor: '#FFD700', btnTextColor: '#060400',
+    bgGrad: 'radial-gradient(ellipse at 50% 100%, #0D0A00 0%, #080600 40%, #060400 70%), radial-gradient(ellipse at 65% 60%, #0A0800 0%, transparent 50%), radial-gradient(ellipse at 30% 40%, #070500 0%, transparent 50%)',
     metalGrad: 'linear-gradient(145deg, #FFF0A0 0%, #FFD700 30%, #B8860B 52%, #FFD700 72%, #FFF0A0 100%)',
     metalText: 'linear-gradient(90deg, #B8860B 0%, #FFF0A0 16%, #FFD700 33%, #FFF0A0 50%, #B8860B 66%, #FFF0A0 83%, #FFD700 100%)',
     btnFaceGrad: 'linear-gradient(90deg, #B8860B 0%, #FFD700 20%, #FFF0A0 40%, #FFD700 50%, #FFF0A0 60%, #FFD700 80%, #B8860B 100%)',
@@ -974,6 +974,21 @@ html, body, #root {
   100% { transform: rotateY(0deg); }
 }
 
+@keyframes vocaraLogoSweep {
+  0%   { background-position: -200% center; }
+  12%  { background-position: 200% center; }
+  100% { background-position: 200% center; }
+}
+.vocara-logo-text {
+  position: relative;
+  display: inline-block;
+  background: linear-gradient(100deg, #B8860B 0%, #FFD700 35%, #FFF0A0 48%, #FFD700 55%, #B8860B 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-size: 300% 100%;
+  animation: vocaraLogoSweep 8s ease-in-out infinite;
+}
 @keyframes vocaraRayHamburg {
   0%   { transform: translateX(-120%) rotate(22deg); opacity: 0; }
   18%  { opacity: 0.55; }
@@ -6478,7 +6493,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
             {musicEnabled ? '🎵' : '🔇'}
           </button>
         )}
-        <p style={{ fontFamily: 'Georgia, serif', fontSize: '42px', fontWeight: '700', color: '#FFD700', margin: '0 auto', letterSpacing: '3px', lineHeight: 1 }}>Vocara</p>
+        <p className="vocara-logo-text" style={{ fontFamily: 'Georgia, serif', fontSize: '42px', fontWeight: '700', margin: '0 auto', letterSpacing: '3px', lineHeight: 1 }}>Vocara</p>
         <p style={{ color: th.sub, fontSize: '0.55rem', opacity: 0.3, margin: '2px 0 0', letterSpacing: '1px', textAlign: 'center' }}>{APP_VERSION}</p>
         <p className="vocara-logo-greeting" style={{ ...s.greeting, marginTop: '8px', marginBottom: uniqueTargetLangs.length > 0 ? '6px' : 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px' }}>
           {t.hello}, {firstName}
@@ -7313,6 +7328,8 @@ function AdminScreen({ user, lang, theme, onBack }) {
   const [toggling, setToggling] = useState(null)
   const [reports, setReports] = useState([])
   const [reportActing, setReportActing] = useState(null)
+  const [poolLog, setPoolLog] = useState([])
+  const [poolRunning, setPoolRunning] = useState(false)
 
   const load = async () => {
     setLoading(true)
@@ -7389,6 +7406,24 @@ function AdminScreen({ user, lang, theme, onBack }) {
     setReportActing(null)
   }
 
+  const triggerPool = async (endpoint, body, label) => {
+    setPoolRunning(true)
+    setPoolLog(prev => [...prev, `▶ ${label}…`])
+    try {
+      const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      const data = await res.json()
+      const summary = data.results
+        ? data.results.map(r => `${r.langPair||r.pair||''} ${r.level||r.type||''}: ${r.count ?? r.error ?? '?'}`).join(' | ')
+        : data.generated
+          ? data.generated.map(r => `${r.pair}: ${r.count ?? r.error ?? '?'}`).join(' | ')
+          : JSON.stringify(data).slice(0, 120)
+      setPoolLog(prev => [...prev, `✓ ${label}: ${summary}`])
+    } catch (e) {
+      setPoolLog(prev => [...prev, `✕ ${label}: ${e.message}`])
+    }
+    setPoolRunning(false)
+  }
+
   const thisWeek = getISOWeekStr()
   const activeThisWeek = users.filter(u => (u.sessionHistory || []).some(h => {
     try { return getISOWeekStr(new Date(...h.date.split('-').map((v,i)=>i===1?v-1:+v))) === thisWeek } catch { return false }
@@ -7418,6 +7453,33 @@ function AdminScreen({ user, lang, theme, onBack }) {
             <p style={{ color: th.sub, fontSize: '0.6rem', margin: 0, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{label}</p>
           </div>
         ))}
+      </div>
+      {/* Pool generation */}
+      <div style={{ marginBottom: '12px' }}>
+        <p style={{ color: th.sub, fontSize: '0.7rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>🗃 Pool generieren</p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
+          {[
+            { label: 'Base Lvl 1', endpoint: '/api/generate-base-pool', body: { level: 1 } },
+            { label: 'Base Lvl 2', endpoint: '/api/generate-base-pool', body: { level: 2 } },
+            { label: 'Vocab', endpoint: '/api/generate-vocab-pool', body: {} },
+            { label: 'Street', endpoint: '/api/generate-street-pool', body: {} },
+            { label: 'Satz leicht', endpoint: '/api/generate-sentence-training-pool', body: { level: 'leicht' } },
+            { label: 'Satz mittel', endpoint: '/api/generate-sentence-training-pool', body: { level: 'mittel' } },
+            { label: 'Satz schwer', endpoint: '/api/generate-sentence-training-pool', body: { level: 'schwer' } },
+          ].map(({ label, endpoint, body }) => (
+            <button key={label} onClick={() => triggerPool(endpoint, body, label)} disabled={poolRunning}
+              style={{ background: `${th.gold}15`, border: `1px solid ${th.gold}44`, color: th.gold, borderRadius: '8px', padding: '4px 10px', fontSize: '0.68rem', fontWeight: '700', cursor: poolRunning ? 'not-allowed' : 'pointer', opacity: poolRunning ? 0.6 : 1 }}>
+              {label}
+            </button>
+          ))}
+        </div>
+        {poolLog.length > 0 && (
+          <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: '8px', padding: '8px', maxHeight: '100px', overflowY: 'auto' }}>
+            {poolLog.map((line, i) => (
+              <p key={i} style={{ color: line.startsWith('✓') ? '#81c784' : line.startsWith('✕') ? '#e57373' : th.sub, fontSize: '0.62rem', margin: '1px 0', fontFamily: 'monospace' }}>{line}</p>
+            ))}
+          </div>
+        )}
       </div>
       {reports.length > 0 && (
         <div style={{ marginBottom: '12px' }}>
