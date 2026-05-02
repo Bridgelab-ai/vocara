@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.039.024'
+const APP_VERSION = 'V01.040.023'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -1379,13 +1379,13 @@ function makeStyles(th) {
     resumeBanner: { background: th.card, border: `1px solid ${th.accent}`, borderRadius: '14px', padding: '14px 16px', marginBottom: '12px', textAlign: 'left' },
     catBtn: {
       background: th.btnFaceGrad, color: th.btnTextColor, border: 'none',
-      padding: '14px 10px 10px', borderRadius: '20px', fontSize: '0.84rem', cursor: 'pointer',
+      padding: '12px', borderRadius: '20px', fontSize: '0.84rem', cursor: 'pointer',
       fontWeight: '700', flex: 1, lineHeight: '1.3', textAlign: 'center',
       boxShadow: th.shadow3d,
       fontFamily: "'Playfair Display', Georgia, serif",
       letterSpacing: '0.1px',
       display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center',
-      minHeight: '82px',
+      minHeight: '80px',
     },
     navBtn: {
       background: 'linear-gradient(145deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%)',
@@ -3189,7 +3189,10 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
   const [kiExplanation, setKiExplanation] = useState(null) // null | 'loading' | string
   const [noteOpen, setNoteOpen] = useState(false)
   const [noteText, setNoteText] = useState('')
-  const [reportedCards, setReportedCards] = useState(new Set()) // set of reported card ids
+  const [reportedCards, setReportedCards] = useState(new Set())
+  const [reportModal, setReportModal] = useState(false)
+  const [reportComment, setReportComment] = useState('')
+  const [reportSent, setReportSent] = useState(false)
   const [kontextVariation, setKontextVariation] = useState(null) // null | 'loading' | {formal,informal,romantic}
   const [kontextOpen, setKontextOpen] = useState(false)
   const animLock = useRef(false)
@@ -3531,13 +3534,14 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
       haptic(50)
     } else {
       haptic([100, 100, 100])
-      // Fetch KI explanation for wrong answer
+      // Fetch KI explanation for wrong answer — always in fromLang
       setKiExplanation('loading')
-      const fromLangName = fromLang === 'de' ? 'German' : 'English'
+      const fromLangName = fromLang === 'de' ? 'German' : fromLang === 'en' ? 'English' : fromLang === 'sw' ? 'Swahili' : 'German'
+      const toLangName = toLang === 'de' ? 'German' : toLang === 'en' ? 'English' : toLang === 'sw' ? 'Swahili' : 'English'
       fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 80,
-          messages: [{ role: 'user', content: `The learner forgot this card. Question: "${item.front}". Correct answer: "${item.back}". Explain in ${fromLangName} in max 2 sentences why "${item.back}" is the correct answer. Be specific about the grammar rule or meaning. No intro — start directly with the explanation. ${kiRespondIn(fromLang)}` }]
+        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 90,
+          messages: [{ role: 'user', content: `You MUST respond ONLY in ${fromLangName}. Never use ${toLangName}.\nIn ${fromLangName} only: Explain in max 2 sentences why "${item.back}" is the correct ${toLangName} translation of "${item.front}". Be specific about grammar or meaning. No intro.` }]
         })
       }).then(r => r.json()).then(d => setKiExplanation(d.content?.[0]?.text?.trim() || null)).catch(() => setKiExplanation(null))
     }
@@ -3667,11 +3671,9 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
             📝
           </button>
           {/* Report translation button — bottom-right */}
-          <button onClick={async () => {
-            if (reportedCards.has(item.id)) return
-            setReportedCards(prev => new Set([...prev, item.id]))
-            try { await setDoc(doc(db, 'reports', `${item.id}_${Date.now()}`), { cardId: item.id, front: item.front, back: item.back, reportedBy: user?.uid, ts: Date.now() }) } catch(_) {}
-          }} style={{ position: 'absolute', bottom: '8px', right: '10px', background: 'transparent', border: 'none', borderRadius: '8px', padding: '3px 5px', color: reportedCards.has(item.id) ? '#e57373' : '#8A8A9A', fontSize: '0.7rem', cursor: reportedCards.has(item.id) ? 'default' : 'pointer', opacity: reportedCards.has(item.id) ? 1 : 0.6, lineHeight: 1, zIndex: 2 }} title={lang === 'de' ? 'Übersetzung melden' : 'Report translation'}>
+          <button onClick={() => { if (!reportedCards.has(item.id)) setReportModal(true) }}
+            style={{ position: 'absolute', bottom: '8px', right: '10px', background: 'transparent', border: 'none', borderRadius: '8px', padding: '3px 5px', color: reportedCards.has(item.id) ? '#e57373' : '#8A8A9A', fontSize: '0.7rem', cursor: reportedCards.has(item.id) ? 'default' : 'pointer', opacity: reportedCards.has(item.id) ? 1 : 0.6, lineHeight: 1, zIndex: 2 }}
+            title={lang === 'de' ? 'Übersetzung melden' : 'Report translation'}>
             🚩
           </button>
           <p style={s.dirLabel}>{LANG_FLAGS[fromLang]} → {LANG_FLAGS[toLang]}</p>
@@ -3803,6 +3805,42 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+      {reportModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 8900, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: '0 16px 40px', background: 'rgba(0,0,0,0.6)' }}
+          onClick={() => { setReportModal(false); setReportComment(''); setReportSent(false) }}>
+          <div style={{ width: '100%', maxWidth: '440px', background: 'rgba(20,20,28,0.97)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '20px', padding: '18px 16px', animation: 'vocaraFadeIn 0.2s ease both' }}
+            onClick={e => e.stopPropagation()}>
+            <p style={{ color: '#e57373', fontSize: '0.82rem', fontWeight: '700', marginBottom: '10px', letterSpacing: '0.3px' }}>🚩 {lang === 'de' ? 'Übersetzung melden' : 'Report translation'}</p>
+            <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: '10px', padding: '8px 12px', marginBottom: '10px', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <p style={{ color: '#ccc', fontSize: '0.8rem', margin: '0 0 3px' }}>{item.front}</p>
+              <p style={{ color: '#888', fontSize: '0.78rem', margin: 0, fontStyle: 'italic' }}>{item.back}</p>
+            </div>
+            {reportSent ? (
+              <p style={{ color: '#4CAF50', fontSize: '0.88rem', textAlign: 'center', padding: '10px 0', fontWeight: '600' }}>✓ {lang === 'de' ? 'Danke für dein Feedback!' : 'Thank you for your feedback!'}</p>
+            ) : (
+              <>
+                <textarea value={reportComment} onChange={e => setReportComment(e.target.value)} maxLength={200} rows={2}
+                  placeholder={lang === 'de' ? 'Was ist falsch? (optional)' : 'What is wrong? (optional)'}
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '10px', padding: '8px 12px', color: '#ccc', fontSize: '0.82rem', resize: 'none', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: '10px' }} />
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button onClick={() => { setReportModal(false); setReportComment(''); }}
+                    style={{ flex: 1, background: 'transparent', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '10px', padding: '9px', color: '#888', fontSize: '0.82rem', cursor: 'pointer' }}>
+                    {lang === 'de' ? 'Abbrechen' : 'Cancel'}
+                  </button>
+                  <button onClick={async () => {
+                    setReportedCards(prev => new Set([...prev, item.id]))
+                    try { await setDoc(doc(db, 'reports', `${item.id}_${Date.now()}`), { cardId: item.id, front: item.front, back: item.back, reportedBy: user?.uid || '', comment: reportComment.trim(), timestamp: Date.now() }) } catch(_) {}
+                    setReportSent(true)
+                    setTimeout(() => { setReportModal(false); setReportComment(''); setReportSent(false) }, 1800)
+                  }} style={{ flex: 1, background: 'rgba(229,57,53,0.18)', border: '1px solid rgba(229,57,53,0.45)', borderRadius: '10px', padding: '9px', color: '#e57373', fontSize: '0.82rem', cursor: 'pointer', fontWeight: '700' }}>
+                    🚩 {lang === 'de' ? 'Melden' : 'Report'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -4852,7 +4890,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const [masteryUnlocked, setMasteryUnlocked] = useState(false)
   const [aiNotification, setAiNotification] = useState(null)
   const [stopToast, setStopToast] = useState(null)
-  const [surpriseCard, setSurpriseCard] = useState(null) // {front, back, sharedBy, ...}
+  const [surpriseCard] = useState(null) // legacy — removed, kept for JSX ref safety
   const [pendingSession, setPendingSession] = useState(null)
   const [resumeStartIndex, setResumeStartIndex] = useState(0)
   const [resumeStartProgress, setResumeStartProgress] = useState(null)
@@ -4890,7 +4928,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const [wordOfDayBanner, setWordOfDayBanner] = useState(null) // {front, back}
   const [freezeAvailable, setFreezeAvailable] = useState(true)
 const [dotTooltip, setDotTooltip] = useState(null) // area key
-  const [pendingGift, setPendingGift] = useState(null) // gift object
+  const [pendingGift] = useState(null) // legacy — removed
   const [coachMsg, setCoachMsg] = useState(null)
   const [tutorCollapsed, setTutorCollapsed] = useState(() => !!(myData?.tutorCollapsed))
   const [tutorRecommendedArea, setTutorRecommendedArea] = useState(null)
@@ -4972,13 +5010,7 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
     } catch(e) { console.warn('Failed to save example:', e) }
   }
 
-  // Check for surprise card from partner on mount
-  useEffect(() => {
-    const sc = myData?.surpriseCard
-    if (!sc) return
-    const seenToday = myData?.surpriseSeenDate === todayStr()
-    if (!seenToday) setSurpriseCard(sc)
-  }, [])
+  // surpriseCard removed — handled by incomingCardQueue
 
   // ── STREAK FREEZE ─────────────────────────────────────────
   useEffect(() => {
@@ -4987,12 +5019,7 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
     setFreezeAvailable(freeze.lastReset !== month ? true : (freeze.available ?? true))
   }, [myData?.streakFreeze])
 
-  // ── PENDING GIFT CHECK ────────────────────────────────────
-  useEffect(() => {
-    const gift = myData?.pendingGift
-    if (!gift || myData?.pendingGiftSeenDate === todayStr()) return
-    setPendingGift(gift)
-  }, [])
+  // pendingGift removed — handled by incomingCardQueue
 
   // ── DAILY CARD ────────────────────────────────────────────
   useEffect(() => {
@@ -7061,6 +7088,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [toggling, setToggling] = useState(null)
+  const [reports, setReports] = useState([])
 
   const load = async () => {
     setLoading(true)
@@ -7070,6 +7098,10 @@ function AdminScreen({ user, lang, theme, onBack }) {
         .sort((a, b) => (b.lastActive || '').localeCompare(a.lastActive || ''))
       setUsers(data)
     } catch (e) { console.warn('Admin load failed:', e) }
+    try {
+      const rSnap = await getDocs(collection(db, 'reports'))
+      setReports(rSnap.docs.map(d => ({ _id: d.id, ...d.data() })).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)))
+    } catch (_) {}
     setLoading(false)
   }
 
@@ -7144,6 +7176,22 @@ function AdminScreen({ user, lang, theme, onBack }) {
           </div>
         ))}
       </div>
+      {reports.length > 0 && (
+        <div style={{ marginBottom: '12px' }}>
+          <p style={{ color: '#e57373', fontSize: '0.78rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>🚩 {isDE ? 'Gemeldete Karten' : 'Reported cards'} ({reports.length})</p>
+          <div style={s.card}>
+            {reports.slice(0, 20).map((r, i) => (
+              <div key={r._id} style={{ paddingBottom: '8px', marginBottom: '8px', borderBottom: i < Math.min(reports.length, 20) - 1 ? `1px solid ${th.border}` : 'none' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                  <span style={{ color: th.text, fontSize: '0.82rem', fontWeight: '600' }}>{r.front} → {r.back}</span>
+                  <span style={{ color: th.sub, fontSize: '0.65rem' }}>{r.timestamp ? new Date(r.timestamp).toLocaleDateString() : '—'}</span>
+                </div>
+                {r.comment && <p style={{ color: th.sub, fontSize: '0.72rem', margin: 0, fontStyle: 'italic' }}>„{r.comment}"</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {loading ? (
         <p style={{ color: th.sub, textAlign: 'center' }}>…</p>
       ) : (
@@ -7368,9 +7416,9 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
   const shareWithPartner = async (card) => {
     if (!myPartnerUID) return
     const myFirstName = user.displayName?.split(' ')[0] || 'Partner'
-    const gift = { front: card.front, back: card.back, category: card.category || 'vocabulary', langA: card.langA, langB: card.langB, fromName: myFirstName, message: '' }
+    const gift = { front: card.front, back: card.back, category: card.category || 'vocabulary', langA: card.langA, langB: card.langB, fromName: myFirstName, fromUid: user.uid, sentAt: Date.now() }
     try {
-      await updateDoc(doc(db, 'users', myPartnerUID), { pendingGift: gift })
+      await setDoc(doc(db, 'users', myPartnerUID, 'incomingCards', `gift_${Date.now()}`), gift)
       setSaveStatus(isDE ? 'Geteilt ✓' : 'Shared ✓')
       setTimeout(() => setSaveStatus(null), 2000)
     } catch (e) { console.warn(e) }
@@ -7851,11 +7899,7 @@ function GeschenkkarteScreen({ user, myData, lang, theme, onBack, allCards, card
     try {
       const ts = Date.now()
       const gift = { front: selectedCard.front, back: selectedCard.back, category: selectedCard.category, langA: selectedCard.langA, langB: selectedCard.langB, message: message.trim().slice(0, 100), fromName, fromUid: user.uid, sentAt: ts, date: todayStr() }
-      // Write to both pendingGift (legacy) and incomingCards subcollection
-      await Promise.all([
-        updateDoc(doc(db, 'users', myPartnerUID), { pendingGift: gift }),
-        setDoc(doc(db, 'users', myPartnerUID, 'incomingCards', `gift_${ts}`), gift),
-      ])
+      await setDoc(doc(db, 'users', myPartnerUID, 'incomingCards', `gift_${ts}`), gift)
       setStatus(isDE ? `🎁 Geschenkt an ${partnerName} ✓` : `🎁 Gifted to ${partnerName} ✓`)
       setSelectedCard(null); setMessage('')
       setTimeout(() => { setStatus(null); onBack() }, 2000)
