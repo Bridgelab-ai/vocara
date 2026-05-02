@@ -1,5 +1,16 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 29.04.2026)
 
+## ✅ Implementiert (29.04.2026 Session 26) — V01.029.023
+- PARTNER KRITISCH: Cost-optimized Firestore writes — localStorage cache `vocara_partnerUid`; nur schreiben wenn cachedPartnerUid !== pUid; Debug-Logging partner profiles ✅
+- ÜBERSETZUNGSQUALITÄT: CARD_GEN_SYSTEM mit native-level Regeln (keine Wort-für-Wort-Übersetzung, idiomatisches Deutsch, Muttersprachler-Check); 🚩 Report-Button auf Karte → `reports/{cardId}_{timestamp}` in Firestore ✅
+- MEINE THEMEN BUTTON: "🎯 Meine Themen" auf Home-Screen; freigeschaltet bei Premium ODER Level 2+ in einer Hauptkategorie ✅
+- IM URLAUB: `levelBadge('urlaub')` entfernt — kein Level-System für Urlaub, nur freeBadge ✅
+- MIKROFON EN→DE FIX: Spracherkennung prüft `item.langA` — wenn Frage in toLang → Antwort in fromLang, sonst toLang ✅
+- KONTEXT-KARTEN FIX: Max 1 Satz pro Variante; Übersetzung in eckigen Klammern ✅
+- KI-GESPRÄCH 2.0: Vollständig neu — `KI_SCENARIOS` Konstante (10 Szenarien), Szenario-Picker UI, Roleplay-System-Prompt, Auto-Feedback nach `---END---`-Marker, Feedback-Screen (Stärken/Schwächen/Level), 1 freies Szenario/Woche Limit ✅
+- AUSSPRACHE HISTORY: `_pronunciationHistory[]` pro Karte (letzte 10 Scores); fetchTutorMsg analysiert Schwächen-Karten ✅
+- VERSION V01.029.023 ✅
+
 ## ✅ Implementiert (29.04.2026 Session 25) — V01.028.023
 - WÖCHENTLICHER AUTO-POOL: weekly-pool.js Prompt erweitert auf {front,back,pronunciation,category,tense,register,wordType}; Firestore-Write speichert alle neuen Felder; Topic-Rotation durch Mixed-Prompt ersetzt ✅ (Basis bereits V01.023.022)
 - FREE/PREMIUM SOFT PAYWALL: Bereits vollständig implementiert (V01.022.019 + V01.023.023): eleganter Modal-Overlay, "Vielleicht später", FREE_LIMITS, KI 3x/week, Mark+Elosy always premium ✅ (confirmed existing)
