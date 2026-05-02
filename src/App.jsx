@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.037.023'
+const APP_VERSION = 'V01.038.023'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -2036,7 +2036,7 @@ Social register / tone: ${regCtx}. Adapt your vocabulary and formality according
 Stay in character throughout. Respond ONLY in ${targetLang}. Never switch to ${nativeLang}.
 If the user makes a grammar mistake, continue naturally, then add a brief tip like "💡 Tip: ..."
 Keep each response to 1-3 sentences. Be realistic and helpful for the scenario.
-After the user has sent 10 messages, add "---END---" at the end of your response.`
+After the user has sent 15 messages, add "---END---" at the end of your response.`
   }
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, loading])
@@ -2099,13 +2099,8 @@ After the user has sent 10 messages, add "---END---" at the end of your response
       const res = await fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001', max_tokens: 400,
-          messages: [{ role: 'user', content: `You are a language teacher. Analyse this ${targetLang} conversation by learner "${userName}". Respond in ${nativeLang}.
-Conversation:
-${conversation}
-
-Return ONLY valid JSON (no markdown):
-{"strengths":"2-3 specific things they did well (1-2 sentences)","weaknesses":"1-2 concrete things to practice next (1-2 sentences)","level":"A1|A2|B1|B2|C1|C2"}` }]
+          model: 'claude-sonnet-4-6', max_tokens: 400,
+          messages: [{ role: 'user', content: `Analyze this language learning conversation. The learner speaks ${nativeLang} and practices ${targetLang}. Give feedback in ${nativeLang}: 1. Was gut war (2-3 specific strengths) 2. Was üben kannst (1-2 specific improvements) 3. Geschätztes Niveau: A1/A2/B1/B2/C1/C2. Keep it encouraging and specific. Max 100 words total. Return ONLY valid JSON (no markdown): {"strengths":"...","weaknesses":"...","level":"A1|A2|B1|B2|C1|C2"}\n\nConversation:\n${conversation}` }]
         })
       })
       const d = await res.json()
@@ -2114,7 +2109,6 @@ Return ONLY valid JSON (no markdown):
       if (match) {
         const fb = JSON.parse(match[0])
         setFeedback(fb)
-        // Save completed conversation + feedback to Firestore
         if (user) {
           const entry = {
             scenarioKey: scenario?.key,
@@ -2550,6 +2544,7 @@ function PlacementTest({ lang, theme, user, onBack, onSaveCefr }) {
   const th = THEMES[theme]; const s = makeStyles(th); const t = T[lang]
   const [questions, setQuestions] = useState(null)
   const [seenIds, setSeenIds] = useState(new Set())
+  const [seenTexts, setSeenTexts] = useState([])
   const [testCount, setTestCount] = useState(1)
   const [index, setIndex] = useState(0)
   const [selected, setSelected] = useState(null)
@@ -2557,32 +2552,69 @@ function PlacementTest({ lang, theme, user, onBack, onSaveCefr }) {
   const [wrongStreak, setWrongStreak] = useState(0)
   const [scores, setScores] = useState({})
   const [stopped, setStopped] = useState(false)
-  const answerChoicesRef = useRef([]) // track which option-index user picks for pattern detection
+  const answerChoicesRef = useRef([])
+  const usedAIRef = useRef(false)
   const [patternWarning, setPatternWarning] = useState(null)
 
   useEffect(() => {
     const init = async () => {
-      let seen = new Set(); let count = 0
+      let seen = new Set(); let prevSeenTexts = []; let count = 0
       if (user) {
         try {
           const snap = await getDoc(doc(db, 'users', user.uid, 'testHistory', 'placement'))
           if (snap.exists()) {
             seen = new Set(snap.data()?.seenIds || [])
+            prevSeenTexts = snap.data()?.seenTexts || []
             count = snap.data()?.testCount || 0
           }
         } catch {}
       }
-      setSeenIds(seen); setTestCount(count + 1)
-      const base = lang === 'de' ? PLACEMENT_EN : PLACEMENT_DE
+      setSeenIds(seen); setSeenTexts(prevSeenTexts); setTestCount(count + 1)
       const sh = arr => [...arr].sort(() => Math.random() - 0.5)
-      const byLevel = {}
-      for (const q of base) { if (!byLevel[q.level]) byLevel[q.level] = []; byLevel[q.level].push(q) }
-      const picked = []
-      for (const lvl of CEFR_LEVELS) {
-        const pool = byLevel[lvl] || []
-        const unseen = pool.filter(q => !seen.has(q.id))
-        picked.push(...sh(unseen.length >= 5 ? unseen : pool).slice(0, 10))
+
+      // Try AI generation first
+      const fromLangName = lang === 'de' ? 'Deutsch' : 'English'
+      const toLangName = lang === 'de' ? 'Englisch' : 'German'
+      const instrLang = lang === 'de' ? 'German' : 'English'
+      let aiQuestions = null
+      try {
+        const exclusionHint = prevSeenTexts.length > 0
+          ? `\nDo NOT repeat or closely paraphrase these previously shown questions: ${prevSeenTexts.slice(-20).join(' | ')}`
+          : ''
+        const res = await fetch('/api/chat', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-6', max_tokens: 1500,
+            messages: [{ role: 'user', content: `Generate exactly 10 unique CEFR placement test questions for a ${fromLangName} speaker learning ${toLangName}. Test vocabulary, grammar, and comprehension. Include at least 1-2 questions per level (A1, A2, B1, B2, C1, C2). Write questions in ${instrLang}.${exclusionHint}\nReturn ONLY a valid JSON array (no markdown, no explanation):\n[{"question":"...","options":["...","...","...","..."],"correct":0,"level":"A1"}]` }]
+          })
+        })
+        const d = await res.json()
+        const raw = (d.content?.[0]?.text || '').trim()
+        const match = raw.match(/\[[\s\S]*\]/)
+        if (match) {
+          const parsed = JSON.parse(match[0])
+          if (Array.isArray(parsed) && parsed.length >= 5) {
+            aiQuestions = parsed.slice(0, 10).map((q, i) => ({ ...q, id: `ai_${Date.now()}_${i}` }))
+            usedAIRef.current = true
+          }
+        }
+      } catch {}
+
+      let picked
+      if (aiQuestions) {
+        picked = aiQuestions
+      } else {
+        const base = lang === 'de' ? PLACEMENT_EN : PLACEMENT_DE
+        const byLevel = {}
+        for (const q of base) { if (!byLevel[q.level]) byLevel[q.level] = []; byLevel[q.level].push(q) }
+        picked = []
+        for (const lvl of CEFR_LEVELS) {
+          const pool = byLevel[lvl] || []
+          const unseen = pool.filter(q => !seen.has(q.id))
+          picked.push(...sh(unseen.length >= 5 ? unseen : pool).slice(0, 10))
+        }
       }
+
       const shuffled = picked.map(q => {
         const opts = q.options.map((opt, i) => ({ opt, isCorrect: i === q.correct }))
         const shOpts = sh(opts)
@@ -2632,11 +2664,18 @@ function PlacementTest({ lang, theme, user, onBack, onSaveCefr }) {
         try {
           const level = calcLevel(newScores)
           if (user) {
-            const base = lang === 'de' ? PLACEMENT_EN : PLACEMENT_DE
-            const shownIds = questions.slice(0, index + 1).map(q => q.id)
-            const allSeen = [...seenIds, ...shownIds]
-            const finalSeen = allSeen.length > base.length * 0.75 ? [] : [...new Set(allSeen)]
-            setDoc(doc(db, 'users', user.uid, 'testHistory', 'placement'), { seenIds: finalSeen, lastTest: todayStr(), testCount }, { merge: true }).catch(() => {})
+            if (usedAIRef.current) {
+              const shownTexts = questions.slice(0, index + 1).map(q => q.question)
+              const allTexts = [...seenTexts, ...shownTexts]
+              const finalTexts = allTexts.length > 50 ? allTexts.slice(-50) : allTexts
+              setDoc(doc(db, 'users', user.uid, 'testHistory', 'placement'), { seenTexts: finalTexts, lastTest: todayStr(), testCount }, { merge: true }).catch(() => {})
+            } else {
+              const base = lang === 'de' ? PLACEMENT_EN : PLACEMENT_DE
+              const shownIds = questions.slice(0, index + 1).map(q => q.id)
+              const allSeen = [...seenIds, ...shownIds]
+              const finalSeen = allSeen.length > base.length * 0.75 ? [] : [...new Set(allSeen)]
+              setDoc(doc(db, 'users', user.uid, 'testHistory', 'placement'), { seenIds: finalSeen, lastTest: todayStr(), testCount }, { merge: true }).catch(() => {})
+            }
           }
           try { onSaveCefr(level) } catch(e) { console.warn('[Vocara] onSaveCefr error:', e) }
           window.location.reload()
