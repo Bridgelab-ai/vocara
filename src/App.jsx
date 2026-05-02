@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.051.058'
+const APP_VERSION = 'V01.052.061'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -2028,6 +2028,8 @@ function KiGespraechScreen({ lang, theme, onBack, userName, userToLang = 'en', s
   const [translating, setTranslating] = useState(null)
   const [feedback, setFeedback] = useState(null) // null | { strengths, weaknesses, level }
   const [loadingFeedback, setLoadingFeedback] = useState(false)
+  const [introText, setIntroText] = useState(null)
+  const [generatingOpener, setGeneratingOpener] = useState(false)
   const bottomRef = useRef(null)
   const exchangeCount = messages.filter(m => m.role === 'user').length
   const ttsLangCode = userToLang.toLowerCase()
@@ -2071,12 +2073,30 @@ After the user has sent 15 messages, add "---END---" at the end of your response
         try { await updateDoc(doc(db, 'users', user.uid), { kiScenarioWeekStr: nowWeekStr, kiScenarioCount: usedThisWeek + 1 }) } catch(_) {}
       }
     }
-    setScenario(sc); setMessages([]); setFeedback(null); setInput('')
+    setScenario(sc); setMessages([]); setFeedback(null); setInput(''); setIntroText(null); setGeneratingOpener(true)
     // Save to conversation history
     if (user) {
       const entry = { scenarioKey: sc.key, startedAt: Date.now(), lang: targetLang }
       try { await setDoc(doc(db, 'users', user.uid, 'conversationHistory', String(Date.now())), entry) } catch(_) {}
     }
+    // Generate situation intro + KI opening message (KI always initiates)
+    try {
+      const introPrompt = `Role-play: ${isDE ? sc.de : sc.en}. Character: ${sc.role}. User language: ${nativeLang}. Practice language: ${targetLang}.
+Return ONLY valid JSON (no markdown): {"intro":"brief 1-2 sentence situation description in ${nativeLang} — set the scene for the user","opener":"the character's first in-character message in ${targetLang}, short and natural (1-2 sentences)"}`
+      const res = await fetch('/api/chat', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 200, messages: [{ role: 'user', content: introPrompt }] })
+      })
+      const data = await res.json()
+      const raw = (data.content?.[0]?.text || '').trim()
+      const match = raw.match(/\{[\s\S]*\}/)
+      if (match) {
+        const parsed = JSON.parse(match[0])
+        if (parsed.intro) setIntroText(parsed.intro)
+        if (parsed.opener) setMessages([{ role: 'assistant', content: parsed.opener }])
+      }
+    } catch(_) {}
+    setGeneratingOpener(false)
   }
 
   const sendMessage = async () => {
@@ -2220,9 +2240,15 @@ After the user has sent 15 messages, add "---END---" at the end of your response
           )}
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {messages.length === 0 && (
-            <div style={{ textAlign: 'center', marginTop: '40px' }}>
-              <p style={{ color: th.sub, fontSize: '0.88rem', lineHeight: 1.6 }}>{isDE ? `Starte das Gespräch auf ${targetLang}!` : `Start the conversation in ${targetLang}!`}</p>
+          {introText && (
+            <div style={{ background: `${th.accent}11`, border: `1px solid ${th.accent}33`, borderRadius: '12px', padding: '10px 14px' }}>
+              <p style={{ color: th.accent, fontSize: '0.62rem', fontWeight: '700', textTransform: 'uppercase', margin: '0 0 4px', letterSpacing: '0.6px' }}>📍 {isDE ? 'Situation' : 'Situation'}</p>
+              <p style={{ color: th.text, fontSize: '0.82rem', margin: 0, lineHeight: 1.5, opacity: 0.85 }}>{introText}</p>
+            </div>
+          )}
+          {generatingOpener && messages.length === 0 && (
+            <div style={{ display: 'flex' }}>
+              <div style={{ padding: '10px 14px', borderRadius: '16px 16px 16px 4px', background: th.card, border: `1px solid ${th.border}`, color: th.sub, fontSize: '1.2rem', letterSpacing: '4px' }}>···</div>
             </div>
           )}
           {messages.map((msg, i) => (
@@ -2250,9 +2276,9 @@ After the user has sent 15 messages, add "---END---" at the end of your response
         </div>
         <div style={{ padding: '12px 16px', background: th.bg, borderTop: `1px solid ${th.border}`, display: 'flex', gap: '8px', alignItems: 'flex-end', flexShrink: 0 }}>
           <textarea style={{ flex: 1, padding: '10px 14px', borderRadius: '12px', border: `1px solid ${th.border}`, background: th.card, color: th.text, fontSize: '0.95rem', resize: 'none', minHeight: '44px', maxHeight: '120px', fontFamily: 'inherit', outline: 'none', lineHeight: 1.4 }}
-            placeholder={isDE ? `Antworte auf ${targetLang}…` : `Reply in ${targetLang}…`}
-            value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKey} rows={1} />
-          <button style={{ background: th.accent, border: 'none', borderRadius: '12px', width: '44px', height: '44px', cursor: (loading || feedback) ? 'not-allowed' : 'pointer', fontSize: '1.1rem', opacity: (loading || feedback) ? 0.5 : 1, flexShrink: 0, color: '#fff' }} onClick={sendMessage} disabled={loading || !!feedback}>➤</button>
+            placeholder={generatingOpener ? (isDE ? 'KI tippt…' : 'AI is typing…') : (isDE ? `Antworte auf ${targetLang}…` : `Reply in ${targetLang}…`)}
+            value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKey} rows={1} disabled={generatingOpener} />
+          <button style={{ background: th.accent, border: 'none', borderRadius: '12px', width: '44px', height: '44px', cursor: (loading || feedback || generatingOpener) ? 'not-allowed' : 'pointer', fontSize: '1.1rem', opacity: (loading || feedback || generatingOpener) ? 0.5 : 1, flexShrink: 0, color: '#fff' }} onClick={sendMessage} disabled={loading || !!feedback || generatingOpener}>➤</button>
         </div>
       </div>
     </div>
@@ -2284,6 +2310,8 @@ function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userN
   const [semanticResult, setSemanticResult] = useState(null)
   const [difficultyScore, setDifficultyScore] = useState(0)
   const [difficulty, setDifficulty] = useState(null) // null | 'leicht' | 'mittel' | 'schwer'
+  const [autoEasy, setAutoEasy] = useState(false)
+  const exerciseStartRef = useRef(Date.now())
 
   const ex = exercises[index]
 
@@ -2299,34 +2327,31 @@ function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userN
 
   const generateExercises = async (chosenDifficulty) => {
     setLoading(true); setError(null); setIndex(0); setDone(false)
-    setCorrect(0); setRevealed(false); setSelfRating(null); setUserInput(''); setSemanticResult(null)
+    setCorrect(0); setRevealed(false); setSelfRating(null); setUserInput(''); setSemanticResult(null); setAutoEasy(false)
 
     const diffLabel = { leicht: 'beginner (A1-A2)', mittel: 'intermediate (B1)', schwer: 'advanced (B2-C1)' }[chosenDifficulty || 'mittel'] || 'intermediate (B1)'
-
-    // Determine level from mastered card count (pool only if difficulty is mittel/default)
-    const masteredCount = Object.values(cardProgress || {}).filter(p => (p?.interval || 0) >= 3).length
-    const poolLevel = (!chosenDifficulty || chosenDifficulty === 'mittel') ? (masteredCount <= 10 ? 1 : masteredCount <= 30 ? 2 : masteredCount <= 60 ? 3 : null) : null
+    const diffKey = chosenDifficulty || 'mittel'
     const langPair = `${lang}_${userToLang}`
 
-    if (poolLevel) {
-      try {
-        const poolSnap = await getDoc(doc(db, 'sharedSentences', `${langPair}_level${poolLevel}`))
-        if (poolSnap.exists()) {
-          const raw = poolSnap.data().exercises || []
-          if (raw.length >= 8) {
-            const pool = raw.map(ex => ({
-              ...ex,
-              chips: ex.chips && ex.chips.length > 0 ? ex.chips : (ex.type === 'order' ? ex.answer.split(' ') : undefined),
-            }))
-            const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, 8)
-            setExercises(shuffled)
-            if (shuffled[0]?.type === 'order') initChips(shuffled[0])
-            setLoading(false)
-            return
-          }
+    // Try sharedExercises pool first (difficulty-specific, pre-generated)
+    try {
+      const poolSnap = await getDoc(doc(db, 'sharedExercises', `${langPair}_satz_${diffKey}`))
+      if (poolSnap.exists()) {
+        const raw = poolSnap.data().exercises || []
+        if (raw.length >= 8) {
+          const pool = raw.map(ex => ({
+            ...ex,
+            chips: ex.chips && ex.chips.length > 0 ? ex.chips : (ex.type === 'order' ? ex.answer.split(' ') : undefined),
+          }))
+          const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, 8)
+          setExercises(shuffled)
+          exerciseStartRef.current = Date.now()
+          if (shuffled[0]?.type === 'order') initChips(shuffled[0])
+          setLoading(false)
+          return
         }
-      } catch (e) { console.warn('[Vocara] Sentence pool load failed, using KI:', e.message) }
-    }
+      }
+    } catch (e) { console.warn('[Vocara] sharedExercises pool load failed, falling back to KI:', e.message) }
 
     const wordList = knownVocab.map(c => c.back).slice(0, 30).join(', ')
     const prompt = `Create 8 varied grammar exercises for a ${targetLang} learner at ${diffLabel} level. Native language: ${fromLang}.
@@ -2348,6 +2373,7 @@ Mix exercise types: gap, order, tense, conjugation, translation. Return ONLY val
       const parsed = JSON.parse(text.replace(/```json|```/g, '').trim())
       const shuffled = [...parsed].sort(() => Math.random() - 0.5)
       setExercises(shuffled)
+      exerciseStartRef.current = Date.now()
       if (shuffled[0]?.type === 'order') initChips(shuffled[0])
     } catch (e) { setError('api') }
     setLoading(false)
@@ -2365,6 +2391,7 @@ Mix exercise types: gap, order, tense, conjugation, translation. Return ONLY val
   const handleCheck = async () => {
     const hasInput = ex.type === 'order' ? chipOrder.length > 0 : userInput.trim()
     if (!hasInput) return
+    if (Date.now() - exerciseStartRef.current < 4000) setAutoEasy(true)
     speak(ex.answer, ttsLangCode)
     setRevealed(true)
     if (needsSemanticEval(ex.type)) {
@@ -2393,7 +2420,8 @@ Mix exercise types: gap, order, tense, conjugation, translation. Return ONLY val
   const handleNext = () => {
     const next = index + 1
     if (next >= exercises.length) { setDone(true); return }
-    setIndex(next); setUserInput(''); setRevealed(false); setSelfRating(null); setSemanticResult(null)
+    setIndex(next); setUserInput(''); setRevealed(false); setSelfRating(null); setSemanticResult(null); setAutoEasy(false)
+    exerciseStartRef.current = Date.now()
     const nextEx = exercises[next]
     if (nextEx?.type === 'order') initChips(nextEx)
     else { setChipBank([]); setChipOrder([]) }
@@ -2584,11 +2612,15 @@ Mix exercise types: gap, order, tense, conjugation, translation. Return ONLY val
 
       {/* SELF RATING AFTER REVEAL */}
       {revealed && semanticResult !== 'loading' && !selfRating && (
-        <div style={{ ...s.answerRow, marginTop: '8px' }}>
-          <button style={s.wrongBtn} onClick={() => handleRate('wrong')}>{t.wrong}</button>
-          <button style={s.fastBtn} onClick={() => handleRate('fast')}>{t.fast}</button>
-          <button style={s.rightBtn} onClick={() => handleRate('right')}>{t.correct}</button>
-          <button style={s.easyBtn} onClick={() => handleRate('easy')}>{t.easy}</button>
+        <div style={{ marginTop: '8px' }}>
+          {autoEasy && <p style={{ color: '#FFD700', fontSize: '0.7rem', fontWeight: '700', textAlign: 'center', margin: '0 0 6px', letterSpacing: '0.3px' }}>⚡ {lang === 'de' ? 'Schnelle Antwort!' : 'Quick answer!'}</p>}
+          <div style={{ ...s.answerRow }}>
+            <button style={s.wrongBtn} onClick={() => handleRate('wrong')}>❌ {lang === 'de' ? 'Falsch' : 'Wrong'}</button>
+            <button style={s.fastBtn} onClick={() => handleRate('fast')}>😕 {lang === 'de' ? 'Fast' : 'Almost'}</button>
+            <button style={{ ...s.rightBtn }} onClick={() => handleRate(autoEasy ? 'easy' : 'right')}>
+              {autoEasy ? '⚡' : '✅'} {lang === 'de' ? 'Richtig' : 'Correct'}
+            </button>
+          </div>
         </div>
       )}
 
@@ -5987,6 +6019,16 @@ Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","
     if (answeredCount > 0) {
       try {
         await onSaveProgress(finalProgress)
+        // Persist per-category mastered counts so level badges survive page reload
+        const masteredPerCategory = {}
+        ;['vocabulary', 'sentence', 'street', 'home', 'basics', 'urlaub'].forEach(cat => {
+          masteredPerCategory[cat] = (allCards || []).filter(c => {
+            const baseId = c.id.replace(/_r(_\d+)?$/, '')
+            return c.category === cat && !/_r(_\d+)?$/.test(c.id) && (finalProgress[baseId]?.interval || finalProgress[c.id]?.interval || 0) >= 3
+          }).length
+        })
+        updateDoc(doc(db, 'users', user.uid), { masteredPerCategory }).catch(() => {})
+        setMyData(d => ({ ...d, masteredPerCategory }))
         if (correctCount + wrongCount > 0) {
           const updatedHistory = await saveSessionHistory(user.uid, correctCount, correctCount + wrongCount, sessionHistory, null, currentSessionMode)
           setMyData(d => ({ ...d, sessionHistory: updatedHistory }))
@@ -6332,6 +6374,16 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         audio.play().catch(() => {})
       } catch (e) {}
     }
+    // Persist per-category mastered counts so level badges survive page reload
+    const masteredPerCategory = {}
+    ;['vocabulary', 'sentence', 'street', 'home', 'basics', 'urlaub'].forEach(cat => {
+      masteredPerCategory[cat] = (allCards || []).filter(c => {
+        const baseId = c.id.replace(/_r(_\d+)?$/, '')
+        return c.category === cat && !/_r(_\d+)?$/.test(c.id) && (finalProgress[baseId]?.interval || finalProgress[c.id]?.interval || 0) >= 3
+      }).length
+    })
+    updateDoc(doc(db, 'users', user.uid), { masteredPerCategory }).catch(() => {})
+    setMyData(d => ({ ...d, masteredPerCategory }))
     const pubStats = { weeklyMinutes: newWeeklyMinutes, monthlyMinutes: newMonthlyMinutes, totalMinutes: newTotalMinutes, learningWeek: nowWeek, learningMonth: nowMonth, totalCards: allCards.filter(c => !/_r(_\d+)?$/.test(c.id)).length, masteredCards: myMasteredNow, streak: myStreakNow, lastActive: Date.now(), displayName: user.displayName || '', name: user.displayName?.split(' ')[0] || 'Partner', uid: user.uid }
     // Write partner-visible stats — call writePublicStats then merge session stats
     writePublicStats(user.uid, user, db).then(() => {
@@ -6651,10 +6703,12 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         }
         // Stufen badge: 10-level system per category
         const levelBadge = (category) => {
-          const n = safeCards.filter(c => {
-            const baseId = c.id.replace(/_r(_\d+)?$/, '')
-            return c.category === category && !/_r(_\d+)?$/.test(c.id) && (cardProgress[baseId]?.interval || cardProgress[c.id]?.interval || 0) >= 3
-          }).length
+          const n = (myData?.masteredPerCategory?.[category] !== undefined)
+            ? myData.masteredPerCategory[category]
+            : safeCards.filter(c => {
+                const baseId = c.id.replace(/_r(_\d+)?$/, '')
+                return c.category === category && !/_r(_\d+)?$/.test(c.id) && (cardProgress[baseId]?.interval || cardProgress[c.id]?.interval || 0) >= 3
+              }).length
           // Category-specific level thresholds
           let lv, nextThreshold, prevThreshold
           if (category === 'urlaub') {

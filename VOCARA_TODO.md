@@ -1,5 +1,12 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 29.04.2026)
 
+## ✅ Implementiert (02.05.2026 Session 40) — V01.052.061
+- FORTSCHRITTSBALKEN PERSISTENZ: masteredPerCategory (Map pro Kategorie) wird bei handleFinish + handleSessionStop in Firestore gespeichert; levelBadge liest myData.masteredPerCategory als primäre Quelle — Fortschrittsbalken überleben Page-Reload auch ohne allCards neu zu berechnen ✅
+- KI-GESPRÄCH ABLAUF NEU: 3-stufiger Ablauf — (1) Situation-Intro-Banner in fromLang; (2) KI sendet erste Nachricht als Charakter (Haiku API-Call in startScenario); (3) normales Back-and-forth; KI initiiert immer, User reagiert; Eingabefeld gesperrt während generatingOpener; Situationsbeschreibung + Opener aus JSON-Response; introText/generatingOpener States ✅
+- SATZTRAINING POOL: api/generate-sentence-training-pool.js erstellt — Haiku generiert 30 Übungen × 3 Schwierigkeiten (leicht/mittel/schwer) × 3 Sprachpaare → Firestore sharedExercises/{langPair}_satz_{level}; SatzTrainingScreen liest sharedExercises zuerst (Fallback: KI-Generierung); Rating-Buttons: nur 3 (❌ Falsch / 😕 Fast / ✅ Richtig); auto-⚡ Easy wenn Antwort < 4 Sekunden; Richtig-Button wechselt automatisch zu Easy-Rating; exerciseStartRef + autoEasy State ✅
+- FIRESTORE RULES: sharedExercises/{docId} read für auth User, write für unauthenticated (API); deployed ✅
+- VERSION V01.052.061 ✅
+
 ## ✅ Implementiert (02.05.2026 Session 39) — V01.051.058
 - SOCIAL_REGISTER CRASH: SOCIAL_REGISTER → SOCIAL_REGISTERS in KiGespraechScreen Ton-Selector — ReferenceError behoben ✅
 - FORTSCHRITT NICHT GESPEICHERT: handleStop übergibt correct/wrong an handleSessionStop; handleSessionStop ruft saveSessionHistory auf; homeFloat wird auf cards-Screen ausgeblendet (Stop-Button speichert korrekt) ✅
