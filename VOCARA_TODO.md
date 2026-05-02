@@ -1,5 +1,10 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 03.05.2026)
 
+## ✅ Implementiert (03.05.2026 Session 45) — V01.054.074
+- URLAUB FORTSCHRITTSBALKEN ROOTFIX: Batch Category Fix (App-Load) rief ruleCategory() auf allen aiCards ohne bestehenden cardCategories-Eintrag auf → urlaub-Karten wurden als 'sentence' in cardCategories überschrieben → cardCategories-Override übertrumpft buildCardPair in allCards → levelBadge('urlaub') zählte immer 0 mastered. Fix: urlaub-Karten werden wie basics-Karten geschützt (continue vor ruleCategory); existierende falsche cardCategories-Overrides werden mit delete newCats[card.id] bereinigt ✅
+- PARTNER TRENNEN SICHER: handlePartnerUpdate(null) führte getDoc + setMyData(snap.data()) aus — vollständiges Reload konnte bei schlechter Verbindung frischen cardProgress mit gecachtem Firestore-Stand überschreiben. Fix: Disconnect-Pfad (partnerUID=null) macht NUR setMyData(d => ({...d, partnerUID:null, partnerName:null, partnerConnectedAt:null})) — kein Reload, kein Risiko für Fortschrittsverlust; Connect-Pfad (partnerUID!=null) reloaded wie bisher ✅
+- VERSION V01.054.074 ✅
+
 ## ✅ Implementiert (03.05.2026 Session 44) — V01.054.072
 - URLAUB FORTSCHRITTSBALKEN: VALID_CATEGORIES um 'urlaub' ergänzt — buildCardPair kategorisierte urlaub-Karten bisher als 'vocabulary' (weil 'urlaub' fehlte im Set); jetzt wird category:'urlaub' korrekt durchgereicht → levelBadge('urlaub') zählt mastered-Karten richtig; handleFinish-Berechnung masteredPerCategory.urlaub wirkt korrekt ✅
 - MEINE THEMEN NUR EIGENE: topicCards-Filter geändert von (unlockedTopics.includes || topicsUnlocked) zu nur unlockedTopics.includes — Session zeigt jetzt nur freigeschaltete Themen; wenn keine Themen freigeschaltet: Toast "Einstellungen → Meine Themen → Themen generieren"; Button erscheint sobald topicsUnlocked (statt erst wenn Karten vorhanden) ✅

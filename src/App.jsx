@@ -44,7 +44,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.054.072'
+const APP_VERSION = 'V01.054.074'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -9418,6 +9418,15 @@ function App() {
                 continue
               }
 
+              // urlaub cards are protected — delete any wrong override so card.category takes effect
+              if (card.category === 'urlaub' || card.id?.startsWith('urlaub_')) {
+                if (current && current !== 'urlaub') {
+                  delete newCats[card.id]
+                  batchChanged = true
+                }
+                continue
+              }
+
               // DIRECT RULE: vocabulary + 3+ words = sentence, always
               if (current === 'vocabulary' && wordCount >= 3 && !DE_VOCAB_WHITELIST.has(front.trim().toLowerCase())) {
                 console.log('Reclassified:', front, '→ sentence')
@@ -9607,18 +9616,23 @@ function App() {
     if (user) await updateDoc(doc(db, 'users', user.uid), { cardSize: val }).catch(() => {})
   }
   const handlePartnerUpdate = async (partnerUID) => {
-    try {
-      const ref = doc(db, 'users', user.uid)
-      const snap = await getDoc(ref); if (snap.exists()) setMyData(snap.data())
-    } catch (e) { console.warn('[Vocara] own data reload failed:', e?.code) }
     if (partnerUID) {
+      // On connect: reload full user doc to pick up fresh partnerUID/partnerConnectedAt
+      try {
+        const ref = doc(db, 'users', user.uid)
+        const snap = await getDoc(ref); if (snap.exists()) setMyData(snap.data())
+      } catch (e) { console.warn('[Vocara] own data reload failed:', e?.code) }
       let loaded = false
       try { const pub = await getDoc(doc(db, 'users', partnerUID, 'publicStats', 'data')); if (pub.exists()) { setPartnerData(pub.data()); loaded = true } } catch (_) {}
       if (!loaded) {
         try { const gs = await getDoc(doc(db, 'users', partnerUID, 'globalStats', 'summary')); if (gs.exists()) { setPartnerData(gs.data()); loaded = true } } catch (_) {}
       }
       if (!loaded) setPartnerData({ _noData: true })
-    } else setPartnerData(null)
+    } else {
+      // On disconnect: only clear partner fields — never reload full doc (could overwrite fresh progress)
+      setMyData(d => ({ ...d, partnerUID: null, partnerName: null, partnerConnectedAt: null }))
+      setPartnerData(null)
+    }
   }
   const handleSaveCefr = async (level) => {
     try {
