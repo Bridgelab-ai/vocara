@@ -1,5 +1,9 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 03.05.2026)
 
+## ✅ Implementiert (03.05.2026 Session 47) — V01.054.076
+- GRUNDLAGEN TDZ FIX: startBasicsSession referenzierte isMarkLang auf Zeile 5956 (im existingBasics-Zweig), aber const isMarkLang = lang === 'de' wurde nochmal auf Zeile 5984 im selben Function-Scope deklariert → TDZ: lokale const-Deklaration hoistet und sperrt Zugriff auf isMarkLang für die gesamte Funktion bis zur Deklarationszeile. Vite minifiziert isMarkLang → i → Fehler "Cannot access 'i' before initialization". Fix: redundante lokale Redeclaration auf Zeile 5984 entfernt — isMarkLang aus dem MenuScreen-Closure (Zeile 5312) wird korrekt verwendet ✅
+- VERSION V01.054.076 ✅
+
 ## ✅ Implementiert (03.05.2026 Session 46) — V01.054.075
 - GRUNDLAGEN BUTTON FIX: startBasicsSession verwendete hartcodiertes langB ('en'/'de') statt activeToLang → falscher Pool-Pfad für Swahili-Nutzer. Fix: langB = activeToLang || (isMarkLang ? 'en' : 'de'); BASICS_LANG_NAMES Map für dynamische toLangName/fromLangName. await updateDoc() in Pool-Erfolgspfad und "All mastered next level"-Pfad in try-catch (Fire-and-forget) — bisher konnte ein Firestore-Fehler basicsLoading permanent auf true klemmen. Hardcoded BASICS_FALLBACK (DE/EN, DE/SW, EN/DE — je 10 Starter-Karten) als dritte Stufe: Session startet immer, auch wenn Pool fehlt und KI-API offline ✅
 - VERSION V01.054.075 ✅

@@ -44,7 +44,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.054.075'
+const APP_VERSION = 'V01.054.076'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -5981,7 +5981,6 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
       markAreaDone('basics'); return
     }
     setBasicsLoading(true)
-    const isMarkLang = lang === 'de'
     const langA = isMarkLang ? 'de' : 'en'
     const langB = activeToLang || (isMarkLang ? 'en' : 'de')
     const BASICS_LANG_NAMES = { en: 'English', de: 'German', sw: 'Swahili' }
