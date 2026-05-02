@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.033.023'
+const APP_VERSION = 'V01.034.023'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -2025,18 +2025,34 @@ After the user has sent 10 messages, add "---END---" at the end of your response
       const res = await fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001', max_tokens: 300,
-          messages: [{ role: 'user', content: `Analyse this ${targetLang} conversation by a learner. Respond in ${nativeLang}.
+          model: 'claude-haiku-4-5-20251001', max_tokens: 400,
+          messages: [{ role: 'user', content: `You are a language teacher. Analyse this ${targetLang} conversation by learner "${userName}". Respond in ${nativeLang}.
 Conversation:
 ${conversation}
 
-Return ONLY JSON: {"strengths":"2-3 things they did well (1-2 sentences)","weaknesses":"1-2 things to practice (1-2 sentences)","level":"A1|A2|B1|B2|C1"}` }]
+Return ONLY valid JSON (no markdown):
+{"strengths":"2-3 specific things they did well (1-2 sentences)","weaknesses":"1-2 concrete things to practice next (1-2 sentences)","level":"A1|A2|B1|B2|C1|C2"}` }]
         })
       })
       const d = await res.json()
       const raw = (d.content?.[0]?.text || '').trim()
       const match = raw.match(/\{[\s\S]*\}/)
-      if (match) setFeedback(JSON.parse(match[0]))
+      if (match) {
+        const fb = JSON.parse(match[0])
+        setFeedback(fb)
+        // Save completed conversation + feedback to Firestore
+        if (user) {
+          const entry = {
+            scenarioKey: scenario?.key,
+            scenarioName: isDE ? scenario?.de : scenario?.en,
+            messages: messages.map(m => ({ role: m.role, content: m.content })),
+            feedback: fb,
+            lang: targetLang,
+            completedAt: Date.now(),
+          }
+          setDoc(doc(db, 'users', user.uid, 'conversationHistory', String(Date.now())), entry).catch(() => {})
+        }
+      }
     } catch(_) {}
     setLoadingFeedback(false)
   }
@@ -2083,16 +2099,18 @@ Return ONLY JSON: {"strengths":"2-3 things they did well (1-2 sentences)","weakn
   if (feedback) return (
     <div style={{ ...s.container, minHeight: '100vh' }} className="vocara-screen"><div style={s.homeBox}>
       <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-        <span style={{ fontSize: '2.5rem' }}>🎓</span>
-        <p style={{ color: th.accent, fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', margin: '8px 0 4px' }}>{isDE ? 'Feedback' : 'Feedback'}</p>
-        <p style={{ color: th.text, fontSize: '1.1rem', fontWeight: '700', margin: '0 0 4px' }}>{isDE ? `Dein Niveau: ${feedback.level}` : `Your level: ${feedback.level}`}</p>
+        <p style={{ color: th.accent, fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', margin: '0 0 10px' }}>{isDE ? 'Gesprächs-Feedback' : 'Conversation Feedback'}</p>
+        <div style={{ display: 'inline-block', background: `${th.accent}22`, border: `2px solid ${th.accent}88`, borderRadius: '16px', padding: '8px 24px', marginBottom: '6px' }}>
+          <p style={{ color: th.text, fontSize: '0.7rem', fontWeight: '600', margin: '0 0 2px', opacity: 0.7 }}>{isDE ? 'Dein Niveau in diesem Gespräch' : 'Your level in this conversation'}</p>
+          <p style={{ color: th.accent, fontSize: '1.8rem', fontWeight: '800', margin: 0, letterSpacing: '2px' }}>{feedback.level}</p>
+        </div>
       </div>
       <div style={{ ...s.card, borderLeft: '3px solid #4CAF50', marginBottom: '12px' }}>
         <p style={{ color: '#81c784', fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', margin: '0 0 6px', letterSpacing: '0.5px' }}>{isDE ? '✓ Was gut war:' : '✓ What went well:'}</p>
         <p style={{ color: th.text, fontSize: '0.88rem', margin: 0, lineHeight: 1.55 }}>{feedback.strengths}</p>
       </div>
       <div style={{ ...s.card, borderLeft: '3px solid #FFA500', marginBottom: '20px' }}>
-        <p style={{ color: '#FFA500', fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', margin: '0 0 6px', letterSpacing: '0.5px' }}>{isDE ? '💡 Was du üben kannst:' : '💡 Things to practice:'}</p>
+        <p style={{ color: '#FFA500', fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', margin: '0 0 6px', letterSpacing: '0.5px' }}>{isDE ? '💡 Was du üben kannst:' : '💡 What to practice next:'}</p>
         <p style={{ color: th.text, fontSize: '0.88rem', margin: 0, lineHeight: 1.55 }}>{feedback.weaknesses}</p>
       </div>
       <button style={s.button} onClick={() => { setScenario(null); setMessages([]); setFeedback(null) }}>{isDE ? '🔄 Neues Szenario' : '🔄 New scenario'}</button>
@@ -2553,6 +2571,7 @@ function PlacementTest({ lang, theme, user, onBack, onSaveCefr }) {
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
       <div style={s.cardHeader}>
         <div>
+          <p style={{ color: th.sub, fontSize: '0.65rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', margin: '0 0 2px' }}>Test #{testCount}</p>
           <p style={s.greeting}>{t.testQuestion} {index + 1} {t.testOf} {questions.length}</p>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <span style={{ color: CEFR_COLORS[q.level], fontSize: '0.75rem', fontWeight: 'bold' }}>{q.level}</span>
@@ -6325,21 +6344,29 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
             const baseId = c.id.replace(/_r(_\d+)?$/, '')
             return c.category === category && !/_r(_\d+)?$/.test(c.id) && (cardProgress[baseId]?.interval || cardProgress[c.id]?.interval || 0) >= 3
           }).length
-          if (n === 0) return null
           // Category-specific level thresholds
-          let lv
+          let lv, nextThreshold, prevThreshold
           if (category === 'urlaub') {
-            lv = Math.min(10, Math.floor(n / 6))  // 60% of 10 cards = 6 mastered per level
+            lv = Math.min(10, Math.floor(n / 6))
+            prevThreshold = lv * 6; nextThreshold = (lv + 1) * 6
           } else if (category === 'home') {
-            lv = Math.min(10, Math.floor(n / 8))  // 80% of 10 cards = 8 mastered per level
+            lv = Math.min(10, Math.floor(n / 8))
+            prevThreshold = lv * 8; nextThreshold = (lv + 1) * 8
           } else {
             lv = getCatLevel(n)
+            const thresholds = [0, 1, 5, 10, 15, 20, 30, 40, 50, 65, 80]
+            prevThreshold = thresholds[Math.min(lv, thresholds.length - 1)] || 0
+            nextThreshold = thresholds[Math.min(lv + 1, thresholds.length - 1)] || prevThreshold + 10
           }
-          if (lv === 0) return null
-          const col = CAT_LEVEL_COLORS[Math.min(lv, CAT_LEVEL_COLORS.length - 1)] || '#81c784'
+          const displayLv = Math.max(1, lv)
+          const progress = lv >= 10 ? 1 : Math.min(1, (n - prevThreshold) / Math.max(1, nextThreshold - prevThreshold))
+          const filled = Math.round(progress * 8)
+          const bar = '▓'.repeat(filled) + '░'.repeat(8 - filled)
+          const col = CAT_LEVEL_COLORS[Math.min(lv, CAT_LEVEL_COLORS.length - 1)] || '#00BFA5'
           return (
-            <div style={{ position: 'absolute', top: '5px', left: '6px', background: 'rgba(0,0,0,0.45)', borderRadius: '6px', padding: '2px 6px', pointerEvents: 'none' }}>
-              <span style={{ color: col, fontSize: '0.54rem', fontWeight: '700', display: 'block', lineHeight: 1.2 }}>Lvl {lv}/10</span>
+            <div style={{ position: 'absolute', bottom: '6px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.5)', borderRadius: '5px', padding: '2px 6px', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+              <span style={{ color: col, fontSize: '0.5rem', fontWeight: '700', letterSpacing: '0.5px' }}>Lvl {displayLv} </span>
+              <span style={{ color: col, fontSize: '0.48rem', opacity: 0.85, letterSpacing: '1px' }}>{bar}</span>
             </div>
           )
         }
