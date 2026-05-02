@@ -870,11 +870,16 @@ async function writePublicStats(uid, user, db) {
     const globalRef = doc(db, 'users', uid, 'globalStats', 'summary')
     const globalSnap = await getDoc(globalRef)
     const existing = globalSnap.exists() ? globalSnap.data() : {}
-    const MARK_UID = 'aiNZh4Myn8Y0KfYkGGrkNNW0HC72'
-    const ELOSY_UID = 'NIX3DYenRdbRjmr2EHsIad9GcqG3'
+    let resolvedName = user.displayName || ''
+    if (!resolvedName) {
+      try {
+        const profSnap = await getDoc(doc(db, 'users', uid, 'profile', 'data'))
+        if (profSnap.exists()) resolvedName = profSnap.data().displayName || profSnap.data().name || ''
+      } catch (_) {}
+    }
     await setDoc(doc(db, 'users', uid, 'publicStats', 'data'), {
       ...existing,
-      displayName: user.displayName || (uid === MARK_UID ? 'Mark' : uid === ELOSY_UID ? 'Elosy' : ''),
+      displayName: resolvedName,
       lastActive: Date.now(),
       uid,
     }, { merge: true })
@@ -8672,13 +8677,20 @@ function App() {
       try {
         const globalSnap = await getDoc(doc(db, 'users', u.uid, 'globalStats', 'summary'))
         const existing = globalSnap.exists() ? globalSnap.data() : {}
+        let resolvedName = u.displayName || ''
+        if (!resolvedName) {
+          try {
+            const profSnap = await getDoc(doc(db, 'users', u.uid, 'profile', 'data'))
+            if (profSnap.exists()) resolvedName = profSnap.data().displayName || profSnap.data().name || ''
+          } catch (_) {}
+        }
         await setDoc(doc(db, 'users', u.uid, 'publicStats', 'data'), {
           ...existing,
-          displayName: u.displayName || (u.uid === MARK_UID ? 'Mark' : u.uid === ELOSY_UID ? 'Elosy' : ''),
+          displayName: resolvedName,
           lastActive: Date.now(),
           uid: u.uid,
         }, { merge: true })
-        console.log('[Vocara] publicStats written ✓')
+        console.log('[Vocara] publicStats written ✓', resolvedName)
       } catch (e) { console.error('[Vocara] publicStats write failed:', e.message) }
       try {
         const userRef = doc(db, 'users', u.uid)
