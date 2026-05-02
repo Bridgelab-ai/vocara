@@ -1,5 +1,16 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 29.04.2026)
 
+## ✅ Implementiert (02.05.2026 Session 39) — V01.051.058
+- SOCIAL_REGISTER CRASH: SOCIAL_REGISTER → SOCIAL_REGISTERS in KiGespraechScreen Ton-Selector — ReferenceError behoben ✅
+- FORTSCHRITT NICHT GESPEICHERT: handleStop übergibt correct/wrong an handleSessionStop; handleSessionStop ruft saveSessionHistory auf; homeFloat wird auf cards-Screen ausgeblendet (Stop-Button speichert korrekt) ✅
+- FIRESTORE PERMISSIONS: Regeln bereits korrekt — firestore:rules neu deployed (latest version confirmed) ✅
+- GRUNDLAGEN POOL ROTATION: startBasicsSession: wenn buildSession leer → zeige nicht-gemeisterte (interval<5); wenn alle gemeistert → lade nächsten Pool-Level aus sharedCards; speichert basicsPoolLevel in myData ✅
+- SATZTRAINING SCHWIERIGKEIT: Difficulty-Selector (Leicht/Mittel/Schwer) vor SatzTrainingScreen; generateExercises(chosenDifficulty) passt Prompt an; Hints/Erklärungen jetzt immer in fromLang (DE/EN) ✅
+- MORGEN FÄLLIG BUTTON: tomorrowDueCards in MenuScreen berechnet; Button erscheint wenn >0 Karten morgen fällig — startet Session mit 5er-Batch ✅
+- STATISTIKEN BUTTON: progressBtn DE "📊 Statistiken" / EN "📊 Statistics" — klare Bezeichnung ✅
+- SPRACH-LERNANTEIL: updateSrcPercent/addSrcLang/removeSrcLang auto-save entfernt; langWeightsDirty State; expliziter "💾 Sprachanteil speichern" Button + Bestätigungsanzeige ✅
+- VERSION V01.051.058 ✅
+
 ## ✅ Implementiert (02.05.2026 Session 38) — V01.050.055
 - FIRESTORE RULES FIX: incomingCards allow read+create für alle auth User (Sender braucht read für Duplikat-Check); publicStats allow write für alle auth User (Partner-Notifs + Partnerdaten schreiben cross-user); monthlyGimmick/{uid}/history/{month} Rule hinzugefügt; Rules deployed ✅
 - VERSION V01.050.055 ✅
