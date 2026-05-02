@@ -35,16 +35,16 @@ service cloud.firestore {
       }
     }
 
-    // Shared card pool — any authenticated user can read, only server writes via API
+    // Shared card pool — any authenticated user can read, server writes via API (unauthenticated REST)
     match /sharedCards/{docId} {
       allow read: if request.auth != null;
-      allow write: if false;
+      allow write: if request.auth == null;
     }
 
-    // Shared sentence exercise pool — any authenticated user can read
+    // Shared sentence exercise pool — any authenticated user can read, server writes via API
     match /sharedSentences/{docId} {
       allow read: if request.auth != null;
-      allow write: if false;
+      allow write: if request.auth == null;
     }
 
     // Reports — any authenticated user can create

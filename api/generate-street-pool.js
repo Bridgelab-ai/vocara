@@ -102,31 +102,34 @@ async function writePool(fromLang, toLang, cards) {
   if (!r.ok) throw new Error(`Firestore write failed: ${r.status}`)
 }
 
+async function processPair(from, to) {
+  const catResults = await Promise.all(CATEGORIES.map(async (cat) => {
+    try {
+      const cards = await generateCategory(from, to, cat)
+      return { cat, cards, mapped: cards.map(c => cardToFirestore(c, from, to, cat.key)) }
+    } catch (e) {
+      return { cat, cards: [], mapped: [], error: e.message }
+    }
+  }))
+  const allCards = catResults.flatMap(r => r.mapped)
+  const summary = catResults.map(r => ({ category: r.cat.key, count: r.cards.length, ...(r.error ? { error: r.error } : {}) }))
+  if (allCards.length === 0) return { pair: `${from}→${to}`, error: 'No cards generated', categories: summary }
+  await writePool(from, to, allCards)
+  return { pair: `${from}→${to}`, total: allCards.length, categories: summary }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
+  let body = {}
+  try { const chunks = []; for await (const chunk of req) chunks.push(chunk); body = JSON.parse(Buffer.concat(chunks).toString() || '{}') } catch {}
+  const pairsToRun = (body.from && body.to) ? [{ from: body.from, to: body.to }] : PAIRS
   const results = []
-  for (const { from, to } of PAIRS) {
-    const allCards = []
-    const catResults = []
-    for (const cat of CATEGORIES) {
-      try {
-        const cards = await generateCategory(from, to, cat)
-        const mapped = cards.map(c => cardToFirestore(c, from, to, cat.key))
-        allCards.push(...mapped)
-        catResults.push({ category: cat.key, count: cards.length })
-      } catch (e) {
-        catResults.push({ category: cat.key, error: e.message })
-      }
-    }
-    if (allCards.length > 0) {
-      try {
-        await writePool(from, to, allCards)
-        results.push({ pair: `${from}→${to}`, total: allCards.length, categories: catResults })
-      } catch (e) {
-        results.push({ pair: `${from}→${to}`, error: e.message, categories: catResults })
-      }
-    } else {
-      results.push({ pair: `${from}→${to}`, error: 'No cards generated', categories: catResults })
+  for (const { from, to } of pairsToRun) {
+    try {
+      const r = await processPair(from, to)
+      results.push(r)
+    } catch (e) {
+      results.push({ pair: `${from}→${to}`, error: e.message })
     }
   }
   res.status(200).json({
