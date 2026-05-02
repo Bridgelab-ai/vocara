@@ -1,5 +1,9 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 03.05.2026)
 
+## ✅ Implementiert (03.05.2026 Session 46) — V01.054.075
+- GRUNDLAGEN BUTTON FIX: startBasicsSession verwendete hartcodiertes langB ('en'/'de') statt activeToLang → falscher Pool-Pfad für Swahili-Nutzer. Fix: langB = activeToLang || (isMarkLang ? 'en' : 'de'); BASICS_LANG_NAMES Map für dynamische toLangName/fromLangName. await updateDoc() in Pool-Erfolgspfad und "All mastered next level"-Pfad in try-catch (Fire-and-forget) — bisher konnte ein Firestore-Fehler basicsLoading permanent auf true klemmen. Hardcoded BASICS_FALLBACK (DE/EN, DE/SW, EN/DE — je 10 Starter-Karten) als dritte Stufe: Session startet immer, auch wenn Pool fehlt und KI-API offline ✅
+- VERSION V01.054.075 ✅
+
 ## ✅ Implementiert (03.05.2026 Session 45) — V01.054.074
 - URLAUB FORTSCHRITTSBALKEN ROOTFIX: Batch Category Fix (App-Load) rief ruleCategory() auf allen aiCards ohne bestehenden cardCategories-Eintrag auf → urlaub-Karten wurden als 'sentence' in cardCategories überschrieben → cardCategories-Override übertrumpft buildCardPair in allCards → levelBadge('urlaub') zählte immer 0 mastered. Fix: urlaub-Karten werden wie basics-Karten geschützt (continue vor ruleCategory); existierende falsche cardCategories-Overrides werden mit delete newCats[card.id] bereinigt ✅
 - PARTNER TRENNEN SICHER: handlePartnerUpdate(null) führte getDoc + setMyData(snap.data()) aus — vollständiges Reload konnte bei schlechter Verbindung frischen cardProgress mit gecachtem Firestore-Stand überschreiben. Fix: Disconnect-Pfad (partnerUID=null) macht NUR setMyData(d => ({...d, partnerUID:null, partnerName:null, partnerConnectedAt:null})) — kein Reload, kein Risiko für Fortschrittsverlust; Connect-Pfad (partnerUID!=null) reloaded wie bisher ✅

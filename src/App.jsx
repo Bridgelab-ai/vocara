@@ -44,7 +44,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.054.074'
+const APP_VERSION = 'V01.054.075'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -5954,7 +5954,7 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
       // All basics fully mastered (interval >= 5) — try fetching next pool level
       setBasicsLoading(true)
       const lA = isMarkLang ? 'de' : 'en'
-      const lB = isMarkLang ? 'en' : 'de'
+      const lB = activeToLang || (isMarkLang ? 'en' : 'de')
       const currentLevel = myData?.basicsPoolLevel || 1
       const nextLevel = currentLevel + 1
       const poolNext = await fetchGrundlagenPool(lA, lB, nextLevel)
@@ -5967,7 +5967,7 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
           const updatedAiCards = [...(myData?.aiCards || []), ...newCards]
           const updatedProgress = { ...(myData?.cardProgress || {}) }
           newCards.forEach(c => { updatedProgress[c.id] = { interval: 0, consecutiveRight: 0, wrongSessions: 0, nextReview: todayStr() } })
-          await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress, basicsPoolLevel: nextLevel })
+          try { await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress, basicsPoolLevel: nextLevel }) } catch (e) { console.warn('[Vocara] basics level save failed:', e?.message) }
           setMyData(d => ({ ...d, aiCards: updatedAiCards, cardProgress: updatedProgress, basicsPoolLevel: nextLevel }))
           const finalSess = [...newCards].sort(() => Math.random() - 0.5).slice(0, SESSION_SIZE)
           setCurrentSessionMode('basics'); setSession(finalSess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
@@ -5983,9 +5983,10 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
     setBasicsLoading(true)
     const isMarkLang = lang === 'de'
     const langA = isMarkLang ? 'de' : 'en'
-    const langB = isMarkLang ? 'en' : 'de'
-    const toLangName = isMarkLang ? 'English' : 'German'
-    const fromLangName = isMarkLang ? 'German' : 'English'
+    const langB = activeToLang || (isMarkLang ? 'en' : 'de')
+    const BASICS_LANG_NAMES = { en: 'English', de: 'German', sw: 'Swahili' }
+    const toLangName = BASICS_LANG_NAMES[langB] || 'English'
+    const fromLangName = BASICS_LANG_NAMES[langA] || 'German'
     // Try base pool first (api/generate-base-pool.js pre-populated Firestore)
     const poolBasics = await fetchGrundlagenPool(langA, langB, 1)
     if (poolBasics?.length > 0) {
@@ -5996,7 +5997,7 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
       const updatedAiCards = [...(myData?.aiCards || []), ...newCards]
       const updatedProgress = { ...(myData?.cardProgress || {}) }
       newCards.forEach(c => { updatedProgress[c.id] = { interval: 0, consecutiveRight: 0, wrongSessions: 0, nextReview: todayStr() } })
-      await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress })
+      try { await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress }) } catch (e) { console.warn('[Vocara] basics pool save failed:', e?.message) }
       setMyData(d => ({ ...d, aiCards: updatedAiCards, cardProgress: updatedProgress }))
       const sess = [...newCards].sort(() => Math.random() - 0.5).slice(0, SESSION_SIZE)
       setCurrentSessionMode('basics'); setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
@@ -6014,12 +6015,42 @@ Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","
       const ts = Date.now()
       const newCards = parsed.map((c, i) => ({ ...c, id: `basics_${ts}_${i}`, langA, langB, source: 'ai-basics', createdAt: ts }))
       const updatedAiCards = [...(myData?.aiCards || []), ...newCards]
-      await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards })
+      try { await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards }) } catch (e) { console.warn('[Vocara] basics KI save failed:', e?.message) }
       setMyData(d => ({ ...d, aiCards: updatedAiCards }))
-      const sess = [...newCards].sort(() => Math.random() - 0.5).slice(0, SESSION_SIZE)
-      setCurrentSessionMode('basics'); setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
-      markAreaDone('basics')
-    } catch(e) { console.warn('Failed to generate basics:', e) }
+      const sess2 = [...newCards].sort(() => Math.random() - 0.5).slice(0, SESSION_SIZE)
+      setCurrentSessionMode('basics'); setSession(sess2); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+      markAreaDone('basics'); setBasicsLoading(false); return
+    } catch(e) { console.warn('[Vocara] basics KI failed:', e) }
+    // Hardcoded fallback — guarantees a session always starts
+    const BASICS_FALLBACK = {
+      'de_en': [
+        { front: 'rot', back: 'red', context: 'Farbe' }, { front: 'blau', back: 'blue', context: 'Farbe' },
+        { front: 'grün', back: 'green', context: 'Farbe' }, { front: 'Hallo', back: 'Hello', context: 'Begrüßung' },
+        { front: 'Danke', back: 'Thank you', context: 'Höflichkeit' }, { front: 'Bitte', back: 'Please', context: 'Höflichkeit' },
+        { front: 'ja', back: 'yes', context: 'Grundwort' }, { front: 'nein', back: 'no', context: 'Grundwort' },
+        { front: 'eins', back: 'one', context: 'Zahl' }, { front: 'zwei', back: 'two', context: 'Zahl' },
+      ],
+      'de_sw': [
+        { front: 'Hallo', back: 'Habari', context: 'Begrüßung' }, { front: 'Danke', back: 'Asante', context: 'Höflichkeit' },
+        { front: 'Bitte', back: 'Tafadhali', context: 'Höflichkeit' }, { front: 'ja', back: 'ndiyo', context: 'Grundwort' },
+        { front: 'nein', back: 'hapana', context: 'Grundwort' }, { front: 'eins', back: 'moja', context: 'Zahl' },
+        { front: 'zwei', back: 'mbili', context: 'Zahl' }, { front: 'Wasser', back: 'maji', context: 'Grundwort' },
+        { front: 'gut', back: 'nzuri', context: 'Eigenschaft' }, { front: 'Mensch', back: 'mtu', context: 'Grundwort' },
+      ],
+      'en_de': [
+        { front: 'red', back: 'rot', context: 'colour' }, { front: 'blue', back: 'blau', context: 'colour' },
+        { front: 'green', back: 'grün', context: 'colour' }, { front: 'hello', back: 'Hallo', context: 'greeting' },
+        { front: 'thank you', back: 'Danke', context: 'courtesy' }, { front: 'please', back: 'Bitte', context: 'courtesy' },
+        { front: 'yes', back: 'ja', context: 'basic' }, { front: 'no', back: 'nein', context: 'basic' },
+        { front: 'one', back: 'eins', context: 'number' }, { front: 'two', back: 'zwei', context: 'number' },
+      ],
+    }
+    const fallbackKey = `${langA}_${langB}`
+    const fallbackRaw = BASICS_FALLBACK[fallbackKey] || BASICS_FALLBACK['de_en']
+    const ts3 = Date.now()
+    const fallbackCards = fallbackRaw.map((c, i) => ({ ...c, id: `basics_fallback_${ts3}_${i}`, langA, langB, category: 'basics', source: 'fallback', createdAt: ts3 }))
+    setCurrentSessionMode('basics'); setSession(fallbackCards); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+    markAreaDone('basics')
     setBasicsLoading(false)
   }
 
