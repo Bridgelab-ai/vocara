@@ -4574,7 +4574,7 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
             const myW = myData?.learningWeek === nowWeek ? (myData?.weeklyMinutes || 0) : 0
             const myM = myData?.learningMonth === nowMonth ? (myData?.monthlyMinutes || 0) : 0
             const myT = myData?.totalMinutes || 0
-            // Partner stats from partnerData (published to userProfiles after each session)
+            // Partner stats from partnerData (published to users/{uid}/publicStats/data after each session)
             const pW = partnerData?.learningWeek === nowWeek ? (partnerData?.weeklyMinutes || 0) : 0
             const pM = partnerData?.learningMonth === nowMonth ? (partnerData?.monthlyMinutes || 0) : 0
             const pT = partnerData?.totalMinutes || 0
