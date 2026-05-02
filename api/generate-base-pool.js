@@ -162,35 +162,33 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'POST only' })
   }
   const results = []
-  // Generate Level 4 (levels 1-3 already exist) — parallelize pairs per level
-  for (const level of [4]) {
-    const levelResults = await Promise.all(LANG_PAIRS.map(async ({ from, to }) => {
-      try {
-        const cards = await generateCards(from, to, level)
-        if (cards.length > 0) {
-          await writeToFirestore(from, to, level, cards)
-          return { pair: `${from}→${to}`, level, count: cards.length }
-        }
-        return { pair: `${from}→${to}`, level, error: 'No cards generated' }
-      } catch (e) {
-        return { pair: `${from}→${to}`, level, error: e.message }
+  // Generate Level 4 (levels 1-3 already exist) — serial to avoid rate limits
+  for (const { from, to } of LANG_PAIRS) {
+    try {
+      const cards = await generateCards(from, to, 4)
+      if (cards.length > 0) {
+        await writeToFirestore(from, to, 4, cards)
+        results.push({ pair: `${from}→${to}`, level: 4, count: cards.length })
+      } else {
+        results.push({ pair: `${from}→${to}`, level: 4, error: 'No cards generated' })
       }
-    }))
-    results.push(...levelResults)
+    } catch (e) {
+      results.push({ pair: `${from}→${to}`, level: 4, error: e.message })
+    }
   }
-  // Generate vocab_emotions for all pairs (parallelized)
-  const emotionResults = await Promise.all(LANG_PAIRS.map(async ({ from, to }) => {
+  // Generate vocab_emotions — serial
+  for (const { from, to } of LANG_PAIRS) {
     try {
       const cards = await generateVocabEmotions(from, to)
       if (cards.length > 0) {
         await writeVocabEmotions(from, to, cards)
-        return { pair: `${from}→${to}`, type: 'vocab_emotions', count: cards.length }
+        results.push({ pair: `${from}→${to}`, type: 'vocab_emotions', count: cards.length })
+      } else {
+        results.push({ pair: `${from}→${to}`, type: 'vocab_emotions', error: 'No cards generated' })
       }
-      return { pair: `${from}→${to}`, type: 'vocab_emotions', error: 'No cards generated' }
     } catch (e) {
-      return { pair: `${from}→${to}`, type: 'vocab_emotions', error: e.message }
+      results.push({ pair: `${from}→${to}`, type: 'vocab_emotions', error: e.message })
     }
-  }))
-  results.push(...emotionResults)
+  }
   res.status(200).json({ generated: results, total: results.filter(r => r.count).reduce((s, r) => s + r.count, 0) })
 }
