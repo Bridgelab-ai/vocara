@@ -1,5 +1,19 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 29.04.2026)
 
+## ✅ Implementiert (02.05.2026 Session 27) — V01.030.023
+- PARTNER KRITISCH: Dual-path stats write on session end → `userProfiles/{uid}` + `users/{uid}/profile/data`; enhanced debug logging reads all 4 profile paths for both users on login ✅
+- ÜBERSETZUNGSQUALITÄT: All card generation already uses claude-sonnet-4-6 + CARD_GEN_SYSTEM (confirmed) ✅
+- MEINE THEMEN HAUPTSEITE: Already on home grid (confirmed) ✅
+- IM URLAUB FIXES: levelBadge removed (confirmed) ✅
+- UND ZU HAUSE STUFEN: generateCategoryCards('home') now level-aware — 10-level HOME_LEVEL_DESCS array; prompt includes current level + level-appropriate content description ✅
+- MIKROFON EN→DE FIX: Already done in 029 (confirmed) ✅
+- KONTEXT-KARTEN FIX: 1 sentence + translation brackets already done in 029 (confirmed) ✅
+- KI ERKLÄRT FALSCHE ANTWORT: Already done in 029 (confirmed) ✅
+- WÖCHENTLICHER AUTO-POOL: Already in api/weekly-pool.js (confirmed) ✅
+- SOFT PAYWALL: Already implemented (confirmed) ✅
+- KI-GESPRÄCH 2.0 SZENARIEN: Already done in 029 (confirmed) ✅
+- VERSION V01.030.023 ✅
+
 ## ✅ Implementiert (29.04.2026 Session 26) — V01.029.023
 - PARTNER KRITISCH: Cost-optimized Firestore writes — localStorage cache `vocara_partnerUid`; nur schreiben wenn cachedPartnerUid !== pUid; Debug-Logging partner profiles ✅
 - ÜBERSETZUNGSQUALITÄT: CARD_GEN_SYSTEM mit native-level Regeln (keine Wort-für-Wort-Übersetzung, idiomatisches Deutsch, Muttersprachler-Check); 🚩 Report-Button auf Karte → `reports/{cardId}_{timestamp}` in Firestore ✅
