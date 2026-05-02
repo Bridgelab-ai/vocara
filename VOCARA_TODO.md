@@ -1,5 +1,13 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 02.05.2026)
 
+## ✅ Implementiert (03.05.2026 Session 42) — V01.054.067
+- NAIROBI THEME FARBEN TAUSCHEN: bg → #060400 (near-pure black), card → #0F0C00 (old bg value), border → #1C1600; bgGrad deutlich dunkler (#0D0A00/#080600/#060400 statt #1C1800); clear dark hierarchy bg→card→accent ✅
+- LOGO LICHTSCHWEIF: vocaraLogoSweep CSS-Keyframe — gold/amber gradient sweep über "Vocara" Text alle 8 Sekunden (8s ease-in-out infinite); -webkit-background-clip text + background-size 300%; kein Shimmer/Puls, nur ein eleganter Lichtschweif ✅
+- ADMIN POOL BUTTONS: AdminScreen hat jetzt "🗃 Pool generieren" Section — 7 Buttons (Base Lvl 1/2, Vocab, Street, Satz leicht/mittel/schwer); triggerPool() Funktion mit live Log-Output (grün/rot); poolRunning State sperrt Buttons während Lauf ✅
+- generate-sentence-training-pool.js: ANTHROPIC_API_KEY → ANTHROPIC_KEY (inkonsistenter Env-Var-Name gefixt) ✅
+- POOL KARTEN ERSTELLT: Base Lvl1+2 (de→en/de→sw/en→de je 50 Karten); Vocab (de→en 200, en→de 200, de→sw 200 Karten je 8 Kategorien); Street (de→en 100, en→de 100, de→sw 100 Phrasen); Satz (9 Paare × 3 Schwierigkeiten = 27 Pools je 27-30 Übungen) → alle in Firestore sharedCards/sharedExercises ✅
+- VERSION V01.054.067 ✅
+
 ## ✅ Implementiert (02.05.2026 Session 41) — V01.053.064
 - OFFLINE-FIRST / INDEXEDDB: firebase.js → initializeFirestore + persistentLocalCache({ cacheSizeBytes: CACHE_SIZE_UNLIMITED }); ersetzt getFirestore(); Firestore-Reads aus IndexedDB-Cache wenn Daten unverändert — zero Read-Cost bei wiederholtem Laden ✅
 - CARD CACHING (localStorage): src/hooks/useCardCache.js neu — getCards(key)/setCards(key,data)/invalidateCache(key), 7-Tage-TTL; fetchGrundlagenPool + SatzTraining sharedExercises-Read durch Cache-Layer ergänzt; Firestore-Read wird bei unverändertem Pool komplett übersprungen ✅
