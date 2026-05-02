@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.038.023'
+const APP_VERSION = 'V01.039.023'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -1379,11 +1379,13 @@ function makeStyles(th) {
     resumeBanner: { background: th.card, border: `1px solid ${th.accent}`, borderRadius: '14px', padding: '14px 16px', marginBottom: '12px', textAlign: 'left' },
     catBtn: {
       background: th.btnFaceGrad, color: th.btnTextColor, border: 'none',
-      padding: '14px 10px', borderRadius: '20px', fontSize: '0.84rem', cursor: 'pointer',
+      padding: '14px 10px 10px', borderRadius: '20px', fontSize: '0.84rem', cursor: 'pointer',
       fontWeight: '700', flex: 1, lineHeight: '1.3', textAlign: 'center',
       boxShadow: th.shadow3d,
       fontFamily: "'Playfair Display', Georgia, serif",
       letterSpacing: '0.1px',
+      display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center',
+      minHeight: '82px',
     },
     navBtn: {
       background: 'linear-gradient(145deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%)',
@@ -2825,6 +2827,7 @@ function PartnerScreen({ user, myData, lang, theme, onBack, onPartnerUpdate }) {
   // Accept: write partnerUID to both profiles, update publicStats, delete request
   const acceptRequest = async (req) => {
     const { fromUid, fromName } = req
+    try { localStorage.removeItem('vocara_disconnected_' + user.uid) } catch {}
     try {
       const connectedAt = Date.now()
       await updateDoc(doc(db, 'users', user.uid), { partnerUID: fromUid, partnerName: fromName, partnerConnectedAt: connectedAt })
@@ -2865,13 +2868,15 @@ function PartnerScreen({ user, myData, lang, theme, onBack, onPartnerUpdate }) {
       }
       if (!partnerUID) { setStatus(lang === 'de' ? 'Code nicht gefunden.' : 'Code not found.'); return }
       if (partnerUID === user.uid) { setStatus(lang === 'de' ? 'Das bist du.' : 'That is you.'); return }
+      try { localStorage.removeItem('vocara_disconnected_' + user.uid) } catch {}
       await sendRequest(partnerUID)
     } catch { setStatus(lang === 'de' ? 'Fehler.' : 'Error.') }
   }
 
-  // Disconnect: only remove from own profile
+  // Disconnect: only remove from own profile, set flag so auto-reconnect is skipped
   const disconnect = async () => {
     if (!window.confirm(lang === 'de' ? 'Partner wirklich trennen?' : 'Really disconnect?')) return
+    try { localStorage.setItem('vocara_disconnected_' + user.uid, 'true') } catch {}
     await updateDoc(doc(db, 'users', user.uid), { partnerUID: null, partnerName: null })
     setDoc(doc(db, 'users', user.uid, 'publicStats', 'data'), { partnerUID: null, partnerName: null }, { merge: true }).catch(() => {})
     onPartnerUpdate(null)
@@ -6447,6 +6452,39 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         </div>
       )}
 
+      {/* ── PARTNER REQUEST BANNER ── */}
+      {myData?._pendingPartnerRequest && (() => {
+        const req = myData._pendingPartnerRequest
+        const acceptPartnerReq = async () => {
+          try { localStorage.removeItem('vocara_disconnected_' + user.uid) } catch {}
+          const connectedAt = Date.now()
+          try {
+            await updateDoc(doc(db, 'users', user.uid), { partnerUID: req.fromUid, partnerName: req.fromName, partnerConnectedAt: connectedAt })
+            try { await updateDoc(doc(db, 'users', req.fromUid), { partnerUID: user.uid, partnerName: user.displayName, partnerConnectedAt: connectedAt }) } catch (_) {}
+            setDoc(doc(db, 'users', user.uid, 'publicStats', 'data'), { partnerUID: req.fromUid, partnerName: req.fromName }, { merge: true }).catch(() => {})
+            setDoc(doc(db, 'users', req.fromUid, 'publicStats', 'data'), { partnerUID: user.uid, partnerName: user.displayName }, { merge: true }).catch(() => {})
+            deleteDoc(doc(db, 'users', user.uid, 'partnerRequests', req.fromUid)).catch(() => {})
+            setMyData(d => ({ ...d, partnerUID: req.fromUid, partnerName: req.fromName, _pendingPartnerRequest: null }))
+            onPartnerUpdate(req.fromUid)
+          } catch (e) { console.error('[Vocara] acceptRequest failed:', e.message) }
+        }
+        const declinePartnerReq = async () => {
+          deleteDoc(doc(db, 'users', user.uid, 'partnerRequests', req.fromUid)).catch(() => {})
+          setMyData(d => ({ ...d, _pendingPartnerRequest: null }))
+        }
+        return (
+          <div style={{ background: `${th.gold}12`, border: `1px solid ${th.gold}44`, borderRadius: '14px', padding: '12px 14px', marginBottom: '12px', animation: 'vocaraFadeIn 0.4s ease both' }}>
+            <p style={{ color: th.text, fontWeight: '700', margin: '0 0 8px', fontSize: '0.9rem' }}>
+              🤝 {req.fromName} {isMarkLang ? 'möchte sich mit dir verbinden' : 'wants to connect with you'}
+            </p>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button style={{ ...s.button, flex: 1, marginBottom: 0, padding: '9px' }} onClick={acceptPartnerReq}>✓ {t.partnerAccept}</button>
+              <button style={{ ...s.logoutBtn, flex: 1, marginTop: 0, padding: '9px', textAlign: 'center' }} onClick={declinePartnerReq}>✗ {t.partnerDecline}</button>
+            </div>
+          </div>
+        )
+      })()}
+
       {/* ── 6-BUTTON GRID ── */}
       {(() => {
         // Soft hint badge for free users near limit
@@ -6457,7 +6495,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           const used = freeUsed(category)
           if (used === 0) return null
           return (
-            <div style={{ position: 'absolute', bottom: '5px', right: '6px', background: used >= limit ? `${th.gold}22` : 'rgba(0,0,0,0.35)', borderRadius: '8px', padding: '1px 5px', pointerEvents: 'none' }}>
+            <div style={{ position: 'absolute', top: '5px', right: '6px', background: used >= limit ? `${th.gold}22` : 'rgba(0,0,0,0.35)', borderRadius: '8px', padding: '1px 5px', pointerEvents: 'none' }}>
               <span style={{ color: used >= limit ? th.gold : 'rgba(255,255,255,0.55)', fontSize: '0.58rem', fontWeight: '700' }}>{used}/{limit}</span>
             </div>
           )
@@ -6484,13 +6522,13 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           }
           const displayLv = Math.max(1, lv)
           const progress = lv >= 10 ? 1 : Math.min(1, (n - prevThreshold) / Math.max(1, nextThreshold - prevThreshold))
-          const filled = Math.round(progress * 8)
-          const bar = '▓'.repeat(filled) + '░'.repeat(8 - filled)
           const col = CAT_LEVEL_COLORS[Math.min(lv, CAT_LEVEL_COLORS.length - 1)] || '#00BFA5'
           return (
-            <div style={{ position: 'absolute', bottom: '6px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.5)', borderRadius: '5px', padding: '2px 6px', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
-              <span style={{ color: col, fontSize: '0.5rem', fontWeight: '700', letterSpacing: '0.5px' }}>Lvl {displayLv} </span>
-              <span style={{ color: col, fontSize: '0.48rem', opacity: 0.85, letterSpacing: '1px' }}>{bar}</span>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', pointerEvents: 'none', width: '100%' }}>
+              <span style={{ color: col, fontSize: '10px', fontWeight: '700', letterSpacing: '0.4px', fontFamily: "'Inter', system-ui, sans-serif", opacity: 0.9 }}>Lvl {displayLv}</span>
+              <div style={{ width: '50px', height: '3px', background: 'rgba(255,255,255,0.15)', borderRadius: '2px', overflow: 'hidden' }}>
+                <div style={{ width: `${progress * 100}%`, height: '100%', background: col, borderRadius: '2px' }} />
+              </div>
             </div>
           )
         }
@@ -6498,35 +6536,35 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           <div className="vocara-cat-grid" style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '12px' }}>
             <div style={{ display: 'flex', gap: '12px' }}>
               <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '0s', position: 'relative' }} onClick={() => startCategorySession('vocabulary')}>
-                {t.menuWorte.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
+                <div>{t.menuWorte.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</div>
                 {levelBadge('vocabulary')}
               </button>
               <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '1.8s', opacity: satzLoading ? 0.6 : 1, position: 'relative' }} onClick={startSatzSession} disabled={satzLoading}>
-                {satzLoading ? '...' : t.menuSaetze.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
+                <div>{satzLoading ? '...' : t.menuSaetze.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</div>
                 {!satzLoading && levelBadge('sentence')}
               </button>
             </div>
             <div style={{ display: 'flex', gap: '12px' }}>
               <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '3.5s', position: 'relative' }}
                 onClick={() => checkFreeLimit('street') && startCategorySession('street')}>
-                {t.menuStraße.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
+                <div>{t.menuStraße.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</div>
                 {levelBadge('street')}{freeBadge('street')}
               </button>
               <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '5.2s', position: 'relative' }}
                 onClick={() => checkFreeLimit('home') && startCategorySession('home')}>
-                {t.menuHause.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
+                <div>{t.menuHause.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</div>
                 {levelBadge('home')}{freeBadge('home')}
               </button>
             </div>
             <div style={{ display: 'flex', gap: '12px' }}>
               <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '6.8s', opacity: basicsLoading ? 0.6 : 1, position: 'relative' }}
                 onClick={startBasicsSession} disabled={basicsLoading}>
-                {basicsLoading ? '...' : (t.menuGrundlagen || 'Die\nGrundlagen').split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
+                <div>{basicsLoading ? '...' : (t.menuGrundlagen || 'Die\nGrundlagen').split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</div>
                 {!basicsLoading && levelBadge('basics')}
               </button>
               <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '8.2s', position: 'relative' }}
                 onClick={() => checkFreeLimit('urlaub') && startCategorySession('urlaub')}>
-                {(t.menuUrlaub || 'Im\nUrlaub').split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
+                <div>{(t.menuUrlaub || 'Im\nUrlaub').split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</div>
                 {levelBadge('urlaub')}{freeBadge('urlaub')}
               </button>
             </div>
@@ -8951,13 +8989,14 @@ function App() {
             if (!data.languages || data.languages.length === 0) setNeedsLangSetup(true)
           }
           // ── PARTNER CONNECTION: cost-optimized — only write when partnerUid actually changed ──
+          const disconnectedFlag = (() => { try { return localStorage.getItem('vocara_disconnected_' + u.uid) } catch { return null } })()
           const CORRECT_PARTNER = u.uid === MARK_UID ? ELOSY_UID : u.uid === ELOSY_UID ? MARK_UID : null
           const CORRECT_PARTNER_NAME = u.uid === MARK_UID ? 'Elosy' : u.uid === ELOSY_UID ? 'Mark' : null
-          if (CORRECT_PARTNER && data.partnerUID !== CORRECT_PARTNER) {
+          if (!disconnectedFlag && CORRECT_PARTNER && data.partnerUID !== CORRECT_PARTNER) {
             data.partnerUID = CORRECT_PARTNER; data.partnerName = CORRECT_PARTNER_NAME
             try { await setDoc(userRef, { partnerUID: CORRECT_PARTNER, partnerName: CORRECT_PARTNER_NAME }, { merge: true }) } catch (_) {}
           }
-          const pUid = data.partnerUID || data.partnerUid || (u.uid === MARK_UID ? ELOSY_UID : u.uid === ELOSY_UID ? MARK_UID : null) || null
+          const pUid = disconnectedFlag ? null : (data.partnerUID || data.partnerUid || (u.uid === MARK_UID ? ELOSY_UID : u.uid === ELOSY_UID ? MARK_UID : null) || null)
           if (pUid) {
             try { localStorage.setItem('vocara_partnerUID_' + u.uid, pUid) } catch (_) {}
             const cachedPartnerUid = (() => { try { return localStorage.getItem('vocara_partnerUid') } catch(_) { return null } })()
@@ -9033,8 +9072,8 @@ function App() {
             else if (partnerUID === MARK_UID) setPartnerData({ name: 'Mark', displayName: 'Mark', lastActive: null, _noData: true })
             else setPartnerData({ _noData: true })
           }
-          const resolvedPartnerUID = data.partnerUID || data.partnerUid ||
-            (u.uid === MARK_UID ? ELOSY_UID : u.uid === ELOSY_UID ? MARK_UID : null)
+          const resolvedPartnerUID = disconnectedFlag ? null : (data.partnerUID || data.partnerUid ||
+            (u.uid === MARK_UID ? ELOSY_UID : u.uid === ELOSY_UID ? MARK_UID : null))
           if (resolvedPartnerUID) await loadPartner(resolvedPartnerUID)
           // ── CHECK PARTNER ACTIVITY NOTIFS ──
           try {
