@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.034.023'
+const APP_VERSION = 'V01.037.023'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -1686,11 +1686,17 @@ function OnboardingScreen({ lang, theme, onDone }) {
   const [index, setIndex] = useState(0)
   const [showCities, setShowCities] = useState(false)
   const [showRelType, setShowRelType] = useState(false)
+  const [showSocialRegister, setShowSocialRegister] = useState(false)
+  const [showMusic, setShowMusic] = useState(false)
   const [homeCity, setHomeCity] = useState('')
   const [partnerCity, setPartnerCity] = useState('')
   const [pendingCityData, setPendingCityData] = useState({})
   const isLast = index === slides.length - 1
   const slide = slides[index]
+  // Total onboarding steps: slides + cities + relType + socialRegister + music = slides.length + 4
+  const totalSteps = slides.length + 4
+  const currentStep = showMusic ? totalSteps : showSocialRegister ? totalSteps - 1 : showRelType ? totalSteps - 2 : showCities ? totalSteps - 3 : index + 1
+  const stepLabel = lang === 'de' ? `Schritt ${currentStep} von ${totalSteps}` : `Step ${currentStep} of ${totalSteps}`
 
   const inputStyle = { width: '100%', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '10px', padding: '12px 14px', color: '#fff', fontSize: '1rem', outline: 'none', boxSizing: 'border-box', marginBottom: '12px' }
   const relBtnStyle = (active) => ({
@@ -1703,6 +1709,68 @@ function OnboardingScreen({ lang, theme, onDone }) {
     backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
   })
 
+  if (showMusic) {
+    return (
+      <div style={{ minHeight: '100vh', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: th.bg }} className="vocara-screen">
+        <div style={{ textAlign: 'center', padding: '32px 24px', width: '100%', maxWidth: '420px', animation: 'vocaraFadeIn 0.3s ease both' }}>
+          <p style={{ color: th.sub, fontSize: '0.72rem', margin: '0 0 20px', letterSpacing: '0.5px' }}>{stepLabel}</p>
+          <p style={{ fontSize: '3.5rem', margin: '0 0 16px 0' }}>🎵</p>
+          <h2 style={{ color: th.gold, fontSize: '1.5rem', fontWeight: 'bold', margin: '0 0 10px 0' }}>
+            {lang === 'de' ? 'Hintergrundmusik?' : 'Background music?'}
+          </h2>
+          <p style={{ color: th.sub, fontSize: '0.9rem', lineHeight: '1.6', margin: '0 0 28px 0' }}>
+            {lang === 'de' ? 'Sanfte Musik beim Lernen kann die Konzentration fördern.' : 'Soft music while learning can improve focus.'}
+          </p>
+          <button style={{ ...relBtnStyle(false), justifyContent: 'center' }}
+            onClick={() => onDone({ ...pendingCityData, musicEnabled: true })}>
+            <span style={{ fontWeight: '600' }}>{lang === 'de' ? 'An — ich lerne mit Musik' : 'On — I learn with music'}</span>
+          </button>
+          <button style={{ ...relBtnStyle(false), justifyContent: 'center' }}
+            onClick={() => onDone({ ...pendingCityData, musicEnabled: false })}>
+            <span style={{ fontWeight: '600' }}>{lang === 'de' ? 'Aus — ich bevorzuge Stille' : 'Off — I prefer silence'}</span>
+          </button>
+          <button style={{ background: 'transparent', color: th.sub, border: 'none', padding: '8px', fontSize: '0.85rem', cursor: 'pointer', width: '100%', marginTop: '4px' }}
+            onClick={() => onDone(pendingCityData)}>
+            {lang === 'de' ? 'Überspringen' : 'Skip'}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (showSocialRegister) {
+    const REG_OPTIONS = [
+      { key: 'friends',    de: 'Kumpel',      en: 'Friends'   },
+      { key: 'couple',     de: 'Große Liebe',  en: 'Partner'   },
+      { key: 'colleagues', de: 'Kollege',      en: 'Colleague' },
+      { key: 'family',     de: 'Familie',      en: 'Family'    },
+    ]
+    return (
+      <div style={{ minHeight: '100vh', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: th.bg }} className="vocara-screen">
+        <div style={{ textAlign: 'center', padding: '32px 24px', width: '100%', maxWidth: '420px', animation: 'vocaraFadeIn 0.3s ease both' }}>
+          <p style={{ color: th.sub, fontSize: '0.72rem', margin: '0 0 20px', letterSpacing: '0.5px' }}>{stepLabel}</p>
+          <p style={{ fontSize: '3.5rem', margin: '0 0 16px 0' }}>💬</p>
+          <h2 style={{ color: th.gold, fontSize: '1.5rem', fontWeight: 'bold', margin: '0 0 10px 0' }}>
+            {lang === 'de' ? 'Wie möchtest du lernen?' : 'How do you want to learn?'}
+          </h2>
+          <p style={{ color: th.sub, fontSize: '0.9rem', lineHeight: '1.6', margin: '0 0 24px 0' }}>
+            {lang === 'de' ? 'Das beeinflusst den Ton der KI-Gespräche und Karten.' : 'This affects the tone of AI conversations and cards.'}
+          </p>
+          {REG_OPTIONS.map(opt => (
+            <button key={opt.key} style={{ ...relBtnStyle(false), justifyContent: 'center' }}
+              onClick={() => { setPendingCityData(d => ({ ...d, socialRegister: opt.key })); setShowMusic(true) }}>
+              <span style={{ fontWeight: '600' }}>{lang === 'de' ? opt.de : opt.en}</span>
+            </button>
+          ))}
+          <button style={{ background: 'transparent', color: th.sub, border: 'none', padding: '8px', fontSize: '0.85rem', cursor: 'pointer', width: '100%', marginTop: '4px' }}
+            onClick={() => setShowMusic(true)}>
+            {lang === 'de' ? 'Überspringen' : 'Skip'}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   if (showRelType) {
     const REL_OPTIONS = [
       { key: 'couple',     emoji: '💑', de: 'Romantisches Paar',  en: 'Romantic couple'     },
@@ -1713,6 +1781,7 @@ function OnboardingScreen({ lang, theme, onDone }) {
     return (
       <div style={{ minHeight: '100vh', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: th.bg }} className="vocara-screen">
         <div style={{ textAlign: 'center', padding: '32px 24px', width: '100%', maxWidth: '420px', animation: 'vocaraFadeIn 0.3s ease both' }}>
+          <p style={{ color: th.sub, fontSize: '0.72rem', margin: '0 0 20px', letterSpacing: '0.5px' }}>{stepLabel}</p>
           <p style={{ fontSize: '3.5rem', margin: '0 0 16px 0' }}>🤝</p>
           <h2 style={{ color: th.gold, fontSize: '1.5rem', fontWeight: 'bold', margin: '0 0 10px 0' }}>
             {lang === 'de' ? 'Was verbindet euch?' : 'What connects you?'}
@@ -1722,13 +1791,13 @@ function OnboardingScreen({ lang, theme, onDone }) {
           </p>
           {REL_OPTIONS.map(opt => (
             <button key={opt.key} style={relBtnStyle(false)}
-              onClick={() => onDone({ ...pendingCityData, relationshipType: opt.key })}>
+              onClick={() => { setPendingCityData(d => ({ ...d, relationshipType: opt.key })); setShowSocialRegister(true) }}>
               <span style={{ fontSize: '1.5rem' }}>{opt.emoji}</span>
               <span>{lang === 'de' ? opt.de : opt.en}</span>
             </button>
           ))}
           <button style={{ background: 'transparent', color: th.sub, border: 'none', padding: '8px', fontSize: '0.85rem', cursor: 'pointer', width: '100%', marginTop: '4px' }}
-            onClick={() => onDone(pendingCityData)}>
+            onClick={() => setShowSocialRegister(true)}>
             {lang === 'de' ? 'Überspringen' : 'Skip'}
           </button>
         </div>
@@ -1740,6 +1809,7 @@ function OnboardingScreen({ lang, theme, onDone }) {
     return (
       <div style={{ minHeight: '100vh', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: th.bg }} className="vocara-screen">
         <div style={{ textAlign: 'center', padding: '32px 24px', width: '100%', maxWidth: '420px', animation: 'vocaraFadeIn 0.3s ease both' }}>
+          <p style={{ color: th.sub, fontSize: '0.72rem', margin: '0 0 20px', letterSpacing: '0.5px' }}>{stepLabel}</p>
           <p style={{ fontSize: '3.5rem', margin: '0 0 16px 0' }}>🏙️</p>
           <h2 style={{ color: th.gold, fontSize: '1.5rem', fontWeight: 'bold', margin: '0 0 10px 0' }}>
             {lang === 'de' ? 'Eure Städte' : 'Your cities'}
@@ -1785,8 +1855,9 @@ function OnboardingScreen({ lang, theme, onDone }) {
   return (
     <div style={{ minHeight: '100vh', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: th.bg }} className="vocara-screen">
       <div style={{ textAlign: 'center', padding: '32px 24px', width: '100%', maxWidth: '420px' }}>
+        <p style={{ color: th.sub, fontSize: '0.72rem', margin: '0 0 16px', letterSpacing: '0.5px' }}>{stepLabel}</p>
         {/* Dots */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '32px' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '24px' }}>
           {slides.map((_, i) => (
             <div key={i} style={{ width: i === index ? '24px' : '8px', height: '8px', borderRadius: '4px', background: i === index ? th.accent : th.border, transition: 'all 0.3s ease' }} />
           ))}
@@ -1941,6 +2012,7 @@ function KiGespraechScreen({ lang, theme, onBack, userName, userToLang = 'en', s
   const th = THEMES[theme]; const s = makeStyles(th); const t = tProp || T[lang] || T.en
   const isDE = lang === 'de'
   const isPremium = (user?.uid === MARK_UID || user?.uid === ELOSY_UID) || (myData?.plan && myData.plan !== 'free')
+  const [sessionRegister, setSessionRegister] = useState(socialRegister)
   const [scenario, setScenario] = useState(null) // null = pick, object = active scenario
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
@@ -1958,7 +2030,9 @@ function KiGespraechScreen({ lang, theme, onBack, userName, userToLang = 'en', s
 
   const getSystemPrompt = (sc) => {
     if (!sc) return ''
+    const regCtx = socialRegisterContext(sessionRegister)
     return `You are playing the role of a ${sc.role} in a ${isDE ? sc.de : sc.en} scenario. The user ${userName} is practicing ${targetLang}.
+Social register / tone: ${regCtx}. Adapt your vocabulary and formality accordingly.
 Stay in character throughout. Respond ONLY in ${targetLang}. Never switch to ${nativeLang}.
 If the user makes a grammar mistake, continue naturally, then add a brief tip like "💡 Tip: ..."
 Keep each response to 1-3 sentences. Be realistic and helpful for the scenario.
@@ -2076,11 +2150,21 @@ Return ONLY valid JSON (no markdown):
   if (!scenario) return (
     <div style={{ ...s.container, minHeight: '100vh' }} className="vocara-screen"><div style={s.homeBox}>
       <button style={s.backBtn} onClick={onBack}>← {t.back}</button>
-      <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+      <div style={{ textAlign: 'center', marginBottom: '16px' }}>
         <p style={{ color: th.accent, fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', margin: '0 0 6px' }}>🤖 KI-Gespräch 2.0</p>
         <p style={{ color: th.text, fontSize: '1.1rem', fontWeight: '700', margin: '0 0 4px' }}>{isDE ? 'Wähle ein Szenario:' : 'Choose a scenario:'}</p>
-        <p style={{ color: th.sub, fontSize: '0.8rem', margin: 0 }}>{isDE ? '10–15 Austausche · 5–8 Minuten' : '10–15 exchanges · 5–8 minutes'}</p>
-        {!isPremium && <p style={{ color: th.gold, fontSize: '0.72rem', margin: '6px 0 0', fontWeight: '600' }}>{isDE ? '🔓 Kostenfrei: 1 Szenario/Woche' : '🔓 Free: 1 scenario/week'}</p>}
+        <p style={{ color: th.sub, fontSize: '0.8rem', margin: '0 0 12px' }}>{isDE ? '10–15 Austausche · 5–8 Minuten' : '10–15 exchanges · 5–8 minutes'}</p>
+        {/* Ton-Selector — session only, does not overwrite Einstellungen */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '4px' }}>
+          <span style={{ color: th.sub, fontSize: '0.68rem', fontWeight: '600', letterSpacing: '0.3px' }}>{isDE ? 'Ton:' : 'Tone:'}</span>
+          {SOCIAL_REGISTER.map(r => (
+            <button key={r.key} onClick={() => setSessionRegister(r.key)}
+              style={{ background: sessionRegister === r.key ? `${th.accent}22` : 'transparent', border: `1px solid ${sessionRegister === r.key ? th.accent : th.border}`, borderRadius: '20px', padding: '3px 10px', fontSize: '0.68rem', fontWeight: sessionRegister === r.key ? '700' : '400', color: sessionRegister === r.key ? th.accent : th.sub, cursor: 'pointer', transition: 'all 0.15s' }}>
+              {isDE ? r.labelDe : r.labelEn}
+            </button>
+          ))}
+        </div>
+        {!isPremium && <p style={{ color: th.gold, fontSize: '0.68rem', margin: '6px 0 0', fontWeight: '600' }}>{isDE ? '🔓 Kostenfrei: 1 Szenario/Woche' : '🔓 Free: 1 scenario/week'}</p>}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
         {KI_SCENARIOS.map(sc => (
@@ -4753,6 +4837,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const [miniTask, setMiniTask] = useState(null)
   const [miniTaskInput, setMiniTaskInput] = useState('')
   const [miniTaskLoading, setMiniTaskLoading] = useState(false)
+  const [incomingCardQueue, setIncomingCardQueue] = useState([]) // [{...card, _docId}]
   const [reactionPrompt, setReactionPrompt] = useState(null) // {name, count}
   const [floatingReaction, setFloatingReaction] = useState(null) // emoji string
   const [replyInput, setReplyInput] = useState('')
@@ -6825,43 +6910,47 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         </div>
       )}
 
-      {/* ── GESCHENKKARTE POPUP ── */}
-      {pendingGift && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', backdropFilter: 'blur(6px)' }}>
-          <div style={{ background: th.card, border: `2px solid ${th.gold}66`, borderRadius: '24px', padding: '28px 24px', maxWidth: '360px', width: '100%', textAlign: 'center', boxShadow: `0 0 40px ${th.glowColor}44`, animation: 'vocaraFadeIn 0.4s ease both' }}>
-            <p style={{ fontSize: '2.5rem', margin: '0 0 8px' }}>🎁</p>
-            <p style={{ color: th.gold, fontWeight: 'bold', fontSize: '1.1rem', marginBottom: '6px' }}>{isMarkLang ? `Geschenk von ${pendingGift.fromName}!` : `Gift from ${pendingGift.fromName}!`}</p>
-            {pendingGift.message && <p style={{ color: th.sub, fontSize: '0.85rem', marginBottom: '10px', fontStyle: 'italic' }}>„{pendingGift.message}"</p>}
-            <div style={{ background: th.bg, borderRadius: '14px', padding: '16px', margin: '10px 0', border: `1px solid ${th.border}` }}>
-              <p style={{ color: th.text, fontWeight: 'bold', fontSize: '1.1rem', margin: '0 0 8px' }}>{pendingGift.front}</p>
-              <div style={{ height: '1px', background: th.border, margin: '8px 0' }} />
-              <p style={{ color: th.accent, fontWeight: 'bold', fontSize: '1.3rem', margin: 0 }}>{pendingGift.back}</p>
-            </div>
-            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-              <button
-                onClick={async () => {
-                  const giftCard = { id: `gift_${Date.now()}`, front: pendingGift.front, back: pendingGift.back, category: pendingGift.category || 'vocabulary', langA: pendingGift.langA || 'de', langB: pendingGift.langB || 'en', source: 'gift', sharedBy: pendingGift.fromName }
-                  const updated = [...(myData?.aiCards || []), giftCard]
-                  await updateDoc(doc(db, 'users', user.uid), { aiCards: updated, pendingGift: null, pendingGiftSeenDate: todayStr() }).catch(() => {})
-                  if (pendingGift._incomingId) deleteDoc(doc(db, 'users', user.uid, 'incomingCards', pendingGift._incomingId)).catch(() => {})
-                  setMyData(d => ({ ...d, aiCards: updated, pendingGift: null, pendingGiftSeenDate: todayStr() }))
-                  setPendingGift(null)
-                }}
-                style={{ flex: 1, background: `${th.accent}25`, color: th.text, border: `1px solid ${th.accent}55`, borderRadius: '14px', padding: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '0.9rem' }}>
-                ➕ {isMarkLang ? 'Zum Deck' : 'Add to deck'}
-              </button>
-              <button
-                onClick={async () => {
-                  await updateDoc(doc(db, 'users', user.uid), { pendingGift: null, pendingGiftSeenDate: todayStr() }).catch(() => {})
-                  if (pendingGift._incomingId) deleteDoc(doc(db, 'users', user.uid, 'incomingCards', pendingGift._incomingId)).catch(() => {})
-                  setMyData(d => ({ ...d, pendingGift: null, pendingGiftSeenDate: todayStr() }))
-                  setPendingGift(null)
-                }}
-                style={{ flex: '0 0 auto', background: 'rgba(255,255,255,0.06)', color: th.sub, border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', padding: '12px 16px', cursor: 'pointer', fontSize: '0.9rem' }}>✕</button>
+      {/* ── INCOMING CARDS BANNER + MODAL ── */}
+      {incomingCardQueue.length > 0 && (() => {
+        const card = incomingCardQueue[0]
+        const fromName = card.fromName || myData?.partnerName || 'Partner'
+        const remaining = incomingCardQueue.length
+        const dismissCard = async (accept) => {
+          if (accept) {
+            const giftCard = { id: `gift_${Date.now()}`, front: card.front, back: card.back, category: card.category || 'vocabulary', langA: card.langA || 'de', langB: card.langB || 'en', source: 'gift', _gift: true, sharedBy: fromName }
+            const updated = [...(myData?.aiCards || []), giftCard]
+            await updateDoc(doc(db, 'users', user.uid), { aiCards: updated }).catch(() => {})
+            setMyData(d => ({ ...d, aiCards: updated }))
+          }
+          deleteDoc(doc(db, 'users', user.uid, 'incomingCards', card._docId)).catch(() => {})
+          setIncomingCardQueue(q => q.slice(1))
+        }
+        return (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', backdropFilter: 'blur(6px)' }}>
+            <div style={{ background: th.card, border: `2px solid ${th.gold}66`, borderRadius: '24px', padding: '28px 24px', maxWidth: '360px', width: '100%', textAlign: 'center', boxShadow: `0 0 40px ${th.glowColor}44`, animation: 'vocaraFadeIn 0.4s ease both' }}>
+              <p style={{ color: th.gold, fontSize: '0.68rem', fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase', margin: '0 0 6px' }}>
+                {isMarkLang
+                  ? `${remaining} neue Karte${remaining > 1 ? 'n' : ''} von ${fromName} 🎁`
+                  : `${remaining} new card${remaining > 1 ? 's' : ''} from ${fromName} 🎁`}
+              </p>
+              <div style={{ background: th.bg, borderRadius: '14px', padding: '16px', margin: '10px 0', border: `1px solid ${th.border}` }}>
+                <p style={{ color: th.text, fontWeight: 'bold', fontSize: '1.1rem', margin: '0 0 8px' }}>{card.front}</p>
+                <div style={{ height: '1px', background: th.border, margin: '8px 0' }} />
+                <p style={{ color: th.accent, fontWeight: 'bold', fontSize: '1.3rem', margin: 0 }}>{card.back}</p>
+              </div>
+              {remaining > 1 && <p style={{ color: th.sub, fontSize: '0.72rem', margin: '0 0 10px' }}>{isMarkLang ? `Noch ${remaining - 1} weitere` : `${remaining - 1} more`}</p>}
+              <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
+                <button onClick={() => dismissCard(true)}
+                  style={{ flex: 1, background: `${th.accent}25`, color: th.text, border: `1px solid ${th.accent}55`, borderRadius: '14px', padding: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '0.9rem' }}>
+                  ➕ {isMarkLang ? 'Zum Deck' : 'Add to deck'}
+                </button>
+                <button onClick={() => dismissCard(false)}
+                  style={{ flex: '0 0 auto', background: 'rgba(255,255,255,0.06)', color: th.sub, border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', padding: '12px 16px', cursor: 'pointer', fontSize: '0.9rem' }}>✕</button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* ── ÜBERRASCHUNGSKARTE POPUP ── */}
       {surpriseCard && (
@@ -7436,9 +7525,9 @@ function KarteErstellenScreen({ user, myData, setMyData, allCards, lang, theme, 
     try {
       const senderName = user.displayName?.split(' ')[0] || 'Partner'
       if ((destination === 'partner' || destination === 'both') && myPartnerUID) {
-        await updateDoc(doc(db, 'users', myPartnerUID), {
-          surpriseCard: { ...card, sharedBy: senderName, sharedAt: Date.now() },
-          surpriseSeenDate: null
+        const giftId = `gift_${Date.now()}`
+        await setDoc(doc(db, 'users', myPartnerUID, 'incomingCards', giftId), {
+          ...card, fromUid: user.uid, fromName: senderName, sentAt: Date.now()
         })
       }
       if (destination === 'me' || destination === 'both') {
@@ -8859,9 +8948,9 @@ function App() {
           // ── CHECK INCOMING CARDS (subcollection) ──
           try {
             const incomingSnap = await getDocs(collection(db, 'users', u.uid, 'incomingCards'))
-            if (!incomingSnap.empty && !data.pendingGift) {
-              const firstCard = incomingSnap.docs[0]
-              data.pendingGift = { ...firstCard.data(), _incomingId: firstCard.id }
+            if (!incomingSnap.empty) {
+              const queue = incomingSnap.docs.map(d => ({ ...d.data(), _docId: d.id }))
+              setIncomingCardQueue(queue)
             }
           } catch (_) {}
           // Write partnerUID to publicStats if available
@@ -8982,6 +9071,12 @@ function App() {
     if (cityData.homeCity) update.homeCity = cityData.homeCity
     if (cityData.partnerCity) update.partnerCity = cityData.partnerCity
     if (cityData.relationshipType) update.relationshipType = cityData.relationshipType
+    if (cityData.socialRegister) update.socialRegister = cityData.socialRegister
+    if (cityData.musicEnabled !== undefined) {
+      update.musicEnabled = cityData.musicEnabled
+      setMusicEnabled(cityData.musicEnabled)
+      try { localStorage.setItem('vocara_music', cityData.musicEnabled ? 'true' : 'false') } catch {}
+    }
     await updateDoc(doc(db, 'users', user.uid), update)
     setMyData(d => ({ ...d, ...update }))
     setNeedsOnboarding(false)
