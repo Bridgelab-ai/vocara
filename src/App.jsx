@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.051.055'
+const APP_VERSION = 'V01.051.058'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -1409,7 +1409,7 @@ const T = {
   de: {
     hello: 'Hallo', mySession: '🃏 Meine Session', whereAmI: '🎯 Wo stehe ich?',
     aiChat: '🤖 KI-Gespräch', dailyPhrase: '☀️ Tages-Phrase',
-    progressBtn: '📈 Fortschritt', logout: 'Abmelden',
+    progressBtn: '📊 Statistiken', logout: 'Abmelden',
     myProgress: 'Dein Fortschritt', notActive: 'Noch kein Partner',
     card: 'Karte', of: 'von', showSolution: 'Lösung anzeigen',
     correct: 'Richtig', wrong: 'Falsch', fast: 'Fast', easy: 'Easy', stop: '✕ Beenden',
@@ -1506,7 +1506,7 @@ const T = {
   en: {
     hello: 'Hello', mySession: '🃏 My session', whereAmI: '🎯 Where do I stand?',
     aiChat: '🤖 AI conversation', dailyPhrase: '☀️ Phrase of the day',
-    progressBtn: '📈 Progress', logout: 'Sign out',
+    progressBtn: '📊 Statistics', logout: 'Sign out',
     myProgress: 'Your progress', notActive: 'No partner yet',
     card: 'Card', of: 'of', showSolution: 'Show answer',
     correct: 'Correct', wrong: 'Wrong', fast: 'Fast', easy: 'Easy', stop: '✕ Stop',
@@ -2158,7 +2158,7 @@ After the user has sent 15 messages, add "---END---" at the end of your response
         {/* Ton-Selector — session only, does not overwrite Einstellungen */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '4px' }}>
           <span style={{ color: th.sub, fontSize: '0.68rem', fontWeight: '600', letterSpacing: '0.3px' }}>{isDE ? 'Ton:' : 'Tone:'}</span>
-          {SOCIAL_REGISTER.map(r => (
+          {SOCIAL_REGISTERS.map(r => (
             <button key={r.key} onClick={() => setSessionRegister(r.key)}
               style={{ background: sessionRegister === r.key ? `${th.accent}22` : 'transparent', border: `1px solid ${sessionRegister === r.key ? th.accent : th.border}`, borderRadius: '20px', padding: '3px 10px', fontSize: '0.68rem', fontWeight: sessionRegister === r.key ? '700' : '400', color: sessionRegister === r.key ? th.accent : th.sub, cursor: 'pointer', transition: 'all 0.15s' }}>
               {isDE ? r.labelDe : r.labelEn}
@@ -2281,12 +2281,13 @@ function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userN
   const [selfRating, setSelfRating] = useState(null)
   const [correct, setCorrect] = useState(0)
   const [done, setDone] = useState(false)
-  const [semanticResult, setSemanticResult] = useState(null) // null | 'loading' | {ok, feedback}
-  const [difficultyScore, setDifficultyScore] = useState(0) // 0-10
+  const [semanticResult, setSemanticResult] = useState(null)
+  const [difficultyScore, setDifficultyScore] = useState(0)
+  const [difficulty, setDifficulty] = useState(null) // null | 'leicht' | 'mittel' | 'schwer'
 
   const ex = exercises[index]
 
-  useEffect(() => { if (knownVocab.length >= 5) generateExercises() }, [])
+  useEffect(() => {}, [])
 
   const levenshtein = (a, b) => {
     const m = a.length, n = b.length
@@ -2296,16 +2297,17 @@ function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userN
     return dp[m][n]
   }
 
-  const generateExercises = async () => {
+  const generateExercises = async (chosenDifficulty) => {
     setLoading(true); setError(null); setIndex(0); setDone(false)
     setCorrect(0); setRevealed(false); setSelfRating(null); setUserInput(''); setSemanticResult(null)
 
-    // Determine level from mastered card count
+    const diffLabel = { leicht: 'beginner (A1-A2)', mittel: 'intermediate (B1)', schwer: 'advanced (B2-C1)' }[chosenDifficulty || 'mittel'] || 'intermediate (B1)'
+
+    // Determine level from mastered card count (pool only if difficulty is mittel/default)
     const masteredCount = Object.values(cardProgress || {}).filter(p => (p?.interval || 0) >= 3).length
-    const poolLevel = masteredCount <= 10 ? 1 : masteredCount <= 30 ? 2 : masteredCount <= 60 ? 3 : null
+    const poolLevel = (!chosenDifficulty || chosenDifficulty === 'mittel') ? (masteredCount <= 10 ? 1 : masteredCount <= 30 ? 2 : masteredCount <= 60 ? 3 : null) : null
     const langPair = `${lang}_${userToLang}`
 
-    // Try pool first (levels 1-3 only)
     if (poolLevel) {
       try {
         const poolSnap = await getDoc(doc(db, 'sharedSentences', `${langPair}_level${poolLevel}`))
@@ -2326,16 +2328,16 @@ function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userN
       } catch (e) { console.warn('[Vocara] Sentence pool load failed, using KI:', e.message) }
     }
 
-    // Fall back to KI — level 7+ or pool unavailable
     const wordList = knownVocab.map(c => c.back).slice(0, 30).join(', ')
-    const prompt = `Create 8 varied grammar exercises for a ${targetLang} learner (${fromLang} native speaker).
+    const prompt = `Create 8 varied grammar exercises for a ${targetLang} learner at ${diffLabel} level. Native language: ${fromLang}.
 Use these known words where possible: ${wordList}
-Mix all 5 types equally. Return ONLY valid JSON array, no markdown:
-[{"type":"gap","question":"She [___] to school every day.","answer":"goes","hint":"3rd person singular present","explanation":"Add -s/-es in 3rd person singular present."},
-{"type":"order","question":"Arrange the words:","chips":["goes","she","school","to","every","day"],"answer":"She goes to school every day.","explanation":"English word order: Subject + Verb + Object."},
-{"type":"tense","question":"She goes to school. (Past →)","answer":"She went to school.","hint":"irregular verb","explanation":"go → went (irregular)."},
-{"type":"conjugation","question":"sein + wir →","answer":"sind","hint":"irregular","explanation":"wir sind (irregular)."},
-{"type":"translation","question":"Translate: 'I want to go home.'","answer":"Ich möchte nach Hause gehen.","hint":"use möchten","explanation":"möchten = would like to / want to."}]`
+IMPORTANT: ALL hints, explanations, and question labels must be written in ${fromLang}, not ${targetLang}.
+Mix exercise types: gap, order, tense, conjugation, translation. Return ONLY valid JSON array, no markdown:
+[{"type":"gap","question":"She [___] to school every day.","answer":"goes","hint":"3. Person Singular Präsens","explanation":"Im Präsens wird bei der 3. Person Singular -s/-es angehängt."},
+{"type":"order","question":"Arrange the words:","chips":["goes","she","school","to","every","day"],"answer":"She goes to school every day.","explanation":"Englische Wortstellung: Subjekt + Verb + Objekt."},
+{"type":"tense","question":"She goes to school. (Vergangenheit →)","answer":"She went to school.","hint":"unregelmäßiges Verb","explanation":"go → went (unregelmäßig)."},
+{"type":"conjugation","question":"sein + wir →","answer":"sind","hint":"unregelmäßig","explanation":"wir sind (unregelmäßige Konjugation)."},
+{"type":"translation","question":"Übersetze: 'Ich möchte nach Hause gehen.'","answer":"I want to go home.","hint":"möchten = want to","explanation":"möchten wird mit want to übersetzt."}]`
     try {
       const res = await fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -2417,6 +2419,31 @@ Mix all 5 types equally. Return ONLY valid JSON array, no markdown:
     translation: lang === 'de' ? '🌐 Übersetzung' : '🌐 Translation',
   })[type] || type
 
+  // ── DIFFICULTY SELECTOR (shown before starting) ──
+  if (!difficulty && exercises.length === 0 && !loading) {
+    const isDE = lang === 'de'
+    const levels = [
+      { key: 'leicht', label: isDE ? 'Leicht' : 'Easy', sub: isDE ? 'A1–A2 · Grundlagen' : 'A1–A2 · Basics' },
+      { key: 'mittel', label: isDE ? 'Mittel' : 'Medium', sub: isDE ? 'B1 · Aufbau' : 'B1 · Building' },
+      { key: 'schwer', label: isDE ? 'Schwer' : 'Hard', sub: isDE ? 'B2–C1 · Fortgeschritten' : 'B2–C1 · Advanced' },
+    ]
+    return (
+      <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
+        <button style={s.backBtn} onClick={onBack}>←</button>
+        <p style={{ color: th.accent, fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', margin: '0 0 6px' }}>Satztraining</p>
+        <p style={{ color: th.text, fontSize: '1.1rem', fontWeight: '700', margin: '0 0 4px' }}>{isDE ? 'Schwierigkeitsgrad wählen:' : 'Choose difficulty:'}</p>
+        <p style={{ color: th.sub, fontSize: '0.82rem', margin: '0 0 20px' }}>{isDE ? `Übungen auf ${targetLang}` : `Exercises in ${targetLang}`}</p>
+        {levels.map(lv => (
+          <button key={lv.key} onClick={() => { setDifficulty(lv.key); generateExercises(lv.key) }}
+            style={{ ...s.button, marginBottom: '10px', textAlign: 'left', display: 'flex', flexDirection: 'column', padding: '14px 18px' }}>
+            <span style={{ fontWeight: '700', fontSize: '0.95rem' }}>{lv.label}</span>
+            <span style={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.75rem', marginTop: '2px' }}>{lv.sub}</span>
+          </button>
+        ))}
+      </div></div>
+    )
+  }
+
   if (knownVocab.length < 5) return (
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
       <button style={s.backBtn} onClick={onBack}>←</button>
@@ -2455,7 +2482,7 @@ Mix all 5 types equally. Return ONLY valid JSON array, no markdown:
         </p>
         {difficultyScore >= 6 && <p style={{ color: th.accent, fontSize: '0.78rem', marginTop: '8px' }}>⬆️ {lang === 'de' ? 'Schwierigkeitsgrad steigt' : 'Difficulty increasing'}</p>}
       </div>
-      <button style={s.button} onClick={generateExercises}>{t.newExercises}</button>
+      <button style={s.button} onClick={() => setDifficulty(null)}>{t.newExercises}</button>
       <button style={s.logoutBtn} onClick={onBack}>{t.back}</button>
     </div></div>
   )
@@ -3452,7 +3479,7 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
   const handleStop = () => {
     onSaveState?.(queue, index, newProgress)
     if (onStop) {
-      onStop(newProgress, answeredIds.current.size)
+      onStop(newProgress, answeredIds.current.size, correct, wrong)
     } else {
       if (answeredIds.current.size > 0) {
         onSaveSessionProgress?.(Array.from(answeredIds.current), mode)
@@ -5271,6 +5298,8 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
   const today = todayStr()
   const yd = new Date(); yd.setDate(yd.getDate() - 1)
   const yesterday = `${yd.getFullYear()}-${String(yd.getMonth() + 1).padStart(2, '0')}-${String(yd.getDate()).padStart(2, '0')}`
+  const tomD = new Date(); tomD.setDate(tomD.getDate() + 1)
+  const tomorrow = `${tomD.getFullYear()}-${String(tomD.getMonth() + 1).padStart(2, '0')}-${String(tomD.getDate()).padStart(2, '0')}`
   const pausedLanguages = myData?.pausedLanguages || []
   const excludedCardIds = new Set(Object.keys(myData?.excludedCards || {}))
   const safeCards = allCards || []
@@ -5278,6 +5307,7 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
   const activeCards = safeCards
     .filter(c => !excludedCardIds.has(c.id))
     .filter(c => pausedLanguages.length === 0 || !pausedLanguages.includes(c.targetLang))
+  const tomorrowDueCards = activeCards.filter(c => (cardProgress[c.id]?.nextReview || '') === tomorrow)
 
   // ── WORT DES TAGES ────────────────────────────────────────
   const wordOfDay = (() => {
@@ -5776,7 +5806,43 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
     if (existingBasics.length > 0) {
       const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
       const sess = buildSession(existingBasics, cardProgress)
-      const finalSess = sess.length > 0 ? sess : shuffle(existingBasics).slice(0, SESSION_SIZE)
+      if (sess.length > 0) {
+        setCurrentSessionMode('basics'); setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+        markAreaDone('basics'); return
+      }
+      // All cards at interval >= 3 — no due cards. Prefer non-mastered (interval < 5) first.
+      const notMastered = existingBasics.filter(c => (cardProgress[c.id]?.interval || 0) < 5)
+      if (notMastered.length > 0) {
+        const finalSess = shuffle(notMastered).slice(0, SESSION_SIZE)
+        setCurrentSessionMode('basics'); setSession(finalSess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+        markAreaDone('basics'); return
+      }
+      // All basics fully mastered (interval >= 5) — try fetching next pool level
+      setBasicsLoading(true)
+      const lA = isMarkLang ? 'de' : 'en'
+      const lB = isMarkLang ? 'en' : 'de'
+      const currentLevel = myData?.basicsPoolLevel || 1
+      const nextLevel = currentLevel + 1
+      const poolNext = await fetchGrundlagenPool(lA, lB, nextLevel)
+      if (poolNext?.length > 0) {
+        const ts = Date.now()
+        const existingFronts = new Set(existingBasics.map(c => (c.front || '').toLowerCase()))
+        const newCards = poolNext.filter(c => c.front && c.back && !existingFronts.has(c.front.toLowerCase()))
+          .slice(0, 20).map((c, i) => ({ ...c, id: `basics_pool_${ts}_${i}`, langA: lA, langB: lB, category: 'basics', source: 'base-pool', createdAt: ts }))
+        if (newCards.length > 0) {
+          const updatedAiCards = [...(myData?.aiCards || []), ...newCards]
+          const updatedProgress = { ...(myData?.cardProgress || {}) }
+          newCards.forEach(c => { updatedProgress[c.id] = { interval: 0, consecutiveRight: 0, wrongSessions: 0, nextReview: todayStr() } })
+          await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress, basicsPoolLevel: nextLevel })
+          setMyData(d => ({ ...d, aiCards: updatedAiCards, cardProgress: updatedProgress, basicsPoolLevel: nextLevel }))
+          const finalSess = [...newCards].sort(() => Math.random() - 0.5).slice(0, SESSION_SIZE)
+          setCurrentSessionMode('basics'); setSession(finalSess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+          markAreaDone('basics'); setBasicsLoading(false); return
+        }
+      }
+      setBasicsLoading(false)
+      // No new level available — rotate all basics
+      const finalSess = shuffle(existingBasics).slice(0, SESSION_SIZE)
       setCurrentSessionMode('basics'); setSession(finalSess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
       markAreaDone('basics'); return
     }
@@ -5916,11 +5982,15 @@ Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","
     setResumeStartProgress(pendingSession.newProgress || null); setPendingSession(null); setScreen('cards')
   }
   const discardSession = async () => { await clearSessionState(user.uid); setPendingSession(null) }
-  const handleSessionStop = async (finalProgress, answeredCount) => {
+  const handleSessionStop = async (finalProgress, answeredCount, correctCount = 0, wrongCount = 0) => {
     setScreen('menu'); setSession(null)
     if (answeredCount > 0) {
       try {
         await onSaveProgress(finalProgress)
+        if (correctCount + wrongCount > 0) {
+          const updatedHistory = await saveSessionHistory(user.uid, correctCount, correctCount + wrongCount, sessionHistory, null, currentSessionMode)
+          setMyData(d => ({ ...d, sessionHistory: updatedHistory }))
+        }
         const msg = `${answeredCount} Karte${answeredCount !== 1 ? 'n' : ''} gespeichert ✓`
         setStopToast(msg)
         setTimeout(() => setStopToast(null), 3000)
@@ -6296,7 +6366,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     setScreen('result')
   }
 
-  if (screen === 'cards' && session) return <>{homeFloat}<CardScreen user={user} session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} onSaveSessionProgress={saveSessionProgress} onStop={handleSessionStop} onSaveExample={handleSaveExample} mode={currentSessionMode} startIndex={resumeStartIndex} startProgress={resumeStartProgress} userToLang={activeToLang} socialRegister={myData?.socialRegister || 'friends'} onNeverLearn={(card) => setNeverLearnModal(card)} onKontext={(card) => { setKontextCard(card); setKontextPrevScreen('cards'); setScreen('kontext') }} /></>
+  if (screen === 'cards' && session) return <CardScreen user={user} session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} onSaveSessionProgress={saveSessionProgress} onStop={handleSessionStop} onSaveExample={handleSaveExample} mode={currentSessionMode} startIndex={resumeStartIndex} startProgress={resumeStartProgress} userToLang={activeToLang} socialRegister={myData?.socialRegister || 'friends'} onNeverLearn={(card) => setNeverLearnModal(card)} onKontext={(card) => { setKontextCard(card); setKontextPrevScreen('cards'); setScreen('kontext') }} />
   if (screen === 'rhythmus') return <>{homeFloat}<RhythmusScreen lang={lang} theme={theme} onBack={() => { setScreen('result') }} allCards={allCards} cardProgress={cardProgress} userToLang={activeToLang} t={t} /></>
   if (screen === 'kontext' && kontextCard) return <>{homeFloat}<KontextwechselScreen card={kontextCard} lang={lang} theme={theme} userToLang={activeToLang} user={user} onBack={() => setScreen(kontextPrevScreen)} onSaveCard={async (newCard) => { const updated = [...(myData?.aiCards || []), newCard]; await updateDoc(doc(db, 'users', user.uid), { aiCards: updated }).catch(() => {}); setMyData(d => ({ ...d, aiCards: updated })) }} t={t} /></>
   if (screen === 'result' && result) return <>{homeFloat}<ResultScreen correct={result.correct} wrong={result.wrong} fast={result.fast} easy={result.easy} weakestCard={result.weakestCard} strongestCard={result.strongestCard} masteryUnlocked={masteryUnlocked} showRhythmus={result.showRhythmus} urlaubNote={result.urlaubNote} kontextCard={result.kontextCard} onUnlockUrlaub={() => setSoftPaywall({ area: 'urlaub', used: 3, limit: 10 })} onRhythmus={() => setScreen('rhythmus')} onKontext={result.kontextCard ? () => { setKontextCard(result.kontextCard); setKontextPrevScreen('result'); setScreen('kontext') } : null} t={t} lang={lang} onBack={() => { setScreen('menu'); setSession(null) }} onReplay={result.originalSession ? () => { setSession(result.originalSession); setResumeStartIndex(0); setResumeStartProgress(null); setScreen('cards') } : null} s={s} th={th} /></>
@@ -6804,6 +6874,16 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         )
       })()}
 
+
+      {/* ── MORGEN FÄLLIG BUTTON ── */}
+      {tomorrowDueCards.length > 0 && (
+        <button onClick={() => {
+          const batch = [...tomorrowDueCards].sort(() => Math.random() - 0.5).slice(0, 5)
+          setCurrentSessionMode('vocabulary'); setSession(batch); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+        }} style={{ ...s.navBtn, background: `${th.accent}15`, border: `1px solid ${th.accent}44`, color: th.accent, textAlign: 'center', marginBottom: '10px', fontWeight: '700' }}>
+          ⏰ {isMarkLang ? `Morgen fällig: ${tomorrowDueCards.length} Karte${tomorrowDueCards.length !== 1 ? 'n' : ''}` : `Due tomorrow: ${tomorrowDueCards.length} card${tomorrowDueCards.length !== 1 ? 's' : ''}`}
+        </button>
+      )}
 
       {/* ── SECONDARY NAVIGATION ── */}
       <div className="vocara-nav-section" style={{ marginTop: '4px', marginBottom: '10px' }}>
@@ -7634,12 +7714,16 @@ function KarteErstellenScreen({ user, myData, setMyData, allCards, lang, theme, 
 
   const [srcLangs, setSrcLangs] = useState(initSrcLangs)
   const [tgtLang, setTgtLang] = useState(initTgtLang)
+  const [langWeightsDirty, setLangWeightsDirty] = useState(false)
+  const [langWeightsSaved, setLangWeightsSaved] = useState(false)
 
   const saveLangPrefs = async (newSrc, newTgt) => {
     try {
       await setDoc(doc(db, 'users', user.uid, 'settings', 'langWeights'), { fromLangs: newSrc, tgtLang: newTgt }, { merge: true }).catch(() => {})
       await updateDoc(doc(db, 'users', user.uid), { fromLangs: newSrc, cardTgtLang: newTgt }).catch(() => {})
       setMyData(d => ({ ...d, fromLangs: newSrc, cardTgtLang: newTgt }))
+      setLangWeightsDirty(false); setLangWeightsSaved(true)
+      setTimeout(() => setLangWeightsSaved(false), 2000)
     } catch(e) {}
   }
 
@@ -7650,7 +7734,7 @@ function KarteErstellenScreen({ user, myData, setMyData, allCards, lang, theme, 
     const next = [...adj, { lang: code, percent: pct }]
     const diff = 100 - next.reduce((a, b) => a + b.percent, 0)
     next[0].percent += diff
-    setSrcLangs(next); saveLangPrefs(next, tgtLang)
+    setSrcLangs(next); setLangWeightsDirty(true)
   }
 
   const removeSrcLang = (code) => {
@@ -7660,7 +7744,7 @@ function KarteErstellenScreen({ user, myData, setMyData, allCards, lang, theme, 
     const next = rest.map(l => ({ ...l, percent: Math.round(l.percent * 100 / total) }))
     const diff = 100 - next.reduce((a, b) => a + b.percent, 0)
     if (next.length > 0) next[0].percent += diff
-    setSrcLangs(next); saveLangPrefs(next, tgtLang)
+    setSrcLangs(next); setLangWeightsDirty(true)
     if (activeSrcLang === code) setActiveSrcLang(next[0]?.lang || 'de')
   }
 
@@ -7675,9 +7759,7 @@ function KarteErstellenScreen({ user, myData, setMyData, allCards, lang, theme, 
     const diff = 100 - pct - adj.reduce((a, b) => a + b.percent, 0)
     if (adj.length > 0) adj[adj.length - 1].percent += diff
     const next = srcLangs.map(l => l.lang === code ? { ...l, percent: pct } : (adj.find(a => a.lang === l.lang) || l))
-    setSrcLangs(next)
-    clearTimeout(window.__lwSave)
-    window.__lwSave = setTimeout(() => saveLangPrefs(next, tgtLang), 700)
+    setSrcLangs(next); setLangWeightsDirty(true)
   }
 
   const setTgtAndSave = (code) => { setTgtLang(code); saveLangPrefs(srcLangs, code) }
@@ -7822,6 +7904,16 @@ function KarteErstellenScreen({ user, myData, setMyData, allCards, lang, theme, 
               </button>
             ))}
           </div>
+        )}
+
+        {langWeightsDirty && (
+          <button onClick={() => saveLangPrefs(srcLangs, tgtLang)}
+            style={{ width: '100%', padding: '10px', borderRadius: '10px', border: `1px solid ${th.accent}`, background: `${th.accent}22`, color: th.accent, fontWeight: '700', fontSize: '0.88rem', cursor: 'pointer', marginBottom: '14px', WebkitTapHighlightColor: 'transparent' }}>
+            💾 {isDE ? 'Sprachanteil speichern' : 'Save language split'}
+          </button>
+        )}
+        {langWeightsSaved && (
+          <p style={{ color: '#4CAF50', fontSize: '0.8rem', textAlign: 'center', marginBottom: '10px' }}>✓ {isDE ? 'Gespeichert!' : 'Saved!'}</p>
         )}
 
         <p style={{ color: th.sub, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
