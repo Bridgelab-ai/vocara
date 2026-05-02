@@ -1,4 +1,10 @@
-# Vocara – Vollständige ToDo & Ideen-Liste (Stand 29.04.2026)
+# Vocara – Vollständige ToDo & Ideen-Liste (Stand 02.05.2026)
+
+## ✅ Implementiert (02.05.2026 Session 41) — V01.053.064
+- OFFLINE-FIRST / INDEXEDDB: firebase.js → initializeFirestore + persistentLocalCache({ cacheSizeBytes: CACHE_SIZE_UNLIMITED }); ersetzt getFirestore(); Firestore-Reads aus IndexedDB-Cache wenn Daten unverändert — zero Read-Cost bei wiederholtem Laden ✅
+- CARD CACHING (localStorage): src/hooks/useCardCache.js neu — getCards(key)/setCards(key,data)/invalidateCache(key), 7-Tage-TTL; fetchGrundlagenPool + SatzTraining sharedExercises-Read durch Cache-Layer ergänzt; Firestore-Read wird bei unverändertem Pool komplett übersprungen ✅
+- BATCH WRITES (session end): handleFinish + handleSessionStop nutzen writeBatch(db); cardProgress + sessionHistory + masteredPerCategory + timeUpdate + firedStreakGimmicks → ein batch.update(users/{uid}) + batch.set(publicStats) = 2 Dokumente, 1 Round Trip; writePublicStats-Read-Chain entfernt; pendingProgressRef + beforeunload-Handler sichert Fortschritt bei Browser-Close ✅
+- VERSION V01.053.064 ✅
 
 ## ✅ Implementiert (02.05.2026 Session 40) — V01.052.061
 - FORTSCHRITTSBALKEN PERSISTENZ: masteredPerCategory (Map pro Kategorie) wird bei handleFinish + handleSessionStop in Firestore gespeichert; levelBadge liest myData.masteredPerCategory als primäre Quelle — Fortschrittsbalken überleben Page-Reload auch ohne allCards neu zu berechnen ✅

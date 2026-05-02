@@ -23,7 +23,13 @@
       "Bash(awk *)",
       "Bash(grep -v \"^\\\\s*//\")",
       "Bash(node --input-type=module --eval \"import './scripts/add-language.js'\")",
-      "Bash(wc *)"
+      "Bash(wc *)",
+      "Bash(firebase deploy *)",
+      "Bash(npx firebase-tools *)",
+      "Bash(npx firebase-tools@latest *)",
+      "Bash(curl *)",
+      "PowerShell(Start-Sleep -Seconds 40; Invoke-WebRequest -Uri \"https://vocara-peach.vercel.app/api/generate-sentence-pool\" -Method POST -UseBasicParsing -TimeoutSec 300 | Select-Object -ExpandProperty Content)",
+      "Bash(firebase --version)"
     ]
   }
 }

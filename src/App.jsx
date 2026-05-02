@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback, Component } from 'react'
 import { auth, db } from './firebase'
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
-import { doc, setDoc, getDoc, updateDoc, deleteDoc, onSnapshot, collection, addDoc, getDocs } from 'firebase/firestore'
+import { doc, setDoc, getDoc, updateDoc, deleteDoc, onSnapshot, collection, addDoc, getDocs, writeBatch } from 'firebase/firestore'
+import { getCards, setCards } from './hooks/useCardCache'
 import './App.css'
 
 // ── APP PREFS CONTEXT (lightMode, cardSize) ─────────────────────
@@ -43,7 +44,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.052.061'
+const APP_VERSION = 'V01.053.064'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -1623,11 +1624,15 @@ const fetchSharedCards = async (fromLang, toLang) => {
 
 // Load base pool (grundlagen level 1) cards for a language pair
 const fetchGrundlagenPool = async (fromLang, toLang, level = 1) => {
+  const cacheKey = `grundlagen_${fromLang}_${toLang}_${level}`
+  const cached = getCards(cacheKey)
+  if (cached) return cached
   try {
     const snap = await getDoc(doc(db, 'sharedCards', `${fromLang}_${toLang}_grundlagen_${level}`))
     if (!snap.exists()) return null
     const cards = snap.data()?.cards
-    return Array.isArray(cards) && cards.length > 0 ? cards : null
+    if (Array.isArray(cards) && cards.length > 0) { setCards(cacheKey, cards); return cards }
+    return null
   } catch { return null }
 }
 
@@ -2335,21 +2340,26 @@ function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userN
 
     // Try sharedExercises pool first (difficulty-specific, pre-generated)
     try {
-      const poolSnap = await getDoc(doc(db, 'sharedExercises', `${langPair}_satz_${diffKey}`))
-      if (poolSnap.exists()) {
-        const raw = poolSnap.data().exercises || []
-        if (raw.length >= 8) {
-          const pool = raw.map(ex => ({
-            ...ex,
-            chips: ex.chips && ex.chips.length > 0 ? ex.chips : (ex.type === 'order' ? ex.answer.split(' ') : undefined),
-          }))
-          const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, 8)
-          setExercises(shuffled)
-          exerciseStartRef.current = Date.now()
-          if (shuffled[0]?.type === 'order') initChips(shuffled[0])
-          setLoading(false)
-          return
+      const cacheKey = `satz_${langPair}_${diffKey}`
+      let rawExercises = getCards(cacheKey)
+      if (!rawExercises) {
+        const poolSnap = await getDoc(doc(db, 'sharedExercises', `${langPair}_satz_${diffKey}`))
+        if (poolSnap.exists()) {
+          rawExercises = poolSnap.data().exercises || []
+          if (rawExercises.length >= 8) setCards(cacheKey, rawExercises)
         }
+      }
+      if (rawExercises && rawExercises.length >= 8) {
+        const pool = rawExercises.map(ex => ({
+          ...ex,
+          chips: ex.chips && ex.chips.length > 0 ? ex.chips : (ex.type === 'order' ? ex.answer.split(' ') : undefined),
+        }))
+        const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, 8)
+        setExercises(shuffled)
+        exerciseStartRef.current = Date.now()
+        if (shuffled[0]?.type === 'order') initChips(shuffled[0])
+        setLoading(false)
+        return
       }
     } catch (e) { console.warn('[Vocara] sharedExercises pool load failed, falling back to KI:', e.message) }
 
@@ -5033,6 +5043,7 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
   const [kontextPrevScreen, setKontextPrevScreen] = useState('result')
   const [tenseUnlockCelebration, setTenseUnlockCelebration] = useState(null) // 'past' | 'future' | null
   const [neverLearnModal, setNeverLearnModal] = useState(null) // card object | null
+  const pendingProgressRef = useRef(null)
   const VALID_SCREENS = new Set(['menu','cards','result','settings','partner','test','impressum','stats','ki','satz','diary','meinekarten','geschenkkarte','karteerstellen','admin','rhythmus','kontext'])
   if (!VALID_SCREENS.has(screen)) { setScreen('menu'); return null }
 
@@ -5425,6 +5436,18 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
     }
     checkPending()
   }, [screen])
+
+  useEffect(() => {
+    const handler = () => {
+      const prog = pendingProgressRef.current
+      if (!prog || !user?.uid) return
+      const batch = writeBatch(db)
+      batch.update(doc(db, 'users', user.uid), { cardProgress: prog })
+      batch.commit().catch(() => {})
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [user])
 
   useEffect(() => {
     const handler = (e) => { if (e.target.closest('.vocara-cat-btn') && navigator.vibrate) navigator.vibrate(20) }
@@ -6015,11 +6038,9 @@ Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","
   }
   const discardSession = async () => { await clearSessionState(user.uid); setPendingSession(null) }
   const handleSessionStop = async (finalProgress, answeredCount, correctCount = 0, wrongCount = 0) => {
-    setScreen('menu'); setSession(null)
+    setScreen('menu'); setSession(null); pendingProgressRef.current = null
     if (answeredCount > 0) {
       try {
-        await onSaveProgress(finalProgress)
-        // Persist per-category mastered counts so level badges survive page reload
         const masteredPerCategory = {}
         ;['vocabulary', 'sentence', 'street', 'home', 'basics', 'urlaub'].forEach(cat => {
           masteredPerCategory[cat] = (allCards || []).filter(c => {
@@ -6027,12 +6048,12 @@ Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","
             return c.category === cat && !/_r(_\d+)?$/.test(c.id) && (finalProgress[baseId]?.interval || finalProgress[c.id]?.interval || 0) >= 3
           }).length
         })
-        updateDoc(doc(db, 'users', user.uid), { masteredPerCategory }).catch(() => {})
-        setMyData(d => ({ ...d, masteredPerCategory }))
-        if (correctCount + wrongCount > 0) {
-          const updatedHistory = await saveSessionHistory(user.uid, correctCount, correctCount + wrongCount, sessionHistory, null, currentSessionMode)
-          setMyData(d => ({ ...d, sessionHistory: updatedHistory }))
-        }
+        const entry = { date: todayStr(), correct: correctCount, total: correctCount + wrongCount, ts: Date.now(), area: currentSessionMode }
+        const updatedHistory = [entry, ...(sessionHistory || [])].slice(0, 60)
+        const batch = writeBatch(db)
+        batch.update(doc(db, 'users', user.uid), { cardProgress: finalProgress, masteredPerCategory, sessionHistory: updatedHistory })
+        await batch.commit()
+        setMyData(d => ({ ...d, cardProgress: finalProgress, masteredPerCategory, sessionHistory: updatedHistory }))
         const msg = `${answeredCount} Karte${answeredCount !== 1 ? 'n' : ''} gespeichert ✓`
         setStopToast(msg)
         setTimeout(() => setStopToast(null), 3000)
@@ -6117,7 +6138,10 @@ Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","
     } catch (e) { console.warn('Streak freeze failed:', e) }
   }
 
-  const handleSaveState = async (queue, index, newProgress) => { await saveSessionState(user.uid, queue, index, newProgress) }
+  const handleSaveState = async (queue, index, newProgress) => {
+    pendingProgressRef.current = newProgress
+    await saveSessionState(user.uid, queue, index, newProgress)
+  }
   const saveSessionProgress = async (cardIds, mode) => {
     const sp = { cardIds, mode, timestamp: Date.now() }
     try { await updateDoc(doc(db, 'users', user.uid), { sessionProgress: sp }); setMyData(d => ({ ...d, sessionProgress: sp })) } catch (e) { console.warn('Session progress save failed:', e) }
@@ -6331,7 +6355,6 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
       const newBatch = getNextNewCards(allCards, finalProgress, NEW_CARDS_BATCH)
       if (newBatch.length > 0) {
         newBatch.forEach(card => {
-          // New cards available immediately
           finalProgress[card.id] = { interval: 0, consecutiveFast: 0, wrongSessions: 0, nextReview: todayStr() }
         })
         unlocked = true
@@ -6339,7 +6362,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
       generateAICards()
     }
     setMasteryUnlocked(unlocked)
-    await onSaveProgress(finalProgress)
+    pendingProgressRef.current = null
     // ── Learning time tracking ─────────────────────────────
     const sessionMinutes = Math.max(1, Math.round((correct + wrong) * 30 / 60))
     const nowMonth = new Date().toISOString().slice(0, 7)
@@ -6350,20 +6373,42 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     const newWeeklyMinutes = prevWeekly + sessionMinutes
     const newTotalMinutes = (myData?.totalMinutes || 0) + sessionMinutes
     const timeUpdate = { monthlyMinutes: newMonthlyMinutes, weeklyMinutes: newWeeklyMinutes, totalMinutes: newTotalMinutes, learningMonth: nowMonth, learningWeek: nowWeek }
-    const updatedHistory = await saveSessionHistory(user.uid, correct, correct + wrong, sessionHistory, timeUpdate, currentSessionMode)
-    setMyData(d => ({ ...d, sessionHistory: updatedHistory, ...timeUpdate }))
-    // Publish full stats to public profile so partner can read them
+    // ── Inline session history entry ───────────────────────
+    const histEntry = { date: todayStr(), correct, total: correct + wrong, ts: Date.now(), area: currentSessionMode }
+    const updatedHistory = [histEntry, ...(sessionHistory || [])].slice(0, 60)
     const myMasteredNow = Object.values(finalProgress).filter(p => (p?.interval || 0) >= 7).length
     const myStreakNow = calcStreak([...(sessionHistory || []), { date: todayStr(), correct, total: correct + wrong }])
+    // ── Per-category mastered counts ───────────────────────
+    const masteredPerCategory = {}
+    ;['vocabulary', 'sentence', 'street', 'home', 'basics', 'urlaub'].forEach(cat => {
+      masteredPerCategory[cat] = (allCards || []).filter(c => {
+        const baseId = c.id.replace(/_r(_\d+)?$/, '')
+        return c.category === cat && !/_r(_\d+)?$/.test(c.id) && (finalProgress[baseId]?.interval || finalProgress[c.id]?.interval || 0) >= 3
+      }).length
+    })
     // ── Streak milestone gimmick ──
     const STREAK_MILESTONES = [7, 14, 30, 60]
     const firedMilestones = myData?.firedStreakGimmicks || []
     const hitMilestone = STREAK_MILESTONES.find(m => myStreakNow >= m && !firedMilestones.includes(m))
+    const updatedMilestones = hitMilestone ? [...firedMilestones, hitMilestone] : firedMilestones
+    const pubStats = { weeklyMinutes: newWeeklyMinutes, monthlyMinutes: newMonthlyMinutes, totalMinutes: newTotalMinutes, learningWeek: nowWeek, learningMonth: nowMonth, totalCards: allCards.filter(c => !/_r(_\d+)?$/.test(c.id)).length, masteredCards: myMasteredNow, streak: myStreakNow, lastActive: Date.now(), displayName: user.displayName || '', name: user.displayName?.split(' ')[0] || 'Partner', uid: user.uid }
+    // ── Single batch: user doc + publicStats (2 documents, 1 round trip) ──
+    try {
+      const batch = writeBatch(db)
+      batch.update(doc(db, 'users', user.uid), {
+        cardProgress: finalProgress,
+        sessionHistory: updatedHistory,
+        masteredPerCategory,
+        ...timeUpdate,
+        ...(hitMilestone ? { firedStreakGimmicks: updatedMilestones } : {}),
+      })
+      batch.set(doc(db, 'users', user.uid, 'publicStats', 'data'), pubStats, { merge: true })
+      await batch.commit()
+    } catch (e) { console.error('[Vocara] handleFinish batch failed:', e.message) }
+    setMyData(d => ({ ...d, cardProgress: finalProgress, sessionHistory: updatedHistory, masteredPerCategory, ...timeUpdate, ...(hitMilestone ? { firedStreakGimmicks: updatedMilestones } : {}) }))
+    // ── Streak gimmick UI + side effects (fire-and-forget) ──
     if (hitMilestone) {
-      const updatedMilestones = [...firedMilestones, hitMilestone]
-      updateDoc(doc(db, 'users', user.uid), { firedStreakGimmicks: updatedMilestones }).catch(() => {})
       setDoc(doc(db, 'streakGimmick', user.uid, 'milestones', String(hitMilestone)), { theme, firedAt: new Date().toISOString(), streak: myStreakNow }).catch(() => {})
-      setMyData(d => ({ ...d, firedStreakGimmicks: updatedMilestones }))
       setGimmickStreakDays(hitMilestone)
       setGimmickPopup(true)
       setTimeout(() => { setGimmickPopup(false); setGimmickStreakDays(null) }, 6000)
@@ -6374,22 +6419,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         audio.play().catch(() => {})
       } catch (e) {}
     }
-    // Persist per-category mastered counts so level badges survive page reload
-    const masteredPerCategory = {}
-    ;['vocabulary', 'sentence', 'street', 'home', 'basics', 'urlaub'].forEach(cat => {
-      masteredPerCategory[cat] = (allCards || []).filter(c => {
-        const baseId = c.id.replace(/_r(_\d+)?$/, '')
-        return c.category === cat && !/_r(_\d+)?$/.test(c.id) && (finalProgress[baseId]?.interval || finalProgress[c.id]?.interval || 0) >= 3
-      }).length
-    })
-    updateDoc(doc(db, 'users', user.uid), { masteredPerCategory }).catch(() => {})
-    setMyData(d => ({ ...d, masteredPerCategory }))
-    const pubStats = { weeklyMinutes: newWeeklyMinutes, monthlyMinutes: newMonthlyMinutes, totalMinutes: newTotalMinutes, learningWeek: nowWeek, learningMonth: nowMonth, totalCards: allCards.filter(c => !/_r(_\d+)?$/.test(c.id)).length, masteredCards: myMasteredNow, streak: myStreakNow, lastActive: Date.now(), displayName: user.displayName || '', name: user.displayName?.split(' ')[0] || 'Partner', uid: user.uid }
-    // Write partner-visible stats — call writePublicStats then merge session stats
-    writePublicStats(user.uid, user, db).then(() => {
-      setDoc(doc(db, 'users', user.uid, 'publicStats', 'data'), pubStats, { merge: true }).catch(e => console.error('[Vocara] publicStats session write failed:', e.message))
-    })
-    // Notify partner of activity
+    // ── Partner notification (different user's collection, fire-and-forget) ──
     if (myData?.partnerUID) {
       const notifId = `session_${user.uid}_${Date.now()}`
       setDoc(doc(db, 'users', myData.partnerUID, 'publicStats', 'pendingNotifs_' + notifId), {
@@ -6397,7 +6427,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         cards: correct + wrong, ts: Date.now()
       }).catch(() => {})
     }
-    await clearSessionState(user.uid)
+    clearSessionState(user.uid)
     const statsEntries = Object.entries(cardStats || {})
     const weakestEntry = statsEntries.filter(([, v]) => v.wrongs > 0).sort((a, b) => b[1].wrongs - a[1].wrongs)[0]
     const strongestEntry = statsEntries.filter(([, v]) => v.wrongs === 0 && v.fastestMs < Infinity).sort((a, b) => a[1].fastestMs - b[1].fastestMs)[0]
