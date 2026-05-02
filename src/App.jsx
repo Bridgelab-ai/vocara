@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.043.024'
+const APP_VERSION = 'V01.044.025'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -2855,7 +2855,7 @@ function PartnerScreen({ user, myData, lang, theme, onBack, onPartnerUpdate }) {
   // Accept: write partnerUID to both profiles, update publicStats, delete request
   const acceptRequest = async (req) => {
     const { fromUid, fromName } = req
-    try { localStorage.removeItem('vocara_disconnected_' + user.uid) } catch {}
+    try { localStorage.removeItem('vocara_manually_disconnected') } catch {}
     try {
       const connectedAt = Date.now()
       await updateDoc(doc(db, 'users', user.uid), { partnerUID: fromUid, partnerName: fromName, partnerConnectedAt: connectedAt })
@@ -2896,7 +2896,7 @@ function PartnerScreen({ user, myData, lang, theme, onBack, onPartnerUpdate }) {
       }
       if (!partnerUID) { setStatus(lang === 'de' ? 'Code nicht gefunden.' : 'Code not found.'); return }
       if (partnerUID === user.uid) { setStatus(lang === 'de' ? 'Das bist du.' : 'That is you.'); return }
-      try { localStorage.removeItem('vocara_disconnected_' + user.uid) } catch {}
+      try { localStorage.removeItem('vocara_manually_disconnected') } catch {}
       await sendRequest(partnerUID)
     } catch { setStatus(lang === 'de' ? 'Fehler.' : 'Error.') }
   }
@@ -2904,7 +2904,7 @@ function PartnerScreen({ user, myData, lang, theme, onBack, onPartnerUpdate }) {
   // Disconnect: only remove from own profile, set flag so auto-reconnect is skipped
   const disconnect = async () => {
     if (!window.confirm(lang === 'de' ? 'Partner wirklich trennen?' : 'Really disconnect?')) return
-    try { localStorage.setItem('vocara_disconnected_' + user.uid, 'true') } catch {}
+    try { localStorage.setItem('vocara_manually_disconnected', 'true') } catch {}
     await updateDoc(doc(db, 'users', user.uid), { partnerUID: null, partnerName: null })
     setDoc(doc(db, 'users', user.uid, 'publicStats', 'data'), { partnerUID: null, partnerName: null }, { merge: true }).catch(() => {})
     onPartnerUpdate(null)
@@ -3569,7 +3569,7 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
       fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 90,
-          messages: [{ role: 'user', content: `You MUST respond ONLY in ${fromLangName}. Never use ${toLangName}.\nIn ${fromLangName} only: Explain in max 2 sentences why "${item.back}" is the correct ${toLangName} translation of "${item.front}". Be specific about grammar or meaning. No intro.` }]
+          messages: [{ role: 'user', content: `You MUST respond ONLY in ${fromLangName}. Never use ${toLangName}.\nIn ${fromLangName} only: Why is "${item.back}" the correct ${toLangName} for "${item.front}"? Max 2 sentences. Be specific about grammar or meaning. No intro.` }]
         })
       }).then(r => r.json()).then(d => setKiExplanation(d.content?.[0]?.text?.trim() || null)).catch(() => setKiExplanation(null))
     }
@@ -3878,8 +3878,9 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
             {kiExplanation === 'loading'
               ? <p style={{ color: '#8A8A9A', fontSize: '0.78rem', margin: 0, animation: 'vocaraPulse 1.2s infinite' }}>💡 {lang === 'de' ? 'KI erklärt…' : 'AI explaining…'}</p>
               : <>
-                  <p style={{ color: '#e57373', fontSize: '0.68rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 4px' }}>💡 {lang === 'de' ? 'KI erklärt:' : 'AI explains:'}</p>
-                  <p style={{ color: '#ffcdd2', fontSize: '0.8rem', margin: 0, lineHeight: 1.55 }}>{kiExplanation}</p>
+                  <p style={{ color: '#81c784', fontSize: '0.88rem', fontWeight: '700', margin: '0 0 6px', letterSpacing: '0.2px' }}>{item.back}</p>
+                  <p style={{ color: '#e57373', fontSize: '0.65rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 4px' }}>💡 {lang === 'de' ? 'KI erklärt:' : 'AI explains:'}</p>
+                  <p style={{ color: '#ffcdd2', fontSize: '0.78rem', margin: 0, lineHeight: 1.55 }}>{kiExplanation}</p>
                 </>
             }
           </div>
@@ -6511,7 +6512,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
       {myData?._pendingPartnerRequest && (() => {
         const req = myData._pendingPartnerRequest
         const acceptPartnerReq = async () => {
-          try { localStorage.removeItem('vocara_disconnected_' + user.uid) } catch {}
+          try { localStorage.removeItem('vocara_manually_disconnected') } catch {}
           const connectedAt = Date.now()
           try {
             await updateDoc(doc(db, 'users', user.uid), { partnerUID: req.fromUid, partnerName: req.fromName, partnerConnectedAt: connectedAt })
@@ -9100,7 +9101,7 @@ function App() {
             if (!data.languages || data.languages.length === 0) setNeedsLangSetup(true)
           }
           // ── PARTNER CONNECTION: cost-optimized — only write when partnerUid actually changed ──
-          const disconnectedFlag = (() => { try { return localStorage.getItem('vocara_disconnected_' + u.uid) } catch { return null } })()
+          const disconnectedFlag = (() => { try { return localStorage.getItem('vocara_manually_disconnected') } catch { return null } })()
           const CORRECT_PARTNER = u.uid === MARK_UID ? ELOSY_UID : u.uid === ELOSY_UID ? MARK_UID : null
           const CORRECT_PARTNER_NAME = u.uid === MARK_UID ? 'Elosy' : u.uid === ELOSY_UID ? 'Mark' : null
           if (!disconnectedFlag && CORRECT_PARTNER && data.partnerUID !== CORRECT_PARTNER) {

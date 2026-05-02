@@ -1,5 +1,12 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 29.04.2026)
 
+## ✅ Implementiert (02.05.2026 Session 31) — V01.044.025
+- ÜBERSETZUNG MELDEN: Bereits implementiert in V01.040.023 ✅ — 🚩 Button, Modal, Firestore, Admin-Panel
+- KI ERKLÄRT FALSCHE ANTWORT: Korrekte Antwort jetzt grün oben im Erklärpanel sichtbar; Prompt aktualisiert auf "Why is X the correct Y for Z?" ✅
+- PARTNER TRENNEN FIX: vocara_disconnected_{uid} → vocara_manually_disconnected (kein UID-Suffix) — funktioniert geräteübergreifend; flag wird nur bei explizitem Trennen gesetzt, gelöscht bei neuer Verbindung ✅
+- 30 NEUE KARTEN: generate-base-pool.js erweitert um Level 4 (Konjunktionen/Komposita/B1-Phrasen) + vocab_emotions (30 Nuancegefühle/Sprachpaar); alle Paare parallelisiert ✅
+- VERSION V01.044.025 ✅
+
 ## ✅ Implementiert (02.05.2026 Session 30) — V01.043.024
 - VOCAB POOL API: api/generate-vocab-pool.js — 200 Karten/Sprachpaar (de→en, en→de, de→sw), 8 Kategorien (Emotionen 30, Alltag 30, Familie 20, Körper 20, Natur 20, Zeit 20, Reisen 30, Essen 30); schreibt nach sharedCards/{pair}_vocab ✅
 - STREET POOL API: api/generate-street-pool.js — 100 Phrasen/Sprachpaar, 4 Kategorien (Umgangssprache 30, Redewendungen 30, Jugendsprache 20, Smalltalk 20); schreibt nach sharedCards/{pair}_street ✅
