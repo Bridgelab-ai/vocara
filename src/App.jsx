@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.047.025'
+const APP_VERSION = 'V01.048.053'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -1378,18 +1378,17 @@ function makeStyles(th) {
     infoBox: { background: th.accent + '18', border: `1px solid ${th.accent}`, borderRadius: '12px', padding: '12px', marginBottom: '10px', color: th.text, fontSize: '0.9rem' },
     resumeBanner: { background: th.card, border: `1px solid ${th.accent}`, borderRadius: '14px', padding: '14px 16px', marginBottom: '12px', textAlign: 'left' },
     catBtn: {
-      background: 'rgba(255,255,255,0.07)',
-      backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+      background: 'linear-gradient(145deg, rgba(255,255,255,0.1), rgba(255,255,255,0.03))',
       color: '#fff',
       border: '1px solid rgba(255,255,255,0.12)',
-      padding: '12px', borderRadius: '20px', fontSize: '0.9rem', cursor: 'pointer',
+      padding: '10px 12px', borderRadius: '16px', fontSize: '0.9rem', cursor: 'pointer',
       fontWeight: '700', flex: 1, lineHeight: '1.3', textAlign: 'center',
-      boxShadow: '0 4px 16px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)',
+      boxShadow: '0 6px 0 rgba(0,0,0,0.4), 0 8px 16px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.15)',
       fontFamily: "'Playfair Display', Georgia, serif",
       letterSpacing: '0.1px',
       display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center',
-      minHeight: '80px',
-      transition: 'background 0.2s, transform 0.2s',
+      minHeight: '60px',
+      transition: 'transform 0.1s, box-shadow 0.1s',
       WebkitAppearance: 'none', appearance: 'none',
     },
     navBtn: {
@@ -5362,6 +5361,12 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
     checkPending()
   }, [screen])
 
+  useEffect(() => {
+    const handler = (e) => { if (e.target.closest('.vocara-cat-btn') && navigator.vibrate) navigator.vibrate(20) }
+    document.addEventListener('click', handler)
+    return () => document.removeEventListener('click', handler)
+  }, [])
+
   const startSession = () => {
     const sess = buildSession(activeCards, cardProgress)
     setCurrentSessionMode('all')
@@ -6566,9 +6571,9 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           const progress = lv >= 10 ? 1 : Math.min(1, (n - prevThreshold) / Math.max(1, nextThreshold - prevThreshold))
           const col = CAT_LEVEL_COLORS[Math.min(lv, CAT_LEVEL_COLORS.length - 1)] || '#00BFA5'
           return (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', pointerEvents: 'none', width: '100%' }}>
-              <span style={{ color: col, fontSize: '10px', fontWeight: '700', letterSpacing: '0.4px', fontFamily: "'Inter', system-ui, sans-serif", opacity: 0.9 }}>Lvl {displayLv}</span>
-              <div style={{ width: '50px', height: '3px', background: 'rgba(255,255,255,0.15)', borderRadius: '2px', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '6px', pointerEvents: 'none' }}>
+              <span style={{ color: col, fontSize: '10px', fontWeight: '700', letterSpacing: '0.4px', fontFamily: "'Inter', system-ui, sans-serif", opacity: 0.9, whiteSpace: 'nowrap' }}>Lvl {displayLv}</span>
+              <div style={{ width: '60px', height: '3px', background: 'rgba(255,255,255,0.15)', borderRadius: '2px', overflow: 'hidden', flexShrink: 0 }}>
                 <div style={{ width: `${progress * 100}%`, height: '100%', background: col, borderRadius: '2px' }} />
               </div>
             </div>

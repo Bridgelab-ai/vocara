@@ -16,14 +16,26 @@ const LANG_PAIRS = [
 ]
 
 const LEVEL_CONTENT = {
-  2: (fromName, toName) =>
-    `Generate exactly 30 Level 2 Grundlagen flashcards for a ${fromName} speaker learning ${toName}.
+  1: (fromName, toName) =>
+    `Generate exactly 50 Level 1 Grundlagen flashcards for a ${fromName} speaker learning ${toName}.
 Cover in this order:
-- Numbers 11-100: eleven, twelve, thirteen, twenty, thirty, forty, fifty, sixty, seventy, eighty (10 cards)
+- Numbers 1-10: one, two, three, four, five, six, seven, eight, nine, ten (10 cards)
+- Basic greetings: hello, goodbye, good morning, good evening, good night, thank you, please, sorry, yes, no (10 cards)
+- Colors: red, blue, green, yellow, white, black, orange, purple, pink, brown (10 cards)
+- Family members: mother, father, brother, sister, grandmother, grandfather, son, daughter, husband, wife (10 cards)
+- Basic classroom words: book, pen, table, chair, door, window, teacher, student, school, word (10 cards)
+All ${fromName} fronts, all ${toName} backs. 100% accurate. Include phonetic pronunciation for the ${toName} word.
+Return ONLY a valid JSON array (no markdown):
+[{"front":"word in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic for ${toName}","category":"grundlagen","level":1,"wordType":"number|greeting|color|family|noun","tense":"present"}]`,
+
+  2: (fromName, toName) =>
+    `Generate exactly 50 Level 2 Grundlagen flashcards for a ${fromName} speaker learning ${toName}.
+Cover in this order:
+- Numbers 11-100: eleven, twelve, thirteen, twenty, thirty, forty, fifty, sixty, seventy, eighty, hundred (11 cards)
 - Days of the week: Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday (7 cards)
-- Months: January, February, March, April, May (5 cards)
-- Personal pronouns: I, you, he, she, we, you(plural), they (4 cards — use the ${toName} equivalents)
-- Basic verbs in present tense: to be, to have, to go, to come (4 cards)
+- Months: January, February, March, April, May, June, July, August, September, October, November, December (12 cards)
+- Personal pronouns: I, you, he, she, we, you(plural), they (7 cards — use the ${toName} equivalents)
+- Basic verbs in present tense: to be, to have, to go, to come, to eat, to drink, to see, to want, to know, to need, to like, to say, to make (13 cards)
 All ${fromName} fronts, all ${toName} backs. 100% accurate. Include phonetic pronunciation for the ${toName} word.
 Return ONLY a valid JSON array (no markdown):
 [{"front":"word/phrase in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic for ${toName}","category":"grundlagen","level":2,"wordType":"number|day|month|pronoun|verb","tense":"present"}]`,
@@ -73,7 +85,7 @@ async function generateCards(fromLang, toLang, level) {
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
-      max_tokens: 4000,
+      max_tokens: 6000,
       system: 'You are a professional language educator. Generate accurate beginner flashcards. Return ONLY valid JSON array, no markdown.',
       messages: [{ role: 'user', content: prompt }],
     }),
@@ -82,7 +94,7 @@ async function generateCards(fromLang, toLang, level) {
   const raw = (data.content?.[0]?.text || '').trim()
   const match = raw.match(/\[[\s\S]*\]/)
   if (!match) return []
-  try { return JSON.parse(match[0]).slice(0, 30) } catch { return [] }
+  try { return JSON.parse(match[0]).slice(0, 50) } catch { return [] }
 }
 
 async function writeToFirestore(fromLang, toLang, level, cards) {

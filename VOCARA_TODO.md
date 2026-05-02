@@ -1,5 +1,11 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 29.04.2026)
 
+## ✅ Implementiert (02.05.2026 Session 34) — V01.048.053
+- BUTTON DESIGN 3D+HAPTIK: catBtn minHeight 60px, linear-gradient(145deg) bg, 3D box-shadow (6px offset), borderRadius 16px; :active translateY(4px) shadow-collapse in CSS; navigator.vibrate(20) via global click listener ✅
+- LEVEL ANZEIGE EINE ZEILE: levelBadge flexDirection:row, gap:6px, bar 60px×3px, "Lvl X" + bar auf einer Zeile ✅
+- MEHR POOL KARTEN: generate-base-pool.js Level 1 (50 cards: Zahlen/Begrüßung/Farben/Familie/Schule) + Level 2 (50 cards: Zahlen 11-100/Wochentage/Monate/Pronomen/Verben); max_tokens 6000 ✅
+- VERSION V01.048.053 ✅
+
 ## ✅ Implementiert (02.05.2026 Session 33) — V01.047.025
 - WERDEN SÄTZE RESTORED: startSatzSession() wiederhergestellt — generiert KI-Flashcards → CardScreen (flashcard mode) ✅
 - SATZTRAINING BUTTON NEU: Neuer Button im Grid → screen:'satz' (SatzTrainingScreen, interaktive Übungen); levelBadge('satztraining') ✅
