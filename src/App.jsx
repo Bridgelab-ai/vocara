@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.044.025'
+const APP_VERSION = 'V01.046.025'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -1378,14 +1378,19 @@ function makeStyles(th) {
     infoBox: { background: th.accent + '18', border: `1px solid ${th.accent}`, borderRadius: '12px', padding: '12px', marginBottom: '10px', color: th.text, fontSize: '0.9rem' },
     resumeBanner: { background: th.card, border: `1px solid ${th.accent}`, borderRadius: '14px', padding: '14px 16px', marginBottom: '12px', textAlign: 'left' },
     catBtn: {
-      background: th.btnFaceGrad, color: th.btnTextColor, border: 'none',
-      padding: '12px', borderRadius: '20px', fontSize: '0.84rem', cursor: 'pointer',
+      background: 'rgba(255,255,255,0.07)',
+      backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+      color: '#fff',
+      border: '1px solid rgba(255,255,255,0.12)',
+      padding: '12px', borderRadius: '20px', fontSize: '0.9rem', cursor: 'pointer',
       fontWeight: '700', flex: 1, lineHeight: '1.3', textAlign: 'center',
-      boxShadow: th.shadow3d,
+      boxShadow: '0 4px 16px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)',
       fontFamily: "'Playfair Display', Georgia, serif",
       letterSpacing: '0.1px',
       display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center',
       minHeight: '80px',
+      transition: 'background 0.2s, transform 0.2s',
+      WebkitAppearance: 'none', appearance: 'none',
     },
     navBtn: {
       background: 'linear-gradient(145deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%)',
@@ -6635,7 +6640,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
               const topicCards = safeCards.filter(c => c.topic && (unlockedTopics.includes(c.topic) || topicsUnlocked) && !excludedCardIds.has(c.id))
               if (topicCards.length === 0 && !topicsUnlocked) return null
               return (
-                <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '9.5s', position: 'relative', width: '100%', justifyContent: 'center', background: `linear-gradient(135deg, ${th.accent}22, ${th.gold}15)`, border: `1px solid ${th.accent}44` }}
+                <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '9.5s', position: 'relative', width: '100%', justifyContent: 'center' }}
                   onClick={() => {
                     if (!topicsUnlocked) { setSoftPaywall({ area: 'topics', used: 0, limit: 1 }); return }
                     if (topicCards.length === 0) { setScreen('settings'); return }
@@ -6647,7 +6652,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
                 </button>
               )
             })()}
-            <button className="vocara-alle-btn" style={{ ...s.button, padding: '13px 28px', fontSize: '0.9rem', letterSpacing: '0.2px', marginBottom: 0, '--gleam-delay': '2.5s' }} onClick={() => startCategorySession('all')}>
+            <button className="vocara-alle-btn" style={{ ...s.catBtn, padding: '13px 28px', fontSize: '0.9rem', letterSpacing: '0.2px', marginBottom: 0, '--gleam-delay': '2.5s', flex: 'none', width: '100%', minHeight: '48px', justifyContent: 'center', flexDirection: 'row' }} onClick={() => startCategorySession('all')}>
               {t.menuAlle}
             </button>
           </div>

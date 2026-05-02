@@ -48,6 +48,16 @@ Cover in this order:
 All ${fromName} fronts, all ${toName} backs. 100% accurate. Include phonetic pronunciation for ${toName}.
 Return ONLY a valid JSON array (no markdown):
 [{"front":"word/phrase in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic for ${toName}","category":"grundlagen","level":4,"wordType":"conjunction|compound|phrase","tense":"present"}]`,
+
+  5: (fromName, toName) =>
+    `Generate exactly 30 Level 5 Grundlagen flashcards for a ${fromName} speaker learning ${toName}.
+Cover in this order:
+- Common idiomatic expressions (10 cards): expressions like "break the ice", "costs an arm and a leg", "under the weather", "piece of cake", "bite the bullet", "once in a blue moon", "hit the sack", "spill the beans", "let it go", "back to square one" — give the natural ${toName} equivalent (not literal translation)
+- Complex B1 communication phrases (10 cards): "I couldn't agree more", "that's a good point", "what do you mean by that?", "could you elaborate?", "in the long run", "as a result", "on the contrary", "for the most part", "needless to say", "all things considered"
+- Culture-specific expressions that sound natural to ${toName} speakers (10 cards): phrases essential for authentic communication that language learners rarely learn in textbooks but native speakers use constantly
+All ${fromName} fronts, all ${toName} backs. 100% accurate. Include phonetic pronunciation for ${toName}.
+Return ONLY a valid JSON array (no markdown):
+[{"front":"word/phrase in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic for ${toName}","category":"grundlagen","level":5,"wordType":"idiom|phrase","tense":"present"}]`,
 }
 
 async function generateCards(fromLang, toLang, level) {
@@ -158,36 +168,28 @@ async function writeVocabEmotions(fromLang, toLang, cards) {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'POST only' })
-  }
+  if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
+  // Accept body: { level: 4|5 } or { type: 'vocab_emotions' } to run one task at a time
+  let body = {}
+  try { const chunks = []; for await (const chunk of req) chunks.push(chunk); body = JSON.parse(Buffer.concat(chunks).toString() || '{}') } catch {}
   const results = []
-  // Generate Level 4 (levels 1-3 already exist) — serial to avoid rate limits
-  for (const { from, to } of LANG_PAIRS) {
-    try {
-      const cards = await generateCards(from, to, 4)
-      if (cards.length > 0) {
-        await writeToFirestore(from, to, 4, cards)
-        results.push({ pair: `${from}→${to}`, level: 4, count: cards.length })
-      } else {
-        results.push({ pair: `${from}→${to}`, level: 4, error: 'No cards generated' })
-      }
-    } catch (e) {
-      results.push({ pair: `${from}→${to}`, level: 4, error: e.message })
+
+  if (body.type === 'vocab_emotions') {
+    for (const { from, to } of LANG_PAIRS) {
+      try {
+        const cards = await generateVocabEmotions(from, to)
+        if (cards.length > 0) { await writeVocabEmotions(from, to, cards); results.push({ pair: `${from}→${to}`, type: 'vocab_emotions', count: cards.length }) }
+        else results.push({ pair: `${from}→${to}`, type: 'vocab_emotions', error: 'No cards generated' })
+      } catch (e) { results.push({ pair: `${from}→${to}`, type: 'vocab_emotions', error: e.message }) }
     }
-  }
-  // Generate vocab_emotions — serial
-  for (const { from, to } of LANG_PAIRS) {
-    try {
-      const cards = await generateVocabEmotions(from, to)
-      if (cards.length > 0) {
-        await writeVocabEmotions(from, to, cards)
-        results.push({ pair: `${from}→${to}`, type: 'vocab_emotions', count: cards.length })
-      } else {
-        results.push({ pair: `${from}→${to}`, type: 'vocab_emotions', error: 'No cards generated' })
-      }
-    } catch (e) {
-      results.push({ pair: `${from}→${to}`, type: 'vocab_emotions', error: e.message })
+  } else {
+    const level = body.level || 5
+    for (const { from, to } of LANG_PAIRS) {
+      try {
+        const cards = await generateCards(from, to, level)
+        if (cards.length > 0) { await writeToFirestore(from, to, level, cards); results.push({ pair: `${from}→${to}`, level, count: cards.length }) }
+        else results.push({ pair: `${from}→${to}`, level, error: 'No cards generated' })
+      } catch (e) { results.push({ pair: `${from}→${to}`, level, error: e.message }) }
     }
   }
   res.status(200).json({ generated: results, total: results.filter(r => r.count).reduce((s, r) => s + r.count, 0) })

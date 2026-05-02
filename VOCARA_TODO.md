@@ -1,5 +1,13 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 29.04.2026)
 
+## ✅ Implementiert (02.05.2026 Session 32) — V01.046.025
+- ONBOARDING SCHRITTE 5+6: Bereits implementiert (socialRegister + musicEnabled) ✅
+- SOZIALES REGISTER KI-GESPRÄCH: Bereits implementiert (Ton: Selector) ✅
+- GLASSMORPHISM BUTTONS: Alle 6 Lernbereich-Buttons + Meine Themen + Wir lernen alles — backdrop-filter:blur(12px), rgba(255,255,255,0.07) Hintergrund, glass border, hover translateY(-2px); App.css hover/active Styles; water-shimmer ::after pseudo-element ✅
+- BUTTON LAYOUT FINAL: Area name oben groß, levelBadge unten klein — flexColumn/spaceBetween/minHeight:80px bereits implementiert ✅
+- LEVEL 5 POOL: generate-base-pool.js Level 5 (Idiome, B1-Phrasen, kulturspezifische Ausdrücke); handler akzeptiert {level:N} oder {type:'vocab_emotions'} body param für einzelne Triggerung ohne Timeout ✅
+- VERSION V01.046.025 ✅
+
 ## ✅ Implementiert (02.05.2026 Session 31) — V01.044.025
 - ÜBERSETZUNG MELDEN: Bereits implementiert in V01.040.023 ✅ — 🚩 Button, Modal, Firestore, Admin-Panel
 - KI ERKLÄRT FALSCHE ANTWORT: Korrekte Antwort jetzt grün oben im Erklärpanel sichtbar; Prompt aktualisiert auf "Why is X the correct Y for Z?" ✅
