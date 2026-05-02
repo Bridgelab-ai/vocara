@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.050.055'
+const APP_VERSION = 'V01.051.055'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -4944,6 +4944,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const [weekGoalCelebration, setWeekGoalCelebration] = useState(false)
   const [monthlyUnlockNotification, setMonthlyUnlockNotification] = useState(false)
   const [gimmickPopup, setGimmickPopup] = useState(false)
+  const [gimmickStreakDays, setGimmickStreakDays] = useState(null) // null = monthly trigger; number = streak milestone
   const [weeklyGoals, setWeeklyGoals] = useState(() => {
     const currentWeek = getISOWeekStr()
     const stored = myData?.weeklyGoals
@@ -5952,6 +5953,7 @@ Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","
           setMyData(d => ({ ...d, monthlyGoal: newMonthly, unlockedGimmicks: newGimmicks, weeklyGoals: updated, gimmickHistory }))
           setMonthlyUnlockNotification(true)
           setTimeout(() => setMonthlyUnlockNotification(false), 5000)
+          setGimmickStreakDays(null)
           setGimmickPopup(true)
           setTimeout(() => setGimmickPopup(false), 6000)
           // Theme-specific gimmick sound (fail silently)
@@ -6241,6 +6243,25 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     // Publish full stats to public profile so partner can read them
     const myMasteredNow = Object.values(finalProgress).filter(p => (p?.interval || 0) >= 7).length
     const myStreakNow = calcStreak([...(sessionHistory || []), { date: todayStr(), correct, total: correct + wrong }])
+    // ── Streak milestone gimmick ──
+    const STREAK_MILESTONES = [7, 14, 30, 60]
+    const firedMilestones = myData?.firedStreakGimmicks || []
+    const hitMilestone = STREAK_MILESTONES.find(m => myStreakNow >= m && !firedMilestones.includes(m))
+    if (hitMilestone) {
+      const updatedMilestones = [...firedMilestones, hitMilestone]
+      updateDoc(doc(db, 'users', user.uid), { firedStreakGimmicks: updatedMilestones }).catch(() => {})
+      setDoc(doc(db, 'streakGimmick', user.uid, 'milestones', String(hitMilestone)), { theme, firedAt: new Date().toISOString(), streak: myStreakNow }).catch(() => {})
+      setMyData(d => ({ ...d, firedStreakGimmicks: updatedMilestones }))
+      setGimmickStreakDays(hitMilestone)
+      setGimmickPopup(true)
+      setTimeout(() => { setGimmickPopup(false); setGimmickStreakDays(null) }, 6000)
+      try {
+        const soundFile = { hamburg: 'gimmick-hamburg', nairobi: 'gimmick-nairobi', welt: 'gimmick-welt' }[theme] || 'gimmick-welt'
+        const audio = new Audio(`/sounds/${soundFile}.mp3`)
+        audio.volume = 0.6
+        audio.play().catch(() => {})
+      } catch (e) {}
+    }
     const pubStats = { weeklyMinutes: newWeeklyMinutes, monthlyMinutes: newMonthlyMinutes, totalMinutes: newTotalMinutes, learningWeek: nowWeek, learningMonth: nowMonth, totalCards: allCards.filter(c => !/_r(_\d+)?$/.test(c.id)).length, masteredCards: myMasteredNow, streak: myStreakNow, lastActive: Date.now(), displayName: user.displayName || '', name: user.displayName?.split(' ')[0] || 'Partner', uid: user.uid }
     // Write partner-visible stats — call writePublicStats then merge session stats
     writePublicStats(user.uid, user, db).then(() => {
@@ -6947,7 +6968,11 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           nairobi: { emoji: '🌅', title: isMarkLang ? 'Savanna-Gimmick freigeschaltet!' : 'Savanna gimmick unlocked!', desc: isMarkLang ? 'Die Sonne über Nairobi. Deine Stimme trägt weiter.' : 'The savanna glows. Your voice carries further.', bg: 'linear-gradient(135deg, #2d1a00, #5a3800)', border: '#FFB347' },
           welt: { emoji: '🌌', title: isMarkLang ? 'Aurora-Gimmick freigeschaltet!' : 'Aurora gimmick unlocked!', desc: isMarkLang ? 'Ein Nordlicht für deine Sprache. 5 Wochen.' : 'Northern lights for your language. 5 weeks.', bg: 'linear-gradient(135deg, #0a001a, #1a003a)', border: '#B088F9' },
         }
-        const g = gimmickContent[theme] || gimmickContent.welt
+        const g = { ...(gimmickContent[theme] || gimmickContent.welt) }
+        if (gimmickStreakDays !== null) {
+          g.title = isMarkLang ? `${gimmickStreakDays} Tage in Folge!` : `${gimmickStreakDays}-day streak!`
+          g.desc = isMarkLang ? `Du lernst seit ${gimmickStreakDays} Tagen ohne Unterbrechung. Weiter so!` : `You've been learning for ${gimmickStreakDays} days in a row. Keep it up!`
+        }
         const themeAnim = {
           hamburg: (
             [1,2,3].map(i => (

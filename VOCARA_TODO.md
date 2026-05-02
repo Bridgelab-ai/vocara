@@ -402,7 +402,7 @@
 - Gimmicks: themenspezifische Freischalt-Fenster bei Streak/Wochenziel/Monatsziel
 
 ## Gimmick-System
-- Auslöser: Streak-Meilensteine, Wochenziel, Monatsziel (5 Wochen), 100 Karten, Partner-Challenge
+- ✅ Auslöser: Streak-Meilensteine (7/14/30/60 Tage), Wochenziel, Monatsziel (5 Wochen), 100 Karten, Partner-Challenge
 - Hamburg: Hafen-Sound + Elbe-Wellen-Effekt
 - Nairobi: Savanna-Sounds + Sonnenuntergang-Partikel
 - Welt: Aurora-Effekt + Weltklang-Mix

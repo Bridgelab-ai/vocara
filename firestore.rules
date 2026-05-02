@@ -54,6 +54,11 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
+    // Streak milestone gimmick guard — own data only
+    match /streakGimmick/{userId}/milestones/{milestone} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
     // Reports — any authenticated user can create
     match /reports/{reportId} {
       allow create: if request.auth != null;
