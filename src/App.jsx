@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.042.024'
+const APP_VERSION = 'V01.043.024'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -7117,6 +7117,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
   const [loading, setLoading] = useState(true)
   const [toggling, setToggling] = useState(null)
   const [reports, setReports] = useState([])
+  const [reportActing, setReportActing] = useState(null)
 
   const load = async () => {
     setLoading(true)
@@ -7175,6 +7176,24 @@ function AdminScreen({ user, lang, theme, onBack }) {
     return streak
   }
 
+  const dismissReport = async (reportId) => {
+    setReportActing(reportId)
+    try {
+      await deleteDoc(doc(db, 'reports', reportId))
+      setReports(prev => prev.filter(r => r._id !== reportId))
+    } catch (e) { console.warn('dismiss report failed:', e) }
+    setReportActing(null)
+  }
+
+  const markReportFixed = async (reportId) => {
+    setReportActing(reportId)
+    try {
+      await updateDoc(doc(db, 'reports', reportId), { status: 'fixed', fixedAt: Date.now() })
+      setReports(prev => prev.map(r => r._id === reportId ? { ...r, status: 'fixed' } : r))
+    } catch (e) { console.warn('mark fixed failed:', e) }
+    setReportActing(null)
+  }
+
   const thisWeek = getISOWeekStr()
   const activeThisWeek = users.filter(u => (u.sessionHistory || []).some(h => {
     try { return getISOWeekStr(new Date(...h.date.split('-').map((v,i)=>i===1?v-1:+v))) === thisWeek } catch { return false }
@@ -7197,6 +7216,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
           [users.length, isDE ? 'Nutzer' : 'Users'],
           [activeThisWeek, isDE ? 'Aktiv Woche' : 'Active week'],
           [premiumCount, 'Premium/Pro'],
+          [reports.filter(r => r.status !== 'fixed').length, '🚩 ' + (isDE ? 'Meldungen' : 'Reports')],
         ].map(([val, label]) => (
           <div key={label} style={{ flex: 1, background: th.card, border: `1px solid ${th.border}`, borderRadius: '12px', padding: '10px 6px', textAlign: 'center' }}>
             <p style={{ color: th.gold, fontSize: '1.4rem', fontWeight: '700', margin: '0 0 2px' }}>{val}</p>
@@ -7206,15 +7226,31 @@ function AdminScreen({ user, lang, theme, onBack }) {
       </div>
       {reports.length > 0 && (
         <div style={{ marginBottom: '12px' }}>
-          <p style={{ color: '#e57373', fontSize: '0.78rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>🚩 {isDE ? 'Gemeldete Karten' : 'Reported cards'} ({reports.length})</p>
+          <p style={{ color: '#e57373', fontSize: '0.78rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>🚩 {isDE ? 'Gemeldete Karten' : 'Reported cards'} ({reports.filter(r => r.status !== 'fixed').length} {isDE ? 'offen' : 'open'})</p>
           <div style={s.card}>
-            {reports.slice(0, 20).map((r, i) => (
-              <div key={r._id} style={{ paddingBottom: '8px', marginBottom: '8px', borderBottom: i < Math.min(reports.length, 20) - 1 ? `1px solid ${th.border}` : 'none' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
-                  <span style={{ color: th.text, fontSize: '0.82rem', fontWeight: '600' }}>{r.front} → {r.back}</span>
-                  <span style={{ color: th.sub, fontSize: '0.65rem' }}>{r.timestamp ? new Date(r.timestamp).toLocaleDateString() : '—'}</span>
+            {reports.slice(0, 30).map((r, i) => (
+              <div key={r._id} style={{ paddingBottom: '10px', marginBottom: '10px', borderBottom: i < Math.min(reports.length, 30) - 1 ? `1px solid ${th.border}` : 'none', opacity: r.status === 'fixed' ? 0.5 : 1 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                  <div style={{ flex: 1 }}>
+                    <span style={{ color: th.text, fontSize: '0.82rem', fontWeight: '600' }}>{r.front} → {r.back}</span>
+                    {r.status === 'fixed' && <span style={{ marginLeft: '6px', color: '#81c784', fontSize: '0.65rem', fontWeight: '700' }}>✓ {isDE ? 'behoben' : 'fixed'}</span>}
+                  </div>
+                  <span style={{ color: th.sub, fontSize: '0.65rem', flexShrink: 0, marginLeft: '8px' }}>{r.timestamp ? new Date(r.timestamp).toLocaleDateString() : '—'}</span>
                 </div>
-                {r.comment && <p style={{ color: th.sub, fontSize: '0.72rem', margin: 0, fontStyle: 'italic' }}>„{r.comment}"</p>}
+                {r.comment && <p style={{ color: th.sub, fontSize: '0.72rem', margin: '0 0 6px', fontStyle: 'italic' }}>„{r.comment}"</p>}
+                {r.reportedBy && <p style={{ color: th.sub, fontSize: '0.65rem', margin: '0 0 6px' }}>by {r.reportedBy.slice(0, 8)}</p>}
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  {r.status !== 'fixed' && (
+                    <button onClick={() => markReportFixed(r._id)} disabled={reportActing === r._id}
+                      style={{ padding: '3px 8px', borderRadius: '8px', fontSize: '0.65rem', cursor: 'pointer', background: 'rgba(129,199,132,0.15)', color: '#81c784', border: '1px solid rgba(129,199,132,0.4)', fontWeight: '600', opacity: reportActing === r._id ? 0.5 : 1 }}>
+                      ✓ {isDE ? 'Behoben' : 'Fixed'}
+                    </button>
+                  )}
+                  <button onClick={() => dismissReport(r._id)} disabled={reportActing === r._id}
+                    style={{ padding: '3px 8px', borderRadius: '8px', fontSize: '0.65rem', cursor: 'pointer', background: 'rgba(229,115,115,0.12)', color: '#e57373', border: '1px solid rgba(229,115,115,0.3)', fontWeight: '600', opacity: reportActing === r._id ? 0.5 : 1 }}>
+                    ✕ {isDE ? 'Ignorieren' : 'Dismiss'}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -7560,7 +7596,10 @@ function KarteErstellenScreen({ user, myData, setMyData, allCards, lang, theme, 
     if (myData?.fromLangs?.length > 0) return myData.fromLangs
     return [{ lang: lang === 'de' ? 'de' : 'en', percent: 100 }]
   }
-  const initTgtLang = () => myData?.cardTgtLang || (lang === 'de' ? 'en' : 'de')
+  const initTgtLang = () => {
+    const activeTo = Array.isArray(myData?.activeToLang) ? myData.activeToLang[0] : myData?.activeToLang
+    return activeTo || myData?.cardTgtLang || (lang === 'de' ? 'en' : lang === 'en' ? 'de' : 'en')
+  }
 
   const [srcLangs, setSrcLangs] = useState(initSrcLangs)
   const [tgtLang, setTgtLang] = useState(initTgtLang)

@@ -1,5 +1,12 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 29.04.2026)
 
+## ✅ Implementiert (02.05.2026 Session 30) — V01.043.024
+- VOCAB POOL API: api/generate-vocab-pool.js — 200 Karten/Sprachpaar (de→en, en→de, de→sw), 8 Kategorien (Emotionen 30, Alltag 30, Familie 20, Körper 20, Natur 20, Zeit 20, Reisen 30, Essen 30); schreibt nach sharedCards/{pair}_vocab ✅
+- STREET POOL API: api/generate-street-pool.js — 100 Phrasen/Sprachpaar, 4 Kategorien (Umgangssprache 30, Redewendungen 30, Jugendsprache 20, Smalltalk 20); schreibt nach sharedCards/{pair}_street ✅
+- KARTE ERSTELLEN SPRACHEN FLEXIBLER: initTgtLang() nutzt myData.activeToLang als Priorität — Zielsprache passt sich automatisch an die aktive Lernsprache des Users an ✅
+- ADMIN PANEL ERWEITERT: Meldungen-Counter in Quick Stats; Behoben-Button (setzt status:'fixed'), Ignorieren-Button (löscht report doc); fixe Karten ausgeblendet; offene Meldungen hervorgehoben ✅
+- VERSION V01.043.024 ✅
+
 ## ✅ Implementiert (02.05.2026 Session 28) — V01.032.023
 - ICONS ENTFERNT: Alle Emojis aus Lernbereich-Buttons auf Home-Screen entfernt; ✈️ aus Im Urlaub, 🎯 aus Meine Themen Home-Button, topic.emoji aus Themen-Chips; KI_SCENARIOS Picker ohne Emoji-Icon-Block, Chat-Header ohne Emoji; nur Text + Lvl-Badge ✅
 - +X ANZEIGE ENTFERNT: Zweite Zeile mit "+X bis nächstes Level" aus levelBadge entfernt — nur noch "Lvl X/10" ✅
