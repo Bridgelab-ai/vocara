@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.030.023'
+const APP_VERSION = 'V01.032.023'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -1404,7 +1404,7 @@ const T = {
     monthlyTestSub: 'Teste dein aktuelles Niveau',
     menuWorte: 'Meine\nWorte', menuSaetze: 'werden\nSätze', menuStraße: 'Auf der\nStraße', menuHause: 'und zu\nHause',
     menuAlle: 'Wir lernen alles, überall',
-    menuGrundlagen: 'Die\nGrundlagen', menuUrlaub: '✈️\nIm Urlaub',
+    menuGrundlagen: 'Die\nGrundlagen', menuUrlaub: 'Im\nUrlaub',
     menuKi: 'KI-Gespräch', menuSatz: 'Satztraining',
     menuAddCards: 'Karten hinzufügen', menuCategorize: 'Kategorisieren', menuSettings: 'Einstellungen', menuSignOut: 'Abmelden',
     menuPartnerConnect: 'Partner verbinden', menuPartnerLabel: 'Partner',
@@ -1501,7 +1501,7 @@ const T = {
     monthlyTestSub: 'Test your current level',
     menuWorte: 'My\nWords', menuSaetze: 'become\nSentences', menuStraße: 'On the\nStreet', menuHause: 'and at\nHome',
     menuAlle: 'We learn everything, everywhere',
-    menuGrundlagen: 'The\nBasics', menuUrlaub: '✈️\nTravel',
+    menuGrundlagen: 'The\nBasics', menuUrlaub: 'On\nVacation',
     menuKi: 'AI Chat', menuSatz: 'Sentence training',
     menuAddCards: 'Add cards', menuCategorize: 'Categorize', menuSettings: 'Settings', menuSignOut: 'Sign out',
     menuPartnerConnect: 'Connect partner', menuPartnerLabel: 'Partner',
@@ -1585,6 +1585,16 @@ const fetchSharedCards = async (fromLang, toLang) => {
     const weekStr = getISOWeekStr()
     const langPair = `${fromLang}_${toLang}`
     const snap = await getDoc(doc(db, 'sharedCards', `${langPair}_${weekStr}`))
+    if (!snap.exists()) return null
+    const cards = snap.data()?.cards
+    return Array.isArray(cards) && cards.length > 0 ? cards : null
+  } catch { return null }
+}
+
+// Load base pool (grundlagen level 1) cards for a language pair
+const fetchGrundlagenPool = async (fromLang, toLang, level = 1) => {
+  try {
+    const snap = await getDoc(doc(db, 'sharedCards', `${fromLang}_${toLang}_grundlagen_${level}`))
     if (!snap.exists()) return null
     const cards = snap.data()?.cards
     return Array.isArray(cards) && cards.length > 0 ? cards : null
@@ -2039,7 +2049,6 @@ Return ONLY JSON: {"strengths":"2-3 things they did well (1-2 sentences)","weakn
             style={{ background: th.card, border: `1px solid ${th.border}`, borderRadius: '14px', padding: '14px 10px', cursor: 'pointer', textAlign: 'center', WebkitTapHighlightColor: 'transparent', transition: 'border-color 0.2s' }}
             onMouseEnter={e => e.currentTarget.style.borderColor = th.accent}
             onMouseLeave={e => e.currentTarget.style.borderColor = th.border}>
-            <div style={{ fontSize: '1.5rem', marginBottom: '6px' }}>{sc.emoji}</div>
             <p style={{ color: th.text, fontSize: '0.78rem', fontWeight: '600', margin: 0, lineHeight: 1.3 }}>{isDE ? sc.de : sc.en}</p>
           </button>
         ))}
@@ -2075,7 +2084,7 @@ Return ONLY JSON: {"strengths":"2-3 things they did well (1-2 sentences)","weakn
         <div style={{ padding: '12px 16px 10px', background: th.bg, borderBottom: `1px solid ${th.border}`, display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
           <button style={{ ...s.backBtn, marginBottom: 0 }} onClick={() => setScenario(null)}>←</button>
           <div style={{ flex: 1 }}>
-            <p style={{ color: th.text, fontWeight: 'bold', margin: 0, fontSize: '0.95rem' }}>{scenario.emoji} {isDE ? scenario.de : scenario.en}</p>
+            <p style={{ color: th.text, fontWeight: 'bold', margin: 0, fontSize: '0.95rem' }}>{isDE ? scenario.de : scenario.en}</p>
             <p style={{ color: th.sub, fontSize: '0.72rem', margin: 0 }}>{isDE ? `KI spielt: ${scenario.role}` : `AI plays: ${scenario.role}`} · {exchangeCount}/10</p>
           </div>
           {exchangeCount >= 6 && !loadingFeedback && (
@@ -4245,7 +4254,7 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
                 return (
                   <button key={topic.key} disabled={!canUnlock || isGenerating} onClick={() => !isUnlocked ? generateTopicCards(topic) : null}
                     style={{ padding: '8px 12px', borderRadius: '12px', fontSize: '0.82rem', cursor: canUnlock && !isUnlocked ? 'pointer' : 'default', fontWeight: isUnlocked ? '700' : '400', background: isUnlocked ? `${th.gold}18` : canUnlock ? `${th.card}` : 'transparent', color: isUnlocked ? th.gold : canUnlock ? th.text : th.sub, border: `1px solid ${isUnlocked ? th.gold + '55' : canUnlock ? th.border : 'rgba(255,255,255,0.08)'}`, opacity: !canUnlock && !isUnlocked ? 0.45 : 1, transition: 'all 0.2s' }}>
-                    {isGenerating ? '⏳' : isUnlocked ? '✓ ' : canUnlock ? '' : '🔒 '}{topic.emoji} {isDE ? topic.de : topic.en}
+                    {isGenerating ? '…' : isUnlocked ? '✓ ' : canUnlock ? '' : ''}{isDE ? topic.de : topic.en}
                   </button>
                 )
               })}
@@ -5505,8 +5514,26 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
     }
     setBasicsLoading(true)
     const isMarkLang = lang === 'de'
+    const langA = isMarkLang ? 'de' : 'en'
+    const langB = isMarkLang ? 'en' : 'de'
     const toLangName = isMarkLang ? 'English' : 'German'
     const fromLangName = isMarkLang ? 'German' : 'English'
+    // Try base pool first (api/generate-base-pool.js pre-populated Firestore)
+    const poolBasics = await fetchGrundlagenPool(langA, langB, 1)
+    if (poolBasics?.length > 0) {
+      const ts = Date.now()
+      const newCards = poolBasics.filter(c => c.front && c.back).slice(0, 20).map((c, i) => ({
+        ...c, id: `basics_pool_${ts}_${i}`, langA, langB, category: 'basics', source: 'base-pool', createdAt: ts
+      }))
+      const updatedAiCards = [...(myData?.aiCards || []), ...newCards]
+      const updatedProgress = { ...(myData?.cardProgress || {}) }
+      newCards.forEach(c => { updatedProgress[c.id] = { interval: 0, consecutiveRight: 0, wrongSessions: 0, nextReview: todayStr() } })
+      await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress })
+      setMyData(d => ({ ...d, aiCards: updatedAiCards, cardProgress: updatedProgress }))
+      const sess = [...newCards].sort(() => Math.random() - 0.5).slice(0, SESSION_SIZE)
+      setCurrentSessionMode('basics'); setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+      markAreaDone('basics'); setBasicsLoading(false); return
+    }
     const prompt = `Generate exactly 12 basic vocabulary flashcards covering: colors (rot/red, blau/blue, grün/green, gelb/yellow), numbers (1-5), shapes (Kreis/circle, Quadrat/square), and basic greetings (Hallo, Danke, Bitte).
 Front language: ${fromLangName}. Back language: ${toLangName}. Category: basics.
 Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","context":"..."}]`
@@ -5517,12 +5544,11 @@ Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","
       const text = data.content?.[0]?.text || ''
       const parsed = JSON.parse(text.replace(/```json|```/g, '').trim())
       const ts = Date.now()
-      const newCards = parsed.map((c, i) => ({ ...c, id: `basics_${ts}_${i}`, langA: isMarkLang ? 'de' : 'en', langB: isMarkLang ? 'en' : 'de', source: 'ai-basics', createdAt: ts }))
+      const newCards = parsed.map((c, i) => ({ ...c, id: `basics_${ts}_${i}`, langA, langB, source: 'ai-basics', createdAt: ts }))
       const updatedAiCards = [...(myData?.aiCards || []), ...newCards]
       await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards })
       setMyData(d => ({ ...d, aiCards: updatedAiCards }))
-      const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
-      const sess = shuffle(newCards).slice(0, SESSION_SIZE)
+      const sess = [...newCards].sort(() => Math.random() - 0.5).slice(0, SESSION_SIZE)
       setCurrentSessionMode('basics'); setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
       markAreaDone('basics')
     } catch(e) { console.warn('Failed to generate basics:', e) }
@@ -6247,15 +6273,20 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
             return c.category === category && !/_r(_\d+)?$/.test(c.id) && (cardProgress[baseId]?.interval || cardProgress[c.id]?.interval || 0) >= 3
           }).length
           if (n === 0) return null
-          const lv = getCatLevel(n)
+          // Category-specific level thresholds
+          let lv
+          if (category === 'urlaub') {
+            lv = Math.min(10, Math.floor(n / 6))  // 60% of 10 cards = 6 mastered per level
+          } else if (category === 'home') {
+            lv = Math.min(10, Math.floor(n / 8))  // 80% of 10 cards = 8 mastered per level
+          } else {
+            lv = getCatLevel(n)
+          }
           if (lv === 0) return null
-          const col = CAT_LEVEL_COLORS[lv] || '#81c784'
-          const nextThresh = CAT_LEVEL_THRESHOLDS[lv + 1]
-          const toNext = nextThresh ? nextThresh - n : 0
+          const col = CAT_LEVEL_COLORS[Math.min(lv, CAT_LEVEL_COLORS.length - 1)] || '#81c784'
           return (
             <div style={{ position: 'absolute', top: '5px', left: '6px', background: 'rgba(0,0,0,0.45)', borderRadius: '6px', padding: '2px 6px', pointerEvents: 'none' }}>
               <span style={{ color: col, fontSize: '0.54rem', fontWeight: '700', display: 'block', lineHeight: 1.2 }}>Lvl {lv}/10</span>
-              <span style={{ color: col, fontSize: '0.46rem', opacity: 0.8, display: 'block', lineHeight: 1.1 }}>{toNext > 0 ? `+${toNext}` : '★'}</span>
             </div>
           )
         }
@@ -6291,8 +6322,8 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
               </button>
               <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '8.2s', position: 'relative' }}
                 onClick={() => checkFreeLimit('urlaub') && startCategorySession('urlaub')}>
-                {(t.menuUrlaub || '✈️\nIm Urlaub').split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
-                {freeBadge('urlaub')}
+                {(t.menuUrlaub || 'Im\nUrlaub').split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
+                {levelBadge('urlaub')}{freeBadge('urlaub')}
               </button>
             </div>
             {/* ── MEINE THEMEN BUTTON ── */}
@@ -6313,7 +6344,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
                     const sess = [...topicCards.flatMap(buildCardPair)].sort(() => Math.random() - 0.5).slice(0, SESSION_SIZE)
                     setCurrentSessionMode('topics'); setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
                   }}>
-                  <span>🎯{'\n'}Meine{'\n'}Themen</span>
+                  <span>Meine{'\n'}Themen</span>
                   {topicCards.length > 0 && <div style={{ position: 'absolute', top: '5px', left: '6px', background: 'rgba(0,0,0,0.45)', borderRadius: '6px', padding: '2px 6px' }}><span style={{ color: th.accent, fontSize: '0.54rem', fontWeight: '700' }}>{topicCards.length}</span></div>}
                 </button>
               )
