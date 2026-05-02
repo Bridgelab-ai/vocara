@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.032.025'
+const APP_VERSION = 'V01.032.026'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -857,13 +857,31 @@ function getLangStats(allCards, cardProgress, langCode) {
   const mastered = active.filter(c => (cardProgress[c.id]?.interval || 0) >= 7)
   return { total: cards.length, active: active.length, mastered: mastered.length }
 }
-async function saveSessionState(uid, queue, index, newProgress) {
-  try { await setDoc(doc(db, 'users', uid, 'session', 'current'), { queue, index, newProgress, savedAt: Date.now() }) }
+function saveSessionState(uid, queue, index, newProgress) {
+  try { localStorage.setItem('vocara_session_' + uid, JSON.stringify({ queue, index, newProgress, savedAt: Date.now() })) }
   catch (e) { console.warn('Could not save session state:', e) }
 }
-async function clearSessionState(uid) {
-  try { await deleteDoc(doc(db, 'users', uid, 'session', 'current')) }
+function clearSessionState(uid) {
+  try { localStorage.removeItem('vocara_session_' + uid) }
   catch (e) { console.warn('Could not clear session state:', e) }
+}
+async function writePublicStats(uid, user, db) {
+  try {
+    const globalRef = doc(db, 'users', uid, 'globalStats', 'summary')
+    const globalSnap = await getDoc(globalRef)
+    const existing = globalSnap.exists() ? globalSnap.data() : {}
+    const MARK_UID = 'aiNZh4Myn8Y0KfYkGGrkNNW0HC72'
+    const ELOSY_UID = 'NIX3DYenRdbRjmr2EHsIad9GcqG3'
+    await setDoc(doc(db, 'users', uid, 'publicStats', 'data'), {
+      ...existing,
+      displayName: user.displayName || (uid === MARK_UID ? 'Mark' : uid === ELOSY_UID ? 'Elosy' : ''),
+      lastActive: Date.now(),
+      uid,
+    }, { merge: true })
+    console.log('[Vocara] publicStats written for', uid)
+  } catch (e) {
+    console.error('[Vocara] publicStats write failed:', e.message)
+  }
 }
 
 const GLOBAL_CSS = `
@@ -5093,10 +5111,10 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
 
   useEffect(() => {
     if (screen !== 'menu') return
-    const checkPending = async () => {
+    const checkPending = () => {
       try {
-        const snap = await getDoc(doc(db, 'users', user.uid, 'session', 'current'))
-        setPendingSession(snap.exists() ? snap.data() : null)
+        const raw = localStorage.getItem('vocara_session_' + user.uid)
+        setPendingSession(raw ? JSON.parse(raw) : null)
       } catch (e) { console.warn('Could not check pending session:', e) }
     }
     checkPending()
@@ -5984,9 +6002,11 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     // Publish full stats to public profile so partner can read them
     const myMasteredNow = Object.values(finalProgress).filter(p => (p?.interval || 0) >= 7).length
     const myStreakNow = calcStreak([...(sessionHistory || []), { date: todayStr(), correct, total: correct + wrong }])
-    const pubStats = { weeklyMinutes: newWeeklyMinutes, monthlyMinutes: newMonthlyMinutes, totalMinutes: newTotalMinutes, learningWeek: nowWeek, learningMonth: nowMonth, totalCards: allCards.filter(c => !/_r(_\d+)?$/.test(c.id)).length, masteredCards: myMasteredNow, streak: myStreakNow, lastActive: todayStr(), displayName: user.displayName || '', name: user.displayName?.split(' ')[0] || 'Partner' }
-    // Write partner-visible stats to users/{uid}/publicStats/data (covered by wildcard rule + explicit read rule)
-    setDoc(doc(db, 'users', user.uid, 'publicStats', 'data'), pubStats, { merge: true }).catch(() => {})
+    const pubStats = { weeklyMinutes: newWeeklyMinutes, monthlyMinutes: newMonthlyMinutes, totalMinutes: newTotalMinutes, learningWeek: nowWeek, learningMonth: nowMonth, totalCards: allCards.filter(c => !/_r(_\d+)?$/.test(c.id)).length, masteredCards: myMasteredNow, streak: myStreakNow, lastActive: Date.now(), displayName: user.displayName || '', name: user.displayName?.split(' ')[0] || 'Partner', uid: user.uid }
+    // Write partner-visible stats — call writePublicStats then merge session stats
+    writePublicStats(user.uid, user, db).then(() => {
+      setDoc(doc(db, 'users', user.uid, 'publicStats', 'data'), pubStats, { merge: true }).catch(e => console.error('[Vocara] publicStats session write failed:', e.message))
+    })
     // Notify partner of activity
     if (myData?.partnerUID) {
       const notifId = `session_${user.uid}_${Date.now()}`
@@ -8620,9 +8640,9 @@ function App() {
         setUser(null); setLoading(false)
         return
       }
+      writePublicStats(u.uid, u, db)
       try {
         const userRef = doc(db, 'users', u.uid)
-        const code = u.uid.slice(0, 8).toUpperCase()
         const snap = await getDoc(userRef)
 
         // ── NEW USER: first login, no profile with createdAt yet
@@ -8766,23 +8786,10 @@ function App() {
               data.pendingGift = { ...firstCard.data(), _incomingId: firstCard.id }
             }
           } catch (_) {}
-          // Write public profile to users/{uid}/publicStats/data on every login
-          try {
-            const resolvedName = u.displayName || (u.uid === MARK_UID ? 'Mark' : u.uid === ELOSY_UID ? 'Elosy' : '')
-            const pubProfile = {
-              displayName: resolvedName, name: data.name || resolvedName,
-              lastActive: Date.now(), uid: u.uid
-            }
-            if (data.partnerUID) { pubProfile.partnerUID = data.partnerUID; pubProfile.partnerName = data.partnerName || null }
-            await setDoc(doc(db, 'users', u.uid, 'publicStats', 'data'), pubProfile, { merge: true })
-            // Copy globalStats summary if it exists
-            try {
-              const globalStats = await getDoc(doc(db, 'users', u.uid, 'globalStats', 'summary'))
-              if (globalStats.exists()) {
-                await setDoc(doc(db, 'users', u.uid, 'publicStats', 'data'), globalStats.data(), { merge: true })
-              }
-            } catch (_) {}
-          } catch (e) { console.warn('[Vocara] publicStats write skipped:', e?.code) }
+          // Write partnerUID to publicStats if available (writePublicStats already called above)
+          if (data.partnerUID) {
+            setDoc(doc(db, 'users', u.uid, 'publicStats', 'data'), { partnerUID: data.partnerUID, partnerName: data.partnerName || null }, { merge: true }).catch(() => {})
+          }
           setMyData(data)
           // Load music settings from Firestore
           getDoc(doc(db, 'users', u.uid, 'settings', 'music')).then(mSnap => {
