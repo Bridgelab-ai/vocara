@@ -1,5 +1,10 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 29.04.2026)
 
+## ✅ Implementiert (02.05.2026 Session 36) — V01.049.054
+- GESCHENKKARTE BENACHRICHTIGUNG: Nach write zu incomingCards schreibt send() auch users/{partnerUID}/publicStats/pendingNotifs_gift_{ts} (gleicher Mechanismus wie Session-Notifs); Text DE/EN abhängig ob Partner Elosy ist ✅
+- GESCHENKKARTE DUPLIKAT-SCHUTZ: getDocs(incomingCards) vor dem Senden; 1) gleiche front+back schon vorhanden → Toast + abort; 2) gleiche Karte + heutiges Datum → Toast + abort; zwei unabhängige Checks mit je eigenem Toast ✅
+- VERSION V01.049.054 ✅
+
 ## ✅ Implementiert (02.05.2026 Session 35) — V01.049.053
 - EINSTUFUNGSTEST KI-FRAGEN: PlacementTest bekommt toLangCode prop (activeToLang); AI-Generierung nutzt jetzt claude-haiku-4-5-20251001 statt Sonnet; Prompt deckt A1-B2 ab; LANG_NAMES_FULL für alle Sprachpaare (de/en/sw/th/es/fr); statischer Fallback nur noch bei AI-Ausfall ✅
 - SENTENCE POOL API: generate-sentence-pool.js erweitert um type:'flashcards' Branch → 100 Satz-Flashcards/Paar (5 Kategorien à 20: Alltag/Reisen/Arbeit/Familie/Smalltalk), schreibt nach sharedCards/{pair}_sentence; bestehende Exercise-Generierung bleibt unberührt; optionaler {pair} body param für einzelne Triggerung ✅

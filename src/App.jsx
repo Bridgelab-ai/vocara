@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.049.053'
+const APP_VERSION = 'V01.049.054'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -7960,9 +7960,34 @@ function GeschenkkarteScreen({ user, myData, lang, theme, onBack, allCards, card
     if (!selectedCard || !myPartnerUID) return
     setSending(true)
     try {
+      const today = todayStr()
+      // ── Duplicate checks ──────────────────────────────────────────
+      const existingSnap = await getDocs(collection(db, 'users', myPartnerUID, 'incomingCards'))
+      const existing = existingSnap.docs.map(d => d.data())
+      const sameCard = existing.find(e => e.front === selectedCard.front && e.back === selectedCard.back)
+      if (sameCard) {
+        setStatus(isDE ? '⚠️ Partner hat diese Karte bereits erhalten' : '⚠️ Partner already received this card')
+        setTimeout(() => setStatus(null), 3000)
+        return
+      }
+      const sentToday = existing.find(e => e.front === selectedCard.front && e.back === selectedCard.back && e.date === today)
+      if (sentToday) {
+        setStatus(isDE ? '⚠️ Du hast diese Karte heute bereits gesendet' : '⚠️ You already sent this card today')
+        setTimeout(() => setStatus(null), 3000)
+        return
+      }
+      // ── Write gift card ───────────────────────────────────────────
       const ts = Date.now()
-      const gift = { front: selectedCard.front, back: selectedCard.back, category: selectedCard.category, langA: selectedCard.langA, langB: selectedCard.langB, message: message.trim().slice(0, 100), fromName, fromUid: user.uid, sentAt: ts, date: todayStr() }
+      const gift = { front: selectedCard.front, back: selectedCard.back, category: selectedCard.category, langA: selectedCard.langA, langB: selectedCard.langB, message: message.trim().slice(0, 100), fromName, fromUid: user.uid, sentAt: ts, date: today }
       await setDoc(doc(db, 'users', myPartnerUID, 'incomingCards', `gift_${ts}`), gift)
+      // ── Push notification for partner ─────────────────────────────
+      const partnerIsElosy = myPartnerUID === ELOSY_UID
+      const notifText = partnerIsElosy
+        ? `You received a new card from your partner 🎁`
+        : `Du hast eine neue Karte von deinem Partner erhalten 🎁`
+      setDoc(doc(db, 'users', myPartnerUID, 'publicStats', `pendingNotifs_gift_${ts}`), {
+        type: 'gift_card', fromName, fromUid: user.uid, text: notifText, ts,
+      }).catch(() => {})
       setStatus(isDE ? `🎁 Geschenkt an ${partnerName} ✓` : `🎁 Gifted to ${partnerName} ✓`)
       setSelectedCard(null); setMessage('')
       setTimeout(() => { setStatus(null); onBack() }, 2000)
