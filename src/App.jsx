@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.029.023'
+const APP_VERSION = 'V01.030.023'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -5245,13 +5245,33 @@ Return ONLY JSON: [{"front":"German word","back":"English translation","category
 
   const generateCategoryCards = async (category) => {
     const isStreet = category === 'street'
+    const isHome = category === 'home'
     const langA = isMarkLang ? 'de' : 'en'
     const langB = isMarkLang ? 'en' : 'de'
     const fromLangName = isMarkLang ? 'German' : 'English'
     const toLangName = isMarkLang ? 'English' : 'German'
+    // Home category: level-aware content generation (10 levels)
+    const HOME_LEVEL_DESCS = [
+      'absolute basics: greetings like "Guten Morgen", "Wie geht\'s?", "Danke schön", simple yes/no phrases',
+      'basic household phrases: asking for help, naming rooms, simple requests at home',
+      'daily family conversation: talking about meals, plans for the day, describing family members',
+      'household activities: cooking instructions, chores, shopping lists, describing your home',
+      'feelings and relationships at home: expressing emotions, talking about relationships, conflicts',
+      'leisure at home: hobbies, watching TV, music, reading — natural everyday small talk',
+      'deeper domestic conversations: discussing living arrangements, home improvements, routines in detail',
+      'nuanced household language: subtle expressions, indirect requests, polite disagreements at home',
+      'cultural home expressions: idioms and phrases about family life, customs, traditions',
+      'near-native home vocabulary: complex family dynamics, formal and informal registers mixed',
+    ]
+    let homeLevelNote = ''
+    if (isHome) {
+      const homeMastered = (activeCards || []).filter(c => c.category === 'home' && (cardProgress[c.id]?.interval || 0) >= 7).length
+      const homeLevel = getCatLevel(homeMastered)
+      homeLevelNote = ` Current learner level ${homeLevel + 1}/10. Generate content for: ${HOME_LEVEL_DESCS[Math.min(homeLevel, HOME_LEVEL_DESCS.length - 1)]}.`
+    }
     const typeDesc = isStreet
       ? 'slang, street language, informal expressions, youth language'
-      : 'home, family, romantic, everyday domestic expressions'
+      : `home, family, everyday domestic expressions.${homeLevelNote}`
     const label = isStreet
       ? (isMarkLang ? 'Auf der Straße — KI erstellt erste Phrasen…' : 'On the Street — AI creating first phrases…')
       : (isMarkLang ? 'Und zu Hause — KI erstellt erste Phrasen…' : 'At Home — AI creating first phrases…')
@@ -5940,6 +5960,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     const myStreakNow = calcStreak([...(sessionHistory || []), { date: todayStr(), correct, total: correct + wrong }])
     const pubStats = { weeklyMinutes: newWeeklyMinutes, monthlyMinutes: newMonthlyMinutes, totalMinutes: newTotalMinutes, learningWeek: nowWeek, learningMonth: nowMonth, totalCards: allCards.filter(c => !/_r(_\d+)?$/.test(c.id)).length, masteredCards: myMasteredNow, streak: myStreakNow, lastActive: todayStr(), name: user.displayName?.split(' ')[0] || 'Partner' }
     setDoc(doc(db, 'userProfiles', user.uid), pubStats, { merge: true }).catch(() => {})
+    setDoc(doc(db, 'users', user.uid, 'profile', 'data'), pubStats, { merge: true }).catch(() => {})
     // Notify partner of activity via Firestore pendingNotifs subcollection
     if (myData?.partnerUID) {
       const notifId = `session_${user.uid}_${Date.now()}`
@@ -8696,8 +8717,21 @@ function App() {
             } else {
               console.log('[Vocara] Partner sync: skipped (no change), partnerUid =', pUid)
             }
-            // Debug: log partner profile for diagnosis
-            getDoc(doc(db, 'userProfiles', pUid)).then(ps => { if (ps.exists()) console.log('[Vocara] Partner profile:', ps.data()) }).catch(() => {})
+            // Debug: log both profiles for diagnosis
+            ;(async () => {
+              try {
+                const [myPub, myProf, pPub, pProf] = await Promise.all([
+                  getDoc(doc(db, 'userProfiles', u.uid)).catch(() => null),
+                  getDoc(doc(db, 'users', u.uid, 'profile', 'data')).catch(() => null),
+                  getDoc(doc(db, 'userProfiles', pUid)).catch(() => null),
+                  getDoc(doc(db, 'users', pUid, 'profile', 'data')).catch(() => null),
+                ])
+                console.log('[Vocara] MY  userProfiles/' + u.uid + ':', myPub?.exists() ? myPub.data() : 'MISSING')
+                console.log('[Vocara] MY  users/' + u.uid + '/profile/data:', myProf?.exists() ? myProf.data() : 'MISSING')
+                console.log('[Vocara] PTR userProfiles/' + pUid + ':', pPub?.exists() ? pPub.data() : 'MISSING')
+                console.log('[Vocara] PTR users/' + pUid + '/profile/data:', pProf?.exists() ? pProf.data() : 'MISSING')
+              } catch(e) { console.warn('[Vocara] profile debug failed', e) }
+            })()
           }
           // ── CHECK INCOMING CARDS (subcollection) ──
           try {
