@@ -1,5 +1,15 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 29.04.2026)
 
+## ✅ Implementiert (02.05.2026 Session 28) — V01.032.023
+- ICONS ENTFERNT: Alle Emojis aus Lernbereich-Buttons auf Home-Screen entfernt; ✈️ aus Im Urlaub, 🎯 aus Meine Themen Home-Button, topic.emoji aus Themen-Chips; KI_SCENARIOS Picker ohne Emoji-Icon-Block, Chat-Header ohne Emoji; nur Text + Lvl-Badge ✅
+- +X ANZEIGE ENTFERNT: Zweite Zeile mit "+X bis nächstes Level" aus levelBadge entfernt — nur noch "Lvl X/10" ✅
+- UND ZU HAUSE 10 STUFEN: levelBadge('home') nutzt homeLevel = floor(masteredCount/8) — 80% von 10 Karten = 8 gemeisterte zum Level-Aufstieg; generateCategoryCards('home') bereits level-aware (030) ✅
+- IM URLAUB 10 STUFEN SCHNELLER: levelBadge('urlaub') = floor(masteredCount/6) — 60% von 10 = 6 gemeisterte; levelBadge('urlaub') jetzt auf Urlaub-Button hinzugefügt ✅
+- BASIS-POOL API: api/generate-base-pool.js erstellt — POST-Only Endpoint, generiert 30 Level-1-Grundlagen-Karten für 6 Sprachpaare via Claude Sonnet, schreibt nach sharedCards/{langPair}_grundlagen_1; fetchGrundlagenPool() Helper in App.jsx; startBasicsSession prüft Base-Pool vor KI-Generierung ✅
+- KI-GESPRÄCH SZENARIEN CLEAN TEXT: Emoji-Block aus Szenario-Picker entfernt; nur Text-Buttons ✅
+- WÖCHENTLICHER AUTO-POOL: api/weekly-pool.js bereits vorhanden (bestätigt) ✅
+- VERSION V01.032.023 ✅
+
 ## ✅ Implementiert (02.05.2026 Session 27) — V01.030.023
 - PARTNER KRITISCH: Dual-path stats write on session end → `userProfiles/{uid}` + `users/{uid}/profile/data`; enhanced debug logging reads all 4 profile paths for both users on login ✅
 - ÜBERSETZUNGSQUALITÄT: All card generation already uses claude-sonnet-4-6 + CARD_GEN_SYSTEM (confirmed) ✅
