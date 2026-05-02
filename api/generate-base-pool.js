@@ -41,13 +41,13 @@ Return ONLY a valid JSON array (no markdown):
 
   4: (fromName, toName) =>
     `Generate exactly 30 Level 4 Grundlagen flashcards for a ${fromName} speaker learning ${toName}.
-Cover in this order:
-- Connecting/subordinating conjunctions with example short sentences (10 cards): but (aber), because (weil), although (obwohl), nevertheless (trotzdem), so that (damit), while (während), if (wenn), since (seit/da), before (bevor), after (nachdem)
-- Common compound words broken into parts with meaning (10 cards): e.g. Handtuch = Hand+Tuch = hand+cloth = towel; Flugzeug, Krankenhaus, Kühlschrank, Jahreszeit, Hausaufgabe, Fahrkarte, Briefkasten, Reisepass, Schreibtisch, Erdgeschoss
-- Useful B1-level phrases for expressing opinion/agreement (10 cards): I think that, in my opinion, I agree, I disagree, on the one hand, on the other hand, it depends, generally speaking, as far as I know, to be honest
-All ${fromName} fronts, all ${toName} backs. 100% accurate. Include phonetic pronunciation for ${toName}.
+Cover these 3 groups (10 cards each):
+1. Subordinating conjunctions: weil/because, obwohl/although, damit/so that, während/while, wenn/if, bevor/before, nachdem/after, seit/since, trotzdem/nevertheless, falls/in case
+2. Common compound nouns: Handtuch/towel, Flugzeug/airplane, Krankenhaus/hospital, Kühlschrank/fridge, Hausaufgabe/homework, Fahrkarte/ticket, Briefkasten/mailbox, Reisepass/passport, Schreibtisch/desk, Jahreszeit/season
+3. Opinion phrases: I think, in my opinion, I agree, I disagree, on one hand, on the other hand, it depends, generally, as far as I know, to be honest
+Keep all fronts short (max 5 words). All ${fromName} fronts, all ${toName} backs. Include phonetic pronunciation for ${toName}.
 Return ONLY a valid JSON array (no markdown):
-[{"front":"word/phrase in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic for ${toName}","category":"grundlagen","level":4,"wordType":"conjunction|compound|phrase","tense":"present"}]`,
+[{"front":"short phrase in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic","category":"grundlagen","level":4,"wordType":"conjunction","tense":"present"}]`,
 
   5: (fromName, toName) =>
     `Generate exactly 30 Level 5 Grundlagen flashcards for a ${fromName} speaker learning ${toName}.
@@ -73,7 +73,7 @@ async function generateCards(fromLang, toLang, level) {
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
-      max_tokens: 3000,
+      max_tokens: 4000,
       system: 'You are a professional language educator. Generate accurate beginner flashcards. Return ONLY valid JSON array, no markdown.',
       messages: [{ role: 'user', content: prompt }],
     }),
@@ -137,7 +137,7 @@ Return ONLY a valid JSON array (no markdown):
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 3000, system: 'You are a professional language educator. Return ONLY valid JSON array, no markdown.', messages: [{ role: 'user', content: prompt }] }),
+    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 4000, system: 'You are a professional language educator. Return ONLY valid JSON array, no markdown.', messages: [{ role: 'user', content: prompt }] }),
   })
   const data = await res.json()
   const raw = (data.content?.[0]?.text || '').trim()
