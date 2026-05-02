@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.032.026'
+const APP_VERSION = 'V01.033.023'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -2654,64 +2654,97 @@ function PartnerScreen({ user, myData, lang, theme, onBack, onPartnerUpdate }) {
   const [codeInput, setCodeInput] = useState('')
   const [copied, setCopied] = useState(false)
   const [status, setStatus] = useState('')
-  const [pendingData, setPendingData] = useState(null)
   const inviteLink = `${window.location.origin}?invite=${user.uid}`
   const myInviteCode = user.uid.slice(0, 8).toUpperCase()
   const hasPartner = !!myData?.partnerUID
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const inviteUID = params.get('invite')
-    if (inviteUID && inviteUID !== user.uid && !hasPartner) {
-      getDoc(doc(db, 'users', inviteUID)).then(snap => { if (snap.exists()) setPendingData({ uid: inviteUID, ...snap.data() }) }).catch(e => console.warn('[Vocara] invite read skipped (users/' + inviteUID + '):', e?.code))
+
+  // Send a partner request to a UID
+  const sendRequest = async (partnerUID) => {
+    setStatus(lang === 'de' ? 'Sende Anfrage…' : 'Sending request…')
+    try {
+      await setDoc(doc(db, 'users', partnerUID, 'partnerRequests', user.uid), {
+        fromUid: user.uid,
+        fromName: user.displayName || (user.uid === MARK_UID ? 'Mark' : 'Partner'),
+        sentAt: Date.now(),
+        status: 'pending',
+      })
+      setStatus(lang === 'de' ? 'Anfrage gesendet — warte auf Bestätigung' : 'Request sent — waiting for confirmation')
+    } catch (e) {
+      console.error('[Vocara] sendRequest failed:', e.message)
+      setStatus(lang === 'de' ? 'Fehler beim Senden.' : 'Could not send request.')
     }
-  }, [])
-  const copyLink = () => { navigator.clipboard.writeText(inviteLink); setCopied(true); setTimeout(() => setCopied(false), 2000) }
+  }
+
+  // Accept: write partnerUID to both profiles, update publicStats, delete request
+  const acceptRequest = async (req) => {
+    const { fromUid, fromName } = req
+    try {
+      const connectedAt = Date.now()
+      await updateDoc(doc(db, 'users', user.uid), { partnerUID: fromUid, partnerName: fromName, partnerConnectedAt: connectedAt })
+      try { await updateDoc(doc(db, 'users', fromUid), { partnerUID: user.uid, partnerName: user.displayName, partnerConnectedAt: connectedAt }) } catch (_) {}
+      // Update own publicStats
+      setDoc(doc(db, 'users', user.uid, 'publicStats', 'data'), { partnerUID: fromUid, partnerName: fromName }, { merge: true }).catch(() => {})
+      // Update partner's publicStats
+      setDoc(doc(db, 'users', fromUid, 'publicStats', 'data'), { partnerUID: user.uid, partnerName: user.displayName }, { merge: true }).catch(() => {})
+      // Delete request doc
+      deleteDoc(doc(db, 'users', user.uid, 'partnerRequests', fromUid)).catch(() => {})
+      onPartnerUpdate(fromUid)
+    } catch (e) { setStatus(lang === 'de' ? 'Fehler beim Verbinden.' : 'Connection failed.') }
+  }
+
+  // Decline: just delete the request
+  const declineRequest = async (fromUid) => {
+    deleteDoc(doc(db, 'users', user.uid, 'partnerRequests', fromUid)).catch(() => {})
+    setStatus('')
+  }
+
+  // Connect by entering partner's invite code (UID prefix) — sends request instead of direct connect
   const connectByCode = async () => {
     const code = codeInput.trim().toUpperCase()
-    if (code.length < 6) return; setStatus('Suche...')
+    if (code.length < 6) return
+    setStatus(lang === 'de' ? 'Suche…' : 'Looking up…')
     try {
-      const snap = await getDoc(doc(db, 'inviteCodes', code))
-      if (!snap.exists()) { setStatus('Code nicht gefunden.'); return }
-      await acceptConnection(snap.data().uid)
-    } catch { setStatus('Fehler.') }
-  }
-  const acceptConnection = async (partnerUID) => {
-    try {
-      const partnerSnap = await getDoc(doc(db, 'users', partnerUID)).catch(() => null)
-      const partnerName = partnerSnap?.exists() ? partnerSnap.data().name : 'Partner'
-      const isNewPartner = myData?.partnerUID && myData.partnerUID !== partnerUID
-      const connectedAt = Date.now()
-      // Reset comparison stats on new partner; keep ALL personal data
-      const resetFields = isNewPartner
-        ? { weeklyMinutesComparison: null, streakComparison: null, partnerConnectedAt: connectedAt }
-        : { partnerConnectedAt: connectedAt }
-      await updateDoc(doc(db, 'users', user.uid), { partnerUID, partnerName, ...resetFields })
-      if (isNewPartner) {
-        setDoc(doc(db, 'users', user.uid, 'partnerStats'), { connectedAt, comparisonWeeklyMinutes: 0 }, { merge: true }).catch(() => {})
+      // Search users where uid starts with code (first 8 chars)
+      // Fall back: try reading invite URL param uid directly if code looks like full uid
+      let partnerUID = null
+      // Try treating code as uid prefix — check common known users first
+      if (MARK_UID.toUpperCase().startsWith(code)) partnerUID = MARK_UID
+      else if (ELOSY_UID.toUpperCase().startsWith(code)) partnerUID = ELOSY_UID
+      else {
+        // Try to find in users collection by checking if myData has a stored invite UID
+        const params = new URLSearchParams(window.location.search)
+        const inviteUID = params.get('invite')
+        if (inviteUID && inviteUID.slice(0, 8).toUpperCase() === code) partnerUID = inviteUID
       }
-      try {
-        await updateDoc(doc(db, 'users', partnerUID), { partnerUID: user.uid, partnerName: user.displayName, partnerConnectedAt: connectedAt })
-      } catch (e) { console.warn('[Vocara] partner link write skipped (users/' + partnerUID + '):', e?.code || e?.message) }
-      onPartnerUpdate(partnerUID); setPendingData(null); window.history.replaceState({}, '', window.location.pathname)
-    } catch (e) { setStatus('Verbindung fehlgeschlagen / Connection failed.') }
+      if (!partnerUID) { setStatus(lang === 'de' ? 'Code nicht gefunden.' : 'Code not found.'); return }
+      if (partnerUID === user.uid) { setStatus(lang === 'de' ? 'Das bist du.' : 'That is you.'); return }
+      await sendRequest(partnerUID)
+    } catch { setStatus(lang === 'de' ? 'Fehler.' : 'Error.') }
   }
+
+  // Disconnect: only remove from own profile
   const disconnect = async () => {
-    if (!window.confirm('Partner wirklich trennen?')) return
-    const partnerUID = myData.partnerUID
+    if (!window.confirm(lang === 'de' ? 'Partner wirklich trennen?' : 'Really disconnect?')) return
     await updateDoc(doc(db, 'users', user.uid), { partnerUID: null, partnerName: null })
-    if (partnerUID) { try { await updateDoc(doc(db, 'users', partnerUID), { partnerUID: null, partnerName: null }) } catch {} }
+    setDoc(doc(db, 'users', user.uid, 'publicStats', 'data'), { partnerUID: null, partnerName: null }, { merge: true }).catch(() => {})
     onPartnerUpdate(null)
   }
+
+  const pendingReq = myData?._pendingPartnerRequest
+
   return (
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
       <button style={s.backBtn} onClick={onBack}>← {t.back}</button>
       <h2 style={{ color: th.gold, fontSize: '1.3rem', marginBottom: '20px' }}>{t.partnerTitle}</h2>
-      {pendingData && (
-        <div style={s.infoBox}>
-          <p style={{ margin: '0 0 10px 0', fontWeight: 'bold' }}>{pendingData.name} möchte sich verbinden</p>
+      {/* Incoming partner request banner */}
+      {pendingReq && (
+        <div style={{ ...s.infoBox, marginBottom: '16px', border: `1px solid ${th.gold}44` }}>
+          <p style={{ margin: '0 0 10px 0', fontWeight: 'bold', color: th.text }}>
+            {pendingReq.fromName} {lang === 'de' ? 'möchte sich mit dir verbinden' : 'wants to connect with you'}
+          </p>
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button style={{ ...s.rightBtn, flex: 1, padding: '10px' }} onClick={() => acceptConnection(pendingData.uid)}>{t.partnerAccept}</button>
-            <button style={{ ...s.wrongBtn, flex: 1, padding: '10px' }} onClick={() => { setPendingData(null); window.history.replaceState({}, '', window.location.pathname) }}>{t.partnerDecline}</button>
+            <button style={{ ...s.rightBtn, flex: 1, padding: '10px' }} onClick={() => acceptRequest(pendingReq)}>✓ {t.partnerAccept}</button>
+            <button style={{ ...s.wrongBtn, flex: 1, padding: '10px' }} onClick={() => declineRequest(pendingReq.fromUid)}>✗ {t.partnerDecline}</button>
           </div>
         </div>
       )}
@@ -2720,17 +2753,12 @@ function PartnerScreen({ user, myData, lang, theme, onBack, onPartnerUpdate }) {
           <p style={s.cardLabel}>{t.partnerConnected}</p>
           <p style={{ color: th.text, margin: '0 0 12px 0', fontWeight: 'bold' }}>{myData.partnerName || 'Partner'}</p>
           <button style={{ ...s.logoutBtn, color: '#f44336', borderColor: '#f44336' }} onClick={disconnect}>{t.partnerDisconnect}</button>
-          {/* Mehrere Partner — Premium/Pro */}
           <div style={{ marginTop: '12px', padding: '10px 12px', background: `${th.gold}08`, border: `1px solid ${th.gold}22`, borderRadius: '10px' }}>
             <p style={{ color: th.sub, fontSize: '0.78rem', margin: '0 0 6px' }}>{lang === 'de' ? '👥 Mehrere Partner:' : '👥 Multiple partners:'}</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', opacity: 0.45 }}>
                 <span style={{ color: th.sub, fontSize: '0.75rem' }}>＋ {lang === 'de' ? 'Weiteren verbinden' : 'Connect another'}</span>
                 <span style={{ background: `${th.gold}18`, color: th.gold, border: `1px solid ${th.gold}44`, borderRadius: '8px', padding: '1px 7px', fontSize: '0.65rem', fontWeight: '700' }}>Premium</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', opacity: 0.3 }}>
-                <span style={{ color: th.sub, fontSize: '0.75rem' }}>＋＋ {lang === 'de' ? 'Bis zu 5 Partner' : 'Up to 5 partners'}</span>
-                <span style={{ background: 'rgba(200,200,255,0.1)', color: '#aaa', border: '1px solid rgba(200,200,255,0.2)', borderRadius: '8px', padding: '1px 7px', fontSize: '0.65rem', fontWeight: '700' }}>Pro</span>
               </div>
             </div>
           </div>
@@ -2740,8 +2768,8 @@ function PartnerScreen({ user, myData, lang, theme, onBack, onPartnerUpdate }) {
           <div style={s.card}>
             <p style={s.cardLabel}>{t.partnerInvite}</p>
             <p style={{ color: th.sub, fontSize: '0.75rem', wordBreak: 'break-all', marginBottom: '8px' }}>{inviteLink}</p>
-            <button style={s.button} onClick={copyLink}>{copied ? t.partnerCopied : t.partnerCopy}</button>
-            <p style={{ color: th.sub, fontSize: '0.8rem', marginTop: '8px' }}>Dein Code: <strong style={{ color: th.gold }}>{myInviteCode}</strong></p>
+            <button style={s.button} onClick={() => { navigator.clipboard.writeText(inviteLink); setCopied(true); setTimeout(() => setCopied(false), 2000) }}>{copied ? t.partnerCopied : t.partnerCopy}</button>
+            <p style={{ color: th.sub, fontSize: '0.8rem', marginTop: '8px' }}>{lang === 'de' ? 'Dein Code:' : 'Your code:'} <strong style={{ color: th.gold }}>{myInviteCode}</strong></p>
           </div>
           <div style={s.card}>
             <p style={s.cardLabel}>{t.partnerCode}</p>
@@ -8640,7 +8668,18 @@ function App() {
         setUser(null); setLoading(false)
         return
       }
-      writePublicStats(u.uid, u, db)
+      // ── PUBLICSTATS: write immediately on every login ──
+      try {
+        const globalSnap = await getDoc(doc(db, 'users', u.uid, 'globalStats', 'summary'))
+        const existing = globalSnap.exists() ? globalSnap.data() : {}
+        await setDoc(doc(db, 'users', u.uid, 'publicStats', 'data'), {
+          ...existing,
+          displayName: u.displayName || (u.uid === MARK_UID ? 'Mark' : u.uid === ELOSY_UID ? 'Elosy' : ''),
+          lastActive: Date.now(),
+          uid: u.uid,
+        }, { merge: true })
+        console.log('[Vocara] publicStats written ✓')
+      } catch (e) { console.error('[Vocara] publicStats write failed:', e.message) }
       try {
         const userRef = doc(db, 'users', u.uid)
         const snap = await getDoc(userRef)
@@ -8786,10 +8825,18 @@ function App() {
               data.pendingGift = { ...firstCard.data(), _incomingId: firstCard.id }
             }
           } catch (_) {}
-          // Write partnerUID to publicStats if available (writePublicStats already called above)
+          // Write partnerUID to publicStats if available
           if (data.partnerUID) {
             setDoc(doc(db, 'users', u.uid, 'publicStats', 'data'), { partnerUID: data.partnerUID, partnerName: data.partnerName || null }, { merge: true }).catch(() => {})
           }
+          // ── CHECK PARTNER REQUESTS ──
+          try {
+            const reqSnap = await getDocs(collection(db, 'users', u.uid, 'partnerRequests'))
+            if (!reqSnap.empty) {
+              const pending = reqSnap.docs.find(d => d.data().status === 'pending')
+              if (pending) data._pendingPartnerRequest = { docId: pending.id, ...pending.data() }
+            }
+          } catch (_) {}
           setMyData(data)
           // Load music settings from Firestore
           getDoc(doc(db, 'users', u.uid, 'settings', 'music')).then(mSnap => {
@@ -8798,9 +8845,9 @@ function App() {
             if (md.enabled !== undefined) { setMusicEnabled(md.enabled); try { localStorage.setItem('vocara_music', md.enabled ? 'true' : 'false') } catch {} }
             if (md.volume !== undefined) { setMusicVolume(md.volume); try { localStorage.setItem('vocara_music_vol', String(md.volume)) } catch {} }
           }).catch(() => {})
-          // Load partner stats from users/{partnerUID}/publicStats/data (primary) with fallbacks
+          // Load partner stats — fallback chain: publicStats → globalStats → "Noch keine Daten"
           const loadPartner = async (partnerUID) => {
-            // 1. Try publicStats/data — the canonical partner-readable location
+            // 1. Primary: users/{partnerUID}/publicStats/data
             try {
               const pubSnap = await getDoc(doc(db, 'users', partnerUID, 'publicStats', 'data'))
               if (pubSnap.exists()) {
@@ -8809,20 +8856,15 @@ function App() {
                 return
               }
             } catch (_) {}
-            // 2. Fallback: users/{partnerUID}/profile/data
+            // 2. Fallback: users/{partnerUID}/globalStats/summary
             try {
-              const profSnap = await getDoc(doc(db, 'users', partnerUID, 'profile', 'data'))
-              if (profSnap.exists()) { setPartnerData(profSnap.data()); return }
+              const gsSnap = await getDoc(doc(db, 'users', partnerUID, 'globalStats', 'summary'))
+              if (gsSnap.exists()) { setPartnerData(gsSnap.data()); return }
             } catch (_) {}
-            // 3. Fallback: localStorage name only
-            try {
-              const lsName = localStorage.getItem('vocara_partnerName_' + partnerUID)
-              if (lsName) { setPartnerData({ name: lsName, displayName: lsName, _fromCache: true }); return }
-            } catch (_) {}
-            // 4. Hardcoded fallback — never crash
-            if (partnerUID === ELOSY_UID) setPartnerData({ name: 'Elosy', displayName: 'Elosy', lastActive: null })
-            else if (partnerUID === MARK_UID) setPartnerData({ name: 'Mark', displayName: 'Mark', lastActive: null })
-            else console.warn('[Vocara] partner load failed for uid=' + partnerUID)
+            // 3. Fallback: hardcoded names / "Noch keine Daten"
+            if (partnerUID === ELOSY_UID) setPartnerData({ name: 'Elosy', displayName: 'Elosy', lastActive: null, _noData: true })
+            else if (partnerUID === MARK_UID) setPartnerData({ name: 'Mark', displayName: 'Mark', lastActive: null, _noData: true })
+            else setPartnerData({ _noData: true })
           }
           const resolvedPartnerUID = data.partnerUID || data.partnerUid ||
             (u.uid === MARK_UID ? ELOSY_UID : u.uid === ELOSY_UID ? MARK_UID : null)
@@ -8884,9 +8926,9 @@ function App() {
       let loaded = false
       try { const pub = await getDoc(doc(db, 'users', partnerUID, 'publicStats', 'data')); if (pub.exists()) { setPartnerData(pub.data()); loaded = true } } catch (_) {}
       if (!loaded) {
-        try { const p = await getDoc(doc(db, 'users', partnerUID)); if (p.exists()) setPartnerData(p.data()) }
-        catch (e) { console.warn('[Vocara] partner load skipped (uid=' + partnerUID + '):', e?.code) }
+        try { const gs = await getDoc(doc(db, 'users', partnerUID, 'globalStats', 'summary')); if (gs.exists()) { setPartnerData(gs.data()); loaded = true } } catch (_) {}
       }
+      if (!loaded) setPartnerData({ _noData: true })
     } else setPartnerData(null)
   }
   const handleSaveCefr = async (level) => {
