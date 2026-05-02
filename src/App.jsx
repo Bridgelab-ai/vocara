@@ -6770,9 +6770,6 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
 
       {/* ── SECONDARY NAVIGATION ── */}
       <div className="vocara-nav-section" style={{ marginTop: '4px', marginBottom: '10px' }}>
-        <button className="vocara-nav-btn" style={{ ...s.navBtn, opacity: satzLoading ? 0.6 : 1 }} onClick={startSatzSession} disabled={satzLoading}>
-          ✍️ {t.menuSatz}
-        </button>
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => {
           if (!isPremium) {
             const nowWeek = getISOWeekStr()
