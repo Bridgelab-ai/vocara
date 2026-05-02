@@ -112,13 +112,111 @@ async function writePool(fromLang, toLang, level, exercises) {
   if (!r.ok) throw new Error(`Firestore write failed: ${r.status}`)
 }
 
+// ── SENTENCE FLASHCARD POOL (sharedCards/{pair}_sentence) ────────────────────
+
+const FLASHCARD_CATEGORIES = [
+  { key: 'alltag',    label: 'Alltag',    count: 20, theme: 'everyday situations: daily routines, shopping, weather, home life, habits' },
+  { key: 'reisen',    label: 'Reisen',    count: 20, theme: 'travel: directions, booking a room, airport, transport, sightseeing' },
+  { key: 'arbeit',    label: 'Arbeit',    count: 20, theme: 'work and professional life: meetings, emails, colleagues, deadlines, tasks' },
+  { key: 'familie',   label: 'Familie',   count: 20, theme: 'family and social life: relationships, home, celebrations, free time' },
+  { key: 'smalltalk', label: 'Smalltalk', count: 20, theme: 'small talk: greetings, opinions, hobbies, polite phrases, current events' },
+]
+
+async function generateFlashcardCategory(fromLang, toLang, cat) {
+  const fromName = LANG_NAMES[fromLang]
+  const toName = LANG_NAMES[toLang]
+  const prompt = `Generate exactly ${cat.count} natural sentence flashcards for a ${fromName} speaker learning ${toName}.
+Category: ${cat.label} — theme: ${cat.theme}
+Rules:
+- front: short everyday sentence in ${fromName} (native language), max 12 words
+- back: natural ${toName} translation (as a native speaker would say it, not word-for-word)
+- Vary structure: questions, statements, requests
+Return ONLY a valid JSON array (no markdown):
+[{"front":"sentence in ${fromName}","back":"sentence in ${toName}","vocabCategory":"${cat.key}"}]`
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001', max_tokens: 3000,
+      system: 'You are a professional language teacher. Return ONLY valid JSON array, no markdown.',
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  })
+  const data = await res.json()
+  const raw = (data.content?.[0]?.text || '').trim()
+  const match = raw.match(/\[[\s\S]*\]/)
+  if (!match) return []
+  try { return JSON.parse(match[0]).slice(0, cat.count) } catch { return [] }
+}
+
+async function processFlashcardPair(fromLang, toLang) {
+  const results = await Promise.all(FLASHCARD_CATEGORIES.map(cat => generateFlashcardCategory(fromLang, toLang, cat)))
+  return results.flat()
+}
+
+async function writeFlashcardPool(fromLang, toLang, cards) {
+  const docPath = `${FIRESTORE_BASE}/sharedCards/${fromLang}_${toLang}_sentence`
+  const fields = {
+    fromLang: { stringValue: fromLang }, toLang: { stringValue: toLang },
+    category: { stringValue: 'sentence' }, generatedAt: { stringValue: new Date().toISOString() },
+    count: { integerValue: String(cards.length) },
+    cards: {
+      arrayValue: {
+        values: cards.map(c => ({
+          mapValue: {
+            fields: {
+              id: { stringValue: `sentence_${fromLang}_${toLang}_${Math.random().toString(36).slice(2, 9)}` },
+              front: { stringValue: c.front || '' }, back: { stringValue: c.back || '' },
+              category: { stringValue: 'sentence' }, vocabCategory: { stringValue: c.vocabCategory || '' },
+              level: { integerValue: '1' }, langA: { stringValue: fromLang }, langB: { stringValue: toLang },
+              source: { stringValue: 'sentence-pool' }, createdAt: { integerValue: Date.now().toString() },
+            }
+          }
+        }))
+      }
+    }
+  }
+  const mask = ['fromLang','toLang','category','generatedAt','count','cards'].map(f => `updateMask.fieldPaths=${f}`).join('&')
+  const r = await fetch(`${docPath}?${mask}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields }) })
+  if (!r.ok) throw new Error(`Firestore write failed: ${r.status}`)
+}
+
+// ── HANDLER ───────────────────────────────────────────────────────────────────
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
+  let body = {}
+  try { const chunks = []; for await (const chunk of req) chunks.push(chunk); body = JSON.parse(Buffer.concat(chunks).toString() || '{}') } catch {}
+
+  // type: 'flashcards' → generate sentence flashcards to sharedCards/{pair}_sentence
+  if (body.type === 'flashcards') {
+    const pairsToRun = body.pair
+      ? PAIRS.filter(p => `${p.from}_${p.to}` === body.pair)
+      : PAIRS
+    const results = []
+    for (const { from, to } of pairsToRun) {
+      try {
+        const cards = await processFlashcardPair(from, to)
+        if (cards.length > 0) {
+          await writeFlashcardPool(from, to, cards)
+          const byCat = {}
+          for (const c of cards) { byCat[c.vocabCategory] = (byCat[c.vocabCategory] || 0) + 1 }
+          results.push({ pair: `${from}→${to}`, total: cards.length, categories: Object.entries(byCat).map(([k,v]) => ({ category: k, count: v })) })
+        } else {
+          results.push({ pair: `${from}→${to}`, error: 'No cards generated' })
+        }
+      } catch (e) { results.push({ pair: `${from}→${to}`, error: e.message }) }
+    }
+    return res.status(200).json({ generated: results, total: results.reduce((s, r) => s + (r.total || 0), 0) })
+  }
+
+  // Default: generate sentence exercises to sharedSentences/{pair}_level{N}
+  let body2 = body
   const results = []
   for (const level of [1, 2, 3]) {
     for (const { from, to } of PAIRS) {
       try {
-        // Generate in two batches of 25 to avoid token limits
         const [b1, b2] = await Promise.all([
           generateBatch(from, to, level, 25),
           generateBatch(from, to, level, 25),

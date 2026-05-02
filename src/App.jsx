@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.048.053'
+const APP_VERSION = 'V01.049.053'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -2574,7 +2574,7 @@ Mix all 5 types equally. Return ONLY valid JSON array, no markdown:
   )
 }
 
-function PlacementTest({ lang, theme, user, onBack, onSaveCefr }) {
+function PlacementTest({ lang, theme, user, onBack, onSaveCefr, toLangCode }) {
   const th = THEMES[theme]; const s = makeStyles(th); const t = T[lang]
   const [questions, setQuestions] = useState(null)
   const [seenIds, setSeenIds] = useState(new Set())
@@ -2606,11 +2606,14 @@ function PlacementTest({ lang, theme, user, onBack, onSaveCefr }) {
       setSeenIds(seen); setSeenTexts(prevSeenTexts); setTestCount(count + 1)
       const sh = arr => [...arr].sort(() => Math.random() - 0.5)
 
-      // Try AI generation first
-      const fromLangName = lang === 'de' ? 'Deutsch' : 'English'
-      const toLangName = lang === 'de' ? 'Englisch' : 'German'
-      const instrLang = lang === 'de' ? 'German' : 'English'
-      let aiQuestions = null
+      // Always generate fresh questions via AI (Haiku)
+      const LN = { en: 'English', de: 'German', sw: 'Swahili', th: 'Thai', es: 'Spanish', fr: 'French' }
+      const fromCode = lang || 'de'
+      const toCode = toLangCode || (lang === 'de' ? 'en' : 'de')
+      const fromLangName = LN[fromCode] || fromCode
+      const toLangName = LN[toCode] || toCode
+      const instrLang = LN[fromCode] || 'English'
+      let picked = null
       try {
         const exclusionHint = prevSeenTexts.length > 0
           ? `\nDo NOT repeat or closely paraphrase these previously shown questions: ${prevSeenTexts.slice(-20).join(' | ')}`
@@ -2618,8 +2621,8 @@ function PlacementTest({ lang, theme, user, onBack, onSaveCefr }) {
         const res = await fetch('/api/chat', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            model: 'claude-sonnet-4-6', max_tokens: 1500,
-            messages: [{ role: 'user', content: `Generate exactly 10 unique CEFR placement test questions for a ${fromLangName} speaker learning ${toLangName}. Test vocabulary, grammar, and comprehension. Include at least 1-2 questions per level (A1, A2, B1, B2, C1, C2). Write questions in ${instrLang}.${exclusionHint}\nReturn ONLY a valid JSON array (no markdown, no explanation):\n[{"question":"...","options":["...","...","...","..."],"correct":0,"level":"A1"}]` }]
+            model: 'claude-haiku-4-5-20251001', max_tokens: 1500,
+            messages: [{ role: 'user', content: `Generate exactly 10 unique CEFR placement test questions for a ${fromLangName} speaker learning ${toLangName}. Test vocabulary, grammar, and comprehension. Include 2-3 questions per level covering A1, A2, B1, B2. Write questions and answer options in ${instrLang}.${exclusionHint}\nReturn ONLY a valid JSON array (no markdown, no explanation):\n[{"question":"...","options":["...","...","...","..."],"correct":0,"level":"A1"}]` }]
           })
         })
         const d = await res.json()
@@ -2628,24 +2631,22 @@ function PlacementTest({ lang, theme, user, onBack, onSaveCefr }) {
         if (match) {
           const parsed = JSON.parse(match[0])
           if (Array.isArray(parsed) && parsed.length >= 5) {
-            aiQuestions = parsed.slice(0, 10).map((q, i) => ({ ...q, id: `ai_${Date.now()}_${i}` }))
+            picked = parsed.slice(0, 10).map((q, i) => ({ ...q, id: `ai_${Date.now()}_${i}` }))
             usedAIRef.current = true
           }
         }
       } catch {}
 
-      let picked
-      if (aiQuestions) {
-        picked = aiQuestions
-      } else {
+      if (!picked) {
+        // Minimal emergency fallback — AI unavailable
         const base = lang === 'de' ? PLACEMENT_EN : PLACEMENT_DE
         const byLevel = {}
         for (const q of base) { if (!byLevel[q.level]) byLevel[q.level] = []; byLevel[q.level].push(q) }
         picked = []
-        for (const lvl of CEFR_LEVELS) {
+        for (const lvl of ['A1','A2','B1','B2']) {
           const pool = byLevel[lvl] || []
           const unseen = pool.filter(q => !seen.has(q.id))
-          picked.push(...sh(unseen.length >= 5 ? unseen : pool).slice(0, 10))
+          picked.push(...sh(unseen.length >= 2 ? unseen : pool).slice(0, 3))
         }
       }
 
@@ -6273,7 +6274,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
   if (screen === 'geschenkkarte') return <>{homeFloat}<GeschenkkarteScreen user={user} myData={myData} lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} /></>
   if (screen === 'karteerstellen') return <>{homeFloat}<KarteErstellenScreen user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} theme={theme} onBack={() => setScreen('menu')} socialRegister={myData?.socialRegister || 'friends'} t={t} /></>
   if (screen === 'partner') return <>{homeFloat}<PartnerScreen user={user} myData={myData} lang={lang} theme={theme} onBack={() => setScreen('menu')} onPartnerUpdate={(uid) => { onPartnerUpdate(uid); setScreen('menu') }} /></>
-  if (screen === 'test') return <>{homeFloat}<PlacementTest lang={lang} theme={theme} user={user} onBack={() => setScreen('menu')} onSaveCefr={onSaveCefr} /></>
+  if (screen === 'test') return <>{homeFloat}<PlacementTest lang={lang} theme={theme} user={user} onBack={() => setScreen('menu')} onSaveCefr={onSaveCefr} toLangCode={activeToLang} /></>
   if (screen === 'impressum') return <>{homeFloat}<ImpressumScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
   if (screen === 'stats') return <>{homeFloat}<StatsScreen user={user} myData={myData} partnerData={partnerData} allCards={allCards} lang={lang} theme={theme} onBack={() => setScreen('menu')} cardProgress={cardProgress} t={t} /></>
   if (screen === 'ki') return <>{homeFloat}<KiGespraechScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={activeToLang} socialRegister={myData?.socialRegister || 'friends'} myData={myData} partnerData={partnerData} user={user} t={t} /></>
