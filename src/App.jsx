@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.049.054'
+const APP_VERSION = 'V01.050.054'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -588,9 +588,10 @@ function ruleCategory(card) {
   const backWords = back.trim().split(/\s+/).filter(Boolean)
   // Rule 0: German common-word whitelist → always vocabulary
   if (words.length === 1 && DE_VOCAB_WHITELIST.has(front.trim().toLowerCase())) return 'vocabulary'
-  // Rule 1: Swahili card, pronunciation field, or common Swahili words → street
+  // Rule 1: Swahili slang phrases embedded in non-Swahili text → street
+  // (Do NOT force langA='sw' cards to street — let content rules decide their category)
   const swahiliRe = /\b(habari|yako|nzuri|asante|karibu|pole|sawa|jambo|mambo|rafiki|wewe|mimi|nina|hii|hilo|chakula|maji|nyumba|watoto|upendo)\b/i
-  if (card.langA === 'sw' || card.pronunciation || swahiliRe.test(front)) return 'street'
+  if (card.langA !== 'sw' && card.langB !== 'sw' && swahiliRe.test(front)) return 'street'
   // Rule 2: apostrophes or contractions → street
   if (/['']/.test(front) || /\b(im|youre|its|lets|dont|cant|wont|ive|theyre|were|thats|whats|theres|ill|youll)\b/i.test(front)) return 'street'
   // Rule 3: single front word but back is 3+ words → street (single word that expands to phrase)
@@ -5946,11 +5947,20 @@ Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","
           const gimmickEntry = { theme, date: todayStr() }
           const gimmickHistory = [...(myData?.gimmickHistory || []), gimmickEntry]
           updateDoc(doc(db, 'users', user.uid), { monthlyGoal: newMonthly, unlockedGimmicks: newGimmicks, weeklyGoals: updated, gimmickHistory }).catch(() => {})
+          // Firestore guard: only fire gimmick once per month
+          setDoc(doc(db, 'monthlyGimmick', user.uid, 'history', currentMonth), { theme, unlockedAt: new Date().toISOString() }).catch(() => {})
           setMyData(d => ({ ...d, monthlyGoal: newMonthly, unlockedGimmicks: newGimmicks, weeklyGoals: updated, gimmickHistory }))
           setMonthlyUnlockNotification(true)
           setTimeout(() => setMonthlyUnlockNotification(false), 5000)
           setGimmickPopup(true)
           setTimeout(() => setGimmickPopup(false), 6000)
+          // Theme-specific gimmick sound (fail silently)
+          try {
+            const soundFile = { hamburg: 'gimmick-hamburg', nairobi: 'gimmick-nairobi', welt: 'gimmick-welt' }[theme] || 'gimmick-welt'
+            const audio = new Audio(`/sounds/${soundFile}.mp3`)
+            audio.volume = 0.6
+            audio.play().catch(() => {})
+          } catch (e) {}
         } else {
           const newMonthly = { completedWeeks: newWeekCount, lastUnlock: storedMonthly.lastUnlock || null }
           updateDoc(doc(db, 'users', user.uid), { monthlyGoal: newMonthly, weeklyGoals: updated }).catch(() => {})

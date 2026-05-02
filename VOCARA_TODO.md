@@ -1,5 +1,11 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 29.04.2026)
 
+## ✅ Implementiert (02.05.2026 Session 37) — V01.050.054
+- MONATSZIEL GIMMICK-SOUNDS: Beim Monatsziel-Trigger: new Audio('/sounds/gimmick-{theme}.mp3').play() — fail-silent; public/sounds/ Ordner + README.txt mit Quellenhinweisen; setDoc(monthlyGimmick/{uid}/history/{yearMonth}) als einmaliger Firestore-Guard ✅
+- SWAHILI KATEGORISIERUNG: ruleCategory Rule 1 fixed — langA='sw' + pronunciation-Feld erzwingen keine 'street' mehr; nur swahiliRe-Muster in Nicht-Swahili-Karten → street; sw-Karten werden jetzt korrekt über Inhaltsregeln kategorisiert (1 Wort → vocabulary, Frage → sentence usw.) ✅
+- EINSTELLUNGEN ALS EIGENES MENÜ: Bereits vollständig implementiert — SettingsScreen ist full-screen via screen:'settings', Nav-Button vorhanden ✅
+- VERSION V01.050.054 ✅
+
 ## ✅ Implementiert (02.05.2026 Session 36) — V01.049.054
 - GESCHENKKARTE BENACHRICHTIGUNG: Nach write zu incomingCards schreibt send() auch users/{partnerUID}/publicStats/pendingNotifs_gift_{ts} (gleicher Mechanismus wie Session-Notifs); Text DE/EN abhängig ob Partner Elosy ist ✅
 - GESCHENKKARTE DUPLIKAT-SCHUTZ: getDocs(incomingCards) vor dem Senden; 1) gleiche front+back schon vorhanden → Toast + abort; 2) gleiche Karte + heutiges Datum → Toast + abort; zwei unabhängige Checks mit je eigenem Toast ✅
@@ -241,7 +247,7 @@
 3. Wechsel-Klick TTS testen
 4. Thai Farbsystem testen
 5. Lernzeit Statistik testen
-6. Monatsziel Gimmick-Inhalte (Sounds)
+6. Monatsziel Gimmick-Inhalte (Sounds) ✅
 7. Karte falsch → KI erklärt warum ✅
 8. Streak Freeze 1x/Monat ✅
 9. PWA Push Notifications ✅
@@ -369,7 +375,7 @@
 46. Tageszeit-Anpassung (morgens heller, abends wärmer) ✅
 47. Karten-Wegfliege-Animation bei richtig
 48. Haptisches Feedback (unterschiedlich für Richtig/Falsch) ✅
-49. Einstellungen als eigenes Menü
+49. Einstellungen als eigenes Menü ✅
 50. Vocara Familien-Version
 51. Geschenk-Abo
 52. Unternehmensversion
@@ -411,7 +417,7 @@
 - KI-Gespräch 400-Fehler gefixt ✅
 - TTS immer toLang ✅
 - Session-Resume ✅
-- Swahili Kategorisierung teilweise offen
+- Swahili Kategorisierung teilweise offen ✅
 - Kategorisierungs-Button entfernen ✅
 - fromLang-basierte UI-Sprache (Elosy EN→DE, alle Screens) ✅
 - VOICE_MAP + selectVoiceForLang für EN/DE/SW ✅
