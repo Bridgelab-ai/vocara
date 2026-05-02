@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.032.024'
+const APP_VERSION = 'V01.032.025'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -8623,8 +8623,6 @@ function App() {
       try {
         const userRef = doc(db, 'users', u.uid)
         const code = u.uid.slice(0, 8).toUpperCase()
-        try { await setDoc(doc(db, 'inviteCodes', code), { uid: u.uid }, { merge: true }) }
-        catch (e) { console.warn('[Vocara] inviteCodes write skipped (path: inviteCodes/' + code + '):', e?.code || e?.message) }
         const snap = await getDoc(userRef)
 
         // ── NEW USER: first login, no profile with createdAt yet
@@ -8768,14 +8766,22 @@ function App() {
               data.pendingGift = { ...firstCard.data(), _incomingId: firstCard.id }
             }
           } catch (_) {}
-          // Write public profile to users/{uid}/publicStats/data (readable by partner via Firestore rule)
+          // Write public profile to users/{uid}/publicStats/data on every login
           try {
+            const resolvedName = u.displayName || (u.uid === MARK_UID ? 'Mark' : u.uid === ELOSY_UID ? 'Elosy' : '')
             const pubProfile = {
-              displayName: u.displayName, name: data.name || u.displayName,
-              lastActive: todayStr()
+              displayName: resolvedName, name: data.name || resolvedName,
+              lastActive: Date.now(), uid: u.uid
             }
             if (data.partnerUID) { pubProfile.partnerUID = data.partnerUID; pubProfile.partnerName = data.partnerName || null }
             await setDoc(doc(db, 'users', u.uid, 'publicStats', 'data'), pubProfile, { merge: true })
+            // Copy globalStats summary if it exists
+            try {
+              const globalStats = await getDoc(doc(db, 'users', u.uid, 'globalStats', 'summary'))
+              if (globalStats.exists()) {
+                await setDoc(doc(db, 'users', u.uid, 'publicStats', 'data'), globalStats.data(), { merge: true })
+              }
+            } catch (_) {}
           } catch (e) { console.warn('[Vocara] publicStats write skipped:', e?.code) }
           setMyData(data)
           // Load music settings from Firestore
