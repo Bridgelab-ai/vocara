@@ -35,10 +35,16 @@ service cloud.firestore {
       }
     }
 
-    // Shared card pool — any authenticated user can read, only server (no auth check) writes via API
+    // Shared card pool — any authenticated user can read, only server writes via API
     match /sharedCards/{docId} {
       allow read: if request.auth != null;
-      allow write: if false; // written only by Vercel serverless functions
+      allow write: if false;
+    }
+
+    // Shared sentence exercise pool — any authenticated user can read
+    match /sharedSentences/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
     }
 
     // Reports — any authenticated user can create

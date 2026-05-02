@@ -43,7 +43,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.040.023'
+const APP_VERSION = 'V01.042.024'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -2294,6 +2294,34 @@ function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userN
   const generateExercises = async () => {
     setLoading(true); setError(null); setIndex(0); setDone(false)
     setCorrect(0); setRevealed(false); setSelfRating(null); setUserInput(''); setSemanticResult(null)
+
+    // Determine level from mastered card count
+    const masteredCount = Object.values(cardProgress || {}).filter(p => (p?.interval || 0) >= 3).length
+    const poolLevel = masteredCount <= 10 ? 1 : masteredCount <= 30 ? 2 : masteredCount <= 60 ? 3 : null
+    const langPair = `${lang}_${userToLang}`
+
+    // Try pool first (levels 1-3 only)
+    if (poolLevel) {
+      try {
+        const poolSnap = await getDoc(doc(db, 'sharedSentences', `${langPair}_level${poolLevel}`))
+        if (poolSnap.exists()) {
+          const raw = poolSnap.data().exercises || []
+          if (raw.length >= 8) {
+            const pool = raw.map(ex => ({
+              ...ex,
+              chips: ex.chips && ex.chips.length > 0 ? ex.chips : (ex.type === 'order' ? ex.answer.split(' ') : undefined),
+            }))
+            const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, 8)
+            setExercises(shuffled)
+            if (shuffled[0]?.type === 'order') initChips(shuffled[0])
+            setLoading(false)
+            return
+          }
+        }
+      } catch (e) { console.warn('[Vocara] Sentence pool load failed, using KI:', e.message) }
+    }
+
+    // Fall back to KI — level 7+ or pool unavailable
     const wordList = knownVocab.map(c => c.back).slice(0, 30).join(', ')
     const prompt = `Create 8 varied grammar exercises for a ${targetLang} learner (${fromLang} native speaker).
 Use these known words where possible: ${wordList}
