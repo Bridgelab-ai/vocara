@@ -44,7 +44,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.054.070'
+const APP_VERSION = 'V01.054.072'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -561,7 +561,7 @@ const ALL_MARK_CARDS_BASE = [
   { id: 'en_86', front: "I'll be there for you.", back: "Ich bin für dich da.", context: "I'll be there for you — über jeden Ozean, durch jede Zeitzone. Das ist das Versprechen hinter der Stimme.", langA: 'en', langB: 'de' },
 ]
 
-const VALID_CATEGORIES = ['vocabulary', 'sentence', 'street', 'home', 'basics']
+const VALID_CATEGORIES = ['vocabulary', 'sentence', 'street', 'home', 'basics', 'urlaub']
 const VALID_CATEGORY_SET = new Set(VALID_CATEGORIES)
 
 function autoCategory(front) {
@@ -6903,12 +6903,17 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
                 return getCatLevel(n) >= 2
               })
               const topicsUnlocked = isPremium || anyLvl2
-              const topicCards = safeCards.filter(c => c.topic && (unlockedTopics.includes(c.topic) || topicsUnlocked) && !excludedCardIds.has(c.id))
-              if (topicCards.length === 0 && !topicsUnlocked) return null
+              // Only include cards from topics the user has explicitly unlocked in settings
+              const topicCards = safeCards.filter(c => c.topic && unlockedTopics.includes(c.topic) && !excludedCardIds.has(c.id))
+              if (!topicsUnlocked) return null
               return (
                 <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '9.5s', position: 'relative', width: '100%', justifyContent: 'center' }}
                   onClick={() => {
-                    if (!topicsUnlocked) { setSoftPaywall({ area: 'topics', used: 0, limit: 1 }); return }
+                    if (unlockedTopics.length === 0) {
+                      setEmptyCategoryMsg(isMarkLang ? '🎯 Einstellungen → Meine Themen → Themen generieren' : '🎯 Settings → My Topics → generate topics first')
+                      setTimeout(() => setEmptyCategoryMsg(null), 4000)
+                      return
+                    }
                     if (topicCards.length === 0) { setScreen('settings'); return }
                     const sess = [...topicCards.flatMap(buildCardPair)].sort(() => Math.random() - 0.5).slice(0, SESSION_SIZE)
                     setCurrentSessionMode('topics'); setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')

@@ -1,5 +1,10 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 03.05.2026)
 
+## ✅ Implementiert (03.05.2026 Session 44) — V01.054.072
+- URLAUB FORTSCHRITTSBALKEN: VALID_CATEGORIES um 'urlaub' ergänzt — buildCardPair kategorisierte urlaub-Karten bisher als 'vocabulary' (weil 'urlaub' fehlte im Set); jetzt wird category:'urlaub' korrekt durchgereicht → levelBadge('urlaub') zählt mastered-Karten richtig; handleFinish-Berechnung masteredPerCategory.urlaub wirkt korrekt ✅
+- MEINE THEMEN NUR EIGENE: topicCards-Filter geändert von (unlockedTopics.includes || topicsUnlocked) zu nur unlockedTopics.includes — Session zeigt jetzt nur freigeschaltete Themen; wenn keine Themen freigeschaltet: Toast "Einstellungen → Meine Themen → Themen generieren"; Button erscheint sobald topicsUnlocked (statt erst wenn Karten vorhanden) ✅
+- VERSION V01.054.072 ✅
+
 ## ✅ Implementiert (03.05.2026 Session 43) — V01.054.070
 - URLAUB ZUVERLÄSSIG: fetchSharedCards-Filter fix (|| !c.category entfernt — nur exakte urlaub-Kategorie); vocab pool travel-Fallback hinzugefügt (sharedCards/{pair}_vocab gefiltert auf vocabCategory:'travel'); Hardcoded Starter-Karten (5 Cards DE/EN/SW) als absoluter Fallback — Urlaub startet jetzt immer ✅
 - SATZTRAINING DEFAULT LEICHT: useState('leicht') statt null; useEffect auto-startet generateExercises('leicht') bei Mount; useEffect schreibt onSatzComplete(correct, total) wenn done; handleSatzComplete in MenuScreen — inkrementiert masteredPerCategory.satztraining; SatzTrainingScreen erhält onSatzComplete prop; "Neue Übungen" Button setzt alle States korrekt zurück ✅
