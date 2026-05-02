@@ -11,16 +11,18 @@ service cloud.firestore {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
 
-      // publicStats — write own, read by any authenticated user (partner visibility)
+      // publicStats — any authenticated user can read and write
+      // (partner notifications, partner data updates cross-write to other users' publicStats)
       match /publicStats/{doc} {
-        allow read: if request.auth != null;
-        allow write: if request.auth != null && request.auth.uid == userId;
+        allow read, write: if request.auth != null;
       }
 
-      // incomingCards — any authenticated user can write (send gift), only owner reads/deletes
+      // incomingCards — any authenticated user can read and create
+      // (read needed for sender's duplicate check before gifting; create for sending)
+      // only owner can delete their own incoming cards
       match /incomingCards/{cardId} {
-        allow read, delete: if request.auth != null && request.auth.uid == userId;
-        allow create: if request.auth != null;
+        allow read, create: if request.auth != null;
+        allow delete: if request.auth != null && request.auth.uid == userId;
       }
 
       // conversationHistory — own only
@@ -45,6 +47,11 @@ service cloud.firestore {
     match /sharedSentences/{docId} {
       allow read: if request.auth != null;
       allow write: if request.auth == null;
+    }
+
+    // Monthly gimmick history — own data only
+    match /monthlyGimmick/{userId}/history/{month} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
     // Reports — any authenticated user can create

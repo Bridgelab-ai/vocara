@@ -1,5 +1,9 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 29.04.2026)
 
+## ✅ Implementiert (02.05.2026 Session 38) — V01.050.055
+- FIRESTORE RULES FIX: incomingCards allow read+create für alle auth User (Sender braucht read für Duplikat-Check); publicStats allow write für alle auth User (Partner-Notifs + Partnerdaten schreiben cross-user); monthlyGimmick/{uid}/history/{month} Rule hinzugefügt; Rules deployed ✅
+- VERSION V01.050.055 ✅
+
 ## ✅ Implementiert (02.05.2026 Session 37) — V01.050.054
 - MONATSZIEL GIMMICK-SOUNDS: Beim Monatsziel-Trigger: new Audio('/sounds/gimmick-{theme}.mp3').play() — fail-silent; public/sounds/ Ordner + README.txt mit Quellenhinweisen; setDoc(monthlyGimmick/{uid}/history/{yearMonth}) als einmaliger Firestore-Guard ✅
 - SWAHILI KATEGORISIERUNG: ruleCategory Rule 1 fixed — langA='sw' + pronunciation-Feld erzwingen keine 'street' mehr; nur swahiliRe-Muster in Nicht-Swahili-Karten → street; sw-Karten werden jetzt korrekt über Inhaltsregeln kategorisiert (1 Wort → vocabulary, Frage → sentence usw.) ✅
