@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, Component } from 'react'
 import { auth, db } from './firebase'
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
-import { doc, setDoc, getDoc, updateDoc, deleteDoc, onSnapshot, collection, addDoc, getDocs, writeBatch } from 'firebase/firestore'
+import { doc, setDoc, getDoc, getDocFromServer, updateDoc, deleteDoc, onSnapshot, collection, addDoc, getDocs, writeBatch } from 'firebase/firestore'
 import { getCards, setCards } from './hooks/useCardCache'
 import './App.css'
 
@@ -44,7 +44,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.054.067'
+const APP_VERSION = 'V01.054.070'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -2305,7 +2305,7 @@ Return ONLY valid JSON (no markdown): {"intro":"brief 1-2 sentence situation des
   )
 }
 
-function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userName, userToLang = 'en', t: tProp }) {
+function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userName, userToLang = 'en', onSatzComplete, t: tProp }) {
   const th = THEMES[theme]; const s = makeStyles(th); const t = tProp || T[lang] || T.en
   const LANG_NAMES_FULL = { en: 'English', de: 'German', sw: 'Swahili', th: 'Thai', es: 'Spanish', fr: 'French', ar: 'Arabic', tr: 'Turkish', pt: 'Portuguese' }
   const ttsLangCode = userToLang.toLowerCase()
@@ -2329,13 +2329,14 @@ function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userN
   const [done, setDone] = useState(false)
   const [semanticResult, setSemanticResult] = useState(null)
   const [difficultyScore, setDifficultyScore] = useState(0)
-  const [difficulty, setDifficulty] = useState(null) // null | 'leicht' | 'mittel' | 'schwer'
+  const [difficulty, setDifficulty] = useState('leicht') // null (selector) | 'leicht' | 'mittel' | 'schwer'
   const [autoEasy, setAutoEasy] = useState(false)
   const exerciseStartRef = useRef(Date.now())
 
   const ex = exercises[index]
 
-  useEffect(() => {}, [])
+  useEffect(() => { generateExercises('leicht') }, [])
+  useEffect(() => { if (done && onSatzComplete) onSatzComplete(correct, exercises.length) }, [done])
 
   const levenshtein = (a, b) => {
     const m = a.length, n = b.length
@@ -2535,7 +2536,7 @@ Mix exercise types: gap, order, tense, conjugation, translation. Return ONLY val
         </p>
         {difficultyScore >= 6 && <p style={{ color: th.accent, fontSize: '0.78rem', marginTop: '8px' }}>⬆️ {lang === 'de' ? 'Schwierigkeitsgrad steigt' : 'Difficulty increasing'}</p>}
       </div>
-      <button style={s.button} onClick={() => setDifficulty(null)}>{t.newExercises}</button>
+      <button style={s.button} onClick={() => { setDifficulty(null); setDone(false); setExercises([]); setIndex(0); setCorrect(0) }}>{t.newExercises}</button>
       <button style={s.logoutBtn} onClick={onBack}>{t.back}</button>
     </div></div>
   )
@@ -5720,9 +5721,9 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
     const fromLangFull = _LNF[fromLangCode] || fromLangCode
     setEmptyCategoryMsg(isMarkLang ? '✈️ Im Urlaub — KI erstellt Reisephrasen…' : '✈️ Travel — AI creating phrases…')
 
-    // Check weekly shared pool before calling AI
+    // Check weekly shared pool before calling AI (exact category match only)
     const poolUrlaub = await fetchSharedCards(fromLangCode, langA)
-    const poolUrlaubFiltered = poolUrlaub?.filter(c => c.category === 'urlaub' || !c.category)
+    const poolUrlaubFiltered = poolUrlaub?.filter(c => c.category === 'urlaub')
     if (poolUrlaubFiltered?.length > 0) {
       const ts = Date.now()
       const newCards = poolUrlaubFiltered.filter(c => c.front && c.back).slice(0, 10).map((c, i) => ({
@@ -5744,6 +5745,50 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
       }
     }
 
+    // Fallback: read vocab pool filtered for travel cards
+    try {
+      const vocabSnap = await getDoc(doc(db, 'sharedCards', `${fromLangCode}_${langA}_vocab`))
+      if (vocabSnap.exists()) {
+        const travelCards = (vocabSnap.data()?.cards || []).filter(c =>
+          c.vocabCategory === 'travel' || c.category === 'urlaub' || c.topic === 'travel'
+        )
+        if (travelCards.length >= 4) {
+          const ts = Date.now()
+          const newCards = travelCards.filter(c => c.front && c.back).slice(0, 10).map((c, i) => ({
+            ...c, id: `urlaub_vocab_${ts}_${i}`, langA: fromLangCode, langB: langA, category: 'urlaub', source: 'vocab-pool', createdAt: ts,
+          }))
+          if (newCards.length > 0) {
+            const updatedAiCards = [...(myData?.aiCards || []), ...newCards]
+            const updatedProgress = { ...(myData?.cardProgress || {}) }
+            newCards.forEach(c => { updatedProgress[c.id] = { interval: 0, consecutiveRight: 0, wrongSessions: 0, nextReview: todayStr() } })
+            await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress })
+            setMyData(d => ({ ...d, aiCards: updatedAiCards, cardProgress: updatedProgress }))
+            setEmptyCategoryMsg(t.travelReady || 'Reisephrasen bereit ✓')
+            setTimeout(() => setEmptyCategoryMsg(null), 2000)
+            const sessionCards = isPremium ? newCards : newCards.slice(0, 3)
+            const sess = [...sessionCards.flatMap(buildCardPair)].sort(() => Math.random() - 0.5).slice(0, SESSION_SIZE)
+            setCurrentSessionMode('urlaub')
+            setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+            return
+          }
+        }
+      }
+    } catch (_) {}
+
+    // KI fallback
+    const startUrlaubWithCards = (newCards) => {
+      const updatedAiCards = [...(myData?.aiCards || []), ...newCards]
+      const updatedProgress = { ...(myData?.cardProgress || {}) }
+      newCards.forEach(c => { updatedProgress[c.id] = { interval: 0, consecutiveRight: 0, wrongSessions: 0, nextReview: todayStr() } })
+      updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress }).catch(() => {})
+      setMyData(d => ({ ...d, aiCards: updatedAiCards, cardProgress: updatedProgress }))
+      setEmptyCategoryMsg(isMarkLang ? 'Reisephrasen bereit ✓' : 'Travel phrases ready ✓')
+      setTimeout(() => setEmptyCategoryMsg(null), 2000)
+      const sessionCards = isPremium ? newCards : newCards.slice(0, 3)
+      const sess = [...sessionCards.flatMap(buildCardPair)].sort(() => Math.random() - 0.5).slice(0, SESSION_SIZE)
+      setCurrentSessionMode('urlaub')
+      setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+    }
     try {
       const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 900, system: CARD_GEN_SYSTEM,
@@ -5757,22 +5802,41 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
       const newCards = parsed.filter(c => c.front && c.back).map((c, i) => ({
         ...c, id: `urlaub_ai_${ts}_${i}`, langA: fromLangCode, langB: langA, category: 'urlaub', source: 'ai-urlaub', createdAt: ts
       }))
-      const updatedAiCards = [...(myData?.aiCards || []), ...newCards]
-      const updatedProgress = { ...(myData?.cardProgress || {}) }
-      newCards.forEach(c => { updatedProgress[c.id] = { interval: 0, consecutiveRight: 0, wrongSessions: 0, nextReview: todayStr() } })
-      await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress })
-      setMyData(d => ({ ...d, aiCards: updatedAiCards, cardProgress: updatedProgress }))
-      setEmptyCategoryMsg(isMarkLang ? 'Reisephrasen bereit ✓' : 'Travel phrases ready ✓')
-      setTimeout(() => setEmptyCategoryMsg(null), 2000)
-      const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
-      const sessionCards = isPremium ? newCards : newCards.slice(0, 3)
-      const sess = shuffle(sessionCards.flatMap(buildCardPair)).slice(0, SESSION_SIZE)
-      setCurrentSessionMode('urlaub')
-      setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
-    } catch(e) {
-      setEmptyCategoryMsg(isMarkLang ? 'KI-Generierung fehlgeschlagen.' : 'AI generation failed.')
-      setTimeout(() => setEmptyCategoryMsg(null), 3000)
+      if (newCards.length > 0) { startUrlaubWithCards(newCards); return }
+    } catch(_) {}
+
+    // Absolute fallback: hardcoded starter cards so session always starts
+    const URLAUB_FALLBACK = {
+      'de_en': [
+        { front: 'Ich möchte einchecken.', back: 'I would like to check in.' },
+        { front: 'Wo ist die nächste Apotheke?', back: 'Where is the nearest pharmacy?' },
+        { front: 'Die Rechnung, bitte.', back: 'The bill, please.' },
+        { front: 'Haben Sie ein freies Zimmer?', back: 'Do you have a free room?' },
+        { front: 'Wo ist der Bahnhof?', back: 'Where is the train station?' },
+      ],
+      'de_sw': [
+        { front: 'Nataka kulipa.', back: 'Ich möchte bezahlen.' },
+        { front: 'Wapi hospitali?', back: 'Wo ist das Krankenhaus?' },
+        { front: 'Ninahitaji msaada.', back: 'Ich brauche Hilfe.' },
+        { front: 'Bei gani?', back: 'Wie viel kostet das?' },
+        { front: 'Asante sana.', back: 'Vielen Dank.' },
+      ],
+      'en_de': [
+        { front: 'I would like to check in.', back: 'Ich möchte einchecken.' },
+        { front: 'Where is the nearest pharmacy?', back: 'Wo ist die nächste Apotheke?' },
+        { front: 'The bill, please.', back: 'Die Rechnung, bitte.' },
+        { front: 'Do you have a free room?', back: 'Haben Sie ein freies Zimmer?' },
+        { front: 'Where is the train station?', back: 'Wo ist der Bahnhof?' },
+      ],
     }
+    const fallbackKey = `${fromLangCode}_${langA}`
+    const fallbackRaw = URLAUB_FALLBACK[fallbackKey] || URLAUB_FALLBACK['de_en']
+    const ts2 = Date.now()
+    const fallbackCards = fallbackRaw.map((c, i) => ({
+      ...c, id: `urlaub_fallback_${ts2}_${i}`, langA: fromLangCode, langB: langA,
+      category: 'urlaub', source: 'fallback', createdAt: ts2, pronunciation: '',
+    }))
+    startUrlaubWithCards(fallbackCards)
   }
 
   const startCategorySession = (category) => {
@@ -6052,6 +6116,15 @@ Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","
     setResumeStartProgress(pendingSession.newProgress || null); setPendingSession(null); setScreen('cards')
   }
   const discardSession = async () => { await clearSessionState(user.uid); setPendingSession(null) }
+  const handleSatzComplete = async (correct, total) => {
+    if (!correct || correct <= 0) return
+    try {
+      const prev = myData?.masteredPerCategory?.satztraining || 0
+      const next = prev + correct
+      await updateDoc(doc(db, 'users', user.uid), { 'masteredPerCategory.satztraining': next })
+      setMyData(d => ({ ...d, masteredPerCategory: { ...(d?.masteredPerCategory || {}), satztraining: next } }))
+    } catch (e) { console.warn('[Vocara] satz progress save failed:', e?.message) }
+  }
   const handleSessionStop = async (finalProgress, answeredCount, correctCount = 0, wrongCount = 0) => {
     setScreen('menu'); setSession(null); pendingProgressRef.current = null
     if (answeredCount > 0) {
@@ -6476,7 +6549,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
   if (screen === 'impressum') return <>{homeFloat}<ImpressumScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
   if (screen === 'stats') return <>{homeFloat}<StatsScreen user={user} myData={myData} partnerData={partnerData} allCards={allCards} lang={lang} theme={theme} onBack={() => setScreen('menu')} cardProgress={cardProgress} t={t} /></>
   if (screen === 'ki') return <>{homeFloat}<KiGespraechScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={activeToLang} socialRegister={myData?.socialRegister || 'friends'} myData={myData} partnerData={partnerData} user={user} t={t} /></>
-  if (screen === 'satz') return <>{homeFloat}<SatzTrainingScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={activeToLang} t={t} /></>
+  if (screen === 'satz') return <>{homeFloat}<SatzTrainingScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={activeToLang} onSatzComplete={handleSatzComplete} t={t} /></>
   if (screen === 'diary') return <>{homeFloat}<DiaryScreen user={user} myData={myData} setMyData={setMyData} partnerData={partnerData} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
   if (screen === 'admin' && user.uid === MARK_UID) return <>{homeFloat}<AdminScreen user={user} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
 
@@ -9458,9 +9531,9 @@ function App() {
           }).catch(() => {})
           // Load partner stats — fallback chain: publicStats → globalStats → "Noch keine Daten"
           const loadPartner = async (partnerUID) => {
-            // 1. Primary: users/{partnerUID}/publicStats/data
+            // 1. Primary: users/{partnerUID}/publicStats/data — force network to bypass IndexedDB cache
             try {
-              const pubSnap = await getDoc(doc(db, 'users', partnerUID, 'publicStats', 'data'))
+              const pubSnap = await getDocFromServer(doc(db, 'users', partnerUID, 'publicStats', 'data'))
               if (pubSnap.exists()) {
                 setPartnerData(pubSnap.data())
                 try { localStorage.setItem('vocara_partnerName_' + partnerUID, pubSnap.data().name || pubSnap.data().displayName || '') } catch {}

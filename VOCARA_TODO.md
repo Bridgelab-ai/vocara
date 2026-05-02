@@ -1,4 +1,10 @@
-# Vocara – Vollständige ToDo & Ideen-Liste (Stand 02.05.2026)
+# Vocara – Vollständige ToDo & Ideen-Liste (Stand 03.05.2026)
+
+## ✅ Implementiert (03.05.2026 Session 43) — V01.054.070
+- URLAUB ZUVERLÄSSIG: fetchSharedCards-Filter fix (|| !c.category entfernt — nur exakte urlaub-Kategorie); vocab pool travel-Fallback hinzugefügt (sharedCards/{pair}_vocab gefiltert auf vocabCategory:'travel'); Hardcoded Starter-Karten (5 Cards DE/EN/SW) als absoluter Fallback — Urlaub startet jetzt immer ✅
+- SATZTRAINING DEFAULT LEICHT: useState('leicht') statt null; useEffect auto-startet generateExercises('leicht') bei Mount; useEffect schreibt onSatzComplete(correct, total) wenn done; handleSatzComplete in MenuScreen — inkrementiert masteredPerCategory.satztraining; SatzTrainingScreen erhält onSatzComplete prop; "Neue Übungen" Button setzt alle States korrekt zurück ✅
+- ELOSY FORTSCHRITT: loadPartner nutzt getDocFromServer() statt getDoc() — bypass IndexedDB offline cache, zwingt Netzwerk-Read für aktuelle Partnerdaten bei jedem App-Load; getDocFromServer zu Firebase imports hinzugefügt ✅
+- VERSION V01.054.070 ✅
 
 ## ✅ Implementiert (03.05.2026 Session 42) — V01.054.067
 - NAIROBI THEME FARBEN TAUSCHEN: bg → #060400 (near-pure black), card → #0F0C00 (old bg value), border → #1C1600; bgGrad deutlich dunkler (#0D0A00/#080600/#060400 statt #1C1800); clear dark hierarchy bg→card→accent ✅
