@@ -6,25 +6,14 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == 'aiNZh4Myn8Y0KfYkGGrkNNW0HC72';
     }
 
-    // Users collection
+    // Users collection — own document read/write; admin can read any
     match /users/{userId} {
-      // Own user read/write; admin can read any user document (AdminScreen user list)
       allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
       allow write: if request.auth != null && request.auth.uid == userId;
 
       // profile — own only
       match /profile/{doc} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
-      }
-
-      // publicStats — any authenticated user (partner cross-writes)
-      match /publicStats/{doc} {
-        allow read, write: if request.auth != null;
-      }
-
-      // incomingCards — any authenticated user (sender needs read for duplicate check + write to send)
-      match /incomingCards/{cardId} {
-        allow read, write: if request.auth != null;
       }
 
       // cardProgress — own user only
@@ -47,18 +36,26 @@ service cloud.firestore {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
 
-      // partnerRequests — any authenticated user can create (send request), only owner reads/deletes
+      // partnerRequests — any authenticated user can create, only owner reads/deletes
       match /partnerRequests/{requestId} {
         allow read, delete: if request.auth != null && request.auth.uid == userId;
         allow create: if request.auth != null;
       }
     }
 
-    // userProfiles — pendingNotifs readable/writable by any authenticated user (push notifications)
-    match /userProfiles/{uid} {
-      match /pendingNotifs/{notifId} {
-        allow read, write: if request.auth != null;
-      }
+    // publicStats — absolute path, any authenticated user (partner cross-writes Mark↔Elosy)
+    match /users/{uid}/publicStats/data {
+      allow read, write: if request.auth != null;
+    }
+
+    // incomingCards — absolute path, any authenticated user (sender reads for dupe check, writes to send)
+    match /users/{uid}/incomingCards/{cardId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // userProfiles pendingNotifs — absolute path, any authenticated user (push notifications)
+    match /userProfiles/{uid}/pendingNotifs/{notifId} {
+      allow read, write: if request.auth != null;
     }
 
     // Shared card pool — any authenticated user can read, server writes via API (unauthenticated REST)

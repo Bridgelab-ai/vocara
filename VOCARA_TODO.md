@@ -1,5 +1,15 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 03.05.2026)
 
+## ✅ Fix (03.05.2026 Session 67) — V01.059.091
+- FIRESTORE RULES: publicStats cross-write fix für Elosy (partner sync) ✅
+  - ROOT CAUSE: publicStats war nested in match /users/{userId} → parent write-constraint (auth.uid==userId) beeinflusste child-Auswertung → Elosy's publicStats von Mark nicht schreibbar
+  - FIX: publicStats, incomingCards, userProfiles/pendingNotifs als ABSOLUTE TOP-LEVEL Pfade (nicht mehr nested) → kein parent-Constraint mehr
+  - match /users/{uid}/publicStats/data → allow read, write: if request.auth != null ✅
+  - match /users/{uid}/incomingCards/{cardId} → allow read, write: if request.auth != null ✅
+  - match /userProfiles/{uid}/pendingNotifs/{notifId} → allow read, write: if request.auth != null ✅
+  - Deployed: firestore.rules compiled successfully + released to cloud.firestore ✅
+- VERSION V01.059.091 ✅
+
 ## ✅ Fix (03.05.2026 Session 66) — V01.059.090
 - FIRESTORE RULES VOLLSTÄNDIG KORRIGIERT & DEPLOYED ✅
   - isAdmin() Hilfsfunktion hinzugefügt (Mark UID: aiNZh4...HC72) ✅
