@@ -1,5 +1,16 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 03.05.2026)
 
+## ✅ Implementiert (03.05.2026 Session 60) — Level 1 Pools generiert (kein Code-Change)
+- LEVEL 1 KARTEN GENERIERT für alle 6 Kategorien × 3 Sprachpaare (de→en, en→de, de→sw) = 18 Firestore-Dokumente:
+  - sharedCards/de_en_grundlagen_1, en_de_grundlagen_1, de_sw_grundlagen_1 — je 20 Grundlagen A1 Karten (Zahlen 1-10, Begrüßungen, Farben, Familie)
+  - sharedCards/de_en_vocab_level1, en_de_vocab_level1, de_sw_vocab_level1 — je 20 A1 Vokabel-Karten (Grundwortschatz)
+  - sharedCards/de_en_street_level1, en_de_street_level1, de_sw_street_level1 — je 20 A1-A2 Street-Phrasen (casual greetings/reactions)
+  - sharedCards/de_en_home_level1, en_de_home_level1, de_sw_home_level1 — je 20 A1 Zuhause-Phrasen (Begrüßungen, Raumname, Bitten)
+  - sharedCards/de_en_sentence_level1, en_de_sentence_level1, de_sw_sentence_level1 — je 20 A1 Satz-Flashcards (4 Themen: Alltag/Reisen/Familie/Smalltalk)
+  - sharedExercises/de_en_satz_level1, en_de_satz_level1, de_sw_satz_level1 — 19-20 Satztraining-Übungen je (gap/order/translation/conjugation)
+- Alle Karten: level:1 Feld gesetzt; direkt via Anthropic API + Firestore REST (kein Vercel-Server nötig); scripts/generate-level1-direct.mjs ✅
+- Kein VERSION-Bump (kein Code-Change) ✅
+
 ## ✅ Implementiert (03.05.2026 Session 59) — V01.059.086
 - SPRACHE EINSTELLUNGEN FIX: fromLang + toLang Buttons in Settings funktionieren jetzt korrekt ✅
   - fromLang: handleFromLangChange — setMyData({fromLang}) sofort → App.lang leitet neu ab → UI rendert in neuer Sprache ohne Reload; updateDoc users/{uid}; getDoc read-back verify; console.log('[Settings] fromLang changed to', newLang); bei Fehler: Rollback setMyData + Fehler-Toast
