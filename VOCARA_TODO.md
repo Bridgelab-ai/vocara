@@ -1,5 +1,13 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 03.05.2026)
 
+## ✅ Implementiert (03.05.2026 Session 59) — V01.059.086
+- SPRACHE EINSTELLUNGEN FIX: fromLang + toLang Buttons in Settings funktionieren jetzt korrekt ✅
+  - fromLang: handleFromLangChange — setMyData({fromLang}) sofort → App.lang leitet neu ab → UI rendert in neuer Sprache ohne Reload; updateDoc users/{uid}; getDoc read-back verify; console.log('[Settings] fromLang changed to', newLang); bei Fehler: Rollback setMyData + Fehler-Toast
+  - toLang: handleToLangChange — setMyData({toLang}) sofort + onToLangChange?.(newLang) → activeToLang in MenuScreen sofort aktualisiert; updateDoc users/{uid}; getDoc read-back verify; console.log('[Settings] toLang changed to', newLang); bei Fehler: Rollback + Fehler-Toast
+  - SettingsScreen: neuer onToLangChange Prop (optional); langSaveToast State (msg, ok) — grün bei Erfolg, rot bei Fehler, auto-dismiss nach 2.5s
+  - MenuScreen: onToLangChange={(newLang) => setActiveToLang(newLang)} an SettingsScreen übergeben; useEffect synct activeToLang bei myData.toLang/toLangs-Änderung (backup sync)
+- VERSION V01.059.086 ✅
+
 ## ✅ Implementiert (03.05.2026 Session 58) — V01.059.085
 - 10/12-LEVEL CARD ARCHITECTURE (major structural refactor, no card generation triggered):
   - DELETE ENDPOINT: api/delete-shared-cards.js — lists + deletes all sharedCards docs via Firestore REST; AdminScreen: "Delete All sharedCards" button triggers endpoint with confirm dialog ✅

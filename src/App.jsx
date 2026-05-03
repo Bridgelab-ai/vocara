@@ -44,7 +44,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.059.085'
+const APP_VERSION = 'V01.059.086'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -4142,13 +4142,14 @@ function ResultScreen({ correct, wrong, fast, easy, weakestCard, strongestCard, 
   )
 }
 
-function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setMyData, allCards, lang, onPartner, onLightModeChange, onCardSizeChange, musicEnabled, musicVolume, onMusicToggle, onMusicVolume }) {
+function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setMyData, allCards, lang, onPartner, onLightModeChange, onCardSizeChange, musicEnabled, musicVolume, onMusicToggle, onMusicVolume, onToLangChange }) {
   const th = THEMES[theme]
   const isDE = lang === 'de'
   const pausedLanguages = myData?.pausedLanguages || []
   const uniqueTargetLangs = [...new Set((allCards || []).map(c => c.targetLang).filter(Boolean))]
   const [premiumModal, setPremiumModal] = useState(false)
   const [resetConfirm, setResetConfirm] = useState(null)
+  const [langSaveToast, setLangSaveToast] = useState(null) // { msg, ok }
 
   // ── ZIELSPRACHEN MIT ANTEILEN ────────────────────────────────
   const initToLangs = () => {
@@ -4451,18 +4452,57 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
         const currentFromLang = (myData?.fromLang || '').toLowerCase()
         const currentToLang = (Array.isArray(myData?.toLang) ? myData.toLang[0] : (myData?.toLang || '')).toLowerCase()
         const missingToLang = !currentToLang
-        const saveLangs = async (newFrom, newTo) => {
+
+        const handleFromLangChange = async (newLang) => {
+          if (newLang === currentFromLang) return
+          console.log('[Settings] fromLang changed to', newLang)
+          setMyData(d => ({ ...d, fromLang: newLang }))
           try {
-            await updateDoc(doc(db, 'users', user.uid), { fromLang: newFrom, toLang: newTo })
-            setMyData(d => ({ ...d, fromLang: newFrom, toLang: newTo }))
-          } catch (e) { console.warn('saveLangs failed:', e) }
+            await updateDoc(doc(db, 'users', user.uid), { fromLang: newLang })
+            const snap = await getDoc(doc(db, 'users', user.uid))
+            const saved = snap.data()?.fromLang
+            if (saved !== newLang) throw new Error('read-back mismatch')
+            setLangSaveToast({ msg: isDE ? `Sprache: ${newLang.toUpperCase()} ✓` : `Language: ${newLang.toUpperCase()} ✓`, ok: true })
+          } catch (e) {
+            console.warn('[Settings] fromLang save failed:', e)
+            setMyData(d => ({ ...d, fromLang: currentFromLang }))
+            setLangSaveToast({ msg: isDE ? 'Fehler beim Speichern' : 'Save failed', ok: false })
+          }
+          setTimeout(() => setLangSaveToast(null), 2500)
         }
+
+        const handleToLangChange = async (newLang) => {
+          if (newLang === currentToLang) return
+          console.log('[Settings] toLang changed to', newLang)
+          setMyData(d => ({ ...d, toLang: newLang }))
+          onToLangChange?.(newLang)
+          try {
+            await updateDoc(doc(db, 'users', user.uid), { toLang: newLang })
+            const snap = await getDoc(doc(db, 'users', user.uid))
+            const saved = snap.data()?.toLang
+            const savedStr = Array.isArray(saved) ? saved[0] : saved
+            if (savedStr !== newLang) throw new Error('read-back mismatch')
+            setLangSaveToast({ msg: isDE ? `Zielsprache: ${newLang.toUpperCase()} ✓` : `Target: ${newLang.toUpperCase()} ✓`, ok: true })
+          } catch (e) {
+            console.warn('[Settings] toLang save failed:', e)
+            setMyData(d => ({ ...d, toLang: currentToLang }))
+            onToLangChange?.(currentToLang)
+            setLangSaveToast({ msg: isDE ? 'Fehler beim Speichern' : 'Save failed', ok: false })
+          }
+          setTimeout(() => setLangSaveToast(null), 2500)
+        }
+
         return (
-          <div style={{ ...s.card, border: missingToLang ? `1px solid rgba(255,152,0,0.5)` : undefined }}>
+          <div style={{ ...s.card, border: missingToLang ? `1px solid rgba(255,152,0,0.5)` : undefined, position: 'relative' }}>
             {missingToLang && (
               <p style={{ color: '#ff9800', fontSize: '0.78rem', marginBottom: '10px', fontWeight: '600' }}>
                 ⚠️ {isDE ? 'Bitte lege deine Zielsprache fest — TTS und Mikrofon benötigen diese Information.' : 'Please set your target language — TTS and microphone require this.'}
               </p>
+            )}
+            {langSaveToast && (
+              <div style={{ position: 'absolute', top: '8px', right: '10px', background: langSaveToast.ok ? 'rgba(76,175,80,0.15)' : 'rgba(229,115,115,0.15)', border: `1px solid ${langSaveToast.ok ? 'rgba(76,175,80,0.4)' : 'rgba(229,115,115,0.4)'}`, color: langSaveToast.ok ? '#81c784' : '#e57373', borderRadius: '8px', padding: '3px 10px', fontSize: '0.72rem', fontWeight: '600', zIndex: 10 }}>
+                {langSaveToast.msg}
+              </div>
             )}
             <p style={{ ...s.cardLabel, marginBottom: '14px' }}>🗣 {isDE ? 'Meine Sprachen' : 'My languages'}</p>
             <p style={{ color: th.sub, fontSize: '0.75rem', marginBottom: '6px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
@@ -4470,9 +4510,9 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '14px' }}>
               {AVAILABLE_LANGS.map(l => (
-                <button key={l.code} onClick={() => saveLangs(l.code, currentToLang || '')}
+                <button key={l.code} onClick={() => handleFromLangChange(l.code)}
                   style={{ padding: '6px 12px', borderRadius: '10px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: currentFromLang === l.code ? '700' : '400', background: currentFromLang === l.code ? th.accent : 'transparent', color: currentFromLang === l.code ? (th.btnTextColor || '#111') : th.sub, border: `1px solid ${currentFromLang === l.code ? th.accent : th.border}`, transition: 'all 0.2s' }}>
-                  {l.flag} {isDE ? l.label : l.label}
+                  {l.flag} {l.label}
                 </button>
               ))}
             </div>
@@ -4481,9 +4521,9 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               {AVAILABLE_LANGS.filter(l => l.code !== currentFromLang).map(l => (
-                <button key={l.code} onClick={() => saveLangs(currentFromLang || 'de', l.code)}
+                <button key={l.code} onClick={() => handleToLangChange(l.code)}
                   style={{ padding: '6px 12px', borderRadius: '10px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: currentToLang === l.code ? '700' : '400', background: currentToLang === l.code ? th.gold + '33' : 'transparent', color: currentToLang === l.code ? th.gold : th.sub, border: `1px solid ${currentToLang === l.code ? th.gold + '88' : th.border}`, transition: 'all 0.2s' }}>
-                  {l.flag} {isDE ? l.label : l.label}
+                  {l.flag} {l.label}
                 </button>
               ))}
             </div>
@@ -5312,6 +5352,13 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
       .then(snap => { if (snap.exists()) setCategoryLevels(prev => ({ ...prev, ...snap.data() })) })
       .catch(() => {})
   }, [user?.uid]) // eslint-disable-line
+
+  // ── SYNC activeToLang when myData.toLang changes (e.g. from Settings) ──────
+  useEffect(() => {
+    const tls = myData?.toLangs
+    const tl = tls?.length > 0 ? tls[0].lang : (Array.isArray(myData?.toLang) ? myData.toLang[0] : myData?.toLang)
+    if (tl) setActiveToLang(tl.toLowerCase())
+  }, [myData?.toLang, myData?.toLangs]) // eslint-disable-line
 
   // ── DAILY CARD ────────────────────────────────────────────
   useEffect(() => {
@@ -6894,7 +6941,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
   if (screen === 'rhythmus') return <>{homeFloat}<RhythmusScreen lang={lang} theme={theme} onBack={() => { setScreen('result') }} allCards={allCards} cardProgress={cardProgress} userToLang={activeToLang} t={t} /></>
   if (screen === 'kontext' && kontextCard) return <>{homeFloat}<KontextwechselScreen card={kontextCard} lang={lang} theme={theme} userToLang={activeToLang} user={user} onBack={() => setScreen(kontextPrevScreen)} onSaveCard={async (newCard) => { const updated = [...(myData?.aiCards || []), newCard]; await updateDoc(doc(db, 'users', user.uid), { aiCards: updated }).catch(() => {}); setMyData(d => ({ ...d, aiCards: updated })) }} t={t} /></>
   if (screen === 'result' && result) return <>{homeFloat}<ResultScreen correct={result.correct} wrong={result.wrong} fast={result.fast} easy={result.easy} weakestCard={result.weakestCard} strongestCard={result.strongestCard} masteryUnlocked={masteryUnlocked} showRhythmus={result.showRhythmus} urlaubNote={result.urlaubNote} kontextCard={result.kontextCard} onUnlockUrlaub={() => setSoftPaywall({ area: 'urlaub', used: 3, limit: 10 })} onRhythmus={() => setScreen('rhythmus')} onKontext={result.kontextCard ? () => { setKontextCard(result.kontextCard); setKontextPrevScreen('result'); setScreen('kontext') } : null} t={t} lang={lang} onBack={() => { setScreen('menu'); setSession(null) }} onReplay={result.originalSession ? () => { setSession(result.originalSession); setResumeStartIndex(0); setResumeStartProgress(null); setScreen('cards') } : null} s={s} th={th} /></>
-  if (screen === 'settings') return <>{homeFloat}<SettingsScreen t={t} s={s} theme={theme} onThemeChange={onThemeChange} onBack={() => setScreen('menu')} user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} onPartner={() => setScreen('partner')} onLightModeChange={onLightModeChange} onCardSizeChange={onCardSizeChange} musicEnabled={musicEnabled} musicVolume={musicVolume} onMusicToggle={onMusicToggle} onMusicVolume={onMusicVolume} /></>
+  if (screen === 'settings') return <>{homeFloat}<SettingsScreen t={t} s={s} theme={theme} onThemeChange={onThemeChange} onBack={() => setScreen('menu')} user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} onPartner={() => setScreen('partner')} onLightModeChange={onLightModeChange} onCardSizeChange={onCardSizeChange} musicEnabled={musicEnabled} musicVolume={musicVolume} onMusicToggle={onMusicToggle} onMusicVolume={onMusicVolume} onToLangChange={(newLang) => setActiveToLang(newLang)} /></>
   if (screen === 'meinekarten') return <>{homeFloat}<MeineKartenScreen user={user} myData={myData} setMyData={setMyData} allCards={allCards} cardProgress={cardProgress} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
   if (screen === 'geschenkkarte') return <>{homeFloat}<GeschenkkarteScreen user={user} myData={myData} lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} /></>
   if (screen === 'karteerstellen') return <>{homeFloat}<KarteErstellenScreen user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} theme={theme} onBack={() => setScreen('menu')} socialRegister={myData?.socialRegister || 'friends'} t={t} /></>
