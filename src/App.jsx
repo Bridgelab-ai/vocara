@@ -44,7 +44,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.055.079'
+const APP_VERSION = 'V01.055.081'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -6257,11 +6257,12 @@ Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","
     setScreen('menu'); setSession(null); pendingProgressRef.current = null
     if (answeredCount > 0) {
       try {
-        const masteredPerCategory = { satztraining: myData?.masteredPerCategory?.satztraining || 0 }
+        // strict category match, forward cards only, ?? avoids treating interval=0 as unset
+        const masteredPerCategory = { satztraining: myData?.masteredPerCategory?.satztraining ?? 0 }
         ;['vocabulary', 'sentence', 'street', 'home', 'basics', 'urlaub'].forEach(cat => {
           masteredPerCategory[cat] = (allCards || []).filter(c => {
             const baseId = c.id.replace(/_r(_\d+)?$/, '')
-            return c.category === cat && !/_r(_\d+)?$/.test(c.id) && (finalProgress[baseId]?.interval || finalProgress[c.id]?.interval || 0) >= 3
+            return c.category === cat && !/_r(_\d+)?$/.test(c.id) && (finalProgress[baseId]?.interval ?? finalProgress[c.id]?.interval ?? 0) >= 3
           }).length
         })
         const entry = { date: todayStr(), correct: correctCount, total: correctCount + wrongCount, ts: Date.now(), area: currentSessionMode }
@@ -6269,7 +6270,7 @@ Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","
         const batch = writeBatch(db)
         batch.update(doc(db, 'users', user.uid), { cardProgress: finalProgress, masteredPerCategory, sessionHistory: updatedHistory })
         await batch.commit()
-        setMyData(d => ({ ...d, cardProgress: finalProgress, masteredPerCategory, sessionHistory: updatedHistory }))
+        setMyData(d => ({ ...d, cardProgress: { ...finalProgress }, masteredPerCategory: { ...masteredPerCategory }, sessionHistory: updatedHistory }))
         const msg = `${answeredCount} Karte${answeredCount !== 1 ? 'n' : ''} gespeichert ✓`
         setStopToast(msg)
         setTimeout(() => setStopToast(null), 3000)
@@ -6594,12 +6595,12 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     const updatedHistory = [histEntry, ...(sessionHistory || [])].slice(0, 60)
     const myMasteredNow = Object.values(finalProgress).filter(p => (p?.interval || 0) >= 7).length
     const myStreakNow = calcStreak([...(sessionHistory || []), { date: todayStr(), correct, total: correct + wrong }])
-    // ── Per-category mastered counts ───────────────────────
-    const masteredPerCategory = { satztraining: myData?.masteredPerCategory?.satztraining || 0 }
+    // ── Per-category mastered counts (strict category match, forward cards only) ──
+    const masteredPerCategory = { satztraining: myData?.masteredPerCategory?.satztraining ?? 0 }
     ;['vocabulary', 'sentence', 'street', 'home', 'basics', 'urlaub'].forEach(cat => {
       masteredPerCategory[cat] = (allCards || []).filter(c => {
         const baseId = c.id.replace(/_r(_\d+)?$/, '')
-        return c.category === cat && !/_r(_\d+)?$/.test(c.id) && (finalProgress[baseId]?.interval || finalProgress[c.id]?.interval || 0) >= 3
+        return c.category === cat && !/_r(_\d+)?$/.test(c.id) && (finalProgress[baseId]?.interval ?? finalProgress[c.id]?.interval ?? 0) >= 3
       }).length
     })
     // ── Streak milestone gimmick ──
@@ -6621,7 +6622,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
       batch.set(doc(db, 'users', user.uid, 'publicStats', 'data'), pubStats, { merge: true })
       await batch.commit()
     } catch (e) { console.error('[Vocara] handleFinish batch failed:', e.message) }
-    setMyData(d => ({ ...d, cardProgress: finalProgress, sessionHistory: updatedHistory, masteredPerCategory, ...timeUpdate, ...(hitMilestone ? { firedStreakGimmicks: updatedMilestones } : {}) }))
+    setMyData(d => ({ ...d, cardProgress: { ...finalProgress }, sessionHistory: updatedHistory, masteredPerCategory: { ...masteredPerCategory }, ...timeUpdate, ...(hitMilestone ? { firedStreakGimmicks: updatedMilestones } : {}) }))
     // ── Streak gimmick UI + side effects (fire-and-forget) ──
     if (hitMilestone) {
       setDoc(doc(db, 'streakGimmick', user.uid, 'milestones', String(hitMilestone)), { theme, firedAt: new Date().toISOString(), streak: myStreakNow }).catch(() => {})
@@ -6949,29 +6950,37 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         }
         // Stufen badge: 10-level system per category
         const levelBadge = (category) => {
+          // masteredCount: strict category match, forward cards only
           const n = (myData?.masteredPerCategory?.[category] !== undefined)
             ? myData.masteredPerCategory[category]
             : safeCards.filter(c => {
                 const baseId = c.id.replace(/_r(_\d+)?$/, '')
-                return c.category === category && !/_r(_\d+)?$/.test(c.id) && (cardProgress[baseId]?.interval || cardProgress[c.id]?.interval || 0) >= 3
+                return c.category === category && !/_r(_\d+)?$/.test(c.id) && (cardProgress[baseId]?.interval ?? cardProgress[c.id]?.interval ?? 0) >= 3
               }).length
-          // Category-specific level thresholds
-          let lv, nextThreshold, prevThreshold
+          // Level + thresholds — use CAT_LEVEL_THRESHOLDS (single source of truth)
+          let lv, prevThreshold, nextThreshold
           if (category === 'urlaub') {
             lv = Math.min(10, Math.floor(n / 6))
-            prevThreshold = lv * 6; nextThreshold = (lv + 1) * 6
+            prevThreshold = lv * 6
+            nextThreshold = lv >= 10 ? prevThreshold : (lv + 1) * 6
           } else if (category === 'home') {
             lv = Math.min(10, Math.floor(n / 8))
-            prevThreshold = lv * 8; nextThreshold = (lv + 1) * 8
+            prevThreshold = lv * 8
+            nextThreshold = lv >= 10 ? prevThreshold : (lv + 1) * 8
           } else {
             lv = getCatLevel(n)
-            const thresholds = [0, 1, 5, 10, 15, 20, 30, 40, 50, 65, 80]
-            prevThreshold = thresholds[Math.min(lv, thresholds.length - 1)] || 0
-            nextThreshold = thresholds[Math.min(lv + 1, thresholds.length - 1)] || prevThreshold + 10
+            prevThreshold = CAT_LEVEL_THRESHOLDS[lv] ?? 0
+            nextThreshold = CAT_LEVEL_THRESHOLDS[lv + 1] ?? (prevThreshold + 10)
           }
-          const displayLv = Math.max(1, lv)
-          const progress = lv >= 10 ? 1 : Math.min(1, (n - prevThreshold) / Math.max(1, nextThreshold - prevThreshold))
+          // Progress: (mastered - floor) / (ceiling - floor), clamped [0,1]
+          const span = nextThreshold - prevThreshold
+          const progress = lv >= 10 ? 1 : Math.min(1, Math.max(0, span > 0 ? (n - prevThreshold) / span : 0))
+          if (import.meta.env.DEV) {
+            const total = safeCards.filter(c => c.category === category && !/_r(_\d+)?$/.test(c.id)).length
+            console.log(`[Level] ${category}: ${n}/${total} = Level ${Math.max(1, lv)}, ${Math.round(progress * 100)}%`)
+          }
           const col = CAT_LEVEL_COLORS[Math.min(lv, CAT_LEVEL_COLORS.length - 1)] || '#00BFA5'
+          const displayLv = Math.max(1, lv)
           return (
             <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '6px', pointerEvents: 'none' }}>
               <span style={{ color: col, fontSize: '10px', fontWeight: '700', letterSpacing: '0.4px', fontFamily: "'Inter', system-ui, sans-serif", opacity: 0.9, whiteSpace: 'nowrap' }}>Lvl {displayLv}</span>

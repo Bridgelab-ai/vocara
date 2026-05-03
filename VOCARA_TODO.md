@@ -1,5 +1,9 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 03.05.2026)
 
+## ✅ Implementiert (03.05.2026 Session 50) — V01.055.081
+- LEVEL + FORTSCHRITTSBALKEN FIX: levelBadge: lokale thresholds-Array (Duplikat von CAT_LEVEL_THRESHOLDS) entfernt → einzige Quelle; ?? statt || für Threshold-Lookup (0 ist gültig, kein Fallback); Fortschrittsbalken-Formel: span = nextThreshold - prevThreshold; progress = lv>=10 ? 1 : clamp(0,1,(n-prevThreshold)/span) — explizit und korrekt. DEV-only Debug-Log: [Level] category: n/total = Level X, Y%. masteredPerCategory-Berechnung in handleFinish + handleSessionStop: ?? statt || für interval-Lookup; setMyData-Spreads auf { ...finalProgress } und { ...masteredPerCategory } — neue Objekt-Referenz garantiert React-Re-Render ✅
+- VERSION V01.055.081 ✅
+
 ## ✅ Implementiert (03.05.2026 Session 49) — V01.055.079
 - BEREICH RESET IN EINSTELLUNGEN: SettingsScreen neue Sektion "Bereiche zurücksetzen" — zeigt alle 7 Lernbereiche (Grundlagen/Meine Worte/Auf der Straße/Und zu Hause/Im Urlaub/Satztraining/KI-Gespräch) je mit aktuellem Level + 🔄 Reset-Button. Tap → Bestätigungs-Modal "... zurücksetzen? Du fängst wieder bei Level 1 an." → Confirm: setzt alle Cards der Kategorie in cardProgress auf interval=0/consecutiveRight=0/wrongSessions=0/nextReview=today; masteredPerCategory[category]=0; writeBatch nach Firestore; setMyData lokal aktualisiert. Satztraining-Reset nur masteredPerCategory, keine cardProgress-Einträge. Kein anderes Feld wird berührt. resetConfirm useState im SettingsScreen-Scope ✅
 - VERSION V01.055.079 ✅
