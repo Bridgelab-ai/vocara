@@ -44,7 +44,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.057.082'
+const APP_VERSION = 'V01.057.083'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -4640,7 +4640,14 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
         const handleAreaReset = async (areaKey) => {
           const cp = { ...(myData?.cardProgress || {}) }
           const today = todayStr()
-          if (areaKey !== 'satztraining') {
+          // Pool-based categories: remove cards entirely so fresh pool loads on next session start
+          const isPoolCategory = ['basics', 'home', 'street'].includes(areaKey)
+          let updatedAiCards = myData?.aiCards || []
+          if (isPoolCategory) {
+            const removedIds = updatedAiCards.filter(c => c.category === areaKey).map(c => c.id)
+            removedIds.forEach(id => { delete cp[id] })
+            updatedAiCards = updatedAiCards.filter(c => c.category !== areaKey)
+          } else if (areaKey !== 'satztraining') {
             ;(allCards || []).forEach(c => {
               if (c.category === areaKey && cp[c.id]) {
                 cp[c.id] = { ...cp[c.id], interval: 0, consecutiveRight: 0, wrongSessions: 0, nextReview: today }
@@ -4648,11 +4655,20 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
             })
           }
           const mpc = { ...(myData?.masteredPerCategory || {}), [areaKey]: 0 }
+          const updates = { masteredPerCategory: mpc, cardProgress: cp }
+          if (isPoolCategory) updates.aiCards = updatedAiCards
+          if (areaKey === 'basics') updates.basicsPoolLevel = 1
           try {
             const batch = writeBatch(db)
-            batch.update(doc(db, 'users', user.uid), { cardProgress: cp, masteredPerCategory: mpc })
+            batch.update(doc(db, 'users', user.uid), updates)
             await batch.commit()
-            setMyData(d => ({ ...d, cardProgress: cp, masteredPerCategory: mpc }))
+            setMyData(d => ({
+              ...d,
+              ...(isPoolCategory ? { aiCards: updatedAiCards } : {}),
+              cardProgress: cp,
+              masteredPerCategory: mpc,
+              ...(areaKey === 'basics' ? { basicsPoolLevel: 1 } : {}),
+            }))
           } catch (e) { console.warn('[Vocara] area reset failed:', e?.message) }
           setResetConfirm(null)
         }
