@@ -44,7 +44,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.056.082'
+const APP_VERSION = 'V01.057.082'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -5791,7 +5791,7 @@ Return ONLY JSON: [{"front":"German word","back":"English translation","category
       setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
     }
 
-    // 1. Try static shared pool (Admin-generated, e.g. sharedCards/de_en_home)
+    // 1. Try static shared pool (Admin-generated: sharedCards/de_en_home etc.)
     if (isHome) {
       try {
         const staticPath = `${langA}_${langB}_home`
@@ -5801,8 +5801,18 @@ Return ONLY JSON: [{"front":"German word","back":"English translation","category
           const poolCards = snap.data()?.cards
           if (import.meta.env.DEV) console.log(`[generateCategoryCards] static pool cards:`, poolCards?.length)
           if (Array.isArray(poolCards) && poolCards.length > 0) {
+            // Rotation: skip cards whose front text is already mastered (interval >= 5)
+            const masteredFronts = new Set(
+              (activeCards || [])
+                .filter(c => c.category === 'home' && (cardProgress[c.id]?.interval ?? 0) >= 5)
+                .map(c => c.front?.toLowerCase().trim())
+            )
+            const freshCards = poolCards.filter(c => !masteredFronts.has(c.front?.toLowerCase().trim()))
+            const cardsToUse = freshCards.length > 0 ? freshCards : poolCards
+            if (import.meta.env.DEV) console.log(`[generateCategoryCards] pool fresh: ${freshCards.length}/${poolCards.length}`)
             const ts = Date.now()
-            const newCards = poolCards.slice(0, 10).map((c, i) => ({
+            const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
+            const newCards = shuffle(cardsToUse).slice(0, 10).map((c, i) => ({
               ...c, id: `home_pool_${ts}_${i}`, langA, langB, source: 'static-pool', createdAt: ts,
               category: 'home', tense: c.tense || 'present',
             }))
@@ -7744,6 +7754,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
       { endpoint: '/api/generate-base-pool', body: { level: 3 }, label: 'Base Lvl 3' },
       { endpoint: '/api/generate-vocab-pool', body: {}, label: 'Vocab' },
       { endpoint: '/api/generate-street-pool', body: {}, label: 'Street' },
+      { endpoint: '/api/generate-home-pool', body: {}, label: 'Home' },
       { endpoint: '/api/generate-sentence-training-pool', body: { level: 'leicht' }, label: 'Satz leicht' },
       { endpoint: '/api/generate-sentence-training-pool', body: { level: 'mittel' }, label: 'Satz mittel' },
       { endpoint: '/api/generate-sentence-training-pool', body: { level: 'schwer' }, label: 'Satz schwer' },
@@ -7814,6 +7825,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
             { label: 'Base Lvl 3', endpoint: '/api/generate-base-pool', body: { level: 3 } },
             { label: 'Vocab', endpoint: '/api/generate-vocab-pool', body: {} },
             { label: 'Street', endpoint: '/api/generate-street-pool', body: {} },
+            { label: 'Home', endpoint: '/api/generate-home-pool', body: {} },
             { label: 'Satz leicht', endpoint: '/api/generate-sentence-training-pool', body: { level: 'leicht' } },
             { label: 'Satz mittel', endpoint: '/api/generate-sentence-training-pool', body: { level: 'mittel' } },
             { label: 'Satz schwer', endpoint: '/api/generate-sentence-training-pool', body: { level: 'schwer' } },
