@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, Component } from 'reac
 import { auth, db } from './firebase'
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
 import { doc, setDoc, getDoc, getDocFromServer, updateDoc, deleteDoc, onSnapshot, collection, addDoc, getDocs, writeBatch } from 'firebase/firestore'
-import { getCards, setCards } from './hooks/useCardCache'
+import { getCards, setCards, invalidateCache } from './hooks/useCardCache'
 import './App.css'
 
 // ── APP PREFS CONTEXT (lightMode, cardSize) ─────────────────────
@@ -44,7 +44,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.057.083'
+const APP_VERSION = 'V01.057.084'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -4655,22 +4655,35 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
             })
           }
           const mpc = { ...(myData?.masteredPerCategory || {}), [areaKey]: 0 }
-          const updates = { masteredPerCategory: mpc, cardProgress: cp }
+
+          // Layer 3: invalidate localStorage card cache so next session reads fresh from Firestore
+          if (areaKey === 'basics') {
+            ['de_en', 'en_de', 'de_sw'].forEach(pair => {
+              [1, 2, 3].forEach(lv => invalidateCache(`grundlagen_${pair}_${lv}`))
+            })
+          } else {
+            invalidateCache(areaKey)  // no-op for home/street (no vocara_cache_ key exists yet, safe)
+          }
+
+          // Layer 1: optimistic local state update BEFORE Firestore write — UI is immediately consistent
+          setMyData(d => ({
+            ...d,
+            ...(isPoolCategory ? { aiCards: [...updatedAiCards] } : {}),
+            cardProgress: { ...cp },
+            masteredPerCategory: { ...mpc },
+            ...(areaKey === 'basics' ? { basicsPoolLevel: 1 } : {}),
+          }))
+          setResetConfirm(null)
+
+          // Persist to Firestore in background (UI doesn't wait)
+          const updates = { masteredPerCategory: { ...mpc }, cardProgress: { ...cp } }
           if (isPoolCategory) updates.aiCards = updatedAiCards
           if (areaKey === 'basics') updates.basicsPoolLevel = 1
           try {
             const batch = writeBatch(db)
             batch.update(doc(db, 'users', user.uid), updates)
             await batch.commit()
-            setMyData(d => ({
-              ...d,
-              ...(isPoolCategory ? { aiCards: updatedAiCards } : {}),
-              cardProgress: cp,
-              masteredPerCategory: mpc,
-              ...(areaKey === 'basics' ? { basicsPoolLevel: 1 } : {}),
-            }))
           } catch (e) { console.warn('[Vocara] area reset failed:', e?.message) }
-          setResetConfirm(null)
         }
         const confirmArea = RESET_AREAS.find(a => a.key === resetConfirm)
         const confirmLabel = confirmArea ? (isDE ? confirmArea.labelDE : confirmArea.labelEN) : ''
@@ -6155,6 +6168,8 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
     }
   }
   const startBasicsSession = async () => {
+    // Layer 2: always read basicsPoolLevel from current React state (myData updated optimistically on reset)
+    const currentBasicsLevel = myData?.basicsPoolLevel || 1
     const existingBasics = activeCards.filter(c => c.category === 'basics')
     if (existingBasics.length > 0) {
       const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
@@ -6174,8 +6189,7 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
       setBasicsLoading(true)
       const lA = isMarkLang ? 'de' : 'en'
       const lB = activeToLang || (isMarkLang ? 'en' : 'de')
-      const currentLevel = myData?.basicsPoolLevel || 1
-      const nextLevel = currentLevel + 1
+      const nextLevel = currentBasicsLevel + 1
       const poolNext = await fetchGrundlagenPool(lA, lB, nextLevel)
       if (poolNext?.length > 0) {
         const ts = Date.now()
