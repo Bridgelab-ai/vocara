@@ -44,7 +44,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.057.084'
+const APP_VERSION = 'V01.057.085'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -5121,7 +5121,7 @@ function VocaraLogoSVG({ withSlogans = false, animate = false, isDE = true }) {
   )
 }
 
-function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSaveProgress, theme, onThemeChange, onLightModeChange, onCardSizeChange, onPartnerUpdate, onSaveCefr, musicEnabled, musicVolume, onMusicToggle, onMusicVolume, onBack }) {
+function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSaveProgress, theme, onThemeChange, onLightModeChange, onCardSizeChange, onPartnerUpdate, onSaveCefr, musicEnabled, musicVolume, onMusicToggle, onMusicVolume, onRefreshPartner, onBack }) {
   const [screen, setScreen] = useState('menu')
   const [session, setSession] = useState(null)
   const [result, setResult] = useState(null)
@@ -6402,10 +6402,14 @@ Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","
         })
         const entry = { date: todayStr(), correct: correctCount, total: correctCount + wrongCount, ts: Date.now(), area: currentSessionMode }
         const updatedHistory = [entry, ...(sessionHistory || [])].slice(0, 60)
+        const stopPubStats = { lastActive: Date.now(), uid: user.uid, displayName: user.displayName || '', name: user.displayName?.split(' ')[0] || 'Partner' }
         const batch = writeBatch(db)
         batch.update(doc(db, 'users', user.uid), { cardProgress: finalProgress, masteredPerCategory, sessionHistory: updatedHistory })
+        batch.set(doc(db, 'users', user.uid, 'publicStats', 'data'), stopPubStats, { merge: true })
         await batch.commit()
+        console.log('[Vocara] publicStats written (stop) for', user.uid)
         setMyData(d => ({ ...d, cardProgress: { ...finalProgress }, masteredPerCategory: { ...masteredPerCategory }, sessionHistory: updatedHistory }))
+        if (myData?.partnerUID) onRefreshPartner?.(myData.partnerUID)
         const msg = `${answeredCount} Karte${answeredCount !== 1 ? 'n' : ''} gespeichert ✓`
         setStopToast(msg)
         setTimeout(() => setStopToast(null), 3000)
@@ -6756,7 +6760,10 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
       })
       batch.set(doc(db, 'users', user.uid, 'publicStats', 'data'), pubStats, { merge: true })
       await batch.commit()
+      console.log('[Vocara] publicStats written for', user.uid, { masteredCards: pubStats.masteredCards, streak: pubStats.streak })
     } catch (e) { console.error('[Vocara] handleFinish batch failed:', e.message) }
+    // Layer 3: refresh partner data from server after own session ends
+    if (myData?.partnerUID) onRefreshPartner?.(myData.partnerUID)
     setMyData(d => ({ ...d, cardProgress: { ...finalProgress }, sessionHistory: updatedHistory, masteredPerCategory: { ...masteredPerCategory }, ...timeUpdate, ...(hitMilestone ? { firedStreakGimmicks: updatedMilestones } : {}) }))
     // ── Streak gimmick UI + side effects (fire-and-forget) ──
     if (hitMilestone) {
@@ -9513,6 +9520,23 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [myData, setMyData] = useState(null)
   const [partnerData, setPartnerData] = useState(null)
+
+  // Layer 3: force-fetch partner publicStats from server (bypass IndexedDB cache)
+  const refreshPartnerData = async (partnerUID) => {
+    if (!partnerUID) return
+    try {
+      const pubSnap = await getDocFromServer(doc(db, 'users', partnerUID, 'publicStats', 'data'))
+      if (pubSnap.exists()) {
+        console.log('[Partner] publicStats refreshed for', partnerUID)
+        setPartnerData(pubSnap.data())
+      } else {
+        console.warn('[Partner] publicStats not found for', partnerUID)
+      }
+    } catch (e) {
+      console.warn('[Partner] publicStats refresh failed:', e?.message)
+    }
+  }
+
   const [theme, setTheme] = useState(() => {
     try { return localStorage.getItem('vocara_theme') || 'nairobi' } catch { return 'nairobi' }
   })
@@ -9868,7 +9892,8 @@ function App() {
                 try { localStorage.setItem('vocara_partnerName_' + partnerUID, pubSnap.data().name || pubSnap.data().displayName || '') } catch {}
                 return
               }
-            } catch (_) {}
+              console.warn('[Partner] publicStats not found for', partnerUID)
+            } catch (e) { console.warn('[Partner] publicStats read failed for', partnerUID, e?.message) }
             // 2. Fallback: users/{partnerUID}/globalStats/summary
             try {
               const gsSnap = await getDoc(doc(db, 'users', partnerUID, 'globalStats', 'summary'))
@@ -10061,6 +10086,7 @@ function App() {
             onPartnerUpdate={handlePartnerUpdate} onSaveCefr={handleSaveCefr}
             musicEnabled={musicEnabled} musicVolume={musicVolume}
             onMusicToggle={handleMusicToggle} onMusicVolume={handleMusicVolume}
+            onRefreshPartner={refreshPartnerData}
             onBack={() => setMainNav('main')} />
         )}
         {isOffline && (
