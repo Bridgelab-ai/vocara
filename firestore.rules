@@ -2,27 +2,34 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Users collection — own data + publicStats readable by any signed-in user
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    function isAdmin() {
+      return request.auth != null && request.auth.uid == 'aiNZh4Myn8Y0KfYkGGrkNNW0HC72';
+    }
 
-      // profile subcollection — own only
+    // Users collection
+    match /users/{userId} {
+      // Own user read/write; admin can read any user document (AdminScreen user list)
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow write: if request.auth != null && request.auth.uid == userId;
+
+      // profile — own only
       match /profile/{doc} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
 
-      // publicStats — any authenticated user can read and write
-      // (partner notifications, partner data updates cross-write to other users' publicStats)
+      // publicStats — any authenticated user (partner cross-writes)
       match /publicStats/{doc} {
         allow read, write: if request.auth != null;
       }
 
-      // incomingCards — any authenticated user can read and create
-      // (read needed for sender's duplicate check before gifting; create for sending)
-      // only owner can delete their own incoming cards
+      // incomingCards — any authenticated user (sender needs read for duplicate check + write to send)
       match /incomingCards/{cardId} {
-        allow read, create: if request.auth != null;
-        allow delete: if request.auth != null && request.auth.uid == userId;
+        allow read, write: if request.auth != null;
+      }
+
+      // cardProgress — own user only
+      match /cardProgress/{cardId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
       }
 
       // conversationHistory — own only
@@ -47,6 +54,13 @@ service cloud.firestore {
       }
     }
 
+    // userProfiles — pendingNotifs readable/writable by any authenticated user (push notifications)
+    match /userProfiles/{uid} {
+      match /pendingNotifs/{notifId} {
+        allow read, write: if request.auth != null;
+      }
+    }
+
     // Shared card pool — any authenticated user can read, server writes via API (unauthenticated REST)
     match /sharedCards/{docId} {
       allow read: if request.auth != null;
@@ -59,7 +73,7 @@ service cloud.firestore {
       allow write: if request.auth == null;
     }
 
-    // Shared training exercises pool (SatzTraining, difficulty-based) — read by auth users, server writes
+    // Shared training exercises pool — read by auth users, server writes
     match /sharedExercises/{docId} {
       allow read: if request.auth != null;
       allow write: if request.auth == null;
@@ -75,10 +89,11 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Reports — any authenticated user can create
+    // Reports — any authenticated user can create; admin (Mark) can read/update/delete
     match /reports/{reportId} {
       allow create: if request.auth != null;
-      allow read, update, delete: if false;
+      allow read, update, delete: if isAdmin();
     }
+
   }
 }

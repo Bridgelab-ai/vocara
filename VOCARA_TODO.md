@@ -1,5 +1,16 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 03.05.2026)
 
+## ✅ Fix (03.05.2026 Session 66) — V01.059.090
+- FIRESTORE RULES VOLLSTÄNDIG KORRIGIERT & DEPLOYED ✅
+  - isAdmin() Hilfsfunktion hinzugefügt (Mark UID: aiNZh4...HC72) ✅
+  - users/{userId}: read aufgeteilt → own OR admin; write nur own ✅
+  - incomingCards: `read, create` + separate delete → `read, write` für alle Auth-User ✅
+  - cardProgress/{cardId}: NEUE Subcollection-Regel — own user only ✅
+  - userProfiles/{uid}/pendingNotifs/{notifId}: NEUE Top-Level-Collection — any auth user ✅
+  - reports: `read/update/delete: if false` → `if isAdmin()` (Mark kann Reports lesen/verwalten) ✅
+  - Deployed: `npx firebase-tools@latest deploy --only firestore:rules` → SUCCESS ✅
+- VERSION V01.059.090 ✅
+
 ## ✅ Fix (03.05.2026 Session 65) — V01.059.089
 - USER RESET SICHTBAR: "Nutzer zurücksetzen" Sektion war unter 50+ Pool-Buttons begraben (nicht sichtbar ohne Scrollen) ✅
   - Verschoben: von nach Pool-Sektion → direkt nach Quick Stats, VOR Pool-Buttons ✅
