@@ -1,5 +1,9 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 03.05.2026)
 
+## ✅ Implementiert (03.05.2026 Session 55) — V01.057.084
+- RESET LÄDT ALTE KARTEN (Root Fix): 3 Layer gleichzeitig behoben: (1) STATE: setMyData wird jetzt VOR await batch.commit() aufgerufen (optimistisches Update) — UI ist sofort konsistent ohne auf Firestore-Write zu warten; alle Objekte mit Spread ({...cp}, {...mpc}, [...updatedAiCards]) für neue React-Referenzen. (2) CARD LOADING: startBasicsSession liest currentBasicsLevel einmalig am Funktionsanfang (nach optimistischem Update); nextLevel-Berechnung nutzt diesen Wert statt zweitem myData-Read. (3) CACHE: invalidateCache importiert; basics-Reset löscht alle grundlagen-localStorage-Einträge (de_en/en_de/de_sw × Level 1/2/3) damit nächste Session frisch von Firestore lädt ✅
+- VERSION V01.057.084 ✅
+
 ## ✅ Implementiert (03.05.2026 Session 54) — V01.057.083
 - RESET SETZT LEVEL-LOCK ZURÜCK: handleAreaReset in SettingsScreen: pool-basierte Kategorien (basics/home/street) entfernen jetzt ihre aiCards vollständig aus Firestore → nächste Session lädt frischen Level-1-Pool statt alter (zurückgesetzter) Karten. basics-Reset setzt außerdem basicsPoolLevel=1 damit startBasicsSession mit Lvl 1 Pool beginnt. Andere Kategorien (vocabulary/urlaub/satztraining/sentence) behalten Karten wie bisher — nur Progress wird zurückgesetzt. Verwaiste cardProgress-Einträge für entfernte Karten werden bereinigt ✅
 - VERSION V01.057.083 ✅
