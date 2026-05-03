@@ -1,5 +1,9 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 03.05.2026)
 
+## ✅ Implementiert (03.05.2026 Session 49) — V01.055.079
+- BEREICH RESET IN EINSTELLUNGEN: SettingsScreen neue Sektion "Bereiche zurücksetzen" — zeigt alle 7 Lernbereiche (Grundlagen/Meine Worte/Auf der Straße/Und zu Hause/Im Urlaub/Satztraining/KI-Gespräch) je mit aktuellem Level + 🔄 Reset-Button. Tap → Bestätigungs-Modal "... zurücksetzen? Du fängst wieder bei Level 1 an." → Confirm: setzt alle Cards der Kategorie in cardProgress auf interval=0/consecutiveRight=0/wrongSessions=0/nextReview=today; masteredPerCategory[category]=0; writeBatch nach Firestore; setMyData lokal aktualisiert. Satztraining-Reset nur masteredPerCategory, keine cardProgress-Einträge. Kein anderes Feld wird berührt. resetConfirm useState im SettingsScreen-Scope ✅
+- VERSION V01.055.079 ✅
+
 ## ✅ Implementiert (03.05.2026 Session 48) — V01.054.079
 - PUBLICSTATS PERMISSIONS: firestore.rules bereits korrekt (publicStats: allow read/write für request.auth != null). Neu deployed + bestätigt ✅
 - ZUHAUSE IMMER GLEICHE KARTEN: startCategorySession fallback für home/street: statt blindem shuffle(cards) wird geprüft ob alle Karten interval>=3 haben → dann generateCategoryCards() für frischen Batch; notMastered (interval<5) bevorzugt, mastered nur wenn keine anderen mehr vorhanden ✅
