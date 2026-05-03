@@ -44,7 +44,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.059.094'
+const APP_VERSION = 'V01.059.095'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -10182,9 +10182,14 @@ function App() {
         const psPath = `users/${u.uid}/publicStats/data`
         try {
           console.log('[publicStats] outer try started', auth.currentUser?.uid)
-          const globalSnap = await getDoc(doc(db, 'users', u.uid, 'globalStats', 'summary'))
-          console.log('[publicStats] globalStats read OK', { exists: globalSnap.exists() })
-          const existing = globalSnap.exists() ? globalSnap.data() : {}
+          let globalStatsData = {}
+          try {
+            const globalStatsSnap = await getDoc(doc(db, 'users', u.uid, 'globalStats', 'summary'))
+            globalStatsData = globalStatsSnap.exists() ? globalStatsSnap.data() : {}
+            console.log('[publicStats] globalStats read OK', { exists: globalStatsSnap.exists() })
+          } catch (e) {
+            console.warn('[publicStats] globalStats read skipped:', e.code)
+          }
           let resolvedName = u.displayName || ''
           if (!resolvedName) {
             try {
@@ -10192,7 +10197,7 @@ function App() {
               if (profSnap.exists()) resolvedName = profSnap.data().displayName || profSnap.data().name || ''
             } catch (_) {}
           }
-          const psData = { ...existing, displayName: resolvedName, lastActive: Date.now(), uid: u.uid }
+          const psData = { ...globalStatsData, displayName: resolvedName, lastActive: Date.now(), uid: u.uid }
           const publicStatsRef = doc(db, 'users', u.uid, 'publicStats', 'data')
           console.log('[publicStats] WRITING DATA:', JSON.stringify(psData))
           try {

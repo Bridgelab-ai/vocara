@@ -1,5 +1,17 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 03.05.2026)
 
+## ✅ Fix (03.05.2026 Session 71) — V01.059.095
+- PUBLICSTATS ROOT CAUSE FOUND & FIXED: globalStats/summary read inside publicStats outer try block killed entire block ✅
+  - ROOT CAUSE: `getDoc(users/{uid}/globalStats/summary)` was the FIRST await in the outer try —
+    globalStats subcollection had NO Firestore rule → permission-denied thrown → outer catch fired →
+    publicStats write was never reached (explains why `[publicStats] WRITING DATA` log never appeared)
+  - FIX App.jsx: globalStats read wrapped in own isolated try/catch with fallback to {} ✅
+    → non-fatal — outer try continues even if globalStats is unreadable
+    → variable renamed: `existing` → `globalStatsData` for clarity
+  - FIX firestore.rules: `match /users/{uid}/globalStats/{doc}` — allow read for any auth user; write:false ✅
+    → deployed: npx firebase-tools@latest deploy --only firestore:rules → SUCCESS ✅
+- VERSION V01.059.095 ✅
+
 ## ✅ Fix (03.05.2026 Session 70) — V01.059.094
 - INDEXEDDB CACHE CLEAR: Stale Firestore-Rules aus persistentLocalCache bei Startup löschen ✅
   - ROOT CAUSE: persistentLocalCache (IndexedDB) cached alte Rules-Auswertungen → permission-denied
