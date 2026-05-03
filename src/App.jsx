@@ -10181,7 +10181,9 @@ function App() {
         }
         const psPath = `users/${u.uid}/publicStats/data`
         try {
+          console.log('[publicStats] outer try started', auth.currentUser?.uid)
           const globalSnap = await getDoc(doc(db, 'users', u.uid, 'globalStats', 'summary'))
+          console.log('[publicStats] globalStats read OK', { exists: globalSnap.exists() })
           const existing = globalSnap.exists() ? globalSnap.data() : {}
           let resolvedName = u.displayName || ''
           if (!resolvedName) {
@@ -10192,24 +10194,24 @@ function App() {
           }
           const psData = { ...existing, displayName: resolvedName, lastActive: Date.now(), uid: u.uid }
           const publicStatsRef = doc(db, 'users', u.uid, 'publicStats', 'data')
-          console.log('[Login] writing publicStats', psPath, { uid: u.uid, displayName: resolvedName })
+          console.log('[publicStats] WRITING DATA:', JSON.stringify(psData))
           try {
             await setDoc(publicStatsRef, psData, { merge: true })
             console.log('[Login] publicStats OK', u.uid)
           } catch (e) {
-            console.error('[Login] publicStats FAILED (attempt 1)', { path: psPath, uid: u.uid, code: e.code, msg: e.message })
+            console.error('[publicStats] FULL ERROR:', JSON.stringify({ code: e.code, message: e.message, stack: e.stack?.slice(0, 200) }))
             if (e.code === 'permission-denied') {
               await new Promise(r => setTimeout(r, 1000))
               try {
                 await setDoc(publicStatsRef, psData, { merge: true })
                 console.log('[Login] publicStats OK (retry)', u.uid)
               } catch (e2) {
-                console.error('[Login] publicStats FAILED (retry)', { path: psPath, uid: u.uid, code: e2.code, msg: e2.message })
+                console.error('[publicStats] FULL ERROR (retry):', JSON.stringify({ code: e2.code, message: e2.message, stack: e2.stack?.slice(0, 200) }))
               }
             }
           }
         } catch (psErr) {
-          console.error('[Login] publicStats outer error', { uid: u.uid, code: psErr.code, msg: psErr.message })
+          console.error('[publicStats] FULL ERROR (outer catch):', JSON.stringify({ code: psErr.code, message: psErr.message, stack: psErr.stack?.slice(0, 200) }))
         }
       })()
     })
