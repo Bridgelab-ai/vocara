@@ -1,5 +1,15 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 03.05.2026)
 
+## ✅ Admin-Reset (03.05.2026 Session 63) — kein Version-Bump
+- USER DATA RESET für Mark + Elosy: scripts/reset-user-data.mjs erstellt ✅
+  - firebase-admin installiert (devDependency) — bypasses Firestore security rules ✅
+  - settings/categoryLevels → alle Kategorien auf 1 (grundlagen/vocab/street/home/urlaub/satz) ✅
+  - cardProgress → alle Dokumente gelöscht (full wipe, 500er Batches) ✅
+  - publicStats/data → gelöscht ✅
+  - NICHT berührt: Streaks, Profil, Partner-Connection, user-erstellte Karten ✅
+  - service-account.json zu .gitignore hinzugefügt ✅
+  - AUSFÜHRUNG: node scripts/reset-user-data.mjs (nach Ablage von service-account.json) ✅
+
 ## ✅ Implementiert (03.05.2026 Session 62) — V01.059.087
 - URL AUDIT: Gesamter Codebase nach falschen Vocara-Deployment-URLs durchsucht ✅
   - Einzige fehlerhafte URL gefunden: scripts/generate-level1-pools.mjs:3 — `https://vocara.vercel.app` → `https://vocara-peach.vercel.app` ✅
