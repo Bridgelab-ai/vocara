@@ -1,5 +1,9 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 03.05.2026)
 
+## ✅ Implementiert (03.05.2026 Session 52) — V01.056.082
+- UND ZU HAUSE STARTET NICHT: generateCategoryCards('home') hatte 3 Bugs: (1) langB war hardcoded 'en' statt activeToLang; (2) fetchSharedCards las weekly-rotating Pfad — kein Match für home-Pool; (3) KI-catch schluckte Fehler ohne Fallback. Fixes: langB = activeToLang || fallback; neuer erster Schritt prüft statischen Pfad sharedCards/{langA}_{langB}_home; HOME_FALLBACK (de_en/en_de/de_sw) garantiert immer Session-Start; console.log an jedem Schritt (dev only) ✅
+- VERSION V01.056.082 ✅
+
 ## ✅ Implementiert (03.05.2026 Session 51) — V01.056.081
 - RESET FÜR WERDEN SÄTZE: RESET_AREAS in SettingsScreen — sentence-Eintrag war falsch als 'KI-Gespräch' beschriftet; korrigiert auf 'Werden Sätze' / 'Become Sentences'. Reset löscht alle cardProgress-Einträge mit category='sentence' und setzt masteredPerCategory.sentence=0. Confirmation dialog + writeBatch wie alle anderen Bereiche ✅
 - ALLES GENERIEREN (ADMIN): triggerAllPools() — startet alle 8 Pool-Generatoren sequenziell mit je 2s Pause: Base Lvl 1/2/3, Vocab, Street, Satz leicht/mittel/schwer. Jeder Aufruf loggt ▶/✓/✕ Ergebnis in poolLog. 🔄 Alles generieren Button im AdminScreen neben Pool-Sektion Titel; zeigt ⏳ Läuft… während aktiv. Einzeln-Buttons um Base Lvl 3 ergänzt ✅
