@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { initializeFirestore, persistentLocalCache, CACHE_SIZE_UNLIMITED, clearIndexedDbPersistence } from "firebase/firestore";
+import { getFirestore, clearIndexedDbPersistence } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyD8R7oHIw9HvviqprAnfPgDmHtkUDy3vzI",
@@ -13,10 +13,8 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-// Offline-first: serve reads from IndexedDB cache when data hasn't changed
-export const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({ cacheSizeBytes: CACHE_SIZE_UNLIMITED })
-});
+// DIAGNOSTIC: persistentLocalCache disabled — testing if IndexedDB was causing publicStats write failures
+export const db = getFirestore(app);
 
 // One-time IndexedDB cache clear when Firestore rules change.
 // Stale cached rules can cause permission-denied errors on writes even
