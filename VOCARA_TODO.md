@@ -1,5 +1,18 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 03.05.2026)
 
+## ✅ Fix (03.05.2026 Session 68) — V01.059.092
+- PUBLICSTATS DEBUG + FIX: publicStats-Schreiben von Batch entkoppelt ✅
+  - ROOT CAUSE: publicStats war in DERSELBEN writeBatch wie cardProgress-MAP-Update auf users/{uid}
+    → Wenn der Batch (user-doc) aus irgendeinem Grund fehlschlug, schlug publicStats MITFEHL
+    → error.code war nie geloggt (nur e.message) → Fehler unsichtbar
+    → area: currentSessionMode ohne null-Guard → undefined-Wert in Session-History → Firestore lehnt ab
+  - FIX handleSessionStop: Batch schreibt nur noch user-doc; publicStats eigener setDoc danach ✅
+  - FIX handleFinish: identische Entkopplung ✅
+  - FIX area-Feld: currentSessionMode || null (kein undefined mehr in Firestore) ✅
+  - LOGGING: jeder Write loggt exakten Pfad, Daten-Snapshot, UID, error.code + error.message ✅
+    → [Login] / [SessionStop] / [handleFinish] publicStats-Logs im Browser-Console sichtbar
+- VERSION V01.059.092 ✅
+
 ## ✅ Fix (03.05.2026 Session 67) — V01.059.091
 - FIRESTORE RULES: publicStats cross-write fix für Elosy (partner sync) ✅
   - ROOT CAUSE: publicStats war nested in match /users/{userId} → parent write-constraint (auth.uid==userId) beeinflusste child-Auswertung → Elosy's publicStats von Mark nicht schreibbar

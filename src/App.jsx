@@ -44,7 +44,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.059.091'
+const APP_VERSION = 'V01.059.092'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -6505,20 +6505,33 @@ Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","
             return c.category === cat && !/_r(_\d+)?$/.test(c.id) && (finalProgress[baseId]?.interval ?? finalProgress[c.id]?.interval ?? 0) >= 3
           }).length
         })
-        const entry = { date: todayStr(), correct: correctCount, total: correctCount + wrongCount, ts: Date.now(), area: currentSessionMode }
+        const entry = { date: todayStr(), correct: correctCount, total: correctCount + wrongCount, ts: Date.now(), area: currentSessionMode || null }
         const updatedHistory = [entry, ...(sessionHistory || [])].slice(0, 60)
         const stopPubStats = { lastActive: Date.now(), uid: user.uid, displayName: user.displayName || '', name: user.displayName?.split(' ')[0] || 'Partner' }
-        const batch = writeBatch(db)
-        batch.update(doc(db, 'users', user.uid), { cardProgress: finalProgress, masteredPerCategory, sessionHistory: updatedHistory })
-        batch.set(doc(db, 'users', user.uid, 'publicStats', 'data'), stopPubStats, { merge: true })
-        await batch.commit()
-        console.log('[Vocara] publicStats written (stop) for', user.uid)
+        // ── Batch 1: user document only ──────────────────────────────
+        try {
+          const batch = writeBatch(db)
+          batch.update(doc(db, 'users', user.uid), { cardProgress: finalProgress, masteredPerCategory, sessionHistory: updatedHistory })
+          await batch.commit()
+          console.log('[SessionStop] user doc batch OK', user.uid)
+        } catch (batchErr) {
+          console.error('[SessionStop] user doc batch FAILED', { uid: user.uid, code: batchErr.code, msg: batchErr.message })
+        }
+        // ── publicStats: separate write so it succeeds independently ─
+        const psPath = `users/${user.uid}/publicStats/data`
+        console.log('[SessionStop] writing publicStats', psPath, stopPubStats)
+        try {
+          await setDoc(doc(db, 'users', user.uid, 'publicStats', 'data'), stopPubStats, { merge: true })
+          console.log('[SessionStop] publicStats OK', user.uid)
+        } catch (psErr) {
+          console.error('[SessionStop] publicStats FAILED', { path: psPath, uid: user.uid, code: psErr.code, msg: psErr.message, data: stopPubStats })
+        }
         setMyData(d => ({ ...d, cardProgress: { ...finalProgress }, masteredPerCategory: { ...masteredPerCategory }, sessionHistory: updatedHistory }))
         if (myData?.partnerUID) onRefreshPartner?.(myData.partnerUID)
         const msg = `${answeredCount} Karte${answeredCount !== 1 ? 'n' : ''} gespeichert ✓`
         setStopToast(msg)
         setTimeout(() => setStopToast(null), 3000)
-      } catch(e) { console.warn('handleSessionStop save failed:', e) }
+      } catch(e) { console.error('[SessionStop] outer catch', { code: e.code, msg: e.message }) }
     }
   }
   const markAreaDone = (area) => {
@@ -6853,7 +6866,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     const hitMilestone = STREAK_MILESTONES.find(m => myStreakNow >= m && !firedMilestones.includes(m))
     const updatedMilestones = hitMilestone ? [...firedMilestones, hitMilestone] : firedMilestones
     const pubStats = { weeklyMinutes: newWeeklyMinutes, monthlyMinutes: newMonthlyMinutes, totalMinutes: newTotalMinutes, learningWeek: nowWeek, learningMonth: nowMonth, totalCards: allCards.filter(c => !/_r(_\d+)?$/.test(c.id)).length, masteredCards: myMasteredNow, streak: myStreakNow, lastActive: Date.now(), displayName: user.displayName || '', name: user.displayName?.split(' ')[0] || 'Partner', uid: user.uid }
-    // ── Single batch: user doc + publicStats (2 documents, 1 round trip) ──
+    // ── Batch: user document only ─────────────────────────────────────
     try {
       const batch = writeBatch(db)
       batch.update(doc(db, 'users', user.uid), {
@@ -6863,10 +6876,20 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         ...timeUpdate,
         ...(hitMilestone ? { firedStreakGimmicks: updatedMilestones } : {}),
       })
-      batch.set(doc(db, 'users', user.uid, 'publicStats', 'data'), pubStats, { merge: true })
       await batch.commit()
-      console.log('[Vocara] publicStats written for', user.uid, { masteredCards: pubStats.masteredCards, streak: pubStats.streak })
-    } catch (e) { console.error('[Vocara] handleFinish batch failed:', e.message) }
+      console.log('[handleFinish] user doc batch OK', user.uid)
+    } catch (batchErr) {
+      console.error('[handleFinish] user doc batch FAILED', { uid: user.uid, code: batchErr.code, msg: batchErr.message })
+    }
+    // ── publicStats: separate write so it always runs independently ──
+    const psPath = `users/${user.uid}/publicStats/data`
+    console.log('[handleFinish] writing publicStats', psPath, { masteredCards: pubStats.masteredCards, streak: pubStats.streak, uid: pubStats.uid })
+    try {
+      await setDoc(doc(db, 'users', user.uid, 'publicStats', 'data'), pubStats, { merge: true })
+      console.log('[handleFinish] publicStats OK', user.uid)
+    } catch (psErr) {
+      console.error('[handleFinish] publicStats FAILED', { path: psPath, uid: user.uid, code: psErr.code, msg: psErr.message, data: JSON.stringify(pubStats) })
+    }
     // Layer 3: refresh partner data from server after own session ends
     if (myData?.partnerUID) onRefreshPartner?.(myData.partnerUID)
     setMyData(d => ({ ...d, cardProgress: { ...finalProgress }, sessionHistory: updatedHistory, masteredPerCategory: { ...masteredPerCategory }, ...timeUpdate, ...(hitMilestone ? { firedStreakGimmicks: updatedMilestones } : {}) }))
@@ -9903,6 +9926,7 @@ function App() {
         return
       }
       // ── PUBLICSTATS: write immediately on every login ──
+      const loginPsPath = `users/${u.uid}/publicStats/data`
       try {
         const globalSnap = await getDoc(doc(db, 'users', u.uid, 'globalStats', 'summary'))
         const existing = globalSnap.exists() ? globalSnap.data() : {}
@@ -9913,14 +9937,13 @@ function App() {
             if (profSnap.exists()) resolvedName = profSnap.data().displayName || profSnap.data().name || ''
           } catch (_) {}
         }
-        await setDoc(doc(db, 'users', u.uid, 'publicStats', 'data'), {
-          ...existing,
-          displayName: resolvedName,
-          lastActive: Date.now(),
-          uid: u.uid,
-        }, { merge: true })
-        console.log('[Vocara] publicStats written ✓', resolvedName)
-      } catch (e) { console.error('[Vocara] publicStats write failed:', e.message) }
+        const loginPsData = { ...existing, displayName: resolvedName, lastActive: Date.now(), uid: u.uid }
+        console.log('[Login] writing publicStats', loginPsPath, { uid: u.uid, displayName: resolvedName })
+        await setDoc(doc(db, 'users', u.uid, 'publicStats', 'data'), loginPsData, { merge: true })
+        console.log('[Login] publicStats OK', u.uid)
+      } catch (e) {
+        console.error('[Login] publicStats FAILED', { path: loginPsPath, uid: u.uid, code: e.code, msg: e.message })
+      }
       try {
         const userRef = doc(db, 'users', u.uid)
         const snap = await getDoc(userRef)
