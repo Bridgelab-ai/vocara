@@ -1,5 +1,18 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 03.05.2026)
 
+## ✅ Fix (03.05.2026 Session 73) — V01.059.097
+- CATEGORY RESET BROKEN: Reset button in SettingsScreen did nothing for own account ✅
+  - ROOT CAUSE: `categoryLevels` and `setCategoryLevels` were NOT passed as props to SettingsScreen
+    → `setCategoryLevels(newCatLevels)` threw `TypeError: setCategoryLevels is not a function`
+    → async function rejected silently (onClick handler swallows unhandled promise rejections)
+    → `setMyData`, `batch.commit()` and `setResetConfirm(null)` were never reached
+    → UI showed no change, Firestore not updated, modal didn't close
+  - FIX: Added `categoryLevels, setCategoryLevels` to SettingsScreen function signature ✅
+  - FIX: Passed `categoryLevels={categoryLevels} setCategoryLevels={setCategoryLevels}` in render call ✅
+  - LOGGING: `[Reset] starting for cat:` at start; `[Reset] categoryLevels written` after setDoc;
+    `[Reset] cardProgress cleared: X entries` after batch; `[Reset] FAILED:` on any error ✅
+- VERSION V01.059.097 ✅
+
 ## ✅ Fix (03.05.2026 Session 72) — V01.059.096
 - ADMIN RESET CROSS-USER FIX: Admin could not reset cardProgress/settings for other users ✅
   - ROOT CAUSE: `cardProgress/{cardId}` and `settings/{doc}` rules only allowed `auth.uid == userId`

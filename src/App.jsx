@@ -44,7 +44,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.059.096'
+const APP_VERSION = 'V01.059.097'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -4139,7 +4139,7 @@ function ResultScreen({ correct, wrong, fast, easy, weakestCard, strongestCard, 
   )
 }
 
-function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setMyData, allCards, lang, onPartner, onLightModeChange, onCardSizeChange, musicEnabled, musicVolume, onMusicToggle, onMusicVolume, onToLangChange }) {
+function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setMyData, allCards, lang, onPartner, onLightModeChange, onCardSizeChange, musicEnabled, musicVolume, onMusicToggle, onMusicVolume, onToLangChange, categoryLevels, setCategoryLevels }) {
   const th = THEMES[theme]
   const isDE = lang === 'de'
   const pausedLanguages = myData?.pausedLanguages || []
@@ -4707,6 +4707,7 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
           return getCatLevel(n)
         }
         const handleAreaReset = async (areaKey) => {
+          console.log('[Reset] starting for cat:', areaKey, 'uid:', auth.currentUser?.uid)
           const cp = { ...(myData?.cardProgress || {}) }
           const today = todayStr()
           // Pool-based categories: remove cards entirely so fresh pool loads on next session start
@@ -4741,7 +4742,9 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
           if (resetCatKey) {
             newCatLevels = { ...categoryLevels, [resetCatKey]: 1 }
             setCategoryLevels(newCatLevels)
-            setDoc(doc(db, 'users', user.uid, 'settings', 'categoryLevels'), newCatLevels).catch(() => {})
+            setDoc(doc(db, 'users', user.uid, 'settings', 'categoryLevels'), newCatLevels)
+              .then(() => console.log('[Reset] categoryLevels written', newCatLevels))
+              .catch(e => console.error('[Reset] FAILED categoryLevels:', e.code, e.message))
           }
 
           // Layer 1: optimistic local state update BEFORE Firestore write — UI is immediately consistent
@@ -4762,7 +4765,8 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
             const batch = writeBatch(db)
             batch.update(doc(db, 'users', user.uid), updates)
             await batch.commit()
-          } catch (e) { console.warn('[Vocara] area reset failed:', e?.message) }
+            console.log('[Reset] cardProgress cleared:', Object.keys(cp).length, 'entries')
+          } catch (e) { console.error('[Reset] FAILED:', e.code, e.message) }
         }
         const confirmArea = RESET_AREAS.find(a => a.key === resetConfirm)
         const confirmLabel = confirmArea ? (isDE ? confirmArea.labelDE : confirmArea.labelEN) : ''
@@ -6981,7 +6985,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
   if (screen === 'rhythmus') return <>{homeFloat}<RhythmusScreen lang={lang} theme={theme} onBack={() => { setScreen('result') }} allCards={allCards} cardProgress={cardProgress} userToLang={activeToLang} t={t} /></>
   if (screen === 'kontext' && kontextCard) return <>{homeFloat}<KontextwechselScreen card={kontextCard} lang={lang} theme={theme} userToLang={activeToLang} user={user} onBack={() => setScreen(kontextPrevScreen)} onSaveCard={async (newCard) => { const updated = [...(myData?.aiCards || []), newCard]; await updateDoc(doc(db, 'users', user.uid), { aiCards: updated }).catch(() => {}); setMyData(d => ({ ...d, aiCards: updated })) }} t={t} /></>
   if (screen === 'result' && result) return <>{homeFloat}<ResultScreen correct={result.correct} wrong={result.wrong} fast={result.fast} easy={result.easy} weakestCard={result.weakestCard} strongestCard={result.strongestCard} masteryUnlocked={masteryUnlocked} showRhythmus={result.showRhythmus} urlaubNote={result.urlaubNote} kontextCard={result.kontextCard} onUnlockUrlaub={() => setSoftPaywall({ area: 'urlaub', used: 3, limit: 10 })} onRhythmus={() => setScreen('rhythmus')} onKontext={result.kontextCard ? () => { setKontextCard(result.kontextCard); setKontextPrevScreen('result'); setScreen('kontext') } : null} t={t} lang={lang} onBack={() => { setScreen('menu'); setSession(null) }} onReplay={result.originalSession ? () => { setSession(result.originalSession); setResumeStartIndex(0); setResumeStartProgress(null); setScreen('cards') } : null} s={s} th={th} /></>
-  if (screen === 'settings') return <>{homeFloat}<SettingsScreen t={t} s={s} theme={theme} onThemeChange={onThemeChange} onBack={() => setScreen('menu')} user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} onPartner={() => setScreen('partner')} onLightModeChange={onLightModeChange} onCardSizeChange={onCardSizeChange} musicEnabled={musicEnabled} musicVolume={musicVolume} onMusicToggle={onMusicToggle} onMusicVolume={onMusicVolume} onToLangChange={(newLang) => setActiveToLang(newLang)} /></>
+  if (screen === 'settings') return <>{homeFloat}<SettingsScreen t={t} s={s} theme={theme} onThemeChange={onThemeChange} onBack={() => setScreen('menu')} user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} onPartner={() => setScreen('partner')} onLightModeChange={onLightModeChange} onCardSizeChange={onCardSizeChange} musicEnabled={musicEnabled} musicVolume={musicVolume} onMusicToggle={onMusicToggle} onMusicVolume={onMusicVolume} onToLangChange={(newLang) => setActiveToLang(newLang)} categoryLevels={categoryLevels} setCategoryLevels={setCategoryLevels} /></>
   if (screen === 'meinekarten') return <>{homeFloat}<MeineKartenScreen user={user} myData={myData} setMyData={setMyData} allCards={allCards} cardProgress={cardProgress} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
   if (screen === 'geschenkkarte') return <>{homeFloat}<GeschenkkarteScreen user={user} myData={myData} lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} /></>
   if (screen === 'karteerstellen') return <>{homeFloat}<KarteErstellenScreen user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} theme={theme} onBack={() => setScreen('menu')} socialRegister={myData?.socialRegister || 'friends'} t={t} /></>
