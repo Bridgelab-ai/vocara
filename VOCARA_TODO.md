@@ -1,5 +1,16 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 03.05.2026)
 
+## ✅ Implementiert (03.05.2026 Session 64) — V01.059.088
+- USER RESET IN ADMINSCREEN: "Nutzer zurücksetzen"-Sektion in AdminScreen (nur Mark-UID sichtbar) ✅
+  - Dropdown: Mark / Elosy
+  - Button "Vollständig zurücksetzen" — öffnet window.confirm-Dialog mit klarer Liste was gelöscht wird ✅
+  - Löscht: users/{uid}/settings/categoryLevels → {grundlagen:1, vocab:1, street:1, home:1, urlaub:1, satz:1} ✅
+  - Löscht: users/{uid}/cardProgress — alle Dokumente via writeBatch (paginiert bei >500) ✅
+  - Löscht: users/{uid}/publicStats/data ✅
+  - Berührt NICHT: Streaks, Profil, Partner-Verbindung, user-erstellte Karten ✅
+  - Toast: grün bei Erfolg (mit Anzahl gelöschter cardProgress-Docs), rot bei Fehler, auto-dismiss 5s ✅
+- VERSION V01.059.088 ✅
+
 ## ✅ Admin-Reset (03.05.2026 Session 63) — kein Version-Bump
 - USER DATA RESET für Mark + Elosy: scripts/reset-user-data.mjs erstellt ✅
   - firebase-admin installiert (devDependency) — bypasses Firestore security rules ✅

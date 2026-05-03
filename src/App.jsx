@@ -44,7 +44,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.059.087'
+const APP_VERSION = 'V01.059.088'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -7828,6 +7828,9 @@ function AdminScreen({ user, lang, theme, onBack }) {
   const [reportActing, setReportActing] = useState(null)
   const [poolLog, setPoolLog] = useState([])
   const [poolRunning, setPoolRunning] = useState(false)
+  const [resetSelectedUid, setResetSelectedUid] = useState(MARK_UID)
+  const [resetRunning, setResetRunning] = useState(false)
+  const [resetToast, setResetToast] = useState(null)
 
   const load = async () => {
     setLoading(true)
@@ -7970,6 +7973,41 @@ function AdminScreen({ user, lang, theme, onBack }) {
     setPoolRunning(false)
   }
 
+  const handleUserReset = async () => {
+    const userName = resetSelectedUid === MARK_UID ? 'Mark' : 'Elosy'
+    if (!window.confirm(`⚠️ Vollständig zurücksetzen für ${userName}?\n\nGelöscht wird:\n• categoryLevels → alle auf 1\n• cardProgress (alle Dokumente)\n• publicStats/data\n\nNICHT berührt: Streaks, Profil, Partner-Verbindung, eigene Karten.\n\nFortfahren?`)) return
+    setResetRunning(true)
+    setResetToast(null)
+    const uid = resetSelectedUid
+    try {
+      // 1. Reset categoryLevels
+      await setDoc(doc(db, 'users', uid, 'settings', 'categoryLevels'), {
+        grundlagen: 1, vocab: 1, street: 1, home: 1, urlaub: 1, satz: 1,
+      })
+      // 2. Delete all cardProgress documents (paginated in batches of 500)
+      let totalDeleted = 0
+      const cpRef = collection(db, 'users', uid, 'cardProgress')
+      let snap
+      do {
+        snap = await getDocs(cpRef)
+        if (snap.empty) break
+        const batch = writeBatch(db)
+        snap.docs.forEach(d => batch.delete(d.ref))
+        await batch.commit()
+        totalDeleted += snap.size
+      } while (snap.size === 500)
+      // 3. Delete publicStats/data
+      const psRef = doc(db, 'users', uid, 'publicStats', 'data')
+      const psSnap = await getDoc(psRef)
+      if (psSnap.exists()) await deleteDoc(psRef)
+      setResetToast({ ok: true, msg: `✅ ${userName} zurückgesetzt (${totalDeleted} cardProgress-Docs gelöscht)` })
+    } catch (e) {
+      setResetToast({ ok: false, msg: `❌ Fehler: ${e.message}` })
+    }
+    setResetRunning(false)
+    setTimeout(() => setResetToast(null), 5000)
+  }
+
   const thisWeek = getISOWeekStr()
   const activeThisWeek = users.filter(u => (u.sessionHistory || []).some(h => {
     try { return getISOWeekStr(new Date(...h.date.split('-').map((v,i)=>i===1?v-1:+v))) === thisWeek } catch { return false }
@@ -8036,6 +8074,24 @@ function AdminScreen({ user, lang, theme, onBack }) {
               <p key={i} style={{ color: line.startsWith('✓') ? '#81c784' : line.startsWith('✕') ? '#e57373' : th.sub, fontSize: '0.62rem', margin: '1px 0', fontFamily: 'monospace' }}>{line}</p>
             ))}
           </div>
+        )}
+      </div>
+      {/* User reset section */}
+      <div style={{ marginBottom: '12px' }}>
+        <p style={{ color: th.sub, fontSize: '0.7rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 8px' }}>🔄 Nutzer zurücksetzen</p>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <select value={resetSelectedUid} onChange={e => setResetSelectedUid(e.target.value)}
+            style={{ background: th.card, border: `1px solid ${th.border}`, color: th.text, borderRadius: '8px', padding: '6px 10px', fontSize: '0.8rem', cursor: 'pointer', flex: '1', minWidth: '120px' }}>
+            <option value={MARK_UID}>Mark</option>
+            <option value={ELOSY_UID}>Elosy</option>
+          </select>
+          <button onClick={handleUserReset} disabled={resetRunning}
+            style={{ background: resetRunning ? 'transparent' : 'rgba(229,115,115,0.12)', border: `1px solid ${resetRunning ? th.border : 'rgba(229,115,115,0.5)'}`, color: resetRunning ? th.sub : '#e57373', borderRadius: '8px', padding: '6px 14px', fontSize: '0.78rem', fontWeight: '700', cursor: resetRunning ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
+            {resetRunning ? '⏳ Läuft…' : 'Vollständig zurücksetzen'}
+          </button>
+        </div>
+        {resetToast && (
+          <p style={{ color: resetToast.ok ? '#81c784' : '#e57373', fontSize: '0.72rem', margin: '6px 0 0', fontWeight: '600' }}>{resetToast.msg}</p>
         )}
       </div>
       {reports.length > 0 && (
