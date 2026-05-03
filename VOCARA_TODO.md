@@ -1,5 +1,9 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 03.05.2026)
 
+## ✅ Implementiert (03.05.2026 Session 56) — V01.057.085
+- PARTNER FORTSCHRITT NICHT SICHTBAR: 3-Layer-Fix: (1) SCHREIBEN: handleSessionStop schreibt jetzt publicStats via batch.set+merge in jedem Fall (nicht nur handleFinish); console.log('[Vocara] publicStats written') in beiden Pfaden bestätigt Write. (2) RULES: firestore.rules neu deployed + bestätigt — publicStats/{doc} erlaubt read/write für request.auth != null. (3) LESEN: refreshPartnerData() im App-Scope definiert — liest via getDocFromServer(bypass IndexedDB), als onRefreshPartner-Prop an MenuScreen; wird nach handleFinish UND handleSessionStop aufgerufen; loadPartner loggt jetzt deutlich wenn Dokument fehlt oder Lesen fehlschlägt ✅
+- VERSION V01.057.085 ✅
+
 ## ✅ Implementiert (03.05.2026 Session 55) — V01.057.084
 - RESET LÄDT ALTE KARTEN (Root Fix): 3 Layer gleichzeitig behoben: (1) STATE: setMyData wird jetzt VOR await batch.commit() aufgerufen (optimistisches Update) — UI ist sofort konsistent ohne auf Firestore-Write zu warten; alle Objekte mit Spread ({...cp}, {...mpc}, [...updatedAiCards]) für neue React-Referenzen. (2) CARD LOADING: startBasicsSession liest currentBasicsLevel einmalig am Funktionsanfang (nach optimistischem Update); nextLevel-Berechnung nutzt diesen Wert statt zweitem myData-Read. (3) CACHE: invalidateCache importiert; basics-Reset löscht alle grundlagen-localStorage-Einträge (de_en/en_de/de_sw × Level 1/2/3) damit nächste Session frisch von Firestore lädt ✅
 - VERSION V01.057.084 ✅
