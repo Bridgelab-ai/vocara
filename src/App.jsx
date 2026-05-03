@@ -44,7 +44,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.059.092'
+const APP_VERSION = 'V01.059.093'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -9925,25 +9925,8 @@ function App() {
         setUser(null); setLoading(false)
         return
       }
-      // ── PUBLICSTATS: write immediately on every login ──
-      const loginPsPath = `users/${u.uid}/publicStats/data`
-      try {
-        const globalSnap = await getDoc(doc(db, 'users', u.uid, 'globalStats', 'summary'))
-        const existing = globalSnap.exists() ? globalSnap.data() : {}
-        let resolvedName = u.displayName || ''
-        if (!resolvedName) {
-          try {
-            const profSnap = await getDoc(doc(db, 'users', u.uid, 'profile', 'data'))
-            if (profSnap.exists()) resolvedName = profSnap.data().displayName || profSnap.data().name || ''
-          } catch (_) {}
-        }
-        const loginPsData = { ...existing, displayName: resolvedName, lastActive: Date.now(), uid: u.uid }
-        console.log('[Login] writing publicStats', loginPsPath, { uid: u.uid, displayName: resolvedName })
-        await setDoc(doc(db, 'users', u.uid, 'publicStats', 'data'), loginPsData, { merge: true })
-        console.log('[Login] publicStats OK', u.uid)
-      } catch (e) {
-        console.error('[Login] publicStats FAILED', { path: loginPsPath, uid: u.uid, code: e.code, msg: e.message })
-      }
+      // Force token refresh so auth token is in the SDK cache before any Firestore op
+      try { await u.getIdToken() } catch (_) {}
       try {
         const userRef = doc(db, 'users', u.uid)
         const snap = await getDoc(userRef)
@@ -10121,6 +10104,10 @@ function App() {
           }).catch(() => {})
           // Load partner stats — fallback chain: publicStats → globalStats → "Noch keine Daten"
           const loadPartner = async (partnerUID) => {
+            if (!auth.currentUser?.uid) {
+              console.warn('[loadPartner] skipped — no auth yet')
+              return
+            }
             // 1. Primary: users/{partnerUID}/publicStats/data — force network to bypass IndexedDB cache
             try {
               const pubSnap = await getDocFromServer(doc(db, 'users', partnerUID, 'publicStats', 'data'))
@@ -10168,6 +10155,32 @@ function App() {
       // Update lastActive timestamp for partner visibility
       try { await updateDoc(doc(db, 'users', u.uid), { lastActive: new Date().toISOString() }) } catch(e) {}
       setUser(u); setLoading(false)
+      // ── PUBLICSTATS: fire-and-forget AFTER auth is fully settled ─────
+      // Written last so auth token is guaranteed to be in SDK cache.
+      ;(async () => {
+        if (!auth.currentUser?.uid) {
+          console.warn('[publicStats] skipped — no auth yet')
+          return
+        }
+        const psPath = `users/${u.uid}/publicStats/data`
+        try {
+          const globalSnap = await getDoc(doc(db, 'users', u.uid, 'globalStats', 'summary'))
+          const existing = globalSnap.exists() ? globalSnap.data() : {}
+          let resolvedName = u.displayName || ''
+          if (!resolvedName) {
+            try {
+              const profSnap = await getDoc(doc(db, 'users', u.uid, 'profile', 'data'))
+              if (profSnap.exists()) resolvedName = profSnap.data().displayName || profSnap.data().name || ''
+            } catch (_) {}
+          }
+          const psData = { ...existing, displayName: resolvedName, lastActive: Date.now(), uid: u.uid }
+          console.log('[Login] writing publicStats', psPath, { uid: u.uid, displayName: resolvedName })
+          await setDoc(doc(db, 'users', u.uid, 'publicStats', 'data'), psData, { merge: true })
+          console.log('[Login] publicStats OK', u.uid)
+        } catch (e) {
+          console.error('[Login] publicStats FAILED', { path: psPath, uid: u.uid, code: e.code, msg: e.message })
+        }
+      })()
     })
     return unsubscribe
   }, [])

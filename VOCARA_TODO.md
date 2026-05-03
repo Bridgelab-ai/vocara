@@ -1,5 +1,18 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 03.05.2026)
 
+## ✅ Fix (03.05.2026 Session 69) — V01.059.093
+- PUBLICSTATS AUTH RACE FIX: Write passiert nicht mehr vor Auth-Token-Initialisierung ✅
+  - ROOT CAUSE: publicStats-Write war ERSTE Operation in onAuthStateChanged — bevor Firebase SDK
+    den ID-Token gecacht hatte → Firestore sah request.auth==null → permission-denied
+  - FIX 1: await u.getIdToken() direkt nach if(!u)-Check → Token wird erzwungen gecacht vor
+    jedem Firestore-Aufruf ✅
+  - FIX 2: publicStats-Write aus dem Kopf der Callback verschoben → fire-and-forget IIFE
+    NACH setUser(u)/setLoading(false) — Auth ist zu diesem Zeitpunkt definitiv settled ✅
+  - FIX 3: Guard if (!auth.currentUser?.uid) am Anfang des publicStats-Writes +
+    in loadPartner() → sicheres Fallback wenn Auth in der Zwischenzeit verloren geht ✅
+  - Reihenfolge jetzt: getIdToken() → user-data laden → setUser/setLoading → publicStats ✅
+- VERSION V01.059.093 ✅
+
 ## ✅ Fix (03.05.2026 Session 68) — V01.059.092
 - PUBLICSTATS DEBUG + FIX: publicStats-Schreiben von Batch entkoppelt ✅
   - ROOT CAUSE: publicStats war in DERSELBEN writeBatch wie cardProgress-MAP-Update auf users/{uid}
