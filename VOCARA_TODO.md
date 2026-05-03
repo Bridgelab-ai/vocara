@@ -1,5 +1,17 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 03.05.2026)
 
+## ✅ Implementiert (03.05.2026 Session 61) — Level 2 Pools generiert (kein Code-Change)
+- LEVEL 2 KARTEN GENERIERT via https://vocara-peach.vercel.app — 7/8 Calls erfolgreich:
+  - sharedCards/*_grundlagen_2 — 50 Karten je Sprachpaar (alle 6 Paare in einem Call: de/en/sw Kombinationen); A1-A2: Zahlen 11-100, Wochentage, Monate, Personalpronomen, Grundverben ✅
+  - sharedCards/de_en_vocab_level2, en_de_vocab_level2, de_sw_vocab_level2 — je 65 A2 Vokabel-Karten ✅
+  - sharedCards/de_en_street_level2, en_de_street_level2, de_sw_street_level2 — je 38 A2 Street-Phrasen ✅
+  - sharedCards/de_en_home_level2, en_de_home_level2, de_sw_home_level2 — je 28 A2 Zuhause-Phrasen ✅
+  - sharedCards/de_en_sentence_level2, en_de_sentence_level2, de_sw_sentence_level2 — je 35 A2 Satz-Flashcards ✅
+  - sharedExercises/de_en_satz_level2, en_de_satz_level2, de_sw_satz_level2 — 28-30 Satztraining-Übungen je ✅
+  - Base Grundlagen L2 en→de: TIMEOUT (irrelevant — erster Call hatte bereits alle 6 Paare geschrieben) ✅
+- scripts/generate-level2-vercel.mjs — API-Calls via Vercel Production URL mit 3min Timeout ✅
+- Kein VERSION-Bump (kein Code-Change) ✅
+
 ## ✅ Implementiert (03.05.2026 Session 60) — Level 1 Pools generiert (kein Code-Change)
 - LEVEL 1 KARTEN GENERIERT für alle 6 Kategorien × 3 Sprachpaare (de→en, en→de, de→sw) = 18 Firestore-Dokumente:
   - sharedCards/de_en_grundlagen_1, en_de_grundlagen_1, de_sw_grundlagen_1 — je 20 Grundlagen A1 Karten (Zahlen 1-10, Begrüßungen, Farben, Familie)
