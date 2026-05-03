@@ -1,5 +1,9 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 03.05.2026)
 
+## ✅ Implementiert (03.05.2026 Session 54) — V01.057.083
+- RESET SETZT LEVEL-LOCK ZURÜCK: handleAreaReset in SettingsScreen: pool-basierte Kategorien (basics/home/street) entfernen jetzt ihre aiCards vollständig aus Firestore → nächste Session lädt frischen Level-1-Pool statt alter (zurückgesetzter) Karten. basics-Reset setzt außerdem basicsPoolLevel=1 damit startBasicsSession mit Lvl 1 Pool beginnt. Andere Kategorien (vocabulary/urlaub/satztraining/sentence) behalten Karten wie bisher — nur Progress wird zurückgesetzt. Verwaiste cardProgress-Einträge für entfernte Karten werden bereinigt ✅
+- VERSION V01.057.083 ✅
+
 ## ✅ Implementiert (03.05.2026 Session 53) — V01.057.082
 - HOME POOL GENERATOR: api/generate-home-pool.js — POST-only Endpoint; generiert 60 Heimkarten pro Sprachpaar (de_en/en_de/de_sw) über 6 Themen à 10: Kochen/Putzen/Wohnen/Familie/Alltag/Haustiere; schreibt nach sharedCards/{langPair}_home via Firestore REST PATCH; verwendet claude-haiku-4-5 mit 500ms Pause zwischen Topics ✅
 - HOME POOL ROTATION: generateCategoryCards('home') — masteredFronts-Set (interval>=5) aus activeCards gebaut; Pool-Karten gefiltert sodass bereits gemeisterte Fronts übersprungen werden; shuffle vor .slice(0,10) damit jede neue Batch variiert; wenn alle Pool-Karten gemeistert: nimmt alle (kein leerer Zustand) ✅
