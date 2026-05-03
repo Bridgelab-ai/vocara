@@ -1,5 +1,12 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 03.05.2026)
 
+## ✅ Implementiert (03.05.2026 Session 53) — V01.057.082
+- HOME POOL GENERATOR: api/generate-home-pool.js — POST-only Endpoint; generiert 60 Heimkarten pro Sprachpaar (de_en/en_de/de_sw) über 6 Themen à 10: Kochen/Putzen/Wohnen/Familie/Alltag/Haustiere; schreibt nach sharedCards/{langPair}_home via Firestore REST PATCH; verwendet claude-haiku-4-5 mit 500ms Pause zwischen Topics ✅
+- HOME POOL ROTATION: generateCategoryCards('home') — masteredFronts-Set (interval>=5) aus activeCards gebaut; Pool-Karten gefiltert sodass bereits gemeisterte Fronts übersprungen werden; shuffle vor .slice(0,10) damit jede neue Batch variiert; wenn alle Pool-Karten gemeistert: nimmt alle (kein leerer Zustand) ✅
+- ADMIN HOME BUTTON: Home zu triggerAllPools-Jobs und einzelnen Pool-Buttons im AdminScreen hinzugefügt ✅
+- POOL TRIGGERUNG: Pool für alle 3 Sprachpaare direkt nach Deploy sequenziell ausgelöst (de_en → en_de → de_sw) ✅
+- VERSION V01.057.082 ✅
+
 ## ✅ Implementiert (03.05.2026 Session 52) — V01.056.082
 - UND ZU HAUSE STARTET NICHT: generateCategoryCards('home') hatte 3 Bugs: (1) langB war hardcoded 'en' statt activeToLang; (2) fetchSharedCards las weekly-rotating Pfad — kein Match für home-Pool; (3) KI-catch schluckte Fehler ohne Fallback. Fixes: langB = activeToLang || fallback; neuer erster Schritt prüft statischen Pfad sharedCards/{langA}_{langB}_home; HOME_FALLBACK (de_en/en_de/de_sw) garantiert immer Session-Start; console.log an jedem Schritt (dev only) ✅
 - VERSION V01.056.082 ✅
