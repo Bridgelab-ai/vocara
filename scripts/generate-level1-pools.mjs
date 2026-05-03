@@ -1,6 +1,6 @@
 // One-shot script: generate Level 1 card pools for all categories + language pairs
 // Run: node scripts/generate-level1-pools.mjs
-const BASE = 'https://vocara.vercel.app'
+const BASE = 'https://vocara-peach.vercel.app'
 const delay = ms => new Promise(r => setTimeout(r, ms))
 
 const JOBS = [

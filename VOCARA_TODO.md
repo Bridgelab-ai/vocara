@@ -1,5 +1,11 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 03.05.2026)
 
+## ✅ Implementiert (03.05.2026 Session 62) — V01.059.087
+- URL AUDIT: Gesamter Codebase nach falschen Vocara-Deployment-URLs durchsucht ✅
+  - Einzige fehlerhafte URL gefunden: scripts/generate-level1-pools.mjs:3 — `https://vocara.vercel.app` → `https://vocara-peach.vercel.app` ✅
+  - Alle anderen URLs korrekt: src/App.jsx (/api/ relative Pfade), api/ Files (Anthropic + Firestore REST), scripts/generate-level2-vercel.mjs (bereits korrekt)
+- VERSION V01.059.087 ✅
+
 ## ✅ Implementiert (03.05.2026 Session 61) — Level 2 Pools generiert (kein Code-Change)
 - LEVEL 2 KARTEN GENERIERT via https://vocara-peach.vercel.app — 7/8 Calls erfolgreich:
   - sharedCards/*_grundlagen_2 — 50 Karten je Sprachpaar (alle 6 Paare in einem Call: de/en/sw Kombinationen); A1-A2: Zahlen 11-100, Wochentage, Monate, Personalpronomen, Grundverben ✅
