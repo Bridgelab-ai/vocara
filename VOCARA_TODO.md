@@ -1,5 +1,22 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 03.05.2026)
 
+## ✅ Fix (03.05.2026 Session 74) — V01.059.098
+- CATEGORY RESET GOLDEN/MASTERED CARDS NOT CLEARED ✅
+  - ROOT CAUSE 1: handleAreaReset only zeroed interval/consecutiveRight/wrongSessions — left
+    `isGolden:true`, `mastered:true`, `masteredAt`, `masteredReviewCount` on cardProgress entries
+    → golden card badge still showed after reset, goldenCount still non-zero in UI
+  - ROOT CAUSE 2: publicStats/data.masteredCards not updated after category reset
+    → partner still saw old (pre-reset) masteredCards count
+  - ROOT CAUSE 3: Admin full reset tried to delete cardProgress as subcollection (empty) — never
+    touched the cardProgress MAP field on users/{uid}, leaving all progress intact
+  - FIX handleAreaReset: added `isGolden:false, mastered:false, masteredAt:null, masteredReviewCount:0`
+    to cp reset object alongside existing interval/consecutiveRight/wrongSessions ✅
+  - FIX handleAreaReset: after batch.commit(), fire-and-forget setDoc to publicStats/data with
+    recomputed `masteredCards` + `totalCards` (merge:true so other fields preserved) ✅
+  - FIX handleUserReset (Admin): added updateDoc to clear `cardProgress:{}` and
+    `masteredPerCategory:{all zeros}` on the user document directly ✅
+- VERSION V01.059.098 ✅
+
 ## ✅ Fix (03.05.2026 Session 73) — V01.059.097
 - CATEGORY RESET BROKEN: Reset button in SettingsScreen did nothing for own account ✅
   - ROOT CAUSE: `categoryLevels` and `setCategoryLevels` were NOT passed as props to SettingsScreen

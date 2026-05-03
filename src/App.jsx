@@ -44,7 +44,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.059.097'
+const APP_VERSION = 'V01.059.098'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -4720,7 +4720,7 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
           } else if (areaKey !== 'satztraining') {
             ;(allCards || []).forEach(c => {
               if (c.category === areaKey && cp[c.id]) {
-                cp[c.id] = { ...cp[c.id], interval: 0, consecutiveRight: 0, wrongSessions: 0, nextReview: today }
+                cp[c.id] = { ...cp[c.id], interval: 0, consecutiveRight: 0, wrongSessions: 0, nextReview: today, isGolden: false, mastered: false, masteredAt: null, masteredReviewCount: 0 }
               }
             })
           }
@@ -4767,6 +4767,12 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
             await batch.commit()
             console.log('[Reset] cardProgress cleared:', Object.keys(cp).length, 'entries')
           } catch (e) { console.error('[Reset] FAILED:', e.code, e.message) }
+          // Update publicStats with recomputed masteredCards/totalCards so partner sees fresh counts
+          const newMasteredCards = Object.values(cp).filter(p => (p?.interval || 0) >= 7).length
+          setDoc(doc(db, 'users', user.uid, 'publicStats', 'data'),
+            { masteredCards: newMasteredCards, totalCards: Object.keys(cp).length },
+            { merge: true }
+          ).catch(e => console.error('[Reset] FAILED publicStats update:', e.code, e.message))
         }
         const confirmArea = RESET_AREAS.find(a => a.key === resetConfirm)
         const confirmLabel = confirmArea ? (isDE ? confirmArea.labelDE : confirmArea.labelEN) : ''
@@ -8019,7 +8025,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
 
   const handleUserReset = async () => {
     const userName = resetSelectedUid === MARK_UID ? 'Mark' : 'Elosy'
-    if (!window.confirm(`⚠️ Vollständig zurücksetzen für ${userName}?\n\nGelöscht wird:\n• categoryLevels → alle auf 1\n• cardProgress (alle Dokumente)\n• publicStats/data\n\nNICHT berührt: Streaks, Profil, Partner-Verbindung, eigene Karten.\n\nFortfahren?`)) return
+    if (!window.confirm(`⚠️ Vollständig zurücksetzen für ${userName}?\n\nGelöscht wird:\n• categoryLevels → alle auf 1\n• cardProgress (alle Dokumente + Map-Feld)\n• masteredPerCategory → alle auf 0\n• publicStats/data\n\nNICHT berührt: Streaks, Profil, Partner-Verbindung, eigene Karten.\n\nFortfahren?`)) return
     setResetRunning(true)
     setResetToast(null)
     const uid = resetSelectedUid
@@ -8040,11 +8046,16 @@ function AdminScreen({ user, lang, theme, onBack }) {
         await batch.commit()
         totalDeleted += snap.size
       } while (snap.size === 500)
-      // 3. Delete publicStats/data
+      // 3. Clear cardProgress map field + masteredPerCategory on user document
+      await updateDoc(doc(db, 'users', uid), {
+        cardProgress: {},
+        masteredPerCategory: { vocabulary: 0, sentence: 0, street: 0, home: 0, basics: 0, urlaub: 0, satztraining: 0 },
+      })
+      // 4. Delete publicStats/data (removes cached masteredCards/goldenCards for partner view)
       const psRef = doc(db, 'users', uid, 'publicStats', 'data')
       const psSnap = await getDoc(psRef)
       if (psSnap.exists()) await deleteDoc(psRef)
-      setResetToast({ ok: true, msg: `✅ ${userName} zurückgesetzt (${totalDeleted} cardProgress-Docs gelöscht)` })
+      setResetToast({ ok: true, msg: `✅ ${userName} zurückgesetzt (${totalDeleted} cardProgress-Docs + map-Feld gelöscht)` })
     } catch (e) {
       setResetToast({ ok: false, msg: `❌ Fehler: ${e.message}` })
     }
