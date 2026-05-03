@@ -1,5 +1,12 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 03.05.2026)
 
+## ✅ Fix (03.05.2026 Session 65) — V01.059.089
+- USER RESET SICHTBAR: "Nutzer zurücksetzen" Sektion war unter 50+ Pool-Buttons begraben (nicht sichtbar ohne Scrollen) ✅
+  - Verschoben: von nach Pool-Sektion → direkt nach Quick Stats, VOR Pool-Buttons ✅
+  - Titel aktualisiert: "👤 Nutzer zurücksetzen" mit rotem Hintergrund-Card-Styling ✅
+  - Logik unverändert: categoryLevels→1, cardProgress wipe, publicStats/data delete ✅
+- VERSION V01.059.089 ✅
+
 ## ✅ Implementiert (03.05.2026 Session 64) — V01.059.088
 - USER RESET IN ADMINSCREEN: "Nutzer zurücksetzen"-Sektion in AdminScreen (nur Mark-UID sichtbar) ✅
   - Dropdown: Mark / Elosy

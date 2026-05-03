@@ -44,7 +44,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.059.088'
+const APP_VERSION = 'V01.059.089'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -8038,6 +8038,24 @@ function AdminScreen({ user, lang, theme, onBack }) {
           </div>
         ))}
       </div>
+      {/* User reset section */}
+      <div style={{ marginBottom: '12px', background: 'rgba(229,115,115,0.06)', border: '1px solid rgba(229,115,115,0.25)', borderRadius: '12px', padding: '10px 12px' }}>
+        <p style={{ color: '#e57373', fontSize: '0.68rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.6px', margin: '0 0 8px' }}>👤 Nutzer zurücksetzen</p>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <select value={resetSelectedUid} onChange={e => setResetSelectedUid(e.target.value)}
+            style={{ background: th.card, border: `1px solid ${th.border}`, color: th.text, borderRadius: '8px', padding: '6px 10px', fontSize: '0.8rem', cursor: 'pointer', flex: '1' }}>
+            <option value={MARK_UID}>Mark</option>
+            <option value={ELOSY_UID}>Elosy</option>
+          </select>
+          <button onClick={handleUserReset} disabled={resetRunning}
+            style={{ background: resetRunning ? 'transparent' : 'rgba(229,115,115,0.15)', border: `1px solid ${resetRunning ? th.border : '#e57373'}`, color: resetRunning ? th.sub : '#e57373', borderRadius: '8px', padding: '6px 14px', fontSize: '0.78rem', fontWeight: '700', cursor: resetRunning ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
+            {resetRunning ? '⏳ Läuft…' : 'Vollständig zurücksetzen'}
+          </button>
+        </div>
+        {resetToast && (
+          <p style={{ color: resetToast.ok ? '#81c784' : '#e57373', fontSize: '0.72rem', margin: '6px 0 0', fontWeight: '600' }}>{resetToast.msg}</p>
+        )}
+      </div>
       {/* Pool generation */}
       <div style={{ marginBottom: '12px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
@@ -8074,24 +8092,6 @@ function AdminScreen({ user, lang, theme, onBack }) {
               <p key={i} style={{ color: line.startsWith('✓') ? '#81c784' : line.startsWith('✕') ? '#e57373' : th.sub, fontSize: '0.62rem', margin: '1px 0', fontFamily: 'monospace' }}>{line}</p>
             ))}
           </div>
-        )}
-      </div>
-      {/* User reset section */}
-      <div style={{ marginBottom: '12px' }}>
-        <p style={{ color: th.sub, fontSize: '0.7rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 8px' }}>🔄 Nutzer zurücksetzen</p>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <select value={resetSelectedUid} onChange={e => setResetSelectedUid(e.target.value)}
-            style={{ background: th.card, border: `1px solid ${th.border}`, color: th.text, borderRadius: '8px', padding: '6px 10px', fontSize: '0.8rem', cursor: 'pointer', flex: '1', minWidth: '120px' }}>
-            <option value={MARK_UID}>Mark</option>
-            <option value={ELOSY_UID}>Elosy</option>
-          </select>
-          <button onClick={handleUserReset} disabled={resetRunning}
-            style={{ background: resetRunning ? 'transparent' : 'rgba(229,115,115,0.12)', border: `1px solid ${resetRunning ? th.border : 'rgba(229,115,115,0.5)'}`, color: resetRunning ? th.sub : '#e57373', borderRadius: '8px', padding: '6px 14px', fontSize: '0.78rem', fontWeight: '700', cursor: resetRunning ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
-            {resetRunning ? '⏳ Läuft…' : 'Vollständig zurücksetzen'}
-          </button>
-        </div>
-        {resetToast && (
-          <p style={{ color: resetToast.ok ? '#81c784' : '#e57373', fontSize: '0.72rem', margin: '6px 0 0', fontWeight: '600' }}>{resetToast.msg}</p>
         )}
       </div>
       {reports.length > 0 && (
