@@ -21,7 +21,7 @@ export const db = initializeFirestore(app, {
 // One-time IndexedDB cache clear when Firestore rules change.
 // Stale cached rules can cause permission-denied errors on writes even
 // after server-side rules are updated — clearing forces a fresh start.
-const RULES_VERSION = 'v2025-05-03';
+const RULES_VERSION = 'v2025-05-04';
 if (localStorage.getItem('firestoreRulesVersion') !== RULES_VERSION) {
   clearIndexedDbPersistence(db)
     .then(() => localStorage.setItem('firestoreRulesVersion', RULES_VERSION))
