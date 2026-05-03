@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { initializeFirestore, persistentLocalCache, CACHE_SIZE_UNLIMITED } from "firebase/firestore";
+import { initializeFirestore, persistentLocalCache, CACHE_SIZE_UNLIMITED, clearIndexedDbPersistence } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyD8R7oHIw9HvviqprAnfPgDmHtkUDy3vzI",
@@ -17,4 +17,15 @@ export const auth = getAuth(app);
 export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({ cacheSizeBytes: CACHE_SIZE_UNLIMITED })
 });
+
+// One-time IndexedDB cache clear when Firestore rules change.
+// Stale cached rules can cause permission-denied errors on writes even
+// after server-side rules are updated — clearing forces a fresh start.
+const RULES_VERSION = 'v2025-05-03';
+if (localStorage.getItem('firestoreRulesVersion') !== RULES_VERSION) {
+  clearIndexedDbPersistence(db)
+    .then(() => localStorage.setItem('firestoreRulesVersion', RULES_VERSION))
+    .catch(() => localStorage.setItem('firestoreRulesVersion', RULES_VERSION));
+}
+
 export default app;

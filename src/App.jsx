@@ -44,7 +44,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.059.093'
+const APP_VERSION = 'V01.059.094'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -6519,12 +6519,22 @@ Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","
         }
         // ── publicStats: separate write so it succeeds independently ─
         const psPath = `users/${user.uid}/publicStats/data`
+        const publicStatsRef = doc(db, 'users', user.uid, 'publicStats', 'data')
         console.log('[SessionStop] writing publicStats', psPath, stopPubStats)
         try {
-          await setDoc(doc(db, 'users', user.uid, 'publicStats', 'data'), stopPubStats, { merge: true })
+          await setDoc(publicStatsRef, stopPubStats, { merge: true })
           console.log('[SessionStop] publicStats OK', user.uid)
         } catch (psErr) {
-          console.error('[SessionStop] publicStats FAILED', { path: psPath, uid: user.uid, code: psErr.code, msg: psErr.message, data: stopPubStats })
+          console.error('[SessionStop] publicStats FAILED (attempt 1)', { path: psPath, uid: user.uid, code: psErr.code, msg: psErr.message })
+          if (psErr.code === 'permission-denied') {
+            await new Promise(r => setTimeout(r, 1000))
+            try {
+              await setDoc(publicStatsRef, stopPubStats, { merge: true })
+              console.log('[SessionStop] publicStats OK (retry)', user.uid)
+            } catch (psErr2) {
+              console.error('[SessionStop] publicStats FAILED (retry)', { path: psPath, uid: user.uid, code: psErr2.code, msg: psErr2.message })
+            }
+          }
         }
         setMyData(d => ({ ...d, cardProgress: { ...finalProgress }, masteredPerCategory: { ...masteredPerCategory }, sessionHistory: updatedHistory }))
         if (myData?.partnerUID) onRefreshPartner?.(myData.partnerUID)
@@ -6883,12 +6893,22 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     }
     // ── publicStats: separate write so it always runs independently ──
     const psPath = `users/${user.uid}/publicStats/data`
+    const publicStatsRef = doc(db, 'users', user.uid, 'publicStats', 'data')
     console.log('[handleFinish] writing publicStats', psPath, { masteredCards: pubStats.masteredCards, streak: pubStats.streak, uid: pubStats.uid })
     try {
-      await setDoc(doc(db, 'users', user.uid, 'publicStats', 'data'), pubStats, { merge: true })
+      await setDoc(publicStatsRef, pubStats, { merge: true })
       console.log('[handleFinish] publicStats OK', user.uid)
     } catch (psErr) {
-      console.error('[handleFinish] publicStats FAILED', { path: psPath, uid: user.uid, code: psErr.code, msg: psErr.message, data: JSON.stringify(pubStats) })
+      console.error('[handleFinish] publicStats FAILED (attempt 1)', { path: psPath, uid: user.uid, code: psErr.code, msg: psErr.message })
+      if (psErr.code === 'permission-denied') {
+        await new Promise(r => setTimeout(r, 1000))
+        try {
+          await setDoc(publicStatsRef, pubStats, { merge: true })
+          console.log('[handleFinish] publicStats OK (retry)', user.uid)
+        } catch (psErr2) {
+          console.error('[handleFinish] publicStats FAILED (retry)', { path: psPath, uid: user.uid, code: psErr2.code, msg: psErr2.message })
+        }
+      }
     }
     // Layer 3: refresh partner data from server after own session ends
     if (myData?.partnerUID) onRefreshPartner?.(myData.partnerUID)
@@ -10174,11 +10194,25 @@ function App() {
             } catch (_) {}
           }
           const psData = { ...existing, displayName: resolvedName, lastActive: Date.now(), uid: u.uid }
+          const publicStatsRef = doc(db, 'users', u.uid, 'publicStats', 'data')
           console.log('[Login] writing publicStats', psPath, { uid: u.uid, displayName: resolvedName })
-          await setDoc(doc(db, 'users', u.uid, 'publicStats', 'data'), psData, { merge: true })
-          console.log('[Login] publicStats OK', u.uid)
-        } catch (e) {
-          console.error('[Login] publicStats FAILED', { path: psPath, uid: u.uid, code: e.code, msg: e.message })
+          try {
+            await setDoc(publicStatsRef, psData, { merge: true })
+            console.log('[Login] publicStats OK', u.uid)
+          } catch (e) {
+            console.error('[Login] publicStats FAILED (attempt 1)', { path: psPath, uid: u.uid, code: e.code, msg: e.message })
+            if (e.code === 'permission-denied') {
+              await new Promise(r => setTimeout(r, 1000))
+              try {
+                await setDoc(publicStatsRef, psData, { merge: true })
+                console.log('[Login] publicStats OK (retry)', u.uid)
+              } catch (e2) {
+                console.error('[Login] publicStats FAILED (retry)', { path: psPath, uid: u.uid, code: e2.code, msg: e2.message })
+              }
+            }
+          }
+        } catch (psErr) {
+          console.error('[Login] publicStats outer error', { uid: u.uid, code: psErr.code, msg: psErr.message })
         }
       })()
     })

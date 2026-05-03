@@ -1,5 +1,18 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 03.05.2026)
 
+## ✅ Fix (03.05.2026 Session 70) — V01.059.094
+- INDEXEDDB CACHE CLEAR: Stale Firestore-Rules aus persistentLocalCache bei Startup löschen ✅
+  - ROOT CAUSE: persistentLocalCache (IndexedDB) cached alte Rules-Auswertungen → permission-denied
+    bleibt trotz korrekter Server-Rules bestehen (bis IndexedDB-Cache cleared wird)
+  - FIX firebase.js: clearIndexedDbPersistence() mit RULES_VERSION-Flag in localStorage ✅
+    → Einmalige Cache-Leerung wenn RULES_VERSION = 'v2025-05-03' noch nicht gesetzt
+    → Implementiert als .then()/.catch()-Kette (kein top-level await — rolldown/Vite 8 compat) ✅
+  - FIX App.jsx: Fehlender catch-Block für äußeren try in Login-IIFE ergänzt ✅
+    → Build war gebrochen wegen try ohne catch/finally
+  - RETRY publicStats: 1-Sekunde retry bei permission-denied in handleSessionStop, handleFinish,
+    Login-IIFE (alle drei Write-Sites) ✅
+- VERSION V01.059.094 ✅
+
 ## ✅ Fix (03.05.2026 Session 69) — V01.059.093
 - PUBLICSTATS AUTH RACE FIX: Write passiert nicht mehr vor Auth-Token-Initialisierung ✅
   - ROOT CAUSE: publicStats-Write war ERSTE Operation in onAuthStateChanged — bevor Firebase SDK
