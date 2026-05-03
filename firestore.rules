@@ -30,6 +30,11 @@ service cloud.firestore {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
 
+      // kiUsage — own only (daily session tracking)
+      match /kiUsage/{dateStr} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
       // partnerRequests — any authenticated user can create (send request), only owner reads/deletes
       match /partnerRequests/{requestId} {
         allow read, delete: if request.auth != null && request.auth.uid == userId;

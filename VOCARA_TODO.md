@@ -1,5 +1,11 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 03.05.2026)
 
+## ✅ Implementiert (03.05.2026 Session 57) — V01.058.085
+- KI-GESPRÄCH SPRACHEN KONSEQUENT: isDE komplett entfernt — ui(de,en)-Helfer ersetzt alle isDE-Verzweigungen; SW-Nutzer bekommen englische UI-Labels (korrekt); Szenario-Namen: lang==='de' ? sc.de : sc.en für alle Sprachen; getSystemPrompt nutzt sc.en (neutral) und MAX_EXCHANGES-Variable statt hardcoded 15; fetchFeedback: dynamische feedbackLabels via ui() + SW-Sonderfall; Fehlermeldung: SW-spezifisch / ui() für DE/EN; Textarea-Placeholder: atExchangeLimit-Zustand + ui(); Intro-Prompt nutzt nativeLang/targetLang statt isDE-Fallback ✅
+- KI-GESPRÄCH TAGES-LIMIT: Free: 1 Session/Tag, 8 Austausche; Premium: 3 Sessions/Tag, 15 Austausche; MARK_UID + ELOSY_UID immer Premium; kiUsageToday State — lädt users/{uid}/kiUsage/{today} on mount via getDoc(); startScenario: prüft sessionCount>=MAX_SESSIONS → Limit-Alert in fromLang (DE/EN/SW); schreibt neuen sessionCount+lastReset nach Firestore+State; atExchangeLimit = exchangeCount>=MAX_EXCHANGES; sendMessage blockiert bei atExchangeLimit; useEffect triggert fetchFeedback automatisch wenn atExchangeLimit; Header zeigt exchangeCount/MAX_EXCHANGES (gold wenn am Limit); Feedback-Button ab 50% der Exchanges sichtbar; Limit-Banner in Chat wenn atExchangeLimit; Szenario-Picker zeigt Nutzung heute (X/MAX_SESSIONS) + Free/Premium-Info ✅
+- firestore.rules: kiUsage/{dateStr} — read/write nur eigene UID; deployed ✅
+- VERSION V01.058.085 ✅
+
 ## ✅ Implementiert (03.05.2026 Session 56) — V01.057.085
 - PARTNER FORTSCHRITT NICHT SICHTBAR: 3-Layer-Fix: (1) SCHREIBEN: handleSessionStop schreibt jetzt publicStats via batch.set+merge in jedem Fall (nicht nur handleFinish); console.log('[Vocara] publicStats written') in beiden Pfaden bestätigt Write. (2) RULES: firestore.rules neu deployed + bestätigt — publicStats/{doc} erlaubt read/write für request.auth != null. (3) LESEN: refreshPartnerData() im App-Scope definiert — liest via getDocFromServer(bypass IndexedDB), als onRefreshPartner-Prop an MenuScreen; wird nach handleFinish UND handleSessionStop aufgerufen; loadPartner loggt jetzt deutlich wenn Dokument fehlt oder Lesen fehlschlägt ✅
 - VERSION V01.057.085 ✅
