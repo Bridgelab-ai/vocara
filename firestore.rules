@@ -16,9 +16,9 @@ service cloud.firestore {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
 
-      // cardProgress — own user only
+      // cardProgress — own user or admin (admin reset for other users)
       match /cardProgress/{cardId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read, write: if request.auth != null && (request.auth.uid == userId || isAdmin());
       }
 
       // conversationHistory — own only
@@ -31,9 +31,9 @@ service cloud.firestore {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
 
-      // settings — own only (categoryLevels, preferences)
+      // settings — own user or admin (admin reset for other users)
       match /settings/{doc} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read, write: if request.auth != null && (request.auth.uid == userId || isAdmin());
       }
 
       // partnerRequests — any authenticated user can create, only owner reads/deletes

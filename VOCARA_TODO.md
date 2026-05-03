@@ -1,5 +1,15 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 03.05.2026)
 
+## ✅ Fix (03.05.2026 Session 72) — V01.059.096
+- ADMIN RESET CROSS-USER FIX: Admin could not reset cardProgress/settings for other users ✅
+  - ROOT CAUSE: `cardProgress/{cardId}` and `settings/{doc}` rules only allowed `auth.uid == userId`
+    → Admin (Mark) writing to Elosy's subcollections was denied by Firestore rules
+  - FIX firestore.rules: added `|| isAdmin()` to cardProgress and settings subcollection rules ✅
+    → `allow read, write: if request.auth != null && (request.auth.uid == userId || isAdmin())`
+    → publicStats unchanged (already `request.auth != null` — covers admin)
+  - Deployed: npx firebase-tools@latest deploy --only firestore:rules → SUCCESS ✅
+- VERSION V01.059.096 ✅
+
 ## ✅ Fix (03.05.2026 Session 71) — V01.059.095
 - PUBLICSTATS ROOT CAUSE FOUND & FIXED: globalStats/summary read inside publicStats outer try block killed entire block ✅
   - ROOT CAUSE: `getDoc(users/{uid}/globalStats/summary)` was the FIRST await in the outer try —
