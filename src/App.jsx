@@ -44,7 +44,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.054.076'
+const APP_VERSION = 'V01.054.079'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -5916,10 +5916,19 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
       sess = buildSession(cards, cardProgress)
     }
     console.log('[Vocara] buildSession result:', sess.length)
-    // Fallback: if nothing is due (all reviewed, none overdue), practice all category cards
+    // Fallback: if nothing is due (all reviewed, none overdue)
     if (sess.length === 0) {
-      sess = shuffle(cards).slice(0, SESSION_SIZE)
-      console.log('[Vocara] fallback session (all cards):', sess.length)
+      if (category === 'home' || category === 'street') {
+        // If all cards have been seen (interval>=3), generate fresh batch instead of looping
+        const allProgressed = cards.every(c => (cardProgress[c.id]?.interval || 0) >= 3)
+        if (allProgressed) { generateCategoryCards(category); return }
+        // Otherwise rotate non-mastered cards (interval<5) first; fall back to all if none
+        const notMastered = cards.filter(c => (cardProgress[c.id]?.interval || 0) < 5)
+        sess = shuffle(notMastered.length > 0 ? notMastered : cards).slice(0, SESSION_SIZE)
+      } else {
+        sess = shuffle(cards).slice(0, SESSION_SIZE)
+      }
+      console.log('[Vocara] fallback session:', category, sess.length)
     }
     if (sess.length === 0) return
     setCurrentSessionMode(category)
@@ -6159,7 +6168,7 @@ Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","
     setScreen('menu'); setSession(null); pendingProgressRef.current = null
     if (answeredCount > 0) {
       try {
-        const masteredPerCategory = {}
+        const masteredPerCategory = { satztraining: myData?.masteredPerCategory?.satztraining || 0 }
         ;['vocabulary', 'sentence', 'street', 'home', 'basics', 'urlaub'].forEach(cat => {
           masteredPerCategory[cat] = (allCards || []).filter(c => {
             const baseId = c.id.replace(/_r(_\d+)?$/, '')
@@ -6497,7 +6506,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     const myMasteredNow = Object.values(finalProgress).filter(p => (p?.interval || 0) >= 7).length
     const myStreakNow = calcStreak([...(sessionHistory || []), { date: todayStr(), correct, total: correct + wrong }])
     // ── Per-category mastered counts ───────────────────────
-    const masteredPerCategory = {}
+    const masteredPerCategory = { satztraining: myData?.masteredPerCategory?.satztraining || 0 }
     ;['vocabulary', 'sentence', 'street', 'home', 'basics', 'urlaub'].forEach(cat => {
       masteredPerCategory[cat] = (allCards || []).filter(c => {
         const baseId = c.id.replace(/_r(_\d+)?$/, '')

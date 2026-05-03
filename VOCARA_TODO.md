@@ -1,5 +1,11 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 03.05.2026)
 
+## ✅ Implementiert (03.05.2026 Session 48) — V01.054.079
+- PUBLICSTATS PERMISSIONS: firestore.rules bereits korrekt (publicStats: allow read/write für request.auth != null). Neu deployed + bestätigt ✅
+- ZUHAUSE IMMER GLEICHE KARTEN: startCategorySession fallback für home/street: statt blindem shuffle(cards) wird geprüft ob alle Karten interval>=3 haben → dann generateCategoryCards() für frischen Batch; notMastered (interval<5) bevorzugt, mastered nur wenn keine anderen mehr vorhanden ✅
+- SATZTRAINING FORTSCHRITT GELÖSCHT: Rootcause: handleFinish + handleSessionStop berechnen masteredPerCategory neu als leeres Objekt mit ['vocabulary','sentence','street','home','basics','urlaub'] — schreibt Firestore als ganzes Map-Objekt → masteredPerCategory.satztraining (separat via updateDoc geschrieben) wird bei jedem Card-Session-Ende überschrieben/gelöscht. Fix: masteredPerCategory mit satztraining-Startwert aus myData initialisieren → satztraining-Zähler wird bei jeder Session-End-Write mitgespeichert ✅
+- VERSION V01.054.079 ✅
+
 ## ✅ Implementiert (03.05.2026 Session 47) — V01.054.076
 - GRUNDLAGEN TDZ FIX: startBasicsSession referenzierte isMarkLang auf Zeile 5956 (im existingBasics-Zweig), aber const isMarkLang = lang === 'de' wurde nochmal auf Zeile 5984 im selben Function-Scope deklariert → TDZ: lokale const-Deklaration hoistet und sperrt Zugriff auf isMarkLang für die gesamte Funktion bis zur Deklarationszeile. Vite minifiziert isMarkLang → i → Fehler "Cannot access 'i' before initialization". Fix: redundante lokale Redeclaration auf Zeile 5984 entfernt — isMarkLang aus dem MenuScreen-Closure (Zeile 5312) wird korrekt verwendet ✅
 - VERSION V01.054.076 ✅
