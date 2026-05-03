@@ -879,15 +879,12 @@ async function writePublicStats(uid, user, db) {
         if (profSnap.exists()) resolvedName = profSnap.data().displayName || profSnap.data().name || ''
       } catch (_) {}
     }
-    await setDoc(doc(db, 'users', uid, 'publicStats', 'data'), {
-      ...existing,
-      displayName: resolvedName,
-      lastActive: Date.now(),
-      uid,
-    }, { merge: true })
+    const writeData = { ...existing, displayName: resolvedName, lastActive: Date.now(), uid }
+    console.log('[publicStats] WRITING DATA:', JSON.stringify(writeData))
+    await setDoc(doc(db, 'users', uid, 'publicStats', 'data'), writeData, { merge: true })
     console.log('[Vocara] publicStats written for', uid)
   } catch (e) {
-    console.error('[Vocara] publicStats write failed:', e.message)
+    console.error('[publicStats] FULL ERROR:', JSON.stringify({ code: e.code, message: e.message, stack: e.stack?.slice(0, 200) }))
   }
 }
 
@@ -6520,19 +6517,19 @@ Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","
         // ── publicStats: separate write so it succeeds independently ─
         const psPath = `users/${user.uid}/publicStats/data`
         const publicStatsRef = doc(db, 'users', user.uid, 'publicStats', 'data')
-        console.log('[SessionStop] writing publicStats', psPath, stopPubStats)
+        console.log('[publicStats] WRITING DATA:', JSON.stringify(stopPubStats))
         try {
           await setDoc(publicStatsRef, stopPubStats, { merge: true })
           console.log('[SessionStop] publicStats OK', user.uid)
         } catch (psErr) {
-          console.error('[SessionStop] publicStats FAILED (attempt 1)', { path: psPath, uid: user.uid, code: psErr.code, msg: psErr.message })
+          console.error('[publicStats] FULL ERROR:', JSON.stringify({ code: psErr.code, message: psErr.message, stack: psErr.stack?.slice(0, 200) }))
           if (psErr.code === 'permission-denied') {
             await new Promise(r => setTimeout(r, 1000))
             try {
               await setDoc(publicStatsRef, stopPubStats, { merge: true })
               console.log('[SessionStop] publicStats OK (retry)', user.uid)
             } catch (psErr2) {
-              console.error('[SessionStop] publicStats FAILED (retry)', { path: psPath, uid: user.uid, code: psErr2.code, msg: psErr2.message })
+              console.error('[publicStats] FULL ERROR (retry):', JSON.stringify({ code: psErr2.code, message: psErr2.message, stack: psErr2.stack?.slice(0, 200) }))
             }
           }
         }
@@ -6894,19 +6891,19 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     // ── publicStats: separate write so it always runs independently ──
     const psPath = `users/${user.uid}/publicStats/data`
     const publicStatsRef = doc(db, 'users', user.uid, 'publicStats', 'data')
-    console.log('[handleFinish] writing publicStats', psPath, { masteredCards: pubStats.masteredCards, streak: pubStats.streak, uid: pubStats.uid })
+    console.log('[publicStats] WRITING DATA:', JSON.stringify(pubStats))
     try {
       await setDoc(publicStatsRef, pubStats, { merge: true })
       console.log('[handleFinish] publicStats OK', user.uid)
     } catch (psErr) {
-      console.error('[handleFinish] publicStats FAILED (attempt 1)', { path: psPath, uid: user.uid, code: psErr.code, msg: psErr.message })
+      console.error('[publicStats] FULL ERROR:', JSON.stringify({ code: psErr.code, message: psErr.message, stack: psErr.stack?.slice(0, 200) }))
       if (psErr.code === 'permission-denied') {
         await new Promise(r => setTimeout(r, 1000))
         try {
           await setDoc(publicStatsRef, pubStats, { merge: true })
           console.log('[handleFinish] publicStats OK (retry)', user.uid)
         } catch (psErr2) {
-          console.error('[handleFinish] publicStats FAILED (retry)', { path: psPath, uid: user.uid, code: psErr2.code, msg: psErr2.message })
+          console.error('[publicStats] FULL ERROR (retry):', JSON.stringify({ code: psErr2.code, message: psErr2.message, stack: psErr2.stack?.slice(0, 200) }))
         }
       }
     }
