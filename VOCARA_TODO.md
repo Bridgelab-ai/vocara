@@ -1,5 +1,10 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 03.05.2026)
 
+## ✅ Implementiert (03.05.2026 Session 51) — V01.056.081
+- RESET FÜR WERDEN SÄTZE: RESET_AREAS in SettingsScreen — sentence-Eintrag war falsch als 'KI-Gespräch' beschriftet; korrigiert auf 'Werden Sätze' / 'Become Sentences'. Reset löscht alle cardProgress-Einträge mit category='sentence' und setzt masteredPerCategory.sentence=0. Confirmation dialog + writeBatch wie alle anderen Bereiche ✅
+- ALLES GENERIEREN (ADMIN): triggerAllPools() — startet alle 8 Pool-Generatoren sequenziell mit je 2s Pause: Base Lvl 1/2/3, Vocab, Street, Satz leicht/mittel/schwer. Jeder Aufruf loggt ▶/✓/✕ Ergebnis in poolLog. 🔄 Alles generieren Button im AdminScreen neben Pool-Sektion Titel; zeigt ⏳ Läuft… während aktiv. Einzeln-Buttons um Base Lvl 3 ergänzt ✅
+- VERSION V01.056.081 ✅
+
 ## ✅ Implementiert (03.05.2026 Session 50) — V01.055.081
 - LEVEL + FORTSCHRITTSBALKEN FIX: levelBadge: lokale thresholds-Array (Duplikat von CAT_LEVEL_THRESHOLDS) entfernt → einzige Quelle; ?? statt || für Threshold-Lookup (0 ist gültig, kein Fallback); Fortschrittsbalken-Formel: span = nextThreshold - prevThreshold; progress = lv>=10 ? 1 : clamp(0,1,(n-prevThreshold)/span) — explizit und korrekt. DEV-only Debug-Log: [Level] category: n/total = Level X, Y%. masteredPerCategory-Berechnung in handleFinish + handleSessionStop: ?? statt || für interval-Lookup; setMyData-Spreads auf { ...finalProgress } und { ...masteredPerCategory } — neue Objekt-Referenz garantiert React-Re-Render ✅
 - VERSION V01.055.081 ✅

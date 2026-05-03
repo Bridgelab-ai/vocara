@@ -44,7 +44,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.055.081'
+const APP_VERSION = 'V01.056.081'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -4629,7 +4629,7 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
           { key: 'home',        labelDE: 'Und zu Hause',   labelEN: 'At Home'           },
           { key: 'urlaub',      labelDE: 'Im Urlaub',      labelEN: 'Travel'            },
           { key: 'satztraining',labelDE: 'Satztraining',   labelEN: 'Sentence Training' },
-          { key: 'sentence',    labelDE: 'KI-Gespräch',    labelEN: 'AI Chat'           },
+          { key: 'sentence',   labelDE: 'Werden Sätze',   labelEN: 'Become Sentences'  },
         ]
         const getLvForArea = (key) => {
           const n = myData?.masteredPerCategory?.[key] || 0
@@ -7639,6 +7639,40 @@ function AdminScreen({ user, lang, theme, onBack }) {
     setPoolRunning(false)
   }
 
+  const triggerAllPools = async () => {
+    setPoolRunning(true)
+    setPoolLog([`▶ Alle Pools generieren…`])
+    const delay = ms => new Promise(r => setTimeout(r, ms))
+    const jobs = [
+      { endpoint: '/api/generate-base-pool', body: { level: 1 }, label: 'Base Lvl 1' },
+      { endpoint: '/api/generate-base-pool', body: { level: 2 }, label: 'Base Lvl 2' },
+      { endpoint: '/api/generate-base-pool', body: { level: 3 }, label: 'Base Lvl 3' },
+      { endpoint: '/api/generate-vocab-pool', body: {}, label: 'Vocab' },
+      { endpoint: '/api/generate-street-pool', body: {}, label: 'Street' },
+      { endpoint: '/api/generate-sentence-training-pool', body: { level: 'leicht' }, label: 'Satz leicht' },
+      { endpoint: '/api/generate-sentence-training-pool', body: { level: 'mittel' }, label: 'Satz mittel' },
+      { endpoint: '/api/generate-sentence-training-pool', body: { level: 'schwer' }, label: 'Satz schwer' },
+    ]
+    for (const { endpoint, body, label } of jobs) {
+      setPoolLog(prev => [...prev, `▶ ${label}…`])
+      try {
+        const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+        const data = await res.json()
+        const summary = data.results
+          ? data.results.map(r => `${r.langPair||r.pair||''} ${r.level||r.type||''}: ${r.count ?? r.error ?? '?'}`).join(' | ')
+          : data.generated
+            ? data.generated.map(r => `${r.pair}: ${r.count ?? r.error ?? '?'}`).join(' | ')
+            : JSON.stringify(data).slice(0, 100)
+        setPoolLog(prev => [...prev, `✓ ${label}: ${summary}`])
+      } catch (e) {
+        setPoolLog(prev => [...prev, `✕ ${label}: ${e.message}`])
+      }
+      await delay(2000)
+    }
+    setPoolLog(prev => [...prev, `✓ Fertig.`])
+    setPoolRunning(false)
+  }
+
   const thisWeek = getISOWeekStr()
   const activeThisWeek = users.filter(u => (u.sessionHistory || []).some(h => {
     try { return getISOWeekStr(new Date(...h.date.split('-').map((v,i)=>i===1?v-1:+v))) === thisWeek } catch { return false }
@@ -7671,11 +7705,18 @@ function AdminScreen({ user, lang, theme, onBack }) {
       </div>
       {/* Pool generation */}
       <div style={{ marginBottom: '12px' }}>
-        <p style={{ color: th.sub, fontSize: '0.7rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>🗃 Pool generieren</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <p style={{ color: th.sub, fontSize: '0.7rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', margin: 0 }}>🗃 Pool generieren</p>
+          <button onClick={triggerAllPools} disabled={poolRunning}
+            style={{ background: poolRunning ? 'transparent' : `${th.accent}22`, border: `1px solid ${poolRunning ? th.border : th.accent}`, color: poolRunning ? th.sub : th.accent, borderRadius: '8px', padding: '5px 12px', fontSize: '0.72rem', fontWeight: '700', cursor: poolRunning ? 'not-allowed' : 'pointer', transition: 'all 0.2s' }}>
+            {poolRunning ? '⏳ Läuft…' : '🔄 Alles generieren'}
+          </button>
+        </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
           {[
             { label: 'Base Lvl 1', endpoint: '/api/generate-base-pool', body: { level: 1 } },
             { label: 'Base Lvl 2', endpoint: '/api/generate-base-pool', body: { level: 2 } },
+            { label: 'Base Lvl 3', endpoint: '/api/generate-base-pool', body: { level: 3 } },
             { label: 'Vocab', endpoint: '/api/generate-vocab-pool', body: {} },
             { label: 'Street', endpoint: '/api/generate-street-pool', body: {} },
             { label: 'Satz leicht', endpoint: '/api/generate-sentence-training-pool', body: { level: 'leicht' } },
