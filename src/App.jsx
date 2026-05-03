@@ -44,7 +44,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.056.081'
+const APP_VERSION = 'V01.056.082'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -5714,9 +5714,12 @@ Return ONLY JSON: [{"front":"German word","back":"English translation","category
     const isStreet = category === 'street'
     const isHome = category === 'home'
     const langA = isMarkLang ? 'de' : 'en'
-    const langB = isMarkLang ? 'en' : 'de'
-    const fromLangName = isMarkLang ? 'German' : 'English'
-    const toLangName = isMarkLang ? 'English' : 'German'
+    const langB = activeToLang || (isMarkLang ? 'en' : 'de')
+    const _LNF = { en: 'English', de: 'German', sw: 'Swahili', th: 'Thai', es: 'Spanish', fr: 'French' }
+    const fromLangName = _LNF[langA] || langA
+    const toLangName = _LNF[langB] || langB
+    if (import.meta.env.DEV) console.log(`[generateCategoryCards] category=${category} langA=${langA} langB=${langB}`)
+
     // Home category: level-aware content generation (10 levels)
     const HOME_LEVEL_DESCS = [
       'absolute basics: greetings like "Guten Morgen", "Wie geht\'s?", "Danke schön", simple yes/no phrases',
@@ -5744,9 +5747,90 @@ Return ONLY JSON: [{"front":"German word","back":"English translation","category
       : (isMarkLang ? 'Und zu Hause — KI erstellt erste Phrasen…' : 'At Home — AI creating first phrases…')
     setEmptyCategoryMsg(label)
 
-    // Check weekly shared pool before calling AI
+    // HOME_FALLBACK — used if both pool and KI fail
+    const HOME_FALLBACK = {
+      'de_en': [
+        { front: 'Guten Morgen!', back: 'Good morning!', context: 'greeting' },
+        { front: 'Wie geht\'s dir?', back: 'How are you?', context: 'daily conversation' },
+        { front: 'Das Abendessen ist fertig.', back: 'Dinner is ready.', context: 'home routine' },
+        { front: 'Kannst du mir helfen?', back: 'Can you help me?', context: 'request' },
+        { front: 'Ich bin müde.', back: 'I am tired.', context: 'feelings' },
+      ],
+      'en_de': [
+        { front: 'Good morning!', back: 'Guten Morgen!', context: 'greeting' },
+        { front: 'How are you?', back: 'Wie geht\'s dir?', context: 'daily conversation' },
+        { front: 'Dinner is ready.', back: 'Das Abendessen ist fertig.', context: 'home routine' },
+        { front: 'Can you help me?', back: 'Kannst du mir helfen?', context: 'request' },
+        { front: 'I am tired.', back: 'Ich bin müde.', context: 'feelings' },
+      ],
+      'de_sw': [
+        { front: 'Habari ya asubuhi?', back: 'Guten Morgen!', context: 'greeting' },
+        { front: 'Uko hali gani?', back: 'Wie geht\'s dir?', context: 'daily conversation' },
+        { front: 'Chakula kiko tayari.', back: 'Das Essen ist fertig.', context: 'home routine' },
+        { front: 'Nisaidie tafadhali.', back: 'Hilf mir bitte.', context: 'request' },
+        { front: 'Nimechoka.', back: 'Ich bin müde.', context: 'feelings' },
+      ],
+    }
+
+    const startHomeWithFallback = async (rawCards) => {
+      const ts = Date.now()
+      const newCards = rawCards.map((c, i) => ({
+        ...c, id: `home_fallback_${ts}_${i}`, langA, langB, category: 'home', source: 'fallback', createdAt: ts,
+      }))
+      const updatedAiCards = [...(myData?.aiCards || []), ...newCards]
+      const updatedProgress = { ...(myData?.cardProgress || {}) }
+      newCards.forEach(c => { updatedProgress[c.id] = { interval: 0, consecutiveRight: 0, wrongSessions: 0, nextReview: todayStr() } })
+      await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress })
+      setMyData(d => ({ ...d, aiCards: updatedAiCards, cardProgress: updatedProgress }))
+      setEmptyCategoryMsg(isMarkLang ? 'Erste Phrasen bereit ✓' : 'First phrases ready ✓')
+      setTimeout(() => setEmptyCategoryMsg(null), 2000)
+      const sessionCards = newCards.flatMap(buildCardPair)
+      const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
+      const sess = shuffle(sessionCards).slice(0, SESSION_SIZE)
+      setCurrentSessionMode(category)
+      setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+    }
+
+    // 1. Try static shared pool (Admin-generated, e.g. sharedCards/de_en_home)
+    if (isHome) {
+      try {
+        const staticPath = `${langA}_${langB}_home`
+        if (import.meta.env.DEV) console.log(`[generateCategoryCards] trying static pool: sharedCards/${staticPath}`)
+        const snap = await getDoc(doc(db, 'sharedCards', staticPath))
+        if (snap.exists()) {
+          const poolCards = snap.data()?.cards
+          if (import.meta.env.DEV) console.log(`[generateCategoryCards] static pool cards:`, poolCards?.length)
+          if (Array.isArray(poolCards) && poolCards.length > 0) {
+            const ts = Date.now()
+            const newCards = poolCards.slice(0, 10).map((c, i) => ({
+              ...c, id: `home_pool_${ts}_${i}`, langA, langB, source: 'static-pool', createdAt: ts,
+              category: 'home', tense: c.tense || 'present',
+            }))
+            const updatedAiCards = [...(myData?.aiCards || []), ...newCards]
+            const updatedProgress = { ...(myData?.cardProgress || {}) }
+            newCards.forEach(c => { updatedProgress[c.id] = { interval: 0, consecutiveRight: 0, wrongSessions: 0, nextReview: todayStr() } })
+            await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress })
+            setMyData(d => ({ ...d, aiCards: updatedAiCards, cardProgress: updatedProgress }))
+            setEmptyCategoryMsg(isMarkLang ? 'Erste Phrasen bereit ✓' : 'First phrases ready ✓')
+            setTimeout(() => setEmptyCategoryMsg(null), 2000)
+            const sess = [...newCards.flatMap(buildCardPair)].sort(() => Math.random() - 0.5).slice(0, SESSION_SIZE)
+            setCurrentSessionMode(category)
+            setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+            return
+          }
+        } else {
+          if (import.meta.env.DEV) console.log(`[generateCategoryCards] static pool not found`)
+        }
+      } catch(e) {
+        if (import.meta.env.DEV) console.warn(`[generateCategoryCards] static pool error:`, e.message)
+      }
+    }
+
+    // 2. Try weekly shared pool (fallback path for street / also tried for home)
     const poolCat = await fetchSharedCards(langA, langB)
+    if (import.meta.env.DEV) console.log(`[generateCategoryCards] weekly pool cards:`, poolCat?.length ?? 0)
     const poolCatFiltered = poolCat?.filter(c => c.category === category || !c.category)
+    if (import.meta.env.DEV) console.log(`[generateCategoryCards] weekly pool filtered for ${category}:`, poolCatFiltered?.length ?? 0)
     if (poolCatFiltered?.length > 0) {
       const ts = Date.now()
       const newCards = poolCatFiltered.slice(0, 5).map((c, i) => ({
@@ -5766,6 +5850,8 @@ Return ONLY JSON: [{"front":"German word","back":"English translation","category
       return
     }
 
+    // 3. KI API fallback
+    if (import.meta.env.DEV) console.log(`[generateCategoryCards] calling KI API`)
     const catTenseUnlocks = getTenseUnlocks(myMasteredCount)
     const catTenseNote = !catTenseUnlocks.past ? 'Use present tense only.' : !catTenseUnlocks.future ? 'May use present or past tense.' : 'May use present, past, or future tense.'
     const prompt = `Generate exactly 5 natural ${typeDesc} flashcards for a ${toLangName} learner whose native language is ${fromLangName}.
@@ -5778,6 +5864,7 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
         body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, system: CARD_GEN_SYSTEM, messages: [{ role: 'user', content: prompt }] }) })
       const data = await res.json()
       const text = data.content?.[0]?.text || ''
+      if (import.meta.env.DEV) console.log(`[generateCategoryCards] KI response:`, text.slice(0, 200))
       const parsed = JSON.parse(text.replace(/```json|```/g, '').trim())
       const ts = Date.now()
       const newCards = parsed.map((c, i) => ({
@@ -5797,6 +5884,14 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
       setCurrentSessionMode(category)
       setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
     } catch(e) {
+      console.error(`[generateCategoryCards] KI failed for ${category}:`, e.message)
+      // 4. Absolute fallback for home — always starts a session
+      if (isHome) {
+        const fallbackKey = `${langA}_${langB}`
+        const fallbackRaw = HOME_FALLBACK[fallbackKey] || HOME_FALLBACK['de_en']
+        await startHomeWithFallback(fallbackRaw)
+        return
+      }
       setEmptyCategoryMsg(isMarkLang ? 'KI-Generierung fehlgeschlagen.' : 'AI generation failed.')
       setTimeout(() => setEmptyCategoryMsg(null), 3000)
     }
