@@ -112,24 +112,43 @@ async function writePool(fromLang, toLang, level, exercises) {
   if (!r.ok) throw new Error(`Firestore write failed: ${r.status}`)
 }
 
-// ── SENTENCE FLASHCARD POOL (sharedCards/{pair}_sentence) ────────────────────
+// ── SENTENCE FLASHCARD POOL (sharedCards/{pair}_sentence_level{N}) ────────────
 
-const FLASHCARD_CATEGORIES = [
-  { key: 'alltag',    label: 'Alltag',    count: 20, theme: 'everyday situations: daily routines, shopping, weather, home life, habits' },
-  { key: 'reisen',    label: 'Reisen',    count: 20, theme: 'travel: directions, booking a room, airport, transport, sightseeing' },
-  { key: 'arbeit',    label: 'Arbeit',    count: 20, theme: 'work and professional life: meetings, emails, colleagues, deadlines, tasks' },
-  { key: 'familie',   label: 'Familie',   count: 20, theme: 'family and social life: relationships, home, celebrations, free time' },
-  { key: 'smalltalk', label: 'Smalltalk', count: 20, theme: 'small talk: greetings, opinions, hobbies, polite phrases, current events' },
+// 12-level difficulty spec for sentence flashcards
+const SENTENCE_LEVEL_SPEC = {
+  1:  { diff: 'A1: very simple present-tense sentences (5-7 words). Topics: greetings, basic needs, simple descriptions.' },
+  2:  { diff: 'A1-A2: simple sentences about family, home, daily routine. May include basic questions.' },
+  3:  { diff: 'A2: simple past and future, common daily life topics, basic opinions.' },
+  4:  { diff: 'A2-B1: questions, commands, negatives. Shopping, travel basics, asking for help.' },
+  5:  { diff: 'B1: work and school topics, expressing preferences and opinions, basic subordinate clauses.' },
+  6:  { diff: 'B1: social small talk, expressing emotions, giving advice, making plans.' },
+  7:  { diff: 'B1-B2: complex sentences with subordinates (because/when/although), travel and business contexts.' },
+  8:  { diff: 'B2: indirect speech, formal register, nuanced opinions, abstract topics.' },
+  9:  { diff: 'B2: idiomatic expressions in context, cultural references, complex negotiations.' },
+  10: { diff: 'B2-C1: advanced discourse, precise vocabulary, academic and formal contexts.' },
+  11: { diff: 'C1: near-native sentence structures, subtle pragmatic markers, elevated register.' },
+  12: { diff: 'C1-C2: sophisticated literary/formal sentences, complex rhetoric, native-level fluency.' },
+}
+
+const FLASHCARD_THEMES = [
+  { key: 'alltag', label: 'Alltag', theme: 'everyday situations: daily routines, shopping, weather, home life' },
+  { key: 'reisen', label: 'Reisen', theme: 'travel: directions, booking, transport, sightseeing' },
+  { key: 'arbeit', label: 'Arbeit', theme: 'work and professional life: meetings, tasks, colleagues' },
+  { key: 'familie', label: 'Familie', theme: 'family and social life: relationships, home, celebrations' },
+  { key: 'smalltalk', label: 'Smalltalk', theme: 'small talk: greetings, opinions, hobbies, polite phrases' },
 ]
 
-async function generateFlashcardCategory(fromLang, toLang, cat) {
+async function generateFlashcardCategory(fromLang, toLang, cat, level = 1) {
   const fromName = LANG_NAMES[fromLang]
   const toName = LANG_NAMES[toLang]
-  const prompt = `Generate exactly ${cat.count} natural sentence flashcards for a ${fromName} speaker learning ${toName}.
+  const spec = SENTENCE_LEVEL_SPEC[level] || SENTENCE_LEVEL_SPEC[1]
+  const count = Math.ceil(33 / FLASHCARD_THEMES.length)
+  const prompt = `Generate exactly ${count} natural sentence flashcards for a ${fromName} speaker learning ${toName}.
+Level ${level}/12 — difficulty: ${spec.diff}
 Category: ${cat.label} — theme: ${cat.theme}
 Rules:
-- front: short everyday sentence in ${fromName} (native language), max 12 words
-- back: natural ${toName} translation (as a native speaker would say it, not word-for-word)
+- front: sentence in ${fromName} (native language), difficulty appropriate for Level ${level}
+- back: natural ${toName} translation (as a native speaker would say it)
 - Vary structure: questions, statements, requests
 Return ONLY a valid JSON array (no markdown):
 [{"front":"sentence in ${fromName}","back":"sentence in ${toName}","vocabCategory":"${cat.key}"}]`
@@ -147,29 +166,30 @@ Return ONLY a valid JSON array (no markdown):
   const raw = (data.content?.[0]?.text || '').trim()
   const match = raw.match(/\[[\s\S]*\]/)
   if (!match) return []
-  try { return JSON.parse(match[0]).slice(0, cat.count) } catch { return [] }
+  try { return JSON.parse(match[0]).slice(0, count) } catch { return [] }
 }
 
-async function processFlashcardPair(fromLang, toLang) {
-  const results = await Promise.all(FLASHCARD_CATEGORIES.map(cat => generateFlashcardCategory(fromLang, toLang, cat)))
+async function processFlashcardPair(fromLang, toLang, level = 1) {
+  const results = await Promise.all(FLASHCARD_THEMES.map(cat => generateFlashcardCategory(fromLang, toLang, cat, level)))
   return results.flat()
 }
 
-async function writeFlashcardPool(fromLang, toLang, cards) {
-  const docPath = `${FIRESTORE_BASE}/sharedCards/${fromLang}_${toLang}_sentence`
+async function writeFlashcardPool(fromLang, toLang, level, cards) {
+  const docPath = `${FIRESTORE_BASE}/sharedCards/${fromLang}_${toLang}_sentence_level${level}`
   const fields = {
     fromLang: { stringValue: fromLang }, toLang: { stringValue: toLang },
-    category: { stringValue: 'sentence' }, generatedAt: { stringValue: new Date().toISOString() },
+    category: { stringValue: 'sentence' }, level: { integerValue: String(level) },
+    generatedAt: { stringValue: new Date().toISOString() },
     count: { integerValue: String(cards.length) },
     cards: {
       arrayValue: {
         values: cards.map(c => ({
           mapValue: {
             fields: {
-              id: { stringValue: `sentence_${fromLang}_${toLang}_${Math.random().toString(36).slice(2, 9)}` },
+              id: { stringValue: `sentence_l${level}_${fromLang}_${toLang}_${Math.random().toString(36).slice(2, 9)}` },
               front: { stringValue: c.front || '' }, back: { stringValue: c.back || '' },
               category: { stringValue: 'sentence' }, vocabCategory: { stringValue: c.vocabCategory || '' },
-              level: { integerValue: '1' }, langA: { stringValue: fromLang }, langB: { stringValue: toLang },
+              level: { integerValue: String(level) }, langA: { stringValue: fromLang }, langB: { stringValue: toLang },
               source: { stringValue: 'sentence-pool' }, createdAt: { integerValue: Date.now().toString() },
             }
           }
@@ -177,7 +197,7 @@ async function writeFlashcardPool(fromLang, toLang, cards) {
       }
     }
   }
-  const mask = ['fromLang','toLang','category','generatedAt','count','cards'].map(f => `updateMask.fieldPaths=${f}`).join('&')
+  const mask = ['fromLang','toLang','category','level','generatedAt','count','cards'].map(f => `updateMask.fieldPaths=${f}`).join('&')
   const r = await fetch(`${docPath}?${mask}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields }) })
   if (!r.ok) throw new Error(`Firestore write failed: ${r.status}`)
 }
@@ -189,24 +209,25 @@ export default async function handler(req, res) {
   let body = {}
   try { const chunks = []; for await (const chunk of req) chunks.push(chunk); body = JSON.parse(Buffer.concat(chunks).toString() || '{}') } catch {}
 
-  // type: 'flashcards' → generate sentence flashcards to sharedCards/{pair}_sentence
+  // type: 'flashcards' → generate sentence flashcards to sharedCards/{pair}_sentence_level{N}
   if (body.type === 'flashcards') {
+    const level = Math.min(12, Math.max(1, body.level || 1))
     const pairsToRun = body.pair
       ? PAIRS.filter(p => `${p.from}_${p.to}` === body.pair)
       : PAIRS
     const results = []
     for (const { from, to } of pairsToRun) {
       try {
-        const cards = await processFlashcardPair(from, to)
+        const cards = await processFlashcardPair(from, to, level)
         if (cards.length > 0) {
-          await writeFlashcardPool(from, to, cards)
+          await writeFlashcardPool(from, to, level, cards)
           const byCat = {}
           for (const c of cards) { byCat[c.vocabCategory] = (byCat[c.vocabCategory] || 0) + 1 }
-          results.push({ pair: `${from}→${to}`, total: cards.length, categories: Object.entries(byCat).map(([k,v]) => ({ category: k, count: v })) })
+          results.push({ pair: `${from}→${to}`, level, total: cards.length, categories: Object.entries(byCat).map(([k,v]) => ({ category: k, count: v })) })
         } else {
-          results.push({ pair: `${from}→${to}`, error: 'No cards generated' })
+          results.push({ pair: `${from}→${to}`, level, error: 'No cards generated' })
         }
-      } catch (e) { results.push({ pair: `${from}→${to}`, error: e.message }) }
+      } catch (e) { results.push({ pair: `${from}→${to}`, level, error: e.message }) }
     }
     return res.status(200).json({ generated: results, total: results.reduce((s, r) => s + (r.total || 0), 0) })
   }

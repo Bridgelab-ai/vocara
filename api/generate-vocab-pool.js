@@ -1,6 +1,6 @@
 // Vocab pool generator — POST /api/generate-vocab-pool
-// Generates 200 vocabulary cards per language pair (8 categories)
-// Pairs: de→en, en→de, de→sw
+// 12 levels, ~67 cards each. Body: { level: 1-12, from?, to? }
+// Writes to sharedCards/{pair}_vocab_level{N}
 export const config = { api: { bodyParser: false } }
 
 const LANG_NAMES = { en: 'English', de: 'German', sw: 'Swahili' }
@@ -12,43 +12,45 @@ const PAIRS = [
   { from: 'de', to: 'sw' },
 ]
 
-const CATEGORIES = [
-  { key: 'emotions',  count: 30, prompt: 'emotions and feelings: joy, sadness, anger, fear, love, surprise, disgust, shame, pride, hope, anxiety, relief, jealousy, loneliness, excitement, boredom, gratitude, regret, curiosity, confidence, frustration, nostalgia, enthusiasm, compassion, worry, happiness, grief, admiration, envy, contentment' },
-  { key: 'everyday',  count: 30, prompt: 'everyday life vocabulary: morning, evening, breakfast, lunch, dinner, work, home, sleep, wake up, shower, cook, clean, shop, walk, drive, phone, computer, meeting, appointment, weekend, holiday, chores, garden, kitchen, bedroom, bathroom, living room, office, school, street' },
-  { key: 'family',    count: 20, prompt: 'family and relationships: mother, father, sister, brother, grandmother, grandfather, aunt, uncle, cousin, son, daughter, husband, wife, friend, neighbor, colleague, boss, baby, child, parent, sibling, relative, marriage, divorce, birth, death, wedding, family reunion' },
-  { key: 'body',      count: 20, prompt: 'human body parts and health: head, eye, ear, nose, mouth, hair, neck, shoulder, arm, hand, finger, chest, stomach, leg, foot, toe, back, heart, lung, brain, bone, skin, muscle, tooth, knee, elbow, thumb, ankle, hip, wrist' },
-  { key: 'nature',    count: 20, prompt: 'nature and environment: sun, moon, star, sky, cloud, rain, snow, wind, tree, flower, grass, river, lake, ocean, mountain, forest, desert, beach, animal, bird, fish, insect, rock, soil, fire, ice, air, light, shadow, season' },
-  { key: 'time',      count: 20, prompt: 'time expressions and concepts: now, later, before, after, yesterday, today, tomorrow, always, never, sometimes, often, soon, already, still, again, since, until, during, morning, afternoon, evening, night, hour, minute, second, week, month, year, century, moment' },
-  { key: 'travel',    count: 30, prompt: 'travel and transportation: airport, train, bus, taxi, hotel, passport, ticket, luggage, map, tourist, city, country, border, visa, customs, departure, arrival, platform, station, terminal, seat, window, aisle, delay, booking, check-in, checkout, tour, guide, souvenir' },
-  { key: 'food',      count: 30, prompt: 'food and cooking: bread, meat, fish, vegetable, fruit, cheese, egg, milk, rice, pasta, soup, salad, dessert, cake, coffee, tea, water, wine, beer, juice, salt, pepper, sugar, oil, butter, garlic, onion, tomato, apple, banana' },
-]
+// 12 level definitions: topic focus + difficulty progression
+const LEVEL_SPEC = {
+  1:  { focus: 'basic greetings and farewells, yes/no/please/thank you/sorry, numbers 1-10, simple colors (red/blue/green/yellow/white/black)', count: 60, diff: 'A1 absolute beginner' },
+  2:  { focus: 'family members, common household objects (table/chair/door/window/bed/kitchen), body parts (head/hand/eye/ear/mouth/foot)', count: 65, diff: 'A1 beginner' },
+  3:  { focus: 'daily routine verbs (eat/sleep/work/go/come/want/need/have/be/see/know/like), time words (today/tomorrow/yesterday/now/later/always/never/morning/evening)', count: 65, diff: 'A1-A2' },
+  4:  { focus: 'food and drinks (bread/water/coffee/tea/milk/fruit/vegetables/meat/rice/soup), weather (rain/sun/wind/cloud/hot/cold/warm)', count: 65, diff: 'A2 elementary' },
+  5:  { focus: 'emotions and feelings (happy/sad/angry/tired/excited/nervous/proud/scared/bored/surprised/grateful/frustrated/lonely/calm)', count: 65, diff: 'A2' },
+  6:  { focus: 'nature (tree/flower/river/mountain/ocean/forest/sky/grass/stone/animal/bird/fish), seasons and natural phenomena', count: 65, diff: 'A2-B1' },
+  7:  { focus: 'work and school vocabulary (job/office/meeting/email/deadline/homework/teacher/student/grade/project/colleague/boss/computer)', count: 67, diff: 'B1 intermediate' },
+  8:  { focus: 'travel (passport/airport/hotel/train/bus/map/tourist/visa/customs/ticket/reservation/platform/departure/arrival)', count: 67, diff: 'B1' },
+  9:  { focus: 'abstract concepts (freedom/justice/peace/change/future/memory/dream/idea/trust/hope/responsibility/opportunity/challenge/success)', count: 67, diff: 'B1-B2' },
+  10: { focus: 'discourse and opinion markers (furthermore/however/therefore/although/despite/whereas/provided/assuming/consequently/meanwhile/notably/alternatively)', count: 67, diff: 'B2 upper-intermediate' },
+  11: { focus: 'nuanced descriptive language — precise adjectives and verbs that express subtle distinctions (gleaming/faint/sturdy/bold/frail/vivid/subtle/harsh/crisp/peculiar)', count: 67, diff: 'B2-C1' },
+  12: { focus: 'sophisticated academic and literary vocabulary — words for complex ideas, precise descriptions, elevated registers', count: 67, diff: 'C1 advanced' },
+}
 
-async function generateCategory(fromLang, toLang, cat) {
+async function generateLevel(fromLang, toLang, level) {
   const fromName = LANG_NAMES[fromLang]
   const toName = LANG_NAMES[toLang]
-  const prompt = `Generate exactly ${cat.count} vocabulary flashcards for a ${fromName} speaker learning ${toName}.
-Category: ${cat.key} — focus words: ${cat.prompt}
+  const spec = LEVEL_SPEC[level]
+  const prompt = `Generate exactly ${spec.count} vocabulary flashcards (Level ${level}/12, ${spec.diff}) for a ${fromName} speaker learning ${toName}.
+Focus: ${spec.focus}
 
 Rules:
-- front: word/phrase in ${fromName}
+- front: word/short phrase in ${fromName} (source language)
 - back: accurate natural translation in ${toName}
-- pronunciation: German-style phonetic syllables for ${toName} word (e.g. "GU-ten TAG") — empty string if not needed
+- pronunciation: German-style phonetic syllables for ${toName} (e.g. "GU-ten TAG") — empty string if not helpful
 - wordType: noun|verb|adjective|adverb|phrase
-- All translations must be 100% accurate and natural, never literal
+- level: ${level}
+- All translations 100% accurate and natural, never literal
 
 Return ONLY a valid JSON array (no markdown):
 [{"front":"...","back":"...","pronunciation":"...","wordType":"noun"}]`
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': process.env.ANTHROPIC_KEY,
-      'anthropic-version': '2023-06-01',
-    },
+    headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 4000,
+      model: 'claude-sonnet-4-6', max_tokens: 5000,
       system: 'You are a professional language educator. Generate accurate vocabulary flashcards. Return ONLY valid JSON array, no markdown fences.',
       messages: [{ role: 'user', content: prompt }],
     }),
@@ -57,87 +59,67 @@ Return ONLY a valid JSON array (no markdown):
   const raw = (data.content?.[0]?.text || '').trim()
   const match = raw.match(/\[[\s\S]*\]/)
   if (!match) return []
-  try { return JSON.parse(match[0]).slice(0, cat.count) } catch { return [] }
+  try { return JSON.parse(match[0]).slice(0, spec.count) } catch { return [] }
 }
 
-function cardToFirestore(c, fromLang, toLang, catKey) {
+function cardToFirestore(c, fromLang, toLang, level) {
   return {
     mapValue: {
       fields: {
-        id: { stringValue: `vocab_${catKey}_${fromLang}_${toLang}_${Math.random().toString(36).slice(2, 8)}` },
+        id: { stringValue: `vocab_l${level}_${fromLang}_${toLang}_${Math.random().toString(36).slice(2, 8)}` },
         front: { stringValue: c.front || '' },
         back: { stringValue: c.back || '' },
         pronunciation: { stringValue: c.pronunciation || '' },
         category: { stringValue: 'vocabulary' },
         wordType: { stringValue: c.wordType || 'noun' },
-        level: { integerValue: '1' },
+        level: { integerValue: String(level) },
         tense: { stringValue: 'present' },
         register: { stringValue: 'neutral' },
         langA: { stringValue: fromLang },
         langB: { stringValue: toLang },
         source: { stringValue: 'vocab-pool' },
-        vocabCategory: { stringValue: catKey },
         createdAt: { integerValue: Date.now().toString() },
       }
     }
   }
 }
 
-async function writePool(fromLang, toLang, cards) {
-  const docId = `${fromLang}_${toLang}_vocab`
+async function writePool(fromLang, toLang, level, cards) {
+  const docId = `${fromLang}_${toLang}_vocab_level${level}`
   const docPath = `${FIRESTORE_BASE}/sharedCards/${docId}`
   const fields = {
-    fromLang: { stringValue: fromLang },
-    toLang: { stringValue: toLang },
-    category: { stringValue: 'vocabulary' },
+    fromLang: { stringValue: fromLang }, toLang: { stringValue: toLang },
+    category: { stringValue: 'vocabulary' }, level: { integerValue: String(level) },
     generatedAt: { stringValue: new Date().toISOString() },
     count: { integerValue: String(cards.length) },
     cards: { arrayValue: { values: cards } },
   }
-  const mask = ['fromLang', 'toLang', 'category', 'generatedAt', 'count', 'cards']
+  const mask = ['fromLang', 'toLang', 'category', 'level', 'generatedAt', 'count', 'cards']
     .map(f => `updateMask.fieldPaths=${f}`).join('&')
   const r = await fetch(`${docPath}?${mask}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ fields }),
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields }),
   })
   if (!r.ok) throw new Error(`Firestore write failed: ${r.status}`)
 }
 
-async function processPair(from, to) {
-  // Parallelize all category requests to avoid timeout
-  const catResults = await Promise.all(CATEGORIES.map(async (cat) => {
-    try {
-      const cards = await generateCategory(from, to, cat)
-      return { cat, cards, mapped: cards.map(c => cardToFirestore(c, from, to, cat.key)) }
-    } catch (e) {
-      return { cat, cards: [], mapped: [], error: e.message }
-    }
-  }))
-  const allCards = catResults.flatMap(r => r.mapped)
-  const summary = catResults.map(r => ({ category: r.cat.key, count: r.cards.length, ...(r.error ? { error: r.error } : {}) }))
-  if (allCards.length === 0) return { pair: `${from}→${to}`, error: 'No cards generated', categories: summary }
-  await writePool(from, to, allCards)
-  return { pair: `${from}→${to}`, total: allCards.length, categories: summary }
-}
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
-  // Accept optional body: { from: 'de', to: 'en' } to process a single pair
   let body = {}
   try { const chunks = []; for await (const chunk of req) chunks.push(chunk); body = JSON.parse(Buffer.concat(chunks).toString() || '{}') } catch {}
+  const level = Math.min(12, Math.max(1, body.level || 1))
   const pairsToRun = (body.from && body.to) ? [{ from: body.from, to: body.to }] : PAIRS
   const results = []
   for (const { from, to } of pairsToRun) {
     try {
-      const r = await processPair(from, to)
-      results.push(r)
-    } catch (e) {
-      results.push({ pair: `${from}→${to}`, error: e.message })
-    }
+      const cards = await generateLevel(from, to, level)
+      if (cards.length > 0) {
+        const mapped = cards.map(c => cardToFirestore(c, from, to, level))
+        await writePool(from, to, level, mapped)
+        results.push({ pair: `${from}→${to}`, level, count: cards.length })
+      } else {
+        results.push({ pair: `${from}→${to}`, level, error: 'No cards generated' })
+      }
+    } catch (e) { results.push({ pair: `${from}→${to}`, level, error: e.message }) }
   }
-  res.status(200).json({
-    generated: results,
-    total: results.reduce((s, r) => s + (r.total || 0), 0),
-  })
+  res.status(200).json({ generated: results, total: results.reduce((s, r) => s + (r.count || 0), 0) })
 }

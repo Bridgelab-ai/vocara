@@ -1,5 +1,20 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 03.05.2026)
 
+## ✅ Implementiert (03.05.2026 Session 58) — V01.059.085
+- 10/12-LEVEL CARD ARCHITECTURE (major structural refactor, no card generation triggered):
+  - DELETE ENDPOINT: api/delete-shared-cards.js — lists + deletes all sharedCards docs via Firestore REST; AdminScreen: "Delete All sharedCards" button triggers endpoint with confirm dialog ✅
+  - POOL GENERATORS UPDATED: generate-vocab-pool.js (12 levels A1→C1, 60–67 cards, writes {pair}_vocab_level{N}); generate-street-pool.js (12 levels A1-A2→C1-C2, 35–42 cards, writes {pair}_street_level{N}); generate-home-pool.js (10 levels A1→C1, 25–30 cards, writes {pair}_home_level{N}); generate-base-pool.js (levels 6–10 added); generate-sentence-pool.js (12-level SENTENCE_LEVEL_SPEC added, handler updated with level param, writes {pair}_sentence_level{N}); generate-sentence-training-pool.js (fully rewritten — 12 numeric levels replacing leicht/mittel/schwer, writes sharedExercises/{pair}_satz_level{N}) ✅
+  - categoryLevels STATE: useState({ grundlagen:1, vocab:1, street:1, home:1, urlaub:1, satz:1 }) in MenuScreen; loaded from users/{uid}/settings/categoryLevels on mount via getDoc(); saved via setDoc on unlock ✅
+  - LEVEL FILTER: startCategorySession filters cards by !c.level || Number(c.level) <= maxLevel (catLevelKey lookup per category); startBasicsSession uses categoryLevels.grundlagen || basicsPoolLevel fallback; generateCategoryCards home pool loads sharedCards/{pair}_home_level{N} using categoryLevels.home ✅
+  - UNLOCK DETECTION: handleFinish detects 85% mastery (interval>=3) of cards at current level → increments categoryLevels[catKey], saves to Firestore settings/categoryLevels, syncs basicsPoolLevel on grundlagen unlock, shows unlockCelebration modal ✅
+  - LEVEL BADGE: levelBadge(category) replaced — reads categoryLevels[catKey], counts cards at current level, progress bar shows mastery toward 85%; max level shows "Lvl N ✓" without bar ✅
+  - UNLOCK CELEBRATION MODAL: gold trophy modal with catLabel + newLevel; shown after handleFinish when level increments ✅
+  - USER CARDS: KarteErstellenScreen card object gets level:1 automatically ✅
+  - AREA RESET: handleAreaReset resets categoryLevels[areaKey] to 1 and saves to Firestore settings/categoryLevels ✅
+  - ADMIN: pool buttons updated to numeric levels (L1–L12 per category); triggerAllPools uses level:1 for all; deleteSharedCards function added ✅
+  - firestore.rules: settings/{doc} subcollection added — read/write own UID only ✅
+- VERSION V01.059.085 ✅
+
 ## ✅ Implementiert (03.05.2026 Session 57) — V01.058.085
 - KI-GESPRÄCH SPRACHEN KONSEQUENT: isDE komplett entfernt — ui(de,en)-Helfer ersetzt alle isDE-Verzweigungen; SW-Nutzer bekommen englische UI-Labels (korrekt); Szenario-Namen: lang==='de' ? sc.de : sc.en für alle Sprachen; getSystemPrompt nutzt sc.en (neutral) und MAX_EXCHANGES-Variable statt hardcoded 15; fetchFeedback: dynamische feedbackLabels via ui() + SW-Sonderfall; Fehlermeldung: SW-spezifisch / ui() für DE/EN; Textarea-Placeholder: atExchangeLimit-Zustand + ui(); Intro-Prompt nutzt nativeLang/targetLang statt isDE-Fallback ✅
 - KI-GESPRÄCH TAGES-LIMIT: Free: 1 Session/Tag, 8 Austausche; Premium: 3 Sessions/Tag, 15 Austausche; MARK_UID + ELOSY_UID immer Premium; kiUsageToday State — lädt users/{uid}/kiUsage/{today} on mount via getDoc(); startScenario: prüft sessionCount>=MAX_SESSIONS → Limit-Alert in fromLang (DE/EN/SW); schreibt neuen sessionCount+lastReset nach Firestore+State; atExchangeLimit = exchangeCount>=MAX_EXCHANGES; sendMessage blockiert bei atExchangeLimit; useEffect triggert fetchFeedback automatisch wenn atExchangeLimit; Header zeigt exchangeCount/MAX_EXCHANGES (gold wenn am Limit); Feedback-Button ab 50% der Exchanges sichtbar; Limit-Banner in Chat wenn atExchangeLimit; Szenario-Picker zeigt Nutzung heute (X/MAX_SESSIONS) + Free/Premium-Info ✅

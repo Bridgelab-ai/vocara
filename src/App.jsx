@@ -44,7 +44,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.058.085'
+const APP_VERSION = 'V01.059.085'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -4697,6 +4697,16 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
             invalidateCache(areaKey)  // no-op for home/street (no vocara_cache_ key exists yet, safe)
           }
 
+          // Reset categoryLevels for this area
+          const AREA_TO_CAT_KEY = { basics: 'grundlagen', vocabulary: 'vocab', sentence: 'satz', street: 'street', home: 'home', urlaub: 'urlaub', satztraining: 'satz' }
+          const resetCatKey = AREA_TO_CAT_KEY[areaKey]
+          let newCatLevels = categoryLevels
+          if (resetCatKey) {
+            newCatLevels = { ...categoryLevels, [resetCatKey]: 1 }
+            setCategoryLevels(newCatLevels)
+            setDoc(doc(db, 'users', user.uid, 'settings', 'categoryLevels'), newCatLevels).catch(() => {})
+          }
+
           // Layer 1: optimistic local state update BEFORE Firestore write — UI is immediately consistent
           setMyData(d => ({
             ...d,
@@ -5209,6 +5219,8 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
   const [kontextPrevScreen, setKontextPrevScreen] = useState('result')
   const [tenseUnlockCelebration, setTenseUnlockCelebration] = useState(null) // 'past' | 'future' | null
   const [neverLearnModal, setNeverLearnModal] = useState(null) // card object | null
+  const [categoryLevels, setCategoryLevels] = useState({ grundlagen: 1, vocab: 1, street: 1, home: 1, urlaub: 1, satz: 1 })
+  const [unlockCelebration, setUnlockCelebration] = useState(null) // { cat, catLabel, newLevel }
   const pendingProgressRef = useRef(null)
   const VALID_SCREENS = new Set(['menu','cards','result','settings','partner','test','impressum','stats','ki','satz','diary','meinekarten','geschenkkarte','karteerstellen','admin','rhythmus','kontext'])
   if (!VALID_SCREENS.has(screen)) { setScreen('menu'); return null }
@@ -5292,6 +5304,14 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
   }, [myData?.streakFreeze])
 
   // pendingGift removed — handled by incomingCardQueue
+
+  // ── CATEGORY LEVELS ───────────────────────────────────────
+  useEffect(() => {
+    if (!user?.uid) return
+    getDoc(doc(db, 'users', user.uid, 'settings', 'categoryLevels'))
+      .then(snap => { if (snap.exists()) setCategoryLevels(prev => ({ ...prev, ...snap.data() })) })
+      .catch(() => {})
+  }, [user?.uid]) // eslint-disable-line
 
   // ── DAILY CARD ────────────────────────────────────────────
   useEffect(() => {
@@ -5852,10 +5872,11 @@ Return ONLY JSON: [{"front":"German word","back":"English translation","category
       setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
     }
 
-    // 1. Try static shared pool (Admin-generated: sharedCards/de_en_home etc.)
+    // 1. Try static shared pool (Admin-generated: sharedCards/{pair}_home_level{N})
     if (isHome) {
       try {
-        const staticPath = `${langA}_${langB}_home`
+        const homeLevel = categoryLevels.home || 1
+        const staticPath = `${langA}_${langB}_home_level${homeLevel}`
         if (import.meta.env.DEV) console.log(`[generateCategoryCards] trying static pool: sharedCards/${staticPath}`)
         const snap = await getDoc(doc(db, 'sharedCards', staticPath))
         if (snap.exists()) {
@@ -6107,17 +6128,21 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
         c.category === 'vocabulary' && c.front?.trim().split(' ').length <= 2
       )
     }
+    const CAT_LEVEL_KEY = { vocabulary: 'vocab', street: 'street', home: 'home', urlaub: 'urlaub', sentence: 'satz', satztraining: 'satz', basics: 'grundlagen' }
+    const catLevelKey = CAT_LEVEL_KEY[category]
+    const maxLevel = catLevelKey ? (categoryLevels[catLevelKey] || 1) : 99
+    const levelFilter = (c) => !c.level || Number(c.level) <= maxLevel
     const cards = category === 'all'
-      ? activeCards
+      ? activeCards.filter(levelFilter)
       : category === 'vocabulary'
         ? activeCards.filter(c => {
-            const pass = vocabGuard(c)
+            const pass = vocabGuard(c) && levelFilter(c)
             if (!pass && c.category === 'vocabulary') {
               console.log(`[Meine Worte GUARD] silently rejected: "${c.front}" (${c.front?.trim().split(' ').length} words)`)
             }
             return pass
           })
-        : activeCards.filter(c => c.category === category)
+        : activeCards.filter(c => c.category === category && levelFilter(c))
     if (category !== 'all') {
       const excluded = activeCards.filter(c => c.category !== category)
       console.log('[Vocara] cards in category:', cards.length, '| excluded:', excluded.length, '| total:', activeCards.length)
@@ -6200,9 +6225,10 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
     }
   }
   const startBasicsSession = async () => {
-    // Layer 2: always read basicsPoolLevel from current React state (myData updated optimistically on reset)
-    const currentBasicsLevel = myData?.basicsPoolLevel || 1
-    const existingBasics = activeCards.filter(c => c.category === 'basics')
+    // Layer 2: use categoryLevels.grundlagen (new system) falling back to myData.basicsPoolLevel (legacy)
+    const currentBasicsLevel = categoryLevels.grundlagen || myData?.basicsPoolLevel || 1
+    const maxBasicsLevel = currentBasicsLevel
+    const existingBasics = activeCards.filter(c => c.category === 'basics' && (!c.level || Number(c.level) <= maxBasicsLevel))
     if (existingBasics.length > 0) {
       const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
       const sess = buildSession(existingBasics, cardProgress)
@@ -6797,6 +6823,31 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     // Layer 3: refresh partner data from server after own session ends
     if (myData?.partnerUID) onRefreshPartner?.(myData.partnerUID)
     setMyData(d => ({ ...d, cardProgress: { ...finalProgress }, sessionHistory: updatedHistory, masteredPerCategory: { ...masteredPerCategory }, ...timeUpdate, ...(hitMilestone ? { firedStreakGimmicks: updatedMilestones } : {}) }))
+    // ── Level unlock detection ──────────────────────────────────
+    const SESSION_TO_CAT = { vocabulary: 'vocabulary', street: 'street', home: 'home', urlaub: 'urlaub', sentence: 'sentence', satztraining: 'sentence', basics: 'basics' }
+    const CAT_TO_KEY = { vocabulary: 'vocab', street: 'street', home: 'home', urlaub: 'urlaub', sentence: 'satz', basics: 'grundlagen' }
+    const CAT_MAX_LEVELS = { vocab: 12, satz: 12, street: 12, home: 10, grundlagen: 10, urlaub: 10 }
+    const sessionCat = SESSION_TO_CAT[currentSessionMode]
+    const unlockCatKey = sessionCat ? CAT_TO_KEY[sessionCat] : null
+    if (unlockCatKey) {
+      const curLvl = categoryLevels[unlockCatKey] || 1
+      const maxLvl = CAT_MAX_LEVELS[unlockCatKey] || 12
+      if (curLvl < maxLvl) {
+        const cardsAtLevel = (allCards || []).filter(c => c.category === sessionCat && c.level && Number(c.level) === curLvl)
+        if (cardsAtLevel.length >= 5) {
+          const masteredAtLevel = cardsAtLevel.filter(c => (finalProgress[c.id]?.interval || 0) >= 3)
+          if (masteredAtLevel.length / cardsAtLevel.length >= 0.85) {
+            const newLvl = curLvl + 1
+            const newCatLevels = { ...categoryLevels, [unlockCatKey]: newLvl }
+            setCategoryLevels(newCatLevels)
+            setDoc(doc(db, 'users', user.uid, 'settings', 'categoryLevels'), newCatLevels).catch(() => {})
+            if (unlockCatKey === 'grundlagen') setMyData(d => ({ ...d, basicsPoolLevel: newLvl }))
+            const LABEL = { vocab: 'Wortschatz', satz: 'Satztraining', street: 'Straße', home: 'Zuhause', grundlagen: 'Grundlagen', urlaub: 'Urlaub' }
+            setUnlockCelebration({ cat: unlockCatKey, catLabel: LABEL[unlockCatKey] || unlockCatKey, newLevel: newLvl })
+          }
+        }
+      }
+    }
     // ── Streak gimmick UI + side effects (fire-and-forget) ──
     if (hitMilestone) {
       setDoc(doc(db, 'streakGimmick', user.uid, 'milestones', String(hitMilestone)), { theme, firedAt: new Date().toISOString(), streak: myStreakNow }).catch(() => {})
@@ -7122,45 +7173,31 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
             </div>
           )
         }
-        // Stufen badge: 10-level system per category
+        // Stufen badge: reads from categoryLevels, shows progress toward 85% mastery at current level
         const levelBadge = (category) => {
-          // masteredCount: strict category match, forward cards only
-          const n = (myData?.masteredPerCategory?.[category] !== undefined)
-            ? myData.masteredPerCategory[category]
-            : safeCards.filter(c => {
-                const baseId = c.id.replace(/_r(_\d+)?$/, '')
-                return c.category === category && !/_r(_\d+)?$/.test(c.id) && (cardProgress[baseId]?.interval ?? cardProgress[c.id]?.interval ?? 0) >= 3
-              }).length
-          // Level + thresholds — use CAT_LEVEL_THRESHOLDS (single source of truth)
-          let lv, prevThreshold, nextThreshold
-          if (category === 'urlaub') {
-            lv = Math.min(10, Math.floor(n / 6))
-            prevThreshold = lv * 6
-            nextThreshold = lv >= 10 ? prevThreshold : (lv + 1) * 6
-          } else if (category === 'home') {
-            lv = Math.min(10, Math.floor(n / 8))
-            prevThreshold = lv * 8
-            nextThreshold = lv >= 10 ? prevThreshold : (lv + 1) * 8
-          } else {
-            lv = getCatLevel(n)
-            prevThreshold = CAT_LEVEL_THRESHOLDS[lv] ?? 0
-            nextThreshold = CAT_LEVEL_THRESHOLDS[lv + 1] ?? (prevThreshold + 10)
-          }
-          // Progress: (mastered - floor) / (ceiling - floor), clamped [0,1]
-          const span = nextThreshold - prevThreshold
-          const progress = lv >= 10 ? 1 : Math.min(1, Math.max(0, span > 0 ? (n - prevThreshold) / span : 0))
-          if (import.meta.env.DEV) {
-            const total = safeCards.filter(c => c.category === category && !/_r(_\d+)?$/.test(c.id)).length
-            console.log(`[Level] ${category}: ${n}/${total} = Level ${Math.max(1, lv)}, ${Math.round(progress * 100)}%`)
-          }
-          const col = CAT_LEVEL_COLORS[Math.min(lv, CAT_LEVEL_COLORS.length - 1)] || '#00BFA5'
-          const displayLv = Math.max(1, lv)
+          const CAT_KEY_MAP = { vocabulary: 'vocab', sentence: 'satz', street: 'street', home: 'home', urlaub: 'urlaub', basics: 'grundlagen' }
+          const CAT_MAX = { vocab: 12, satz: 12, street: 12, home: 10, urlaub: 10, grundlagen: 10 }
+          const catKey = CAT_KEY_MAP[category]
+          if (!catKey) return null
+          const currentLevel = categoryLevels[catKey] || 1
+          const maxLevel = CAT_MAX[catKey] || 12
+          const cardsAtLevel = safeCards.filter(c => c.category === category && !/_r(_\d+)?$/.test(c.id) && c.level && Number(c.level) === currentLevel)
+          const masteredAtLevel = cardsAtLevel.filter(c => {
+            const baseId = c.id.replace(/_r(_\d+)?$/, '')
+            return (cardProgress[baseId]?.interval ?? cardProgress[c.id]?.interval ?? 0) >= 3
+          })
+          const progress = cardsAtLevel.length > 0 ? Math.min(1, masteredAtLevel.length / (cardsAtLevel.length * 0.85)) : 0
+          const col = CAT_LEVEL_COLORS[Math.min(currentLevel - 1, CAT_LEVEL_COLORS.length - 1)] || '#00BFA5'
           return (
             <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '6px', pointerEvents: 'none' }}>
-              <span style={{ color: col, fontSize: '10px', fontWeight: '700', letterSpacing: '0.4px', fontFamily: "'Inter', system-ui, sans-serif", opacity: 0.9, whiteSpace: 'nowrap' }}>Lvl {displayLv}</span>
-              <div style={{ width: '60px', height: '3px', background: 'rgba(255,255,255,0.15)', borderRadius: '2px', overflow: 'hidden', flexShrink: 0 }}>
-                <div style={{ width: `${progress * 100}%`, height: '100%', background: col, borderRadius: '2px' }} />
-              </div>
+              <span style={{ color: col, fontSize: '10px', fontWeight: '700', letterSpacing: '0.4px', fontFamily: "'Inter', system-ui, sans-serif", opacity: 0.9, whiteSpace: 'nowrap' }}>
+                {currentLevel >= maxLevel ? `Lvl ${currentLevel} ✓` : `Lvl ${currentLevel}`}
+              </span>
+              {currentLevel < maxLevel && (
+                <div style={{ width: '60px', height: '3px', background: 'rgba(255,255,255,0.15)', borderRadius: '2px', overflow: 'hidden', flexShrink: 0 }}>
+                  <div style={{ width: `${progress * 100}%`, height: '100%', background: col, borderRadius: '2px' }} />
+                </div>
+              )}
             </div>
           )
         }
@@ -7484,6 +7521,31 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           </div>
         )
       })()}
+
+      {/* ── LEVEL UNLOCK CELEBRATION ── */}
+      {unlockCelebration && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(10px)', animation: 'vocaraFadeIn 0.3s ease both' }}
+          onClick={() => setUnlockCelebration(null)}>
+          <div style={{ background: th.card, border: `2px solid ${th.gold}88`, borderRadius: '24px', padding: '36px 32px', maxWidth: '380px', width: '90%', textAlign: 'center', animation: 'vocaraSlideIn 0.35s ease both', boxShadow: `0 0 60px ${th.gold}44` }}
+            onClick={e => e.stopPropagation()}>
+            <p style={{ fontSize: '3.5rem', margin: '0 0 12px', lineHeight: 1 }}>🏆</p>
+            <p style={{ color: th.gold, fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1.5px', margin: '0 0 10px' }}>
+              {lang === 'de' ? 'Neues Level freigeschaltet!' : 'New Level Unlocked!'}
+            </p>
+            <p style={{ color: th.text, fontSize: '1.5rem', fontWeight: '800', margin: '0 0 8px', fontFamily: "'Playfair Display', Georgia, serif" }}>
+              {unlockCelebration.catLabel} — Level {unlockCelebration.newLevel}
+            </p>
+            <p style={{ color: th.sub, fontSize: '0.88rem', lineHeight: 1.5, margin: '0 0 24px' }}>
+              {lang === 'de'
+                ? `Du hast Level ${unlockCelebration.newLevel - 1} gemeistert. Schwierigere Karten warten auf dich!`
+                : `You mastered Level ${unlockCelebration.newLevel - 1}. Harder cards await you!`}
+            </p>
+            <button onClick={() => setUnlockCelebration(null)} style={{ ...s.button, marginBottom: 0, background: th.gold, color: '#000', fontWeight: '800' }}>
+              {lang === 'de' ? 'Los geht\'s!' : 'Let\'s go!'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── SOFT PAYWALL MODAL ── */}
       {softPaywall && (() => {
@@ -7821,12 +7883,11 @@ function AdminScreen({ user, lang, theme, onBack }) {
       { endpoint: '/api/generate-base-pool', body: { level: 1 }, label: 'Base Lvl 1' },
       { endpoint: '/api/generate-base-pool', body: { level: 2 }, label: 'Base Lvl 2' },
       { endpoint: '/api/generate-base-pool', body: { level: 3 }, label: 'Base Lvl 3' },
-      { endpoint: '/api/generate-vocab-pool', body: {}, label: 'Vocab' },
-      { endpoint: '/api/generate-street-pool', body: {}, label: 'Street' },
-      { endpoint: '/api/generate-home-pool', body: {}, label: 'Home' },
-      { endpoint: '/api/generate-sentence-training-pool', body: { level: 'leicht' }, label: 'Satz leicht' },
-      { endpoint: '/api/generate-sentence-training-pool', body: { level: 'mittel' }, label: 'Satz mittel' },
-      { endpoint: '/api/generate-sentence-training-pool', body: { level: 'schwer' }, label: 'Satz schwer' },
+      { endpoint: '/api/generate-vocab-pool', body: { level: 1 }, label: 'Vocab Lvl 1' },
+      { endpoint: '/api/generate-street-pool', body: { level: 1 }, label: 'Street Lvl 1' },
+      { endpoint: '/api/generate-home-pool', body: { level: 1 }, label: 'Home Lvl 1' },
+      { endpoint: '/api/generate-sentence-pool', body: { type: 'flashcards', level: 1 }, label: 'Satz FC Lvl 1' },
+      { endpoint: '/api/generate-sentence-training-pool', body: { level: 1 }, label: 'Satz Train Lvl 1' },
     ]
     for (const { endpoint, body, label } of jobs) {
       setPoolLog(prev => [...prev, `▶ ${label}…`])
@@ -7845,6 +7906,20 @@ function AdminScreen({ user, lang, theme, onBack }) {
       await delay(2000)
     }
     setPoolLog(prev => [...prev, `✓ Fertig.`])
+    setPoolRunning(false)
+  }
+
+  const deleteSharedCards = async () => {
+    if (!window.confirm('Delete ALL sharedCards documents? This cannot be undone.')) return
+    setPoolRunning(true)
+    setPoolLog([`▶ Deleting all sharedCards…`])
+    try {
+      const res = await fetch('/api/delete-shared-cards', { method: 'POST' })
+      const data = await res.json()
+      setPoolLog(prev => [...prev, `✓ Deleted: ${data.deleted}/${data.total} docs`])
+    } catch (e) {
+      setPoolLog(prev => [...prev, `✕ Delete failed: ${e.message}`])
+    }
     setPoolRunning(false)
   }
 
@@ -7889,15 +7964,14 @@ function AdminScreen({ user, lang, theme, onBack }) {
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
           {[
-            { label: 'Base Lvl 1', endpoint: '/api/generate-base-pool', body: { level: 1 } },
-            { label: 'Base Lvl 2', endpoint: '/api/generate-base-pool', body: { level: 2 } },
-            { label: 'Base Lvl 3', endpoint: '/api/generate-base-pool', body: { level: 3 } },
-            { label: 'Vocab', endpoint: '/api/generate-vocab-pool', body: {} },
-            { label: 'Street', endpoint: '/api/generate-street-pool', body: {} },
-            { label: 'Home', endpoint: '/api/generate-home-pool', body: {} },
-            { label: 'Satz leicht', endpoint: '/api/generate-sentence-training-pool', body: { level: 'leicht' } },
-            { label: 'Satz mittel', endpoint: '/api/generate-sentence-training-pool', body: { level: 'mittel' } },
-            { label: 'Satz schwer', endpoint: '/api/generate-sentence-training-pool', body: { level: 'schwer' } },
+            { label: 'Base L1', endpoint: '/api/generate-base-pool', body: { level: 1 } },
+            { label: 'Base L2', endpoint: '/api/generate-base-pool', body: { level: 2 } },
+            { label: 'Base L3', endpoint: '/api/generate-base-pool', body: { level: 3 } },
+            ...[1,2,3,4,5,6,7,8,9,10,11,12].map(l => ({ label: `Vocab L${l}`, endpoint: '/api/generate-vocab-pool', body: { level: l } })),
+            ...[1,2,3,4,5,6,7,8,9,10,11,12].map(l => ({ label: `Street L${l}`, endpoint: '/api/generate-street-pool', body: { level: l } })),
+            ...[1,2,3,4,5,6,7,8,9,10].map(l => ({ label: `Home L${l}`, endpoint: '/api/generate-home-pool', body: { level: l } })),
+            ...[1,2,3,4,5,6,7,8,9,10,11,12].map(l => ({ label: `SatzFC L${l}`, endpoint: '/api/generate-sentence-pool', body: { type: 'flashcards', level: l } })),
+            ...[1,2,3,4,5,6,7,8,9,10,11,12].map(l => ({ label: `SatzTr L${l}`, endpoint: '/api/generate-sentence-training-pool', body: { level: l } })),
           ].map(({ label, endpoint, body }) => (
             <button key={label} onClick={() => triggerPool(endpoint, body, label)} disabled={poolRunning}
               style={{ background: `${th.gold}15`, border: `1px solid ${th.gold}44`, color: th.gold, borderRadius: '8px', padding: '4px 10px', fontSize: '0.68rem', fontWeight: '700', cursor: poolRunning ? 'not-allowed' : 'pointer', opacity: poolRunning ? 0.6 : 1 }}>
@@ -7905,6 +7979,10 @@ function AdminScreen({ user, lang, theme, onBack }) {
             </button>
           ))}
         </div>
+        <button onClick={deleteSharedCards} disabled={poolRunning}
+          style={{ background: 'rgba(229,115,115,0.12)', border: '1px solid rgba(229,115,115,0.4)', color: '#e57373', borderRadius: '8px', padding: '5px 14px', fontSize: '0.72rem', fontWeight: '700', cursor: poolRunning ? 'not-allowed' : 'pointer', marginBottom: '8px' }}>
+          🗑 Delete All sharedCards
+        </button>
         {poolLog.length > 0 && (
           <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: '8px', padding: '8px', maxHeight: '100px', overflowY: 'auto' }}>
             {poolLog.map((line, i) => (
@@ -8403,6 +8481,7 @@ function KarteErstellenScreen({ user, myData, setMyData, allCards, lang, theme, 
       category: cat === 'slang' ? 'street' : cat,
       langA: isEntrySource ? entryLang : otherLang,
       langB: isEntrySource ? otherLang : entryLang,
+      level: 1,
       source: 'custom', createdAt: Date.now()
     }
     try {

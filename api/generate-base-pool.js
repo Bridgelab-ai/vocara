@@ -70,6 +70,41 @@ Cover in this order:
 All ${fromName} fronts, all ${toName} backs. 100% accurate. Include phonetic pronunciation for ${toName}.
 Return ONLY a valid JSON array (no markdown):
 [{"front":"word/phrase in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic for ${toName}","category":"grundlagen","level":5,"wordType":"idiom|phrase","tense":"present"}]`,
+
+  6: (fromName, toName) =>
+    `Generate exactly 20 Level 6 Grundlagen flashcards (B1 solid intermediate) for a ${fromName} speaker learning ${toName}.
+Focus on: modal verbs in nuanced uses (should/ought/might/could/would), expressing degrees of certainty and probability, phrases for giving advice and making suggestions, expressing wishes and hypotheticals.
+All ${fromName} fronts, all ${toName} backs. 100% accurate. Include phonetic pronunciation for ${toName}.
+Return ONLY a valid JSON array (no markdown):
+[{"front":"word/phrase in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic for ${toName}","category":"grundlagen","level":6,"wordType":"phrase|verb","tense":"present"}]`,
+
+  7: (fromName, toName) =>
+    `Generate exactly 20 Level 7 Grundlagen flashcards (B1-B2 intermediate-upper) for a ${fromName} speaker learning ${toName}.
+Focus on: passive constructions, reported speech markers (he said that.../she asked whether...), complex sentence connectors (not only...but also, either...or, neither...nor, as soon as, as long as), expressing cause and effect.
+All ${fromName} fronts, all ${toName} backs. 100% accurate. Include phonetic pronunciation for ${toName}.
+Return ONLY a valid JSON array (no markdown):
+[{"front":"phrase in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic for ${toName}","category":"grundlagen","level":7,"wordType":"phrase","tense":"present"}]`,
+
+  8: (fromName, toName) =>
+    `Generate exactly 20 Level 8 Grundlagen flashcards (B2 upper-intermediate) for a ${fromName} speaker learning ${toName}.
+Focus on: subjunctive/conditional mood (if I were.../I wish.../it would be better if...), expressing regret and wishes about past events, formal versus informal register switching, nuanced ways to agree/disagree/express doubt.
+All ${fromName} fronts, all ${toName} backs. 100% accurate. Include phonetic pronunciation for ${toName}.
+Return ONLY a valid JSON array (no markdown):
+[{"front":"phrase in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic for ${toName}","category":"grundlagen","level":8,"wordType":"phrase","tense":"present"}]`,
+
+  9: (fromName, toName) =>
+    `Generate exactly 20 Level 9 Grundlagen flashcards (B2-C1 advanced) for a ${fromName} speaker learning ${toName}.
+Focus on: expressing nuanced emotions and states (I tend to.../I can't help but.../I'm inclined to.../I can't stand.../it occurs to me that...), academic discourse markers, phrases for presenting arguments, conceding points, and building complex reasoning.
+All ${fromName} fronts, all ${toName} backs. 100% accurate. Include phonetic pronunciation for ${toName}.
+Return ONLY a valid JSON array (no markdown):
+[{"front":"phrase in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic for ${toName}","category":"grundlagen","level":9,"wordType":"phrase","tense":"present"}]`,
+
+  10: (fromName, toName) =>
+    `Generate exactly 20 Level 10 Grundlagen flashcards (C1 advanced) for a ${fromName} speaker learning ${toName}.
+Focus on: sophisticated register variation (formal/informal/literary), complex participial phrases, literary and elevated vocabulary that educated native speakers use naturally, subtle pragmatic markers that control tone and attitude in discourse.
+All ${fromName} fronts, all ${toName} backs. 100% accurate. Include phonetic pronunciation for ${toName}.
+Return ONLY a valid JSON array (no markdown):
+[{"front":"phrase in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic for ${toName}","category":"grundlagen","level":10,"wordType":"phrase","tense":"present"}]`,
 }
 
 async function generateCards(fromLang, toLang, level) {
