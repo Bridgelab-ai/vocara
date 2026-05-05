@@ -1,5 +1,83 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 03.05.2026)
 
+## ✅ Fix (05.05.2026 Session 77) — V01.068.100
+- PARTNER STATS BUG (Mark VS Elosy section leer) ✅
+  - ROOT CAUSE: `vocara_manually_disconnected` localStorage-Flag (gesetzt bei jedem manuellen Disconnect) →
+    `disconnectedFlag` truthy → `resolvedPartnerUID = null` → `loadPartner()` nie aufgerufen → `partnerData = null`
+    → StatsScreen partner-Sektion leer (auch nach App-Neustart, da Flag localStorage-persistent)
+  - FIX 1: `isKnownPair` Check (MARK_UID || ELOSY_UID) — bekannte Paare ignorieren disconnect-Flag beim Login ✅
+    `const isKnownPair = u.uid === MARK_UID || u.uid === ELOSY_UID`
+    `const resolvedPartnerUID = (isKnownPair || !disconnectedFlag) ? (data.partnerUID...) : null`
+  - FIX 2: `onRefreshPartner` Prop zu StatsScreen hinzugefügt (Signature + render line 7069) ✅
+    → `useEffect` in StatsScreen: wenn `partnerData === null` → ruft `onRefreshPartner(partnerUID)` beim Mount ✅
+    → MARK_UID / ELOSY_UID Fallback auch in StatsScreen-Effect ✅
+- WIR LERNEN ALLES ÜBERALL — LEVEL-AWARE ✅
+  - ROOT CAUSE: `startCategorySession('all')` nutzte `maxLevel=99` (kein CAT_LEVEL_KEY für 'all')
+    → alle Karten aller Level wurden in All-Session gemischt, ignorierte user-Fortschritt
+  - FIX: `allCategoryLevelFilter(c)` — liest `CAT_LEVEL_KEY[c.category]` → `categoryLevels[key]`
+    → jede Karte wird gegen IHRE eigene Kategorie-Level-Schwelle gefiltert ✅
+- SATZTRAINING POOL-FALLBACK ✅
+  - `startSatzSession` versucht zuerst `sharedCards/{langPair}_sentence` (Firestore pool, level-filtered)
+  - Wenn Pool ≥ 5 Karten → Session startet sofort ohne AI-Call ✅
+  - Falls Pool fehlt oder zu klein → AI-Generierung wie bisher ✅
+  - `satzLevel = categoryLevels?.satz || 1` → nur Karten ≤ user-Level aus Pool ✅
+- KARTEN RARITÄT ✅
+  - CardScreen: Rarity wird aus `item.rarity` OR `item.level` berechnet (level 1-6 = silver, 7+ = gold)
+  - Silver: ⬡-Badge (bottom-right), silberner Border-Tint ✅
+  - Gold-Rarity: 🥇-Badge (bottom-right), amber Border-Tint ✅
+  - `item.important === true`: subtiler Glow (box-shadow: 0 0 18px rgba(255,200,50,0.18)) ✅
+  - Rarity-Badge nur angezeigt wenn Karte NICHT gemastert (isGolden geht vor) ✅
+- VERSION V01.068.100 ✅
+
+## ✅ Fix (05.05.2026 Session 76) — V01.060.000
+- KI-GESPRÄCH OVERHAUL + CORE SESSION FIXES ✅
+  1. KI ANTWORTET IMMER IN TOLANG ✅
+     - `getSystemPrompt` enthält nun explizite LANGUAGE RULE: "You MUST always respond ONLY in {targetLang}. Never switch languages regardless of what language the user writes in. If the user writes in {nativeLang}, gently remind them to practice {targetLang}."
+     - Elosy (EN→DE) → KI antwortet ausschließlich Deutsch; Mark (DE→EN) → ausschließlich Englisch ✅
+  2. ÜBERSETZUNGS-BUTTON ✅
+     - `visibleTranslations` State hinzugefügt (trennt Cache von Sichtbarkeit)
+     - `translateMessage` jetzt cache-aware: zweiter Tap zeigt gecachte Übersetzung ohne API-Call
+     - Button togglet: "🌐 Übersetzen" → "🌐 Ausblenden" nach Tap ✅
+     - Übersetzung erscheint UNTER der Message-Bubble (nicht inline) ✅
+  3. ZEITFORMEN NACH LEVEL ✅
+     - `masteredCount` + `getTenseUnlocks(masteredCount)` in `KiGespraechScreen` berechnet
+     - `tenseRule` in System-Prompt injiziert: present-only / past+present / alle Zeitformen
+     - Schwelle: <20 gemastered → nur Präsens; 20-49 → Präsens+Vergangenheit; 50+ → alle
+  4. BIDIREKTIONALE POOL-KARTEN — BASICS ✅
+     - 4 fehlende `flatMap(buildCardPair)` Aufrufe in `startBasicsSession` ergänzt:
+       pool-next-level, base-pool, KI-generiert, hardcoded-fallback
+     - Jede Basics-Session enthält nun Hin- UND Rückrichtung ✅
+  5. KARTEN IN ZEITFORMEN ON-THE-FLY ✅
+     - `addTenseVariants()` Hilfsfunktion (module-level async): 1 Haiku-Call für bis zu 3 gemeisterte Karten
+     - In `startCategorySession` (jetzt async) integriert: wenn `tenseUnlocks.past`, werden Vergangenheits-Varianten erzeugt und Session zugefügt
+     - Falls Haiku-Call fehlschlägt → try/catch, Session startet ohne Varianten ✅
+  6. MEHRSPRACHIGE SESSION — BASICS ✅
+     - `startBasicsSession` wendet nun `myData?.toLangs` Prozent-Mischung an (identische Logik wie `startCategorySession`)
+     - DE+SW 60/40 → 60% Deutsche Grundlagen-Karten, 40% Swahili-Karten ✅
+- VERSION V01.060.000 ✅
+
+## ✅ Fix (05.05.2026 Session 75) — V01.059.099
+- PARTNER DISCONNECT WIPED PUBLICSTATS ✅
+  - ROOT CAUSE: `disconnect()` called `setDoc(publicStats/data, {partnerUID:null, partnerName:null}, merge:true)`
+    → overwrote publicStats on every manual disconnect, erasing partner-sync data
+    → publicStats, cardProgress, categoryLevels, sessionHistory, streaks must NEVER be touched on disconnect
+  - FIX App.jsx: removed the `setDoc(publicStats/data …)` line from `disconnect()` ✅
+  - SAFE writes remaining on disconnect:
+    → `updateDoc(users/{uid}, {partnerUID:null, partnerName:null})` ✅
+    → `localStorage.setItem('vocara_manually_disconnected', 'true')` ✅
+    → `onPartnerUpdate(null)` → in-memory only: partnerUID/Name/ConnectedAt + partnerData ✅
+- VERSION V01.059.099 ✅
+
+## ✅ Level 3 Card Pool Generation (03.05.2026) — NO CODE CHANGE
+- LEVEL 3 POOLS GENERATED via POST to https://vocara-peach.vercel.app ✅
+  - generate-base-pool {level:3} → 180 cards (30/pair × 6 pairs: de→en, en→de, de→sw, en→sw, sw→de, sw→en) ✅
+  - generate-vocab-pool {level:3} → 195 cards (65/pair × 3 pairs: de→en, en→de, de→sw) ✅
+  - generate-street-pool {level:3} → 120 cards (40/pair × 3 pairs) ✅
+  - generate-home-pool {level:3} → 84 cards (28/pair × 3 pairs) ✅
+  - generate-sentence-training-pool {level:3} → 90 exercises (30/pair × 3 pairs: de_en, en_de, de_sw) ✅
+  - generate-sentence-pool {level:3} → ⚠️ PARTIAL: Level 1+2 OK (50/pair); Level 3 returned "No exercises generated" for all 3 pairs — needs investigation
+    → Level 3 sentence flashcards NOT written to sharedCards/{pair}_sentence
+
 ## ✅ Fix (03.05.2026 Session 74) — V01.059.098
 - CATEGORY RESET GOLDEN/MASTERED CARDS NOT CLEARED ✅
   - ROOT CAUSE 1: handleAreaReset only zeroed interval/consecutiveRight/wrongSessions — left

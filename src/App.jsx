@@ -44,7 +44,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.060.000'
+const APP_VERSION = 'V01.068.100'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -3799,25 +3799,28 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
         <div className="vocara-big-card"
           onTouchStart={handleCardPressStart} onTouchEnd={handleCardPressEnd} onTouchMove={handleCardPressEnd}
           onMouseDown={handleCardPressStart} onMouseUp={handleCardPressEnd} onMouseLeave={handleCardPressEnd}
-          style={{
-          ...s.bigCard,
-          border: (newProgress[item.id]?.isGolden || cardProgress[item.id]?.isGolden)
-            ? '1px solid rgba(255,215,0,0.60)'
-            : revealed ? `1px solid ${s.progressFill.background}` : `1px solid ${s.progressBar.background}`,
-          boxShadow: (newProgress[item.id]?.isGolden || cardProgress[item.id]?.isGolden)
-            ? undefined
-            : s.bigCard.boxShadow,
-          animation: (newProgress[item.id]?.isGolden || cardProgress[item.id]?.isGolden) && !flipPhase
-            ? 'goldShimmer 2.4s ease-in-out infinite'
-            : undefined,
-          transition: flipPhase ? 'transform 0.23s ease-in, border-color 0.3s ease' : 'transform 0.23s ease-out, border-color 0.3s ease',
-          minHeight: '220px',
-          transform: flipPhase
-            ? `rotateX(${-cardTilt.x * 0.5}deg) rotateY(90deg)`
-            : `rotateX(${-cardTilt.x * 1.5}deg) rotateY(${cardTilt.y * 1.5}deg)`,
-          transformStyle: 'preserve-3d',
-          willChange: 'transform',
-        }}>
+          style={(() => {
+            const isGoldenCard = newProgress[item.id]?.isGolden || cardProgress[item.id]?.isGolden
+            const rarity = item.rarity || (!item.level ? null : Number(item.level) <= 6 ? 'silver' : 'gold')
+            const border = isGoldenCard ? '1px solid rgba(255,215,0,0.60)'
+              : rarity === 'gold' ? '1px solid rgba(255,165,0,0.45)'
+              : rarity === 'silver' ? '1px solid rgba(192,192,210,0.40)'
+              : revealed ? `1px solid ${s.progressFill.background}` : `1px solid ${s.progressBar.background}`
+            return {
+              ...s.bigCard,
+              border,
+              boxShadow: isGoldenCard ? undefined
+                : item.important ? `0 0 18px rgba(255,200,50,0.18), ${s.bigCard.boxShadow || ''}` : s.bigCard.boxShadow,
+              animation: isGoldenCard && !flipPhase ? 'goldShimmer 2.4s ease-in-out infinite' : undefined,
+              transition: flipPhase ? 'transform 0.23s ease-in, border-color 0.3s ease' : 'transform 0.23s ease-out, border-color 0.3s ease',
+              minHeight: '220px',
+              transform: flipPhase
+                ? `rotateX(${-cardTilt.x * 0.5}deg) rotateY(90deg)`
+                : `rotateX(${-cardTilt.x * 1.5}deg) rotateY(${cardTilt.y * 1.5}deg)`,
+              transformStyle: 'preserve-3d',
+              willChange: 'transform',
+            }
+          })()}>
           {/* specular highlight — moves opposite to tilt, simulates light reflection */}
           <div style={{
             position: 'absolute', inset: 0, borderRadius: 'inherit', pointerEvents: 'none',
@@ -3846,6 +3849,12 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
               🎁 {item.sharedBy}
             </div>
           )}
+          {/* Rarity badge — bottom-right (silver ⬡ / gold 🥇) */}
+          {!!(item.rarity || item.level) && !(newProgress[item.id]?.isGolden || cardProgress[item.id]?.isGolden) && (() => {
+            const r = item.rarity || (Number(item.level) <= 6 ? 'silver' : 'gold')
+            if (r === 'gold') return <div style={{ position: 'absolute', bottom: '8px', right: '10px', background: 'rgba(255,165,0,0.13)', color: '#FFA040', border: '1px solid rgba(255,165,0,0.35)', borderRadius: '6px', padding: '2px 7px', fontSize: '9px', fontWeight: '600', letterSpacing: '0.3px', pointerEvents: 'none' }}>🥇 Rare</div>
+            return <div style={{ position: 'absolute', bottom: '8px', right: '10px', background: 'rgba(192,192,210,0.10)', color: '#A0A0C0', border: '1px solid rgba(192,192,210,0.28)', borderRadius: '6px', padding: '2px 7px', fontSize: '9px', fontWeight: '600', letterSpacing: '0.3px', pointerEvents: 'none' }}>⬡ Silver</div>
+          })()}
           {/* Tense tag — bottom-left of card (only when not present tense) */}
           {item.tense && item.tense !== 'present' && TENSE_LABELS[item.tense] && (
             <div style={{ position: 'absolute', bottom: '8px', left: '10px', background: 'rgba(100,80,200,0.15)', border: '1px solid rgba(100,80,200,0.28)', borderRadius: '6px', padding: '2px 7px', fontSize: '9px', fontWeight: '600', letterSpacing: '0.4px', color: '#9c7bf0', pointerEvents: 'none' }}>
@@ -4921,9 +4930,16 @@ function StatRow({ label, mastered, active, total, s }) {
   )
 }
 
-function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack, cardProgress, t: tProp }) {
+function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack, cardProgress, t: tProp, onRefreshPartner }) {
   const th = THEMES[theme]; const s = makeStyles(th); const t = tProp || T[lang] || T.en
   const today = todayStr()
+
+  useEffect(() => {
+    if (!partnerData && onRefreshPartner) {
+      const partnerUID = myData?.partnerUID || (user?.uid === MARK_UID ? ELOSY_UID : user?.uid === ELOSY_UID ? MARK_UID : null)
+      if (partnerUID) onRefreshPartner(partnerUID)
+    }
+  }, [])
   const tom = new Date(); tom.setDate(tom.getDate() + 1)
   const tomorrow = tom.toISOString().slice(0, 10)
 
@@ -6230,8 +6246,13 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
     const catLevelKey = CAT_LEVEL_KEY[category]
     const maxLevel = catLevelKey ? (categoryLevels[catLevelKey] || 1) : 99
     const levelFilter = (c) => !c.level || Number(c.level) <= maxLevel
+    const allCategoryLevelFilter = (c) => {
+      const key = CAT_LEVEL_KEY[c.category]
+      const catMax = key ? (categoryLevels[key] || 1) : 1
+      return !c.level || Number(c.level) <= catMax
+    }
     const cards = category === 'all'
-      ? activeCards.filter(levelFilter)
+      ? activeCards.filter(allCategoryLevelFilter)
       : category === 'vocabulary'
         ? activeCards.filter(c => {
             const pass = vocabGuard(c) && levelFilter(c)
@@ -6479,7 +6500,6 @@ Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","
       updateDoc(doc(db, 'users', user.uid), { satzMonthCount: newCount, satzMonthStr: nowMonth }).catch(() => {})
       setMyData(d => ({ ...d, satzMonthCount: newCount, satzMonthStr: nowMonth }))
     }
-    const LANG_NAMES = { en: 'English', de: 'German', sw: 'Swahili' }
     const knownVocabCards = activeCards.filter(c =>
       c.category === 'vocabulary' && !/_r(_\d+)?$/.test(c.id) && (cardProgress[c.id]?.interval || 0) >= 2
     )
@@ -6491,12 +6511,47 @@ Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","
       return
     }
     setSatzLoading(true)
+    const toLangCode = isMarkLang ? 'de' : 'en'
+    const fromLangCode = isMarkLang ? 'en' : 'de'
+    const satzLevel = categoryLevels?.satz || 1
+    const launchSatzCards = (sessionCards) => {
+      setCurrentSessionMode('sentence')
+      if (wordOfDay) {
+        setWordOfDayBanner(wordOfDay)
+        setTimeout(() => {
+          setWordOfDayBanner(null)
+          setSession(sessionCards); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+          markAreaDone('sentence')
+        }, 2000)
+      } else {
+        setSession(sessionCards); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+        markAreaDone('sentence')
+      }
+    }
+    // Try shared sentence pool first (level-aware)
+    try {
+      const poolKey = `${fromLangCode}_${toLangCode}`
+      const poolDoc = await getDoc(doc(db, 'sharedCards', `${poolKey}_sentence`))
+      if (poolDoc.exists()) {
+        const poolCards = (poolDoc.data().cards || []).filter(c => !c.level || Number(c.level) <= satzLevel)
+        if (poolCards.length >= 5) {
+          const ts = Date.now()
+          const sessionCards = [...poolCards].sort(() => Math.random() - 0.5).slice(0, 5).map((card, i) => ({
+            id: `satz_pool_${ts}_${i}`, front: card.front, back: card.back,
+            context: card.context || '', category: 'sentence',
+            langA: fromLangCode, langB: toLangCode, targetLang: toLangCode, source: 'satz-pool',
+          }))
+          launchSatzCards(sessionCards)
+          setSatzLoading(false)
+          return
+        }
+      }
+    } catch (_) {}
     try {
       const wordList = knownVocabCards.map(c => c.back).slice(0, 60).join(', ')
-      const toLangCode = isMarkLang ? 'de' : 'en'
-      const fromLangCode = isMarkLang ? 'en' : 'de'
-      const toLangName = LANG_NAMES[toLangCode]
-      const fromLangName = LANG_NAMES[fromLangCode]
+      const LANG_NAMES2 = { en: 'English', de: 'German', sw: 'Swahili' }
+      const toLangName = LANG_NAMES2[toLangCode]
+      const fromLangName = LANG_NAMES2[fromLangCode]
       const prompt = `You are a language learning assistant. The user knows these words and phrases in ${toLangName}: ${wordList}\n\nBuild exactly 5 short, natural, everyday sentences in ${toLangName} using vocabulary from that list plus only basic grammar words (articles, prepositions, conjunctions, common verbs). Max 8 words per sentence.\n\nFor each sentence also write the ${fromLangName} translation.\n\nReturn ONLY a valid JSON array with no markdown or explanation:\n[{"front":"<sentence in ${fromLangName}>","back":"<sentence in ${toLangName}>","context":"<1 sentence explaining when you'd say this>"}]`
       const res = await fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -6511,18 +6566,7 @@ Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","
         context: card.context || '', category: 'sentence',
         langA: fromLangCode, langB: toLangCode, targetLang: toLangCode, source: 'satz-session',
       }))
-      setCurrentSessionMode('sentence')
-      if (wordOfDay) {
-        setWordOfDayBanner(wordOfDay)
-        setTimeout(() => {
-          setWordOfDayBanner(null)
-          setSession(sessionCards); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
-          markAreaDone('sentence')
-        }, 2000)
-      } else {
-        setSession(sessionCards); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
-        markAreaDone('sentence')
-      }
+      launchSatzCards(sessionCards)
     } catch (e) {
       console.warn('Satz session generation failed:', e)
       setEmptyCategoryMsg(isMarkLang ? 'Fehler beim Generieren der Sätze.' : 'Failed to generate sentences.')
@@ -7066,7 +7110,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
   if (screen === 'partner') return <>{homeFloat}<PartnerScreen user={user} myData={myData} lang={lang} theme={theme} onBack={() => setScreen('menu')} onPartnerUpdate={(uid) => { onPartnerUpdate(uid); setScreen('menu') }} /></>
   if (screen === 'test') return <>{homeFloat}<PlacementTest lang={lang} theme={theme} user={user} onBack={() => setScreen('menu')} onSaveCefr={onSaveCefr} toLangCode={activeToLang} /></>
   if (screen === 'impressum') return <>{homeFloat}<ImpressumScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
-  if (screen === 'stats') return <>{homeFloat}<StatsScreen user={user} myData={myData} partnerData={partnerData} allCards={allCards} lang={lang} theme={theme} onBack={() => setScreen('menu')} cardProgress={cardProgress} t={t} /></>
+  if (screen === 'stats') return <>{homeFloat}<StatsScreen user={user} myData={myData} partnerData={partnerData} allCards={allCards} lang={lang} theme={theme} onBack={() => setScreen('menu')} cardProgress={cardProgress} t={t} onRefreshPartner={onRefreshPartner} /></>
   if (screen === 'ki') return <>{homeFloat}<KiGespraechScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={activeToLang} socialRegister={myData?.socialRegister || 'friends'} myData={myData} partnerData={partnerData} user={user} t={t} /></>
   if (screen === 'satz') return <>{homeFloat}<SatzTrainingScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={activeToLang} onSatzComplete={handleSatzComplete} t={t} /></>
   if (screen === 'diary') return <>{homeFloat}<DiaryScreen user={user} myData={myData} setMyData={setMyData} partnerData={partnerData} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
@@ -10228,8 +10272,10 @@ function App() {
             else if (partnerUID === MARK_UID) setPartnerData({ name: 'Mark', displayName: 'Mark', lastActive: null, _noData: true })
             else setPartnerData({ _noData: true })
           }
-          const resolvedPartnerUID = disconnectedFlag ? null : (data.partnerUID || data.partnerUid ||
-            (u.uid === MARK_UID ? ELOSY_UID : u.uid === ELOSY_UID ? MARK_UID : null))
+          const isKnownPair = u.uid === MARK_UID || u.uid === ELOSY_UID
+          const resolvedPartnerUID = (isKnownPair || !disconnectedFlag)
+            ? (data.partnerUID || data.partnerUid || (u.uid === MARK_UID ? ELOSY_UID : u.uid === ELOSY_UID ? MARK_UID : null))
+            : null
           if (resolvedPartnerUID) await loadPartner(resolvedPartnerUID)
           // ── CHECK PARTNER ACTIVITY NOTIFS ──
           try {
