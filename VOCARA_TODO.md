@@ -1,5 +1,35 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 03.05.2026)
 
+## ✅ Pool Generation (05.05.2026 Session 78) — NO CODE CHANGE
+- SENTENCE POOL LEVEL 3 FIX ✅
+  - ROOT CAUSE 1: `writeFlashcardPool` schrieb zu `sharedCards/{pair}_sentence_level{N}` — FALSCHER PFAD
+    → `startSatzSession` liest von `sharedCards/{pair}_sentence` (ohne level suffix) → Pool immer leer
+  - ROOT CAUSE 2: default-Handler lief alle 3 Level × 3 Pairs seriell → Timeout vor Level 3
+  - FIX api/generate-sentence-pool.js:
+    → `writeFlatSentencePool()` — schreibt zu `sharedCards/{pair}_sentence` (korrekter Pfad) ✅
+    → `generateFlatFlashcards()` — generiert N Karten (kein Category-Split) ✅
+    → `type:'sentence'` Handler: `{level, count, pair}` → gezielter Einzel-Pair-Call ✅
+  - GENERIERT: 3 Pairs × Level 3 × 20 Karten = 60 Satz-Flashcards total ✅
+    → sharedCards/de_en_sentence: 20 Karten (A2: Vergangenheit, Meinungen, Alltag) ✅
+    → sharedCards/en_de_sentence: 20 Karten ✅
+    → sharedCards/de_sw_sentence: 20 Karten ✅
+- GRUNDLAGEN LEVEL 4-6 GENERIERT ✅
+  - api/generate-base-pool.js: Level 4/5/6 Prompts aktualisiert auf user-spezifizierte Topics:
+    → Level 4 (A2+): Modalverben, Komparativ, Zeitangaben — 20 Karten/Pair ✅
+    → Level 5 (B1): Konjunktionen, Konnektoren, Alltags-Phrasen — 20 Karten/Pair ✅
+    → Level 6 (B1+): Passiv, Relativsätze, Redewendungen — 20 Karten/Pair ✅
+  - api/generate-base-pool.js: `{pair:'de_en'}` Filter hinzugefügt (verhindert Timeouts bei 6-Pair-Läufen) ✅
+  - GENERIERT: 3 Levels × 3 Pairs × 20 Karten = 180 Grundlagen-Karten total ✅
+    → sharedCards/de_en_grundlagen_4: 20 Karten ✅
+    → sharedCards/en_de_grundlagen_4: 20 Karten ✅
+    → sharedCards/de_sw_grundlagen_4: 20 Karten ✅
+    → sharedCards/de_en_grundlagen_5: 20 Karten ✅
+    → sharedCards/en_de_grundlagen_5: 20 Karten ✅
+    → sharedCards/de_sw_grundlagen_5: 20 Karten ✅
+    → sharedCards/de_en_grundlagen_6: 20 Karten ✅
+    → sharedCards/en_de_grundlagen_6: 20 Karten ✅
+    → sharedCards/de_sw_grundlagen_6: 20 Karten ✅
+
 ## ✅ Fix (05.05.2026 Session 77) — V01.068.100
 - PARTNER STATS BUG (Mark VS Elosy section leer) ✅
   - ROOT CAUSE: `vocara_manually_disconnected` localStorage-Flag (gesetzt bei jedem manuellen Disconnect) →
