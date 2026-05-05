@@ -202,12 +202,93 @@ async function writeFlashcardPool(fromLang, toLang, level, cards) {
   if (!r.ok) throw new Error(`Firestore write failed: ${r.status}`)
 }
 
+// Writes sentence flashcards to the flat sharedCards/{pair}_sentence path (read by startSatzSession)
+async function writeFlatSentencePool(fromLang, toLang, level, cards) {
+  const docPath = `${FIRESTORE_BASE}/sharedCards/${fromLang}_${toLang}_sentence`
+  const fields = {
+    fromLang: { stringValue: fromLang }, toLang: { stringValue: toLang },
+    category: { stringValue: 'sentence' },
+    generatedAt: { stringValue: new Date().toISOString() },
+    count: { integerValue: String(cards.length) },
+    cards: {
+      arrayValue: {
+        values: cards.map(c => ({
+          mapValue: {
+            fields: {
+              id: { stringValue: `sentence_l${level}_${fromLang}_${toLang}_${Math.random().toString(36).slice(2, 9)}` },
+              front: { stringValue: c.front || '' }, back: { stringValue: c.back || '' },
+              category: { stringValue: 'sentence' }, vocabCategory: { stringValue: c.vocabCategory || '' },
+              level: { integerValue: String(level) }, langA: { stringValue: fromLang }, langB: { stringValue: toLang },
+              source: { stringValue: 'sentence-pool' }, createdAt: { integerValue: Date.now().toString() },
+            }
+          }
+        }))
+      }
+    }
+  }
+  const mask = ['fromLang','toLang','category','generatedAt','count','cards'].map(f => `updateMask.fieldPaths=${f}`).join('&')
+  const r = await fetch(`${docPath}?${mask}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields }) })
+  if (!r.ok) throw new Error(`Firestore write failed: ${r.status} ${await r.text()}`)
+}
+
+async function generateFlatFlashcards(fromLang, toLang, level, count = 20) {
+  const fromName = LANG_NAMES[fromLang]
+  const toName = LANG_NAMES[toLang]
+  const spec = SENTENCE_LEVEL_SPEC[level] || SENTENCE_LEVEL_SPEC[1]
+  const prompt = `Generate exactly ${count} natural sentence flashcards for a ${fromName} speaker learning ${toName}.
+Level ${level}/12 — difficulty: ${spec.diff}
+Rules:
+- front: sentence in ${fromName} (native language), difficulty appropriate for Level ${level}
+- back: natural ${toName} translation (as a native speaker would say it)
+- Vary across themes: daily life, travel, family, work, small talk
+- Vary structure: questions, statements, requests, commands
+Return ONLY a valid JSON array (no markdown):
+[{"front":"sentence in ${fromName}","back":"sentence in ${toName}","vocabCategory":"alltag"}]`
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001', max_tokens: 3000,
+      system: 'You are a professional language teacher. Return ONLY valid JSON array, no markdown.',
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  })
+  const data = await res.json()
+  const raw = (data.content?.[0]?.text || '').trim()
+  const match = raw.match(/\[[\s\S]*\]/)
+  if (!match) return []
+  try { return JSON.parse(match[0]).slice(0, count) } catch { return [] }
+}
+
 // ── HANDLER ───────────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
   let body = {}
   try { const chunks = []; for await (const chunk of req) chunks.push(chunk); body = JSON.parse(Buffer.concat(chunks).toString() || '{}') } catch {}
+
+  // type: 'sentence' → generate flashcards to flat sharedCards/{pair}_sentence (used by startSatzSession)
+  if (body.type === 'sentence') {
+    const level = Math.min(12, Math.max(1, body.level || 3))
+    const count = Math.min(50, Math.max(5, body.count || 20))
+    const pairsToRun = body.pair
+      ? PAIRS.filter(p => `${p.from}_${p.to}` === body.pair)
+      : PAIRS
+    const results = []
+    for (const { from, to } of pairsToRun) {
+      try {
+        const cards = await generateFlatFlashcards(from, to, level, count)
+        if (cards.length > 0) {
+          await writeFlatSentencePool(from, to, level, cards)
+          results.push({ pair: `${from}→${to}`, level, total: cards.length, path: `sharedCards/${from}_${to}_sentence` })
+        } else {
+          results.push({ pair: `${from}→${to}`, level, error: 'No cards generated' })
+        }
+      } catch (e) { results.push({ pair: `${from}→${to}`, level, error: e.message }) }
+    }
+    return res.status(200).json({ generated: results, total: results.reduce((s, r) => s + (r.total || 0), 0) })
+  }
 
   // type: 'flashcards' → generate sentence flashcards to sharedCards/{pair}_sentence_level{N}
   if (body.type === 'flashcards') {
