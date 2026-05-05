@@ -4,7 +4,7 @@ import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from
 import { doc, setDoc, getDoc, getDocFromServer, updateDoc, deleteDoc, onSnapshot, collection, addDoc, getDocs, writeBatch } from 'firebase/firestore'
 import { getCards, setCards, invalidateCache } from './hooks/useCardCache'
 import './App.css'
-import { POOL_STRUCTURE } from '../api/_poolStructure.js'
+import { POOL_STRUCTURE, LANGUAGE_PAIRS } from '../api/_poolStructure.js'
 
 const ADMIN_POOL_CONFIGS = [
   { catKey: 'grundlagen', label: 'Base', endpoint: '/api/generate-base-pool', bodyFn: l => ({ level: l }), docFn: (p, l) => `${p}_grundlagen_${l}`, coll: 'sharedCards' },
@@ -54,7 +54,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.069.100'
+const APP_VERSION = 'V01.069.101'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -1550,6 +1550,84 @@ const T = {
     startSession: '🚀 Session starten', partnerStarted: ' hat eine Session gestartet.',
     joinBtn: 'Beitreten', sync: 'Synchron', answering: 'antwortet…', waitingFor: 'Wartet auf ',
     endBtn: 'Beenden', learnToge: '⚡ Gemeinsam lernen',
+    diffLeicht: 'Leicht', diffLeichtSub: 'A1–A2 · Grundlagen',
+    diffMittel: 'Mittel', diffMittelSub: 'B1 · Aufbau',
+    diffSchwer: 'Schwer', diffSchwerSub: 'B2–C1 · Fortgeschritten',
+    chooseDifficulty: 'Schwierigkeitsgrad wählen:',
+    musicComingSoon: 'Hintergrundmusik wird in einem kommenden Update verfügbar.',
+    saveFailed: 'Fehler beim Speichern', signOut: 'Wirklich abmelden?',
+    targetLangRequired: 'Bitte lege deine Zielsprache fest — TTS und Mikrofon benötigen diese Information.',
+    myLanguages: 'Meine Sprachen', nativeLanguage: 'Meine Sprache (Ausgangssprache):',
+    targetLanguage: 'Ich lerne (Zielsprache):', moreLanguages: 'Weitere Sprachen',
+    languageTypes: 'Hauptsprache · Weitere Sprache', reminderLabel: 'Tägliche Erinnerung',
+    reminderNotSupported: 'Nicht unterstützt in diesem Browser',
+    notificationsBlocked: 'Benachrichtigungen blockiert — bitte in Browser-Einstellungen erlauben',
+    myGimmicks: 'Meine Gimmiks', noGimmicks: 'Noch keine Gimmiks freigeschaltet.',
+    restore: 'Wiederherstellen', more: 'weitere', cancel: 'Abbrechen',
+    myTopics: 'Meine Themen', topicsDesc: 'Themen freispielen und 15 Karten generieren lassen.',
+    premiumOrMastered: '⭐ Premium oder 5+ gemeisterte Karten nötig.',
+    resetAreas: 'Bereiche zurücksetzen',
+    resetAreasDesc: 'Setzt den Fortschritt eines Bereichs auf Level 1 zurück. Karten bleiben erhalten.',
+    reset: 'Zurücksetzen', premiumDesc: 'Mit Premium kannst du Spanisch, Französisch, Thai und mehr lernen.',
+    unlockPremiumBtn: 'Premium freischalten', unlockPremium: 'Mehr Sprachen mit Premium',
+    adminUsers: 'Nutzer', adminActiveWeek: 'Aktiv Woche', adminReports: 'Meldungen',
+    reportedCards: 'Gemeldete Karten', openIssues: 'offen', fixedStatus: 'behoben',
+    markFixed: 'Behoben', dismiss: 'Ignorieren',
+    diaryTitle: 'Gemeinsames Tagebuch', diaryDesc: 'Ein Satz pro Tag in eurer Zielsprache.',
+    today: 'Heute', saveEntry: 'Eintragen',
+    noEntries: 'Noch keine Einträge — schreib den ersten!',
+    savedStatus: 'Gespeichert ✓', sharedStatus: 'Geteilt ✓',
+    filterAll: 'Alle', noCardsFound: 'Keine Karten gefunden.',
+    editCardTitle: 'Karte bearbeiten', shareWithPartner: 'Mit Partner teilen',
+    sourceLanguages: 'Ausgangssprache(n)', saveLangSplit: 'Sprachanteil speichern',
+    savedExclaim: 'Gespeichert!', targetLangHeader: 'Zielsprache',
+    enterCardSection: 'Karte eingeben', iType: 'Ich tippe',
+    enterWordOrSentence: 'Wort oder Satz eingeben…', aiTranslating: 'KI übersetzt…',
+    aiFillRedo: 'KI hat ergänzt — nochmal', aiFillBtn: 'KI ergänzt den Rest',
+    translationPlaceholder: 'Übersetzung…', categoryDest: 'Kategorie & Ziel',
+    categoryLabel: 'Kategorie', forWhom: 'Für wen?', forMe: 'Für mich',
+    bothOption: 'Beide', bothPartner: 'Für dich & Partner',
+    saveCardBtn: 'Karte speichern ✓',
+    partnerHasCard: '⚠️ Partner hat diese Karte bereits erhalten',
+    alreadySentToday: '⚠️ Du hast diese Karte heute bereits gesendet',
+    errorSending: 'Fehler beim Senden',
+    cardSavedForBoth: '💫 Für dich & Partner ✓', cardSaved: 'Karte gespeichert ✓',
+    newCardTitle: 'Neue Karte', languagesSection: 'Sprachen', aiLabel: 'KI',
+    levelCheckAvailable: 'Level-Check verfügbar', aiTutorLabel: 'KI-Tutor',
+    daysLabel: 'Tage', startBtn: 'Starten', writeDiaryBtn: 'Tagebuch schreiben →',
+    connectionNeedsYou: 'Die Verbindung braucht dich heute.',
+    streakFreezeConfirm: 'Streak Freeze jetzt verwenden? (1x/Monat)',
+    learnNow: 'Jetzt lernen →', streakLost: 'Streak verloren — neu starten! 💪',
+    removeFav: 'Favorit entfernen', markFav: 'Als Favorit markieren',
+    neverLearnAgain: 'Nie wieder lernen', wantsToConnect: 'möchte sich mit dir verbinden',
+    topicsHint: '🎯 Einstellungen → Meine Themen → Themen generieren',
+    dailyGoalShort: 'Tagesziel', taskOfDayLabel: 'Aufgabe des Tages',
+    practicedThisWeek: '✓ Diese Woche geübt',
+    unlimited: 'Unbegrenzt', thisWeekLabel: 'diese Woche',
+    allAreasUnlimited: 'Alle Lernbereiche unlimitiert',
+    unlimitedKI: 'Unbegrenzte KI-Gespräche', unlimitedSatz: 'Satztraining ohne Limit',
+    tryPremium: 'Premium testen →', maybeLater: 'Vielleicht später',
+    harborGimmick: 'Hafen-Gimmick freigeschaltet!',
+    harborDesc: 'Die Elbe rauscht. Du hast 5 Wochen durchgehalten.',
+    savannaGimmick: 'Savanna-Gimmick freigeschaltet!',
+    savannaDesc: 'Die Sonne über Nairobi. Deine Stimme trägt weiter.',
+    auroraGimmick: 'Aurora-Gimmick freigeschaltet!',
+    auroraDesc: 'Ein Nordlicht für deine Sprache. 5 Wochen.',
+    gimmickUnlockedLabel: 'Gimmick freigeschaltet', tapToClose: 'Tippen zum Schließen',
+    replyBtn: 'Antworten', todaysWordLabel: "Heute's Wort",
+    appearsEverywhere: '— heute begegnet es dir überall.',
+    addToDeck: 'Zum Deck', musicOffLabel: 'Musik aus', musicOnLabel: 'Musik an',
+    cardOfDayLabel: 'Karte des Tages', cardOfDayRel: 'Karte des Tages',
+    areaStreet: 'Straße', areaHome: 'Zuhause', areaVocab: 'Wörter', areaSentences: 'Sätze', areaBasics: 'Grundlagen',
+    areaUrlaub: 'Im Urlaub', areaKi: 'KI-Gespräch', areaSatz: 'Satztraining',
+    vocabCategoryLabel: 'Meine Worte', sentenceCategoryLabel: 'Satz',
+    premiumCta: 'Unbegrenzt mit Premium weitermachen',
+    createCardBtn: 'Karte kreieren', myCardsLabel: 'Meine Karten',
+    sendGiftCardBtn: 'Geschenkkarte senden',
+    bridgeDesc: 'Wir bauen keine Apps. Wir bauen Brücken.',
+    vocabraLanguage: 'Sprache', wordsSentencesConv: 'Wörter, Sätze & Gespräche',
+    comingSoonAlt: 'Bald verfügbar', langNameEn: 'Englisch', langNameDe: 'Deutsch',
+    knew: 'Gewusst', didntKnow: 'Nicht gewusst',
   },
   en: {
     hello: 'Hello', mySession: '🃏 My session', whereAmI: '🎯 Where do I stand?',
@@ -1647,6 +1725,273 @@ const T = {
     startSession: '🚀 Start session', partnerStarted: ' started a session.',
     joinBtn: 'Join', sync: 'Sync', answering: 'answering…', waitingFor: 'Waiting for ',
     endBtn: 'End', learnToge: '⚡ Learn together',
+    diffLeicht: 'Easy', diffLeichtSub: 'A1–A2 · Basics',
+    diffMittel: 'Medium', diffMittelSub: 'B1 · Building',
+    diffSchwer: 'Hard', diffSchwerSub: 'B2–C1 · Advanced',
+    chooseDifficulty: 'Choose difficulty:',
+    musicComingSoon: 'Background music will be available in an upcoming update.',
+    saveFailed: 'Save failed', signOut: 'Really sign out?',
+    targetLangRequired: 'Please set your target language — TTS and microphone require this.',
+    myLanguages: 'My languages', nativeLanguage: 'My language (source):',
+    targetLanguage: 'I am learning (target language):', moreLanguages: 'More languages',
+    languageTypes: 'Main language · More language', reminderLabel: 'Daily reminder',
+    reminderNotSupported: 'Not supported in this browser',
+    notificationsBlocked: 'Notifications blocked — enable in browser settings',
+    myGimmicks: 'My Gimmicks', noGimmicks: 'No gimmicks unlocked yet.',
+    restore: 'Restore', more: 'more', cancel: 'Cancel',
+    myTopics: 'My Topics', topicsDesc: 'Unlock topics and generate 15 cards each.',
+    premiumOrMastered: '⭐ Premium or 5+ mastered cards required.',
+    resetAreas: 'Reset Areas',
+    resetAreasDesc: 'Resets progress for an area to Level 1. Your cards are kept.',
+    reset: 'Reset', premiumDesc: 'With Premium you can learn Spanish, French, Thai and more.',
+    unlockPremiumBtn: 'Unlock Premium', unlockPremium: 'More languages with Premium',
+    adminUsers: 'Users', adminActiveWeek: 'Active week', adminReports: 'Reports',
+    reportedCards: 'Reported cards', openIssues: 'open', fixedStatus: 'fixed',
+    markFixed: 'Fixed', dismiss: 'Dismiss',
+    diaryTitle: 'Shared Diary', diaryDesc: 'One sentence per day in your target language.',
+    today: 'Today', saveEntry: 'Save entry',
+    noEntries: 'No entries yet — write the first one!',
+    savedStatus: 'Saved ✓', sharedStatus: 'Shared ✓',
+    filterAll: 'All', noCardsFound: 'No cards found.',
+    editCardTitle: 'Edit card', shareWithPartner: 'Share with partner',
+    sourceLanguages: 'Source language(s)', saveLangSplit: 'Save language split',
+    savedExclaim: 'Saved!', targetLangHeader: 'Target language',
+    enterCardSection: 'Enter card', iType: 'I type',
+    enterWordOrSentence: 'Enter word or sentence…', aiTranslating: 'AI translating…',
+    aiFillRedo: 'AI filled — redo', aiFillBtn: 'AI fills the rest',
+    translationPlaceholder: 'Translation…', categoryDest: 'Category & Destination',
+    categoryLabel: 'Category', forWhom: 'For whom?', forMe: 'For me',
+    bothOption: 'Both', bothPartner: 'For you & partner',
+    saveCardBtn: 'Save card ✓',
+    partnerHasCard: '⚠️ Partner already received this card',
+    alreadySentToday: '⚠️ You already sent this card today',
+    errorSending: 'Error sending',
+    cardSavedForBoth: '💫 For you & partner ✓', cardSaved: 'Card saved ✓',
+    newCardTitle: 'New Card', languagesSection: 'Languages', aiLabel: 'AI',
+    levelCheckAvailable: 'Level check available', aiTutorLabel: 'AI Tutor',
+    daysLabel: 'days', startBtn: 'Start', writeDiaryBtn: 'Write diary →',
+    connectionNeedsYou: 'Your streak needs you today.',
+    streakFreezeConfirm: 'Use Streak Freeze now? (1x/month)',
+    learnNow: 'Learn now →', streakLost: 'Streak lost — start fresh! 💪',
+    removeFav: 'Remove favourite', markFav: 'Mark as favourite',
+    neverLearnAgain: 'Never learn again', wantsToConnect: 'wants to connect with you',
+    topicsHint: '🎯 Settings → My Topics → generate topics first',
+    dailyGoalShort: 'Daily goal', taskOfDayLabel: 'Task of the day',
+    practicedThisWeek: '✓ Practiced this week',
+    unlimited: 'Unlimited', thisWeekLabel: 'this week',
+    allAreasUnlimited: 'All areas unlimited',
+    unlimitedKI: 'Unlimited AI conversations', unlimitedSatz: 'Sentence training without limits',
+    tryPremium: 'Try Premium →', maybeLater: 'Maybe later',
+    harborGimmick: 'Harbor gimmick unlocked!',
+    harborDesc: 'The harbor is yours. 5 weeks completed.',
+    savannaGimmick: 'Savanna gimmick unlocked!',
+    savannaDesc: 'The savanna glows. Your voice carries further.',
+    auroraGimmick: 'Aurora gimmick unlocked!',
+    auroraDesc: 'Northern lights for your language. 5 weeks.',
+    gimmickUnlockedLabel: 'Gimmick unlocked', tapToClose: 'Tap to close',
+    replyBtn: 'Reply', todaysWordLabel: 'Word of the day',
+    appearsEverywhere: '— it will appear in every area today.',
+    addToDeck: 'Add to deck', musicOffLabel: 'Music off', musicOnLabel: 'Music on',
+    cardOfDayLabel: 'Card of the day', cardOfDayRel: 'Card of the day',
+    areaStreet: 'Street', areaHome: 'Home', areaVocab: 'Words', areaSentences: 'Sentences', areaBasics: 'Basics',
+    areaUrlaub: 'Travel', areaKi: 'AI Chat', areaSatz: 'Sentence Training',
+    vocabCategoryLabel: 'Word', sentenceCategoryLabel: 'Sentence',
+    premiumCta: 'Go unlimited with Premium',
+    createCardBtn: 'Create card', myCardsLabel: 'My Cards',
+    sendGiftCardBtn: 'Send gift card',
+    bridgeDesc: "We don't build apps. We build bridges.",
+    vocabraLanguage: 'Language', wordsSentencesConv: 'Words, sentences & conversation',
+    comingSoonAlt: 'Coming soon', langNameEn: 'English', langNameDe: 'German',
+    knew: 'Correct', didntKnow: 'Wrong',
+  },
+  sw: {
+    hello: 'Habari', mySession: '🃏 Kipindi changu', whereAmI: '🎯 Niko wapi?',
+    aiChat: '🤖 Mazungumzo ya AI', dailyPhrase: '☀️ Msemo wa leo',
+    progressBtn: '📊 Takwimu', logout: 'Toka',
+    myProgress: 'Maendeleo yako', notActive: 'Bado hakuna mshirika',
+    card: 'Kadi', of: 'ya', showSolution: 'Onyesha jibu',
+    correct: 'Sahihi', wrong: 'Kosa', fast: 'Karibu', easy: 'Rahisi', stop: '✕ Acha',
+    stopConfirm: 'Maliza kipindi hiki?', done: 'Vizuri sana.', back: 'Rudi',
+    masteryMsg: 'Sauti yako inakua. Kadi 3 mpya.',
+    comingSoon: 'Inakuja hivi karibuni', chooseTheme: 'Chagua mandhari yako', settingsTitle: 'Mipangilio',
+    partnerTitle: '🤝 Unganisha mshirika', partnerInvite: 'Shiriki kiungo hiki na mshirika wako:',
+    partnerCopy: 'Nakili kiungo', partnerCopied: '✓ Imenakiliwa!', partnerCode: 'Au ingiza nambari ya mshirika wako:',
+    partnerConnect: 'Unganisha', partnerConnected: 'Mshirika ameunganishwa ✓',
+    partnerDisconnect: 'Kata muunganisho', partnerAccept: 'Kubali', partnerDecline: 'Kataa',
+    langSetupTitle: 'Unajifunza lugha gani?', langSetupSub: 'Chagua lugha 1 hadi 3', langSetupDone: 'Endelea',
+    testQuestion: 'Swali', testOf: 'ya', testDone: 'Kiwango kilichokadiriwa:',
+    testBack: 'Rudi menyu', testScore: 'Majibu sahihi', testStop3: 'Makosa 3 mfululizo — mtihani unaisha hapa.',
+    resumeTitle: 'Endelea ulipoacha?', resumeOf: 'ya', resumeCards: 'kadi zilizojibiwa',
+    resumeContinue: 'Endelea', resumeDiscard: 'Anza upya',
+    pronunciation: 'Matamshi',
+    streak: 'siku mfululizo', streakNone: 'Bado hakuna msururu', historyLabel: 'Siku 7 zilizopita',
+    impressumLink: 'Taarifa ya kisheria & Faragha',
+    impressumTitle: 'Taarifa ya kisheria', datenschutzTitle: 'Sera ya faragha',
+    monthlyTestBanner: '🎯 Mtihani wa kiwango wa kila mwezi!', monthlyTestSub: 'Jaribu kiwango chako sasa',
+    menuWorte: 'Maneno\nyangu', menuSaetze: 'yanakuwa\nSentesi', menuStraße: 'Barabarani',
+    menuHause: 'na\nnyumbani', menuAlle: 'Tunajifunza kila kitu, kila mahali',
+    menuGrundlagen: 'Misingi', menuUrlaub: 'Likizoni',
+    menuKi: 'Mazungumzo ya AI', menuSatz: 'Mafunzo ya sentensi',
+    menuAddCards: 'Ongeza kadi', menuCategorize: 'Panga', menuSettings: 'Mipangilio', menuSignOut: 'Toka',
+    menuPartnerConnect: 'Unganisha mshirika', menuPartnerLabel: 'Mshirika',
+    weekGoalTitle: 'Lengo la wiki', weekGoalDone: 'Leo: imekamilika. ✓',
+    weakestCard: 'Kadi dhaifu zaidi', strongestCard: 'Kadi imara zaidi',
+    urlaubLocked: 'Kadi 3 kati ya 10 zimefunguliwa', urlaubPremiumNote: 'Premium inafungua misemo yote ya safari.',
+    rhythmusBtn: 'Mazoezi ya mdundo', again: 'Tena', finishDone: 'Imemaliza',
+    music: 'Muziki wa chinichini', musicOn: 'Washa', musicOff: 'Zima', volumeLabel: 'Sauti',
+    dailyGoalLabel: 'Lengo la kila siku', cardsPerDay: 'Kadi kwa siku',
+    languagesLabel: 'Lugha', paused: 'Imesimamishwa', active: 'Inafanya kazi',
+    learnLanguages: '🌍 Lugha za kujifunza', addLanguage: 'Ongeza lugha:',
+    darkModeLabel: 'Giza', lightModeLabel: 'Mwanga', cardSizeLabel: '📐 Ukubwa wa kadi',
+    streakProtection: 'Ulinzi wa msururu', streakFree0: 'Frizi 0 zinapatikana — Premium: 1x/mwezi',
+    freezeAvailThis: 'Inapatikana mwezi huu:', freezeUsed: 'imetumika', freezeActivate: 'Washa Frizi',
+    socialRegisterLabel: 'Sajili ya kijamii', socialRegisterNote: 'Mnajifunza vipi pamoja? Inaathiri sauti ya AI.',
+    relationshipType: 'Aina ya uhusiano', relationshipNote: 'Inaunda sauti ya kadi yenu ya kila siku.',
+    satzNotEnough: 'Maneno ya kutosha bado hayapo', satzNotEnoughDesc: 'Fanya mazoezi ya maneno zaidi kwanza.',
+    generating: 'AI inaunda mazoezi yako ya sarufi…', connectionError: 'Hitilafu ya muunganisho. Tafadhali jaribu tena.',
+    retry: 'Jaribu tena', satzDone: 'Imemaliza! 🎉', newExercises: '🔄 Mazoezi mapya',
+    yourAnswer: 'Jibu lako…', tapWords: 'Gonga maneno hapa chini',
+    checkBtn: 'Angalia', nextBtn: 'Inayofuata →', finishBtn: 'Maliza',
+    rhythmusTitle: 'Mdundo wa lugha', rhythmusSub: 'Sikiliza — kisha rudia',
+    rhythmusNoCards: 'Jifunza kadi zaidi za sentensi ili kufungua mafunzo ya mdundo.',
+    repeatAfter: 'Rudia baada yangu:', listen: 'Sikiliza', speakNow: 'Sema sasa',
+    listening: 'Inasikiliza…', useChrome: 'Tafadhali tumia Chrome',
+    youSaid: 'Ulisema:', tryAgain: 'Jaribu tena', pronouncePct: 'Matamshi: ',
+    kontextTitle: 'Mabadiliko ya muktadha', kontextGenerating: 'AI inaunda tofauti…',
+    kontextUnavail: 'Tofauti haipatikani.', kontextChoose: 'Chagua muktadha wa kuongeza:',
+    learn: 'Jifunza', variantSaved: 'Tofauti imehifadhiwa!',
+    statistics: 'Takwimu', learnedToday: 'Imejifunzwa leo', statDays: 'siku',
+    totalCards: 'Jumla ya kadi', dueTomorrow: 'Inastahili kesho',
+    studyTime: '⏱ Muda wa kusoma', week: 'Wiki', month: 'Mwezi', total: 'Jumla',
+    favArea: 'Eneo unalolipenda', tenseLevel: '📚 Kiwango cha nyakati',
+    reactionTime: '⚡ Muda wa kujibu', average: 'Wastani', fastest: 'Kwa haraka zaidi',
+    hardestCard: 'Kadi ngumu zaidi',
+    tenseUnlocked: 'Wakati mpya umefunguliwa!', gotIt: 'Nimeelewa ✓',
+    kiTranslate: '🌐 Tafsiri',
+    noPartnerConnected: 'Unganisha mshirika kwanza.', chooseMasteredCard: 'Chagua kadi uliyoijua:',
+    noMasteredCards: 'Bado hakuna kadi ulizozijua.', personalMessage: 'Ujumbe wa kibinafsi (hiari):',
+    saving: 'Inahifadhi…', sessionDone: 'Kipindi kimekamilika!', results: 'Matokeo',
+    cards: 'kadi', noCardsYet: 'Bado hakuna kadi — ongeza!',
+    categories: 'Makundi', newCategory: 'Kundi jipya',
+    noCategoriesYet: 'Bado hakuna makundi — unda lako la kwanza!',
+    manual: 'Mkono', front: 'Mbele', backLabel: 'Nyuma',
+    addCard: 'Ongeza kadi', generate10: 'Tengeneza kadi 10',
+    topicPlaceholder: 'Mada (mfano: Rangi kwa Kihispania)', deleteSet: 'Futa seti',
+    share: 'Shiriki', categoryName: 'Jina la kundi', createCategory: 'Unda kundi',
+    thisWeekTogether: 'Wiki hii pamoja', bothGoalsDone: '✓ Malengo yote yamefikia!',
+    changeGoal: 'Badilisha lengo', ourCards: 'Kadi zetu', learnTogether: 'Jifunza pamoja sasa',
+    learnTogetherSub: 'Kadi sawa — wakati mmoja',
+    sessionResult: 'Kipindi kimekamilika!', sessionBack: '← Rudi',
+    readyJointSession: 'Tayari kwa kipindi cha pamoja?',
+    jointDesc: 'Wote wanaona kadi sawa wakati mmoja.',
+    startSession: '🚀 Anza kipindi', partnerStarted: ' ameanza kipindi.',
+    joinBtn: 'Jiunge', sync: 'Imesawazishwa', answering: 'inajibu…', waitingFor: 'Inasubiri ',
+    endBtn: 'Maliza', learnToge: '⚡ Jifunza pamoja',
+    diffLeicht: 'Rahisi', diffLeichtSub: 'A1–A2 · Misingi',
+    diffMittel: 'Wastani', diffMittelSub: 'B1 · Ujenzi',
+    diffSchwer: 'Ngumu', diffSchwerSub: 'B2–C1 · Juu',
+    chooseDifficulty: 'Chagua ugumu:',
+    musicComingSoon: 'Muziki wa chinichini utapatikana katika sasisho lijalo.',
+    saveFailed: 'Hitilafu ya kuhifadhi', signOut: 'Toka kweli kweli?',
+    targetLangRequired: 'Tafadhali weka lugha yako ya lengo — TTS na maikrofoni zinahitaji.',
+    myLanguages: 'Lugha zangu', nativeLanguage: 'Lugha yangu (chanzo):',
+    targetLanguage: 'Ninajifunza (lengo):', moreLanguages: 'Lugha zaidi',
+    languageTypes: 'Lugha kuu · Lugha zaidi', reminderLabel: 'Ukumbusho wa kila siku',
+    reminderNotSupported: 'Haiwezi katika kivinjari hiki',
+    notificationsBlocked: 'Arifa zimezuiwa — wezesha katika mipangilio ya kivinjari',
+    myGimmicks: 'Vifaa vyangu', noGimmicks: 'Bado hakuna vifaa vilivyofunguliwa.',
+    restore: 'Rejesha', more: 'zaidi', cancel: 'Ghairi',
+    myTopics: 'Mada zangu', topicsDesc: 'Fungua mada na utengeneze kadi 15 kila moja.',
+    premiumOrMastered: '⭐ Premium au kadi 5+ zilizojua zinahitajika.',
+    resetAreas: 'Weka upya maeneo',
+    resetAreasDesc: 'Inaweka maendeleo ya eneo upya hadi Kiwango 1. Kadi zinabaki.',
+    reset: 'Weka upya', premiumDesc: 'Kwa Premium unaweza kujifunza Kihispania, Kifaransa, Thai na zaidi.',
+    unlockPremiumBtn: 'Fungua Premium', unlockPremium: 'Lugha zaidi na Premium',
+    adminUsers: 'Watumiaji', adminActiveWeek: 'Wiki hai', adminReports: 'Ripoti',
+    reportedCards: 'Kadi zilizoripotiwa', openIssues: 'wazi', fixedStatus: 'imetatuliwa',
+    markFixed: 'Imetatuliwa', dismiss: 'Puuza',
+    diaryTitle: 'Diary ya pamoja', diaryDesc: 'Sentensi moja kwa siku kwa lugha yenu ya lengo.',
+    today: 'Leo', saveEntry: 'Hifadhi',
+    noEntries: 'Bado hakuna maingizo — andika ya kwanza!',
+    savedStatus: 'Imehifadhiwa ✓', sharedStatus: 'Imeshirikiwa ✓',
+    filterAll: 'Zote', noCardsFound: 'Hakuna kadi zilizopatikana.',
+    editCardTitle: 'Hariri kadi', shareWithPartner: 'Shiriki na mshirika',
+    sourceLanguages: 'Lugha za chanzo', saveLangSplit: 'Hifadhi mgawanyo wa lugha',
+    savedExclaim: 'Imehifadhiwa!', targetLangHeader: 'Lugha ya lengo',
+    enterCardSection: 'Ingiza kadi', iType: 'Ninaandika',
+    enterWordOrSentence: 'Ingiza neno au sentensi…', aiTranslating: 'AI inatafsiri…',
+    aiFillRedo: 'AI imejaza — tena', aiFillBtn: 'AI inajaza iliyobaki',
+    translationPlaceholder: 'Tafsiri…', categoryDest: 'Kundi & Marudio',
+    categoryLabel: 'Kundi', forWhom: 'Kwa nani?', forMe: 'Kwangu',
+    bothOption: 'Wote wawili', bothPartner: 'Kwako & Mshirika',
+    saveCardBtn: 'Hifadhi kadi ✓',
+    partnerHasCard: '⚠️ Mshirika tayari amepokea kadi hii',
+    alreadySentToday: '⚠️ Tayari ulituma kadi hii leo',
+    errorSending: 'Hitilafu ya kutuma',
+    cardSavedForBoth: '💫 Kwako & Mshirika ✓', cardSaved: 'Kadi imehifadhiwa ✓',
+    newCardTitle: 'Kadi Mpya', languagesSection: 'Lugha', aiLabel: 'AI',
+    levelCheckAvailable: 'Ukaguzi wa kiwango unapatikana', aiTutorLabel: 'Mshauri wa AI',
+    daysLabel: 'siku', startBtn: 'Anza', writeDiaryBtn: 'Andika diary →',
+    connectionNeedsYou: 'Muunganisho unahitaji ushiriki wako leo.',
+    streakFreezeConfirm: 'Tumia Frizi ya Msururu sasa? (1x/mwezi)',
+    learnNow: 'Jifunza sasa →', streakLost: 'Msururu umepotea — anza upya! 💪',
+    removeFav: 'Ondoa kipendwa', markFav: 'Weka kama kipendwa',
+    neverLearnAgain: 'Usijifunze tena',
+    wantsToConnect: 'anataka kuungana nawe',
+    topicsHint: '🎯 Mipangilio → Mada zangu → tengeneza mada kwanza',
+    dailyGoalShort: 'Lengo la leo', taskOfDayLabel: 'Kazi ya leo',
+    practicedThisWeek: '✓ Imefanywa wiki hii',
+    unlimited: 'Bila mipaka', thisWeekLabel: 'wiki hii',
+    allAreasUnlimited: 'Maeneo yote bila mipaka',
+    unlimitedKI: 'Mazungumzo ya AI bila mipaka', unlimitedSatz: 'Mafunzo ya sentensi bila mipaka',
+    tryPremium: 'Jaribu Premium →', maybeLater: 'Pengine baadaye',
+    harborGimmick: 'Kifaa cha Bandari kimefunguliwa!',
+    harborDesc: 'Bandari ni yako. Wiki 5 zimekamilika.',
+    savannaGimmick: 'Kifaa cha Savana kimefunguliwa!',
+    savannaDesc: 'Savana inang\'aa. Sauti yako inafika mbali.',
+    auroraGimmick: 'Kifaa cha Aurora kimefunguliwa!',
+    auroraDesc: 'Taa za kaskazini kwa lugha yako. Wiki 5.',
+    gimmickUnlockedLabel: 'Kifaa kimefunguliwa', tapToClose: 'Gonga kufunga',
+    replyBtn: 'Jibu', todaysWordLabel: 'Neno la leo',
+    appearsEverywhere: '— litaonekana kila eneo leo.',
+    addToDeck: 'Ongeza kwenye staka', musicOffLabel: 'Zima muziki', musicOnLabel: 'Washa muziki',
+    cardOfDayLabel: 'Kadi ya leo', cardOfDayRel: 'Kadi ya leo',
+    areaStreet: 'Barabara', areaHome: 'Nyumbani', areaVocab: 'Maneno', areaSentences: 'Sentensi', areaBasics: 'Misingi',
+    areaUrlaub: 'Safari', areaKi: 'Mazungumzo ya AI', areaSatz: 'Mafunzo ya sentensi',
+    vocabCategoryLabel: 'Neno', sentenceCategoryLabel: 'Sentensi',
+    premiumCta: 'Endelea bila mipaka na Premium',
+    createCardBtn: 'Unda kadi', myCardsLabel: 'Kadi zangu',
+    sendGiftCardBtn: 'Tuma kadi ya zawadi',
+    bridgeDesc: 'Hatujengi programu. Tunajenga madaraja.',
+    vocabraLanguage: 'Lugha', wordsSentencesConv: 'Maneno, sentensi & mazungumzo',
+    comingSoonAlt: 'Inakuja hivi karibuni', langNameEn: 'Kiingereza', langNameDe: 'Kijerumani',
+    knew: 'Nilijua', didntKnow: 'Sijui',
+    signIn: 'Ingia na Google', signInSub: 'Maendeleo yako yanaohifadhiwa kwa usalama.',
+    level: 'Kiwango', mastered: 'imejua', dueNow: 'inastahili',
+    noSessionToday: 'Bado hakuna kipindi leo', startLearning: 'Anza kujifunza',
+    coachLoading: 'Inachambua maendeleo yako…', stopSession: 'Maliza kipindi?',
+    yes: 'Ndiyo', noWordsYet: 'Bado hakuna maneno — AI itaunda kadi zako za kwanza.',
+    aiGenerating: 'AI inatengeneza…', aiFailed: 'Utengenezaji wa AI umeshindwa.',
+    firstWordsReady: 'Maneno yako ya kwanza yako tayari ✓',
+    travelGenerating: '✈️ Safari — AI inaunda misemo ya safari…',
+    travelReady: 'Misemo ya safari iko tayari ✓',
+    streetGenerating: 'Barabarani — AI inaunda misemo ya kwanza…',
+    homeGenerating: 'Nyumbani — AI inaunda misemo ya kwanza…',
+    phrasesReady: 'Misemo ya kwanza iko tayari ✓',
+    nothingYet: 'Bado hakuna kitu hapa — lakini itabadilika.',
+    sessionsDone: 'Vipindi', sessionsToday: 'Vipindi leo',
+    masteredLabel: 'Imejua ✓', activeCards: 'Kadi zinazofanya kazi',
+    totalLearned: 'Jumla ya kujifunza', bestStreak: 'Msururu bora 🏆',
+    learningDays: 'Jumla ya siku za kujifunza',
+    thisWeek: 'Wiki hii', thisMonth: 'Mwezi huu',
+    deleteConfirm: 'Futa seti kweli kweli?', cardAdded: 'Kadi imeongezwa ✓',
+    errorSaving: 'Hitilafu ya kuhifadhi. Tafadhali jaribu tena.',
+    cardsImported: 'Kadi zimeingizwa ✓', importFailed: 'Kuingiza kumeshindwa',
+    setShared: 'Seti imeshirikiwa ✓', shareFailed: 'Kushiriki kumeshindwa',
+    noMasteredYet: 'Bado hakuna kadi zilizojua.', giftSent: 'Imetolewa zawadi ✓',
+    giftError: 'Hitilafu ya kutuma', search: 'Tafuta…',
+    edit: 'Hariri', delete: 'Futa', save: 'Hifadhi', close: 'Funga',
+    loading: 'Inapakia…', error: 'Hitilafu',
   }
 }
 
@@ -2561,15 +2906,15 @@ Mix exercise types: gap, order, tense, conjugation, translation. Return ONLY val
   if (!difficulty && exercises.length === 0 && !loading) {
     const isDE = lang === 'de'
     const levels = [
-      { key: 'leicht', label: isDE ? 'Leicht' : 'Easy', sub: isDE ? 'A1–A2 · Grundlagen' : 'A1–A2 · Basics' },
-      { key: 'mittel', label: isDE ? 'Mittel' : 'Medium', sub: isDE ? 'B1 · Aufbau' : 'B1 · Building' },
-      { key: 'schwer', label: isDE ? 'Schwer' : 'Hard', sub: isDE ? 'B2–C1 · Fortgeschritten' : 'B2–C1 · Advanced' },
+      { key: 'leicht', label: t.diffLeicht, sub: t.diffLeichtSub },
+      { key: 'mittel', label: t.diffMittel, sub: t.diffMittelSub },
+      { key: 'schwer', label: t.diffSchwer, sub: t.diffSchwerSub },
     ]
     return (
       <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
         <button style={s.backBtn} onClick={onBack}>←</button>
         <p style={{ color: th.accent, fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', margin: '0 0 6px' }}>Satztraining</p>
-        <p style={{ color: th.text, fontSize: '1.1rem', fontWeight: '700', margin: '0 0 4px' }}>{isDE ? 'Schwierigkeitsgrad wählen:' : 'Choose difficulty:'}</p>
+        <p style={{ color: th.text, fontSize: '1.1rem', fontWeight: '700', margin: '0 0 4px' }}>{t.chooseDifficulty}</p>
         <p style={{ color: th.sub, fontSize: '0.82rem', margin: '0 0 20px' }}>{isDE ? `Übungen auf ${targetLang}` : `Exercises in ${targetLang}`}</p>
         {levels.map(lv => (
           <button key={lv.key} onClick={() => { setDifficulty(lv.key); generateExercises(lv.key) }}
@@ -4312,11 +4657,11 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <p style={{ ...s.cardLabel, margin: 0 }}>🎵 {t.music}</p>
             <span style={{ background: `${th.gold}18`, color: th.sub, border: `1px solid ${th.border}`, borderRadius: '20px', padding: '3px 12px', fontSize: '0.75rem', opacity: 0.7 }}>
-              {isDE ? 'Kommt bald' : 'Coming soon'}
+              {t.comingSoon}
             </span>
           </div>
           <p style={{ color: th.sub, fontSize: '0.72rem', margin: '6px 0 0', opacity: 0.6 }}>
-            {isDE ? 'Hintergrundmusik wird in einem kommenden Update verfügbar.' : 'Background music will be available in an upcoming update.'}
+            {t.musicComingSoon}
           </p>
         </div>
       )}
@@ -4526,7 +4871,7 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
           } catch (e) {
             console.warn('[Settings] fromLang save failed:', e)
             setMyData(d => ({ ...d, fromLang: currentFromLang }))
-            setLangSaveToast({ msg: isDE ? 'Fehler beim Speichern' : 'Save failed', ok: false })
+            setLangSaveToast({ msg: t.saveFailed, ok: false })
           }
           setTimeout(() => setLangSaveToast(null), 2500)
         }
@@ -4547,7 +4892,7 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
             console.warn('[Settings] toLang save failed:', e)
             setMyData(d => ({ ...d, toLang: currentToLang }))
             onToLangChange?.(currentToLang)
-            setLangSaveToast({ msg: isDE ? 'Fehler beim Speichern' : 'Save failed', ok: false })
+            setLangSaveToast({ msg: t.saveFailed, ok: false })
           }
           setTimeout(() => setLangSaveToast(null), 2500)
         }
@@ -4556,7 +4901,7 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
           <div style={{ ...s.card, border: missingToLang ? `1px solid rgba(255,152,0,0.5)` : undefined, position: 'relative' }}>
             {missingToLang && (
               <p style={{ color: '#ff9800', fontSize: '0.78rem', marginBottom: '10px', fontWeight: '600' }}>
-                ⚠️ {isDE ? 'Bitte lege deine Zielsprache fest — TTS und Mikrofon benötigen diese Information.' : 'Please set your target language — TTS and microphone require this.'}
+                ⚠️ {t.targetLangRequired}
               </p>
             )}
             {langSaveToast && (
@@ -4564,9 +4909,9 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
                 {langSaveToast.msg}
               </div>
             )}
-            <p style={{ ...s.cardLabel, marginBottom: '14px' }}>🗣 {isDE ? 'Meine Sprachen' : 'My languages'}</p>
+            <p style={{ ...s.cardLabel, marginBottom: '14px' }}>🗣 {t.myLanguages}</p>
             <p style={{ color: th.sub, fontSize: '0.75rem', marginBottom: '6px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              {isDE ? 'Meine Sprache (Ausgangssprache):' : 'My language (native):'}
+              {t.nativeLanguage}
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '14px' }}>
               {AVAILABLE_LANGS.map(l => (
@@ -4577,7 +4922,7 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
               ))}
             </div>
             <p style={{ color: th.sub, fontSize: '0.75rem', marginBottom: '6px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              {isDE ? 'Ich lerne (Zielsprache):' : 'I am learning (target language):'}
+              {t.targetLanguage}
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               {AVAILABLE_LANGS.filter(l => l.code !== currentFromLang).map(l => (
@@ -4593,10 +4938,10 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
 
       {/* ── WEITERE SPRACHEN (PREMIUM) ── */}
       <div style={s.card}>
-        <p style={{ ...s.cardLabel, marginBottom: '12px' }}>🌍 {isDE ? 'Weitere Sprachen' : 'More languages'}</p>
+        <p style={{ ...s.cardLabel, marginBottom: '12px' }}>🌍 {t.moreLanguages}</p>
         <button onClick={() => setPremiumModal(true)}
           style={{ width: '100%', background: `${th.gold}0E`, border: `1px solid ${th.gold}33`, borderRadius: '12px', padding: '12px 14px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ color: th.text, fontSize: '0.88rem' }}>🔒 {isDE ? 'Hauptsprache · Weitere Sprache' : 'Main language · More language'}</span>
+          <span style={{ color: th.text, fontSize: '0.88rem' }}>🔒 {t.languageTypes}</span>
           <span style={{ background: `${th.gold}18`, color: th.gold, border: `1px solid ${th.gold}44`, borderRadius: '12px', padding: '2px 10px', fontSize: '0.72rem', fontWeight: '700', flexShrink: 0, marginLeft: '8px' }}>Premium</span>
         </button>
       </div>
@@ -4608,9 +4953,9 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
         const hasSupport = 'Notification' in window
         return (
           <div style={s.card}>
-            <p style={{ ...s.cardLabel, marginBottom: '12px' }}>🔔 {isDE ? 'Tägliche Erinnerung' : 'Daily reminder'}</p>
+            <p style={{ ...s.cardLabel, marginBottom: '12px' }}>🔔 {t.reminderLabel}</p>
             {!hasSupport ? (
-              <p style={{ color: th.sub, fontSize: '0.8rem' }}>{isDE ? 'Nicht unterstützt in diesem Browser' : 'Not supported in this browser'}</p>
+              <p style={{ color: th.sub, fontSize: '0.8rem' }}>{t.reminderNotSupported}</p>
             ) : (
               <>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
@@ -4633,7 +4978,7 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
                   <p style={{ color: '#4CAF50', fontSize: '0.72rem', margin: 0 }}>✓ {isDE ? `Erinnerung um ${currentTime} Uhr` : `Reminder at ${currentTime}`}</p>
                 )}
                 {Notification.permission === 'denied' && (
-                  <p style={{ color: '#e06c75', fontSize: '0.72rem', margin: 0 }}>{isDE ? 'Benachrichtigungen blockiert — bitte in Browser-Einstellungen erlauben' : 'Notifications blocked — enable in browser settings'}</p>
+                  <p style={{ color: '#e06c75', fontSize: '0.72rem', margin: 0 }}>{t.notificationsBlocked}</p>
                 )}
               </>
             )}
@@ -4643,12 +4988,12 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
 
       {/* ── GIMMIK ÜBERSICHT ── */}
       <div style={s.card}>
-        <p style={{ ...s.cardLabel, marginBottom: '12px' }}>🎁 {isDE ? 'Meine Gimmiks' : 'My Gimmicks'}</p>
+        <p style={{ ...s.cardLabel, marginBottom: '12px' }}>🎁 {t.myGimmicks}</p>
         {(() => {
           const total = myData?.unlockedGimmicks || 0
           const history = myData?.gimmickHistory || []
           const themeNames = { nairobi: '🌙 Nairobi', hamburg: '⚓ Hamburg', welt: '🌍 Welt' }
-          if (total === 0) return <p style={{ color: th.sub, fontSize: '0.82rem', margin: 0 }}>{isDE ? 'Noch keine Gimmiks freigeschaltet.' : 'No gimmicks unlocked yet.'}</p>
+          if (total === 0) return <p style={{ color: th.sub, fontSize: '0.82rem', margin: 0 }}>{t.noGimmicks}</p>
           return (
             <>
               <p style={{ color: th.text, fontSize: '0.88rem', marginBottom: '10px' }}>{total} {isDE ? `Gimmik${total !== 1 ? 's' : ''} freigeschaltet` : `gimmick${total !== 1 ? 's' : ''} unlocked`}</p>
@@ -4689,12 +5034,12 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
                       setMyData(d => ({ ...d, excludedCards: updated }))
                     } catch(e) {}
                   }}>
-                    {isDE ? 'Wiederherstellen' : 'Restore'}
+                    {t.restore}
                   </button>
                 </div>
               )
             })}
-            {excludedIds.length > 10 && <p style={{ color: th.sub, fontSize: '0.72rem', marginTop: '6px', opacity: 0.6 }}>+{excludedIds.length - 10} {isDE ? 'weitere' : 'more'}</p>}
+            {excludedIds.length > 10 && <p style={{ color: th.sub, fontSize: '0.72rem', marginTop: '6px', opacity: 0.6 }}>+{excludedIds.length - 10} {t.more}</p>}
           </div>
         )
       })()}
@@ -4731,10 +5076,10 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
         }
         return (
           <div style={s.card}>
-            <p style={{ ...s.cardLabel, marginBottom: '12px' }}>🎯 {isDE ? 'Meine Themen' : 'My Topics'}</p>
+            <p style={{ ...s.cardLabel, marginBottom: '12px' }}>🎯 {t.myTopics}</p>
             <p style={{ color: th.sub, fontSize: '0.75rem', marginBottom: '12px', lineHeight: 1.4 }}>
-              {isDE ? 'Themen freispielen und 15 Karten generieren lassen.' : 'Unlock topics and generate 15 cards each.'}
-              {!canUnlock && <span style={{ color: th.gold, display: 'block', marginTop: '4px' }}>{isDE ? '⭐ Premium oder 5+ gemeisterte Karten nötig.' : '⭐ Premium or 5+ mastered cards required.'}</span>}
+              {t.topicsDesc}
+              {!canUnlock && <span style={{ color: th.gold, display: 'block', marginTop: '4px' }}>{t.premiumOrMastered}</span>}
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
               {TOPICS_LIST.map(topic => {
@@ -4841,9 +5186,9 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
         const confirmLabel = confirmArea ? (isDE ? confirmArea.labelDE : confirmArea.labelEN) : ''
         return (
           <div style={s.card}>
-            <p style={{ ...s.cardLabel, marginBottom: '10px' }}>🔄 {isDE ? 'Bereiche zurücksetzen' : 'Reset Areas'}</p>
+            <p style={{ ...s.cardLabel, marginBottom: '10px' }}>🔄 {t.resetAreas}</p>
             <p style={{ color: th.sub, fontSize: '0.75rem', marginBottom: '14px', lineHeight: 1.4 }}>
-              {isDE ? 'Setzt den Fortschritt eines Bereichs auf Level 1 zurück. Karten bleiben erhalten.' : 'Resets progress for an area to Level 1. Your cards are kept.'}
+              {t.resetAreasDesc}
             </p>
             {RESET_AREAS.map(area => {
               const lv = Math.max(1, getLvForArea(area.key))
@@ -4875,11 +5220,11 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
                   <div style={{ display: 'flex', gap: '10px' }}>
                     <button onClick={() => setResetConfirm(null)}
                       style={{ flex: 1, padding: '11px', borderRadius: '12px', border: `1px solid ${th.border}`, background: 'transparent', color: th.sub, fontSize: '0.88rem', cursor: 'pointer' }}>
-                      {isDE ? 'Abbrechen' : 'Cancel'}
+                      {t.cancel}
                     </button>
                     <button onClick={() => handleAreaReset(resetConfirm)}
                       style={{ flex: 1, padding: '11px', borderRadius: '12px', border: '1px solid rgba(224,108,117,0.5)', background: 'rgba(224,108,117,0.12)', color: '#e06c75', fontSize: '0.88rem', cursor: 'pointer', fontWeight: '700' }}>
-                      {isDE ? 'Zurücksetzen' : 'Reset'}
+                      {t.reset}
                     </button>
                   </div>
                 </div>
@@ -4891,8 +5236,8 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
 
       {/* ── ABMELDEN ── */}
       <button style={{ ...s.logoutBtn, marginTop: '8px', color: '#e06c75', border: '1px solid rgba(224,108,117,0.35)' }}
-        onClick={() => { if (window.confirm(isDE ? 'Wirklich abmelden?' : 'Sign out?')) signOut(auth) }}>
-        {isDE ? 'Abmelden' : 'Sign out'}
+        onClick={() => { if (window.confirm(t.signOut)) signOut(auth) }}>
+        {t.logout}
       </button>
 
       {/* ── VERSION ── */}
@@ -4905,9 +5250,9 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
           <div style={{ background: th.card, border: `1px solid ${th.gold}44`, borderRadius: '24px', padding: '28px 24px', maxWidth: '340px', width: '100%', textAlign: 'center', boxShadow: `0 0 40px ${th.gold}22`, animation: 'vocaraFadeIn 0.3s ease both' }}
             onClick={e => e.stopPropagation()}>
             <p style={{ fontSize: '2rem', margin: '0 0 10px' }}>🌍</p>
-            <p style={{ color: th.text, fontWeight: '700', fontSize: '1.1rem', marginBottom: '8px' }}>{isDE ? 'Mehr Sprachen mit Premium' : 'More languages with Premium'}</p>
+            <p style={{ color: th.text, fontWeight: '700', fontSize: '1.1rem', marginBottom: '8px' }}>{t.unlockPremium}</p>
             <p style={{ color: th.sub, fontSize: '0.88rem', marginBottom: '20px', lineHeight: 1.5 }}>
-              {isDE ? 'Mit Premium kannst du Spanisch, Französisch, Thai und mehr lernen.' : 'With Premium you can learn Spanish, French, Thai and more.'}
+              {t.premiumDesc}
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center', marginBottom: '20px' }}>
               {['🇪🇸 Español', '🇫🇷 Français', '🇹🇭 ภาษาไทย', '🇵🇹 Português', '🇹🇷 Türkçe'].map(l => (
@@ -4915,10 +5260,10 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
               ))}
             </div>
             <button style={{ ...s.button, marginBottom: '8px', background: `linear-gradient(135deg, ${th.gold}40, ${th.gold}20)`, color: th.text, border: `1px solid ${th.gold}66` }}>
-              ✨ {isDE ? 'Premium freischalten' : 'Unlock Premium'}
+              ✨ {t.unlockPremiumBtn}
             </button>
             <button onClick={() => setPremiumModal(false)} style={{ background: 'transparent', border: 'none', color: th.sub, cursor: 'pointer', fontSize: '0.82rem', padding: '4px 8px' }}>
-              {isDE ? 'Schließen' : 'Close'}
+              {t.close}
             </button>
           </div>
         </div>
@@ -5353,11 +5698,11 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
     const fromLangName = isDE ? 'German' : 'English'
     const toLangName = isDE ? 'English' : 'German'
     const CATS = [
-      { key: 'vocabulary', label: isDE ? 'Wörter' : 'Words' },
+      { key: 'vocabulary', label: t.areaVocab },
       { key: 'street', label: 'Slang' },
-      { key: 'home', label: isDE ? 'Zuhause' : 'Home' },
-      { key: 'sentence', label: isDE ? 'Sätze' : 'Sentences' },
-      { key: 'basics', label: isDE ? 'Grundlagen' : 'Basics' },
+      { key: 'home', label: t.areaHome },
+      { key: 'sentence', label: t.areaSentences },
+      { key: 'basics', label: t.areaBasics },
     ]
     const todayD = todayStr()
     const catStats = CATS.map(({ key, label }) => {
@@ -5774,7 +6119,7 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
   // ── VOCAB WORD GENERATOR: generates 10 single words, saves, starts session ─
   // Called when vocab cards < 5 (empty state) AND at 85% mastery
   const generateVocabWords = async (existingVocabCards = []) => {
-    setEmptyCategoryMsg(isMarkLang ? 'Noch keine Wörter hier — die KI erstellt gleich deine ersten Karten.' : 'No words yet — AI is creating your first cards…')
+    setEmptyCategoryMsg(t.noWordsYet)
 
     // Fetch fresh Firestore state
     const freshSnap = await getDoc(doc(db, 'users', user.uid))
@@ -5881,7 +6226,7 @@ Return ONLY JSON: [{"front":"German word","back":"English translation","category
         }))
 
       if (newCards.length === 0) {
-        setEmptyCategoryMsg(isMarkLang ? 'Keine neuen Wörter generiert — versuche es später.' : 'No new words generated — try again later.')
+        setEmptyCategoryMsg(t.aiFailed)
         setTimeout(() => setEmptyCategoryMsg(null), 3500)
         return
       }
@@ -5899,7 +6244,7 @@ Return ONLY JSON: [{"front":"German word","back":"English translation","category
       setMyData(d => ({ ...d, aiCards: updatedAiCards, cardProgress: updatedProgress }))
 
       // Brief success message, then start session
-      setEmptyCategoryMsg(isMarkLang ? 'Deine ersten Wörter sind bereit ✓' : 'Your first words are ready ✓')
+      setEmptyCategoryMsg(t.firstWordsReady)
       setTimeout(() => setEmptyCategoryMsg(null), 2000)
 
       // Session = existing vocab cards + new ones
@@ -5910,7 +6255,7 @@ Return ONLY JSON: [{"front":"German word","back":"English translation","category
       setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
     } catch (e) {
       console.error('[vocabWords] Generation failed:', e)
-      setEmptyCategoryMsg(isMarkLang ? 'KI-Generierung fehlgeschlagen — versuche es erneut.' : 'AI generation failed — try again.')
+      setEmptyCategoryMsg(t.aiFailed)
       setTimeout(() => setEmptyCategoryMsg(null), 3500)
     }
   }
@@ -5948,8 +6293,8 @@ Return ONLY JSON: [{"front":"German word","back":"English translation","category
       ? 'slang, street language, informal expressions, youth language'
       : `home, family, everyday domestic expressions.${homeLevelNote}`
     const label = isStreet
-      ? (isMarkLang ? 'Auf der Straße — KI erstellt erste Phrasen…' : 'On the Street — AI creating first phrases…')
-      : (isMarkLang ? 'Und zu Hause — KI erstellt erste Phrasen…' : 'At Home — AI creating first phrases…')
+      ? (t.streetGenerating)
+      : (t.homeGenerating)
     setEmptyCategoryMsg(label)
 
     // HOME_FALLBACK — used if both pool and KI fail
@@ -5987,7 +6332,7 @@ Return ONLY JSON: [{"front":"German word","back":"English translation","category
       newCards.forEach(c => { updatedProgress[c.id] = { interval: 0, consecutiveRight: 0, wrongSessions: 0, nextReview: todayStr() } })
       await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress })
       setMyData(d => ({ ...d, aiCards: updatedAiCards, cardProgress: updatedProgress }))
-      setEmptyCategoryMsg(isMarkLang ? 'Erste Phrasen bereit ✓' : 'First phrases ready ✓')
+      setEmptyCategoryMsg(t.phrasesReady)
       setTimeout(() => setEmptyCategoryMsg(null), 2000)
       const sessionCards = newCards.flatMap(buildCardPair)
       const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
@@ -6027,7 +6372,7 @@ Return ONLY JSON: [{"front":"German word","back":"English translation","category
             newCards.forEach(c => { updatedProgress[c.id] = { interval: 0, consecutiveRight: 0, wrongSessions: 0, nextReview: todayStr() } })
             await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress })
             setMyData(d => ({ ...d, aiCards: updatedAiCards, cardProgress: updatedProgress }))
-            setEmptyCategoryMsg(isMarkLang ? 'Erste Phrasen bereit ✓' : 'First phrases ready ✓')
+            setEmptyCategoryMsg(t.phrasesReady)
             setTimeout(() => setEmptyCategoryMsg(null), 2000)
             const sess = [...newCards.flatMap(buildCardPair)].sort(() => Math.random() - 0.5).slice(0, SESSION_SIZE)
             setCurrentSessionMode(category)
@@ -6092,7 +6437,7 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
       newCards.forEach(c => { updatedProgress[c.id] = { interval: 0, consecutiveRight: 0, wrongSessions: 0, nextReview: todayStr() } })
       await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress })
       setMyData(d => ({ ...d, aiCards: updatedAiCards, cardProgress: updatedProgress }))
-      setEmptyCategoryMsg(isMarkLang ? 'Erste Phrasen bereit ✓' : 'First phrases ready ✓')
+      setEmptyCategoryMsg(t.phrasesReady)
       setTimeout(() => setEmptyCategoryMsg(null), 2000)
       const sessionCards = newCards.flatMap(buildCardPair)
       const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
@@ -6108,7 +6453,7 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
         await startHomeWithFallback(fallbackRaw)
         return
       }
-      setEmptyCategoryMsg(isMarkLang ? 'KI-Generierung fehlgeschlagen.' : 'AI generation failed.')
+      setEmptyCategoryMsg(t.aiFailed)
       setTimeout(() => setEmptyCategoryMsg(null), 3000)
     }
   }
@@ -6119,7 +6464,7 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
     const _LNF = { en: 'English', de: 'German', sw: 'Swahili', th: 'Thai', es: 'Spanish', fr: 'French' }
     const toLangFull = _LNF[langA] || langA
     const fromLangFull = _LNF[fromLangCode] || fromLangCode
-    setEmptyCategoryMsg(isMarkLang ? '✈️ Im Urlaub — KI erstellt Reisephrasen…' : '✈️ Travel — AI creating phrases…')
+    setEmptyCategoryMsg(t.travelGenerating)
 
     // Check weekly shared pool before calling AI (exact category match only)
     const poolUrlaub = await fetchSharedCards(fromLangCode, langA)
@@ -6182,7 +6527,7 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
       newCards.forEach(c => { updatedProgress[c.id] = { interval: 0, consecutiveRight: 0, wrongSessions: 0, nextReview: todayStr() } })
       updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress }).catch(() => {})
       setMyData(d => ({ ...d, aiCards: updatedAiCards, cardProgress: updatedProgress }))
-      setEmptyCategoryMsg(isMarkLang ? 'Reisephrasen bereit ✓' : 'Travel phrases ready ✓')
+      setEmptyCategoryMsg(t.travelReady)
       setTimeout(() => setEmptyCategoryMsg(null), 2000)
       const sessionCards = isPremium ? newCards : newCards.slice(0, 3)
       const sess = [...sessionCards.flatMap(buildCardPair)].sort(() => Math.random() - 0.5).slice(0, SESSION_SIZE)
@@ -6287,7 +6632,7 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
     if (cards.length === 0) {
       if (category === 'street') { generateCategoryCards('street'); return }
       if (category === 'home') { generateCategoryCards('home'); return }
-      setEmptyCategoryMsg(isMarkLang ? 'Hier wartet noch nichts — aber das ändert sich.' : 'Nothing here yet — but that changes now.')
+      setEmptyCategoryMsg(t.nothingYet)
       setTimeout(() => setEmptyCategoryMsg(null), 3500)
       return
     }
@@ -6579,7 +6924,7 @@ Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","
       launchSatzCards(sessionCards)
     } catch (e) {
       console.warn('Satz session generation failed:', e)
-      setEmptyCategoryMsg(isMarkLang ? 'Fehler beim Generieren der Sätze.' : 'Failed to generate sentences.')
+      setEmptyCategoryMsg(t.connectionError)
       setTimeout(() => setEmptyCategoryMsg(null), 3500)
     } finally {
       setSatzLoading(false)
@@ -7141,7 +7486,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         {onMusicToggle && (
           <button
             onClick={() => onMusicToggle(!musicEnabled)}
-            title={musicEnabled ? (isMarkLang ? 'Musik aus' : 'Music off') : (isMarkLang ? 'Musik an' : 'Music on')}
+            title={musicEnabled ? (t.musicOffLabel) : (t.musicOnLabel)}
             style={{ position: 'absolute', top: 0, right: 0, background: musicEnabled ? `${th.accent}22` : 'transparent', border: `1px solid ${musicEnabled ? th.accent : th.border}`, borderRadius: '10px', padding: '5px 9px', color: musicEnabled ? th.accent : th.sub, fontSize: '1rem', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', lineHeight: 1 }}>
             {musicEnabled ? '🎵' : '🔇'}
           </button>
@@ -7161,7 +7506,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
       {/* ── MONTHLY TEST BANNER ── */}
       {testDue && (
         <button onClick={() => setScreen('test')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: `${th.card}88`, border: `1px solid ${th.border}`, borderRadius: '10px', padding: '8px 12px', marginBottom: '10px', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
-          <span style={{ color: th.sub, fontSize: '0.75rem' }}>🎯 {isMarkLang ? 'Level-Check verfügbar' : 'Level check available'}</span>
+          <span style={{ color: th.sub, fontSize: '0.75rem' }}>🎯 {t.levelCheckAvailable}</span>
           <span style={{ color: th.sub, fontSize: '0.72rem', opacity: 0.6 }}>→</span>
         </button>
       )}
@@ -7170,9 +7515,9 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
       {coachMsg !== null && (
         <div style={{ background: `${th.card}bb`, border: `1px solid ${th.gold}33`, borderRadius: '14px', padding: '11px 15px', marginBottom: '12px', animation: 'vocaraFadeIn 0.4s ease both' }}>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: tutorCollapsed ? 0 : '5px' }}>
-            <span style={{ color: th.gold, fontSize: '0.62rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px' }}>🎓 {isMarkLang ? 'KI-Tutor' : 'AI Tutor'}{tutorCollapsed ? ' ▸' : ''}</span>
+            <span style={{ color: th.gold, fontSize: '0.62rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px' }}>🎓 {t.aiTutorLabel}{tutorCollapsed ? ' ▸' : ''}</span>
             {!tutorCollapsed && calcStreak(sessionHistory) > 0 && (
-              <span style={{ color: th.sub, fontSize: '0.62rem', marginLeft: 'auto', opacity: 0.55 }}>🔥 {calcStreak(sessionHistory)} {isMarkLang ? 'Tage' : 'days'}</span>
+              <span style={{ color: th.sub, fontSize: '0.62rem', marginLeft: 'auto', opacity: 0.55 }}>🔥 {calcStreak(sessionHistory)} {t.daysLabel}</span>
             )}
             <button onClick={async () => {
               const next = !tutorCollapsed
@@ -7195,14 +7540,14 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
                   else if (tutorRecommendedArea === 'diary') { setScreen('diary') }
                   else { startCategorySession(tutorRecommendedArea) }
                 }} style={{ marginTop: '8px', background: `${th.gold}18`, border: `1px solid ${th.gold}44`, color: th.gold, borderRadius: '20px', padding: '4px 12px', fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
-                  ▶ {isMarkLang ? 'Starten' : 'Start'}
+                  ▶ {t.startBtn}
                 </button>
               )}
               {(() => {
                 const todayDiaryDone = !!(myData?.diaryEntries?.find(e => e.date === todayStr()))
                 if (!todayDiaryDone) return (
                   <button onClick={() => setScreen('diary')} style={{ marginTop: '8px', display: 'inline-flex', alignItems: 'center', gap: '5px', background: `${th.gold}14`, border: `1px solid ${th.gold}30`, borderRadius: '20px', color: th.gold, fontSize: '0.72rem', fontWeight: '600', cursor: 'pointer', padding: '4px 12px', WebkitTapHighlightColor: 'transparent', opacity: 0.85 }}>
-                    📔 {isMarkLang ? 'Tagebuch schreiben →' : 'Write diary →'}
+                    📔 {t.writeDiaryBtn}
                   </button>
                 )
                 return null
@@ -7217,10 +7562,10 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         <div style={{ background: 'rgba(255,165,0,0.10)', border: '1px solid rgba(255,165,0,0.45)', borderRadius: '14px', padding: '12px 14px', marginBottom: '12px', animation: 'vocaraFadeIn 0.4s ease both' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
             <span style={{ fontSize: '1.1rem' }}>⚠️</span>
-            <span style={{ color: '#FFA500', fontWeight: '700', fontSize: '0.9rem', flex: 1 }}>{isMarkLang ? 'Die Verbindung braucht dich heute.' : 'Your streak needs you today.'}</span>
+            <span style={{ color: '#FFA500', fontWeight: '700', fontSize: '0.9rem', flex: 1 }}>{t.connectionNeedsYou}</span>
             {freezeAvailable && (
               <button
-                onClick={() => { if (window.confirm(isMarkLang ? 'Streak Freeze jetzt verwenden? (1x/Monat)' : 'Use Streak Freeze now? (1x/month)')) handleStreakFreeze() }}
+                onClick={() => { if (window.confirm(t.streakFreezeConfirm)) handleStreakFreeze() }}
                 style={{ background: 'rgba(100,200,255,0.12)', border: '1px solid rgba(100,200,255,0.35)', color: '#7ec8e3', borderRadius: '20px', padding: '5px 10px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700', whiteSpace: 'nowrap', flexShrink: 0 }}
               >🧊</button>
             )}
@@ -7234,13 +7579,13 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
             }}
             style={{ background: 'linear-gradient(135deg, rgba(255,165,0,0.25), rgba(255,165,0,0.12))', border: '1px solid rgba(255,165,0,0.5)', color: '#FFA500', borderRadius: '20px', padding: '8px 16px', cursor: 'pointer', fontSize: '0.88rem', fontWeight: '700', width: '100%', fontFamily: 'inherit' }}
           >
-            ⚡ {isMarkLang ? 'Jetzt lernen →' : 'Learn now →'} (5 {isMarkLang ? 'Karten' : 'cards'})
+            ⚡ {t.learnNow} (5 {t.cards})
           </button>
         </div>
       )}
       {streakStatus === 'lost' && (
         <div style={{ background: 'rgba(136,136,136,0.1)', border: `1px solid ${th.border}`, borderRadius: '12px', padding: '10px 14px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ color: th.sub, fontWeight: '600', fontSize: '0.88rem' }}>{isMarkLang ? 'Streak verloren — neu starten! 💪' : 'Streak lost — start fresh! 💪'}</span>
+          <span style={{ color: th.sub, fontWeight: '600', fontSize: '0.88rem' }}>{t.streakLost}</span>
         </div>
       )}
 
@@ -7252,7 +7597,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           <div style={{ background: `${th.gold}0D`, border: `1px solid ${th.gold}2E`, borderRadius: '16px', padding: '13px 15px', marginBottom: '12px', animation: 'vocaraFadeIn 0.4s ease both', position: 'relative' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '7px' }}>
               <span style={{ color: th.gold, fontSize: '0.68rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-                {relEmoji} {isMarkLang ? 'Karte des Tages' : 'Card of the day'}
+                {relEmoji} {t.cardOfDayLabel}
               </span>
               <button onClick={() => setDailyCardDismissed(true)} style={{ background: 'transparent', border: 'none', color: th.sub, cursor: 'pointer', fontSize: '0.9rem', padding: '0 2px', lineHeight: 1 }}>✕</button>
             </div>
@@ -7329,7 +7674,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
                 setNeverLearnModal(null)
               }}>
                 <span>⭐</span>
-                <span>{myData?.favoriteCards?.[neverLearnModal.id] ? (isMarkLang ? 'Favorit entfernen' : 'Remove favourite') : (isMarkLang ? 'Als Favorit markieren' : 'Mark as favourite')}</span>
+                <span>{myData?.favoriteCards?.[neverLearnModal.id] ? (t.removeFav) : (t.markFav)}</span>
               </button>
               {/* Nie wieder lernen */}
               <button style={{ ...s.button, marginBottom: 0, padding: '11px', background: 'rgba(244,67,54,0.10)', color: '#f44336', border: '1px solid rgba(244,67,54,0.35)', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '10px' }} onClick={async () => {
@@ -7342,7 +7687,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
                 setNeverLearnModal(null)
               }}>
                 <span>🚫</span>
-                <span>{isMarkLang ? 'Nie wieder lernen' : 'Never learn again'}</span>
+                <span>{t.neverLearnAgain}</span>
               </button>
               {/* Abbrechen */}
               <button style={{ ...s.logoutBtn, marginTop: 0, padding: '10px', textAlign: 'center' }} onClick={() => setNeverLearnModal(null)}>{t.cancel}</button>
@@ -7374,7 +7719,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         return (
           <div style={{ background: `${th.gold}12`, border: `1px solid ${th.gold}44`, borderRadius: '14px', padding: '12px 14px', marginBottom: '12px', animation: 'vocaraFadeIn 0.4s ease both' }}>
             <p style={{ color: th.text, fontWeight: '700', margin: '0 0 8px', fontSize: '0.9rem' }}>
-              🤝 {req.fromName} {isMarkLang ? 'möchte sich mit dir verbinden' : 'wants to connect with you'}
+              🤝 {req.fromName} {t.wantsToConnect}
             </p>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button style={{ ...s.button, flex: 1, marginBottom: 0, padding: '9px' }} onClick={acceptPartnerReq}>✓ {t.partnerAccept}</button>
@@ -7484,7 +7829,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
                 <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '9.5s', position: 'relative', width: '100%', justifyContent: 'center' }}
                   onClick={() => {
                     if (unlockedTopics.length === 0) {
-                      setEmptyCategoryMsg(isMarkLang ? '🎯 Einstellungen → Meine Themen → Themen generieren' : '🎯 Settings → My Topics → generate topics first')
+                      setEmptyCategoryMsg(t.topicsHint)
                       setTimeout(() => setEmptyCategoryMsg(null), 4000)
                       return
                     }
@@ -7508,7 +7853,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
       {/* ── TÄGLICHES LERNZIEL ── */}
       <div style={{ marginBottom: '14px', padding: '0 2px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
-          <span style={{ color: th.sub, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{isMarkLang ? 'Tagesziel' : 'Daily goal'}</span>
+          <span style={{ color: th.sub, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t.dailyGoalShort}</span>
           <span style={{ color: todayCorrect >= dailyGoal ? th.accent : th.sub, fontSize: '0.7rem', fontWeight: todayCorrect >= dailyGoal ? '700' : '400' }}>
             {todayCorrect >= dailyGoal ? '✓ ' : ''}{todayCorrect} / {dailyGoal}
           </span>
@@ -7523,7 +7868,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         <div style={{ background: th.card, border: `1px solid ${th.border}`, borderRadius: '14px', padding: '11px 13px', marginBottom: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '6px' }}>
             <span style={{ fontSize: '0.68rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', color: miniTask.done ? '#4CAF50' : th.gold }}>
-              {miniTask.done ? '✅' : '⚡'} {isMarkLang ? 'Aufgabe des Tages' : 'Task of the day'}
+              {miniTask.done ? '✅' : '⚡'} {t.taskOfDayLabel}
             </span>
           </div>
           {!miniTask.done ? (
@@ -7534,7 +7879,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
               <div style={{ display: 'flex', gap: '6px' }}>
                 <input
                   style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: `1px solid ${th.border}`, borderRadius: '10px', padding: '8px 12px', color: th.text, fontSize: '0.83rem', outline: 'none', fontFamily: "'Inter', system-ui, sans-serif" }}
-                  placeholder={isMarkLang ? 'Schreib deinen Satz…' : 'Write your sentence…'}
+                  placeholder={lang === 'de' ? 'Schreib deinen Satz…' : 'Write your sentence…'}
                   value={miniTaskInput}
                   onChange={e => setMiniTaskInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && submitMiniTask()}
@@ -7581,7 +7926,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
               </span>
               {active && (
                 <span style={{ fontSize: '7.5px', color: done ? '#4CAF50' : th.sub, textAlign: 'center', maxWidth: '60px', lineHeight: 1.3, padding: '3px 6px', background: th.card, border: `1px solid ${th.border}`, borderRadius: '6px', marginTop: '2px', animation: 'vocaraFadeIn 0.2s ease both' }}>
-                  {done ? (isMarkLang ? '✓ Diese Woche geübt' : '✓ Practiced this week') : (lang === 'de' ? area.tipDe : area.tipEn)}
+                  {done ? (t.practicedThisWeek) : (lang === 'de' ? area.tipDe : area.tipEn)}
                 </span>
               )}
             </div>
@@ -7615,7 +7960,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
               <span style={{ color: th.text, fontSize: '0.78rem', fontWeight: '600' }}>⚡ KI-Tank</span>
               <span style={{ color: isPremium ? '#00BFA5' : usedKi >= kiLimit ? '#666' : '#00BFA5', fontSize: '0.75rem', fontWeight: '600' }}>
-                {isPremium ? (isMarkLang ? 'Unbegrenzt' : 'Unlimited') : `${kiLimit - usedKi}/${kiLimit} ${isMarkLang ? 'diese Woche' : 'this week'}`}
+                {isPremium ? (t.unlimited) : `${kiLimit - usedKi}/${kiLimit} ${t.thisWeekLabel}`}
               </span>
             </div>
             <div style={{ height: '4px', background: th.border, borderRadius: '4px', overflow: 'hidden' }}>
@@ -7664,14 +8009,14 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           )}
         </button>
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('diary')}>
-          📖 {isMarkLang ? 'Unser Tagebuch' : 'Our Diary'}
+          📖 {t.diaryTitle}
         </button>
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('partner')}>
           {myData?.partnerUID ? `${t.menuPartnerLabel}: ${partnerName}` : t.menuPartnerConnect}
         </button>
-        <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('karteerstellen')}>＋ {isMarkLang ? 'Karte kreieren' : 'Create card'}</button>
-        <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('meinekarten')}>📋 {isMarkLang ? 'Meine Karten' : 'My Cards'}</button>
-        {myData?.partnerUID && <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('geschenkkarte')}>🎁 {isMarkLang ? 'Geschenkkarte senden' : 'Send gift card'}</button>}
+        <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('karteerstellen')}>＋ {t.createCardBtn}</button>
+        <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('meinekarten')}>📋 {t.myCardsLabel}</button>
+        {myData?.partnerUID && <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('geschenkkarte')}>🎁 {t.sendGiftCardBtn}</button>}
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('settings')}>{t.menuSettings}</button>
         <button className="vocara-nav-btn" style={{ ...s.navBtn, marginBottom: 0 }} onClick={() => signOut(auth)}>{t.menuSignOut}</button>
       </div>
@@ -7775,13 +8120,13 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
 
       {/* ── SOFT PAYWALL MODAL ── */}
       {softPaywall && (() => {
-        const areaLabels = { street: isMarkLang ? 'Straße' : 'Street', home: isMarkLang ? 'Zuhause' : 'Home', urlaub: isMarkLang ? 'Im Urlaub' : 'Travel', ki: isMarkLang ? 'KI-Gespräch' : 'AI Chat', satz: isMarkLang ? 'Satztraining' : 'Sentence Training' }
+        const areaLabels = { street: t.areaStreet, home: t.areaHome, urlaub: t.areaUrlaub, ki: t.areaKi, satz: t.areaSatz }
         const areaLabel = areaLabels[softPaywall.area] || softPaywall.area
         const isWeekly = softPaywall.weekly
         const limitText = isWeekly
           ? (isMarkLang ? `Du hast ${softPaywall.limit}/${softPaywall.limit} KI-Gespräche diese Woche genutzt` : `You've used ${softPaywall.limit}/${softPaywall.limit} AI chats this week`)
           : (isMarkLang ? `Du hast ${softPaywall.used} von ${softPaywall.limit} kostenlosen ${areaLabel}-Karten genutzt` : `You've used ${softPaywall.used} of ${softPaywall.limit} free ${areaLabel} cards`)
-        const cta = isMarkLang ? 'Unbegrenzt mit Premium weitermachen' : 'Go unlimited with Premium'
+        const cta = t.premiumCta
         return (
           <div style={{ position: 'fixed', inset: 0, zIndex: 9000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: '0 0 24px', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', animation: 'vocaraFadeIn 0.25s ease both' }}
             onClick={() => setSoftPaywall(null)}>
@@ -7790,7 +8135,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
               <div style={{ textAlign: 'center', marginBottom: '16px' }}>
                 <span style={{ fontSize: '2.2rem' }}>✨</span>
                 <h3 style={{ color: th.text, fontSize: '1.1rem', fontWeight: '700', margin: '8px 0 6px', fontFamily: "'Playfair Display', Georgia, serif" }}>
-                  {isMarkLang ? 'Premium freischalten' : 'Unlock Premium'}
+                  {t.unlockPremiumBtn}
                 </h3>
                 <p style={{ color: th.sub, fontSize: '0.88rem', margin: 0, lineHeight: 1.5 }}>{limitText}</p>
               </div>
@@ -7799,18 +8144,18 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
                   {cta}
                 </p>
                 <ul style={{ color: th.sub, fontSize: '0.78rem', margin: '8px 0 0', paddingLeft: '18px', lineHeight: 1.7 }}>
-                  <li>{isMarkLang ? 'Alle Lernbereiche unlimitiert' : 'All areas unlimited'}</li>
-                  <li>{isMarkLang ? 'Unbegrenzte KI-Gespräche' : 'Unlimited AI conversations'}</li>
-                  <li>{isMarkLang ? 'Satztraining ohne Limit' : 'Sentence training without limits'}</li>
+                  <li>{t.allAreasUnlimited}</li>
+                  <li>{t.unlimitedKI}</li>
+                  <li>{t.unlimitedSatz}</li>
                 </ul>
               </div>
               <button style={{ width: '100%', background: `linear-gradient(135deg, ${th.accent}, ${th.gold})`, color: '#111', border: 'none', borderRadius: '14px', padding: '13px', fontSize: '0.95rem', fontWeight: '700', cursor: 'pointer', marginBottom: '8px', fontFamily: "'Inter', system-ui, sans-serif" }}
                 onClick={() => { setSoftPaywall(null); setScreen('settings') }}>
-                {isMarkLang ? 'Premium testen →' : 'Try Premium →'}
+                {t.tryPremium}
               </button>
               <button style={{ width: '100%', background: 'transparent', color: th.sub, border: 'none', borderRadius: '12px', padding: '10px', fontSize: '0.83rem', cursor: 'pointer', fontFamily: "'Inter', system-ui, sans-serif" }}
                 onClick={() => setSoftPaywall(null)}>
-                {isMarkLang ? 'Vielleicht später' : 'Maybe later'}
+                {t.maybeLater}
               </button>
             </div>
           </div>
@@ -7820,9 +8165,9 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
       {/* ── GIMMICK FREISCHALTUNG POPUP ── */}
       {gimmickPopup && (() => {
         const gimmickContent = {
-          hamburg: { emoji: '⚓', title: isMarkLang ? 'Hafen-Gimmick freigeschaltet!' : 'Harbor gimmick unlocked!', desc: isMarkLang ? 'Die Elbe rauscht. Du hast 5 Wochen durchgehalten.' : 'The harbor is yours. 5 weeks completed.', bg: 'linear-gradient(135deg, #0a1a2e, #1a3a5e)', border: '#4ECDC4' },
-          nairobi: { emoji: '🌅', title: isMarkLang ? 'Savanna-Gimmick freigeschaltet!' : 'Savanna gimmick unlocked!', desc: isMarkLang ? 'Die Sonne über Nairobi. Deine Stimme trägt weiter.' : 'The savanna glows. Your voice carries further.', bg: 'linear-gradient(135deg, #2d1a00, #5a3800)', border: '#FFB347' },
-          welt: { emoji: '🌌', title: isMarkLang ? 'Aurora-Gimmick freigeschaltet!' : 'Aurora gimmick unlocked!', desc: isMarkLang ? 'Ein Nordlicht für deine Sprache. 5 Wochen.' : 'Northern lights for your language. 5 weeks.', bg: 'linear-gradient(135deg, #0a001a, #1a003a)', border: '#B088F9' },
+          hamburg: { emoji: '⚓', title: t.harborGimmick, desc: t.harborDesc, bg: 'linear-gradient(135deg, #0a1a2e, #1a3a5e)', border: '#4ECDC4' },
+          nairobi: { emoji: '🌅', title: t.savannaGimmick, desc: t.savannaDesc, bg: 'linear-gradient(135deg, #2d1a00, #5a3800)', border: '#FFB347' },
+          welt: { emoji: '🌌', title: t.auroraGimmick, desc: t.auroraDesc, bg: 'linear-gradient(135deg, #0a001a, #1a003a)', border: '#B088F9' },
         }
         const g = { ...(gimmickContent[theme] || gimmickContent.welt) }
         if (gimmickStreakDays !== null) {
@@ -7855,10 +8200,10 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
             </div>
             <div style={{ position: 'relative', zIndex: 1, background: g.bg, border: `2px solid ${g.border}`, borderRadius: '24px', padding: '32px 28px', maxWidth: '340px', width: '100%', textAlign: 'center', boxShadow: `0 0 60px ${g.border}55, 0 0 120px ${g.border}22`, animation: 'vocaraFadeIn 0.4s ease 0.15s both' }}>
               <div style={{ fontSize: '3.5rem', marginBottom: '12px', animation: 'vocaraCelebrate 1s ease both' }}>{g.emoji}</div>
-              <p style={{ color: g.border, fontSize: '0.65rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1.5px', margin: '0 0 8px' }}>🎉 {isMarkLang ? 'Gimmick freigeschaltet' : 'Gimmick unlocked'}</p>
+              <p style={{ color: g.border, fontSize: '0.65rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1.5px', margin: '0 0 8px' }}>🎉 {t.gimmickUnlockedLabel}</p>
               <p style={{ color: '#fff', fontSize: '1.1rem', fontWeight: '700', margin: '0 0 10px', lineHeight: 1.3 }}>{g.title}</p>
               <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.85rem', fontStyle: 'italic', margin: '0 0 16px', lineHeight: 1.5 }}>{g.desc}</p>
-              <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.68rem', margin: 0 }}>{isMarkLang ? 'Tippen zum Schließen' : 'Tap to close'}</p>
+              <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.68rem', margin: 0 }}>{t.tapToClose}</p>
             </div>
           </div>
         )
@@ -7879,7 +8224,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
             {!showReplyInput ? (
               <button onClick={() => setShowReplyInput(true)}
                 style={{ marginTop: '8px', background: 'transparent', border: 'none', color: th.gold, fontSize: '0.82rem', fontWeight: '600', cursor: 'pointer', padding: 0, WebkitTapHighlightColor: 'transparent' }}>
-                ✨ {isMarkLang ? 'Antworten' : 'Reply'}
+                ✨ {t.replyBtn}
               </button>
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', marginTop: '10px', borderBottom: `1px solid ${th.gold}66`, paddingBottom: '4px' }}>
@@ -7919,11 +8264,11 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
       {wordOfDayBanner && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 8800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', animation: 'vocaraFadeIn 0.4s ease both' }}>
           <div style={{ background: th.card, border: `1px solid ${th.gold}44`, borderRadius: '22px', padding: '28px 24px', maxWidth: '340px', width: '100%', textAlign: 'center', boxShadow: `0 0 40px ${th.glowColor}33` }}>
-            <p style={{ color: th.gold, fontSize: '0.72rem', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 12px' }}>{isMarkLang ? "Heute's Wort" : "Word of the day"}</p>
+            <p style={{ color: th.gold, fontSize: '0.72rem', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 12px' }}>{t.todaysWordLabel}</p>
             <p style={{ color: th.text, fontSize: '1.4rem', fontWeight: '700', margin: '0 0 6px' }}>{wordOfDayBanner.front}</p>
             <p style={{ color: th.accent, fontSize: '1rem', margin: '0 0 14px' }}>{wordOfDayBanner.back}</p>
             <p style={{ color: th.sub, fontSize: '0.78rem', margin: 0, lineHeight: 1.5, fontStyle: 'italic' }}>
-              {isMarkLang ? '— heute begegnet es dir überall.' : '— it will appear in every area today.'}
+              {t.appearsEverywhere}
             </p>
           </div>
         </div>
@@ -7961,7 +8306,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
               <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
                 <button onClick={() => dismissCard(true)}
                   style={{ flex: 1, background: `${th.accent}25`, color: th.text, border: `1px solid ${th.accent}55`, borderRadius: '14px', padding: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '0.9rem' }}>
-                  ➕ {isMarkLang ? 'Zum Deck' : 'Add to deck'}
+                  ➕ {t.addToDeck}
                 </button>
                 <button onClick={() => dismissCard(false)}
                   style={{ flex: '0 0 auto', background: 'rgba(255,255,255,0.06)', color: th.sub, border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', padding: '12px 16px', cursor: 'pointer', fontSize: '0.9rem' }}>✕</button>
@@ -8000,6 +8345,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
 function AdminScreen({ user, lang, theme, onBack }) {
   const th = THEMES[theme]; const s = makeStyles(th)
   const isDE = lang === 'de'
+  const t = T[lang] || T.en
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [toggling, setToggling] = useState(null)
@@ -8030,7 +8376,6 @@ function AdminScreen({ user, lang, theme, onBack }) {
 
   const loadPoolStatus = async () => {
     try {
-      const PAIRS = ['de_en', 'en_de', 'de_sw']
       const [cardSnap, exSnap] = await Promise.all([
         getDocs(collection(db, 'sharedCards')),
         getDocs(collection(db, 'sharedExercises')),
@@ -8046,7 +8391,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
         const map = cfg.coll === 'sharedCards' ? cardMap : exMap
         for (let l = 1; l <= totalLevels; l++) {
           const key = `${cfg.label}_${l}`
-          const counts = PAIRS.map(p => map[cfg.docFn(p, l)] || 0)
+          const counts = LANGUAGE_PAIRS.map(p => map[cfg.docFn(p, l)] || 0)
           status[key] = counts.every(c => c === 0) ? 'empty' : counts.every(c => c >= threshold) ? 'full' : 'partial'
         }
       }
@@ -8229,7 +8574,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
 
   return (
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
-      <button style={s.backBtn} onClick={onBack}>← {isDE ? 'Zurück' : 'Back'}</button>
+      <button style={s.backBtn} onClick={onBack}>← {t.back}</button>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
         <h2 style={{ color: th.text, fontSize: '1.2rem', margin: 0 }}>⚙ Admin</h2>
         <div style={{ display: 'flex', gap: '8px' }}>
@@ -8240,10 +8585,10 @@ function AdminScreen({ user, lang, theme, onBack }) {
       {/* Quick stats */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
         {[
-          [users.length, isDE ? 'Nutzer' : 'Users'],
-          [activeThisWeek, isDE ? 'Aktiv Woche' : 'Active week'],
+          [users.length, t.adminUsers],
+          [activeThisWeek, t.adminActiveWeek],
           [premiumCount, 'Premium/Pro'],
-          [reports.filter(r => r.status !== 'fixed').length, '🚩 ' + (isDE ? 'Meldungen' : 'Reports')],
+          [reports.filter(r => r.status !== 'fixed').length, '🚩 ' + (t.adminReports)],
         ].map(([val, label]) => (
           <div key={label} style={{ flex: 1, background: th.card, border: `1px solid ${th.border}`, borderRadius: '12px', padding: '10px 6px', textAlign: 'center' }}>
             <p style={{ color: th.gold, fontSize: '1.4rem', fontWeight: '700', margin: '0 0 2px' }}>{val}</p>
@@ -8308,14 +8653,14 @@ function AdminScreen({ user, lang, theme, onBack }) {
       </div>
       {reports.length > 0 && (
         <div style={{ marginBottom: '12px' }}>
-          <p style={{ color: '#e57373', fontSize: '0.78rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>🚩 {isDE ? 'Gemeldete Karten' : 'Reported cards'} ({reports.filter(r => r.status !== 'fixed').length} {isDE ? 'offen' : 'open'})</p>
+          <p style={{ color: '#e57373', fontSize: '0.78rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>🚩 {t.reportedCards} ({reports.filter(r => r.status !== 'fixed').length} {t.openIssues})</p>
           <div style={s.card}>
             {reports.slice(0, 30).map((r, i) => (
               <div key={r._id} style={{ paddingBottom: '10px', marginBottom: '10px', borderBottom: i < Math.min(reports.length, 30) - 1 ? `1px solid ${th.border}` : 'none', opacity: r.status === 'fixed' ? 0.5 : 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
                   <div style={{ flex: 1 }}>
                     <span style={{ color: th.text, fontSize: '0.82rem', fontWeight: '600' }}>{r.front} → {r.back}</span>
-                    {r.status === 'fixed' && <span style={{ marginLeft: '6px', color: '#81c784', fontSize: '0.65rem', fontWeight: '700' }}>✓ {isDE ? 'behoben' : 'fixed'}</span>}
+                    {r.status === 'fixed' && <span style={{ marginLeft: '6px', color: '#81c784', fontSize: '0.65rem', fontWeight: '700' }}>✓ {t.fixedStatus}</span>}
                   </div>
                   <span style={{ color: th.sub, fontSize: '0.65rem', flexShrink: 0, marginLeft: '8px' }}>{r.timestamp ? new Date(r.timestamp).toLocaleDateString() : '—'}</span>
                 </div>
@@ -8325,12 +8670,12 @@ function AdminScreen({ user, lang, theme, onBack }) {
                   {r.status !== 'fixed' && (
                     <button onClick={() => markReportFixed(r._id)} disabled={reportActing === r._id}
                       style={{ padding: '3px 8px', borderRadius: '8px', fontSize: '0.65rem', cursor: 'pointer', background: 'rgba(129,199,132,0.15)', color: '#81c784', border: '1px solid rgba(129,199,132,0.4)', fontWeight: '600', opacity: reportActing === r._id ? 0.5 : 1 }}>
-                      ✓ {isDE ? 'Behoben' : 'Fixed'}
+                      ✓ {t.markFixed}
                     </button>
                   )}
                   <button onClick={() => dismissReport(r._id)} disabled={reportActing === r._id}
                     style={{ padding: '3px 8px', borderRadius: '8px', fontSize: '0.65rem', cursor: 'pointer', background: 'rgba(229,115,115,0.12)', color: '#e57373', border: '1px solid rgba(229,115,115,0.3)', fontWeight: '600', opacity: reportActing === r._id ? 0.5 : 1 }}>
-                    ✕ {isDE ? 'Ignorieren' : 'Dismiss'}
+                    ✕ {t.dismiss}
                   </button>
                 </div>
               </div>
@@ -8374,6 +8719,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
 function DiaryScreen({ user, myData, setMyData, partnerData, lang, theme, onBack }) {
   const th = THEMES[theme]; const s = makeStyles(th)
   const isDE = lang === 'de'
+  const t = T[lang] || T.en
   const [myEntry, setMyEntry] = useState('')
   const [feedback, setFeedback] = useState(null)
   const [feedbackLoading, setFeedbackLoading] = useState(false)
@@ -8381,7 +8727,7 @@ function DiaryScreen({ user, myData, setMyData, partnerData, lang, theme, onBack
   const today = todayStr()
   // Target language for diary: Mark=EN, Elosy=DE
   const targetLang = lang === 'de' ? 'en' : 'de'
-  const targetLangLabel = targetLang === 'en' ? (isDE ? 'Englisch' : 'English') : (isDE ? 'Deutsch' : 'German')
+  const targetLangLabel = targetLang === 'en' ? (t.langNameEn) : (t.langNameDe)
   const DE_WORDS = ['ich','du','er','sie','es','wir','ihr','und','oder','aber','nicht','ist','sind','war','haben','sein','mit','von','auf','bei','für','das','die','der','ein','eine','einen','einen','zu','in','an','im','am','dem','den','diese','diese','mein','dein']
   const EN_WORDS = ['i','you','he','she','it','we','they','and','or','but','not','is','are','was','have','be','with','from','on','at','for','the','a','an','to','in','this','my','your','that']
   const detectWrongLang = (text) => {
@@ -8429,19 +8775,19 @@ function DiaryScreen({ user, myData, setMyData, partnerData, lang, theme, onBack
   return (
     <div style={s.container} className="vocara-screen">
       <div style={{ ...s.homeBox, paddingTop: '16px' }}>
-        <button style={s.backBtn} onClick={onBack}>← {isDE ? 'Zurück' : 'Back'}</button>
+        <button style={s.backBtn} onClick={onBack}>← {t.back}</button>
         <div style={{ textAlign: 'left', marginBottom: '18px' }}>
           <h2 style={{ color: th.text, fontFamily: "'Playfair Display', Georgia, serif", fontSize: '1.3rem', fontWeight: '700', margin: '0 0 4px' }}>
-            📔 {isDE ? 'Gemeinsames Tagebuch' : 'Shared Diary'}
+            📔 {t.diaryTitle}
           </h2>
           <p style={{ color: th.sub, fontSize: '0.8rem', margin: 0 }}>
-            {isDE ? 'Ein Satz pro Tag in eurer Zielsprache.' : 'One sentence per day in your target language.'}
+            {t.diaryDesc}
           </p>
         </div>
 
         {/* Today's entry */}
         <div style={{ ...s.card, marginBottom: '14px' }}>
-          <p style={{ ...s.cardLabel, marginBottom: '10px' }}>{isDE ? 'Heute' : 'Today'} — {today}</p>
+          <p style={{ ...s.cardLabel, marginBottom: '10px' }}>{t.today} — {today}</p>
           {todayMyEntry ? (
             <p style={{ color: th.accent, fontWeight: '600', fontSize: '0.92rem', margin: 0, fontStyle: 'italic' }}>„{todayMyEntry.text}"</p>
           ) : (
@@ -8461,7 +8807,7 @@ function DiaryScreen({ user, myData, setMyData, partnerData, lang, theme, onBack
                   ⚠️ {isDE ? `Bitte auf ${targetLangLabel} schreiben` : `Please write in ${targetLangLabel}`}
                 </p>
               )}
-              <button style={{ ...s.button, marginBottom: 0 }} onClick={saveEntry}>{isDE ? 'Eintragen' : 'Save'}</button>
+              <button style={{ ...s.button, marginBottom: 0 }} onClick={saveEntry}>{t.saveEntry}</button>
             </>
           )}
           {feedbackLoading && <p style={{ color: th.sub, fontSize: '0.75rem', margin: '8px 0 0' }}>💡 …</p>}
@@ -8505,7 +8851,7 @@ function DiaryScreen({ user, myData, setMyData, partnerData, lang, theme, onBack
         {allDates.length === 0 && (
           <div style={{ ...s.card, textAlign: 'center', padding: '36px 20px' }}>
             <span style={{ fontSize: '2rem', display: 'block', marginBottom: '10px' }}>📔</span>
-            <p style={{ color: th.sub, fontSize: '0.88rem', margin: 0 }}>{isDE ? 'Noch keine Einträge — schreib den ersten!' : 'No entries yet — write the first one!'}</p>
+            <p style={{ color: th.sub, fontSize: '0.88rem', margin: 0 }}>{t.noEntries}</p>
           </div>
         )}
       </div>
@@ -8516,6 +8862,7 @@ function DiaryScreen({ user, myData, setMyData, partnerData, lang, theme, onBack
 function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, lang, theme, onBack }) {
   const th = THEMES[theme]; const s = makeStyles(th)
   const isDE = lang === 'de'
+  const t = T[lang] || T.en
   const [search, setSearch] = useState('')
   const [filterCat, setFilterCat] = useState('all')
   const [editCard, setEditCard] = useState(null)
@@ -8554,7 +8901,7 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
       await updateDoc(doc(db, 'users', user.uid), { aiCards: updated })
       setMyData(d => ({ ...d, aiCards: updated }))
       setEditCard(null)
-      setSaveStatus(isDE ? 'Gespeichert ✓' : 'Saved ✓')
+      setSaveStatus(t.savedStatus)
       setTimeout(() => setSaveStatus(null), 2000)
     } catch (e) { console.warn(e) }
   }
@@ -8565,7 +8912,7 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
     const gift = { front: card.front, back: card.back, category: card.category || 'vocabulary', langA: card.langA, langB: card.langB, fromName: myFirstName, fromUid: user.uid, sentAt: Date.now() }
     try {
       await setDoc(doc(db, 'users', myPartnerUID, 'incomingCards', `gift_${Date.now()}`), gift)
-      setSaveStatus(isDE ? 'Geteilt ✓' : 'Shared ✓')
+      setSaveStatus(t.sharedStatus)
       setTimeout(() => setSaveStatus(null), 2000)
     } catch (e) { console.warn(e) }
   }
@@ -8582,13 +8929,13 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
 
   return (
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
-      <button style={s.backBtn} onClick={onBack}>← {isDE ? 'Zurück' : 'Back'}</button>
+      <button style={s.backBtn} onClick={onBack}>← {t.back}</button>
       <h2 style={{ color: th.text, marginBottom: '16px', fontSize: '1.2rem', fontFamily: "'Playfair Display', Georgia, serif" }}>
         📋 {isDE ? `Meine Karten (${userCards.length})` : `My Cards (${userCards.length})`}
       </h2>
-      <input style={{ ...s.input, marginBottom: '8px' }} placeholder={isDE ? 'Suchen…' : 'Search…'} value={search} onChange={e => setSearch(e.target.value)} />
+      <input style={{ ...s.input, marginBottom: '8px' }} placeholder={t.search} value={search} onChange={e => setSearch(e.target.value)} />
       <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap' }}>
-        {[['all', isDE ? 'Alle' : 'All'], ['vocabulary', 'Hochsprache'], ['street', 'Slang'], ['sentence', isDE ? 'Sätze' : 'Sentences'], ['home', isDE ? 'Zuhause' : 'Home']].map(([key, label]) => (
+        {[['all', t.filterAll], ['vocabulary', 'Hochsprache'], ['street', 'Slang'], ['sentence', t.areaSentences], ['home', t.areaHome]].map(([key, label]) => (
           <button key={key} onClick={() => setFilterCat(key)}
             style={{ padding: '4px 11px', borderRadius: '20px', fontSize: '0.75rem', cursor: 'pointer', fontWeight: filterCat === key ? '700' : '400', background: filterCat === key ? th.accent : 'transparent', color: filterCat === key ? (th.btnTextColor || '#111') : th.sub, border: `1px solid ${filterCat === key ? th.accent : th.border}` }}>
             {label}
@@ -8597,22 +8944,22 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
       </div>
       {editCard && (
         <div style={{ ...s.card, border: `1px solid ${th.accent}55`, marginBottom: '12px', animation: 'vocaraFadeIn 0.2s ease both' }}>
-          <p style={{ ...s.cardLabel, marginBottom: '12px' }}>{isDE ? 'Karte bearbeiten' : 'Edit card'}</p>
-          <input style={{ ...s.input, marginBottom: '8px' }} value={editFront} onChange={e => setEditFront(e.target.value)} placeholder={isDE ? 'Vorderseite' : 'Front'} />
-          <input style={{ ...s.input, marginBottom: '8px' }} value={editBack} onChange={e => setEditBack(e.target.value)} placeholder={isDE ? 'Rückseite' : 'Back'} />
-          <input style={{ ...s.input, marginBottom: '12px', fontSize: '0.82rem', fontStyle: 'italic' }} value={editPronunciation} onChange={e => setEditPronunciation(e.target.value)} placeholder={isDE ? 'Aussprache (z.B. WE-dser) — optional' : 'Pronunciation (e.g. WE-dser) — optional'} />
+          <p style={{ ...s.cardLabel, marginBottom: '12px' }}>{t.editCardTitle}</p>
+          <input style={{ ...s.input, marginBottom: '8px' }} value={editFront} onChange={e => setEditFront(e.target.value)} placeholder={t.front} />
+          <input style={{ ...s.input, marginBottom: '8px' }} value={editBack} onChange={e => setEditBack(e.target.value)} placeholder={t.backLabel} />
+          <input style={{ ...s.input, marginBottom: '12px', fontSize: '0.82rem', fontStyle: 'italic' }} value={editPronunciation} onChange={e => setEditPronunciation(e.target.value)} placeholder={lang === 'de' ? 'Aussprache (z.B. WE-dser) — optional' : 'Pronunciation (e.g. WE-dser) — optional'} />
           <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
             <button onClick={() => setEditCat('vocabulary')} style={{ flex: 1, padding: '7px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '0.78rem', background: editCat !== 'street' ? 'rgba(140,140,155,0.25)' : 'transparent', color: editCat !== 'street' ? '#A0A0B8' : th.sub, border: `1px solid ${editCat !== 'street' ? 'rgba(140,140,155,0.45)' : th.border}` }}>Hochsprache</button>
             <button onClick={() => setEditCat('street')} style={{ flex: 1, padding: '7px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '0.78rem', background: editCat === 'street' ? 'rgba(180,120,30,0.2)' : 'transparent', color: editCat === 'street' ? '#C8922A' : th.sub, border: `1px solid ${editCat === 'street' ? 'rgba(180,120,30,0.4)' : th.border}` }}>Slang</button>
           </div>
           <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-            <button style={{ flex: 1, background: th.accent, color: th.btnTextColor || '#111', border: 'none', padding: '9px', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '0.88rem' }} onClick={saveEdit}>{isDE ? 'Speichern' : 'Save'}</button>
-            <button style={{ flex: '0 0 auto', background: '#f4433618', color: '#e06c75', border: '1px solid rgba(224,108,117,0.5)', padding: '9px 14px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.82rem' }} onClick={() => deleteCard(editCard)}>{isDE ? 'Löschen' : 'Delete'}</button>
+            <button style={{ flex: 1, background: th.accent, color: th.btnTextColor || '#111', border: 'none', padding: '9px', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '0.88rem' }} onClick={saveEdit}>{t.save}</button>
+            <button style={{ flex: '0 0 auto', background: '#f4433618', color: '#e06c75', border: '1px solid rgba(224,108,117,0.5)', padding: '9px 14px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.82rem' }} onClick={() => deleteCard(editCard)}>{t.delete}</button>
             <button style={{ flex: '0 0 auto', background: 'transparent', color: th.sub, border: `1px solid ${th.border}`, padding: '9px 12px', borderRadius: '10px', cursor: 'pointer', fontSize: '0.85rem' }} onClick={() => setEditCard(null)}>✕</button>
           </div>
           {myPartnerUID && (
             <button style={{ width: '100%', background: 'transparent', color: th.gold, border: `1px solid ${th.gold}44`, padding: '8px', borderRadius: '10px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600' }} onClick={() => shareWithPartner(editCard)}>
-              🎁 {isDE ? 'Mit Partner teilen' : 'Share with partner'}
+              🎁 {t.shareWithPartner}
             </button>
           )}
           {saveStatus && <p style={{ color: th.accent, fontSize: '0.8rem', marginTop: '8px', textAlign: 'center' }}>{saveStatus}</p>}
@@ -8621,7 +8968,7 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
       {filtered.length === 0 ? (
         <div style={{ ...s.card, textAlign: 'center', padding: '32px 20px' }}>
           <span style={{ fontSize: '2rem', display: 'block', marginBottom: '8px' }}>📋</span>
-          <p style={{ color: th.sub, fontSize: '0.88rem', margin: 0 }}>{isDE ? 'Keine Karten gefunden.' : 'No cards found.'}</p>
+          <p style={{ color: th.sub, fontSize: '0.88rem', margin: 0 }}>{t.noCardsFound}</p>
         </div>
       ) : (
         <div style={s.card}>
@@ -8814,12 +9161,12 @@ function KarteErstellenScreen({ user, myData, setMyData, allCards, lang, theme, 
       }
       setStatus(
         destination === 'partner' ? (isDE ? `🎁 An ${partnerName} gesendet ✓` : `🎁 Sent to ${partnerName} ✓`) :
-        destination === 'both' ? (isDE ? '💫 Für dich & Partner ✓' : '💫 For you & partner ✓') :
-        (isDE ? 'Karte gespeichert ✓' : 'Card saved ✓')
+        destination === 'both' ? (t.cardSavedForBoth) :
+        (t.cardSaved)
       )
       setFrontText(''); setBackText(''); setPronunciation(''); setKiDone(false); setDetectedCat(null)
       setTimeout(() => setStatus(null), 2500)
-    } catch(e) { console.warn(e); setStatus(isDE ? 'Fehler' : 'Error') }
+    } catch(e) { console.warn(e); setStatus(t.error) }
     setSaving(false)
   }
 
@@ -8837,16 +9184,16 @@ function KarteErstellenScreen({ user, myData, setMyData, allCards, lang, theme, 
     <div style={s.container} className="vocara-screen">
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, background: th.bg, borderBottom: `1px solid ${th.border}`, display: 'flex', alignItems: 'center', padding: '0 16px', minHeight: '52px' }}>
         <button onClick={onBack} style={{ background: 'none', border: 'none', color: th.accent, cursor: 'pointer', fontSize: '1.1rem', fontWeight: '700', padding: '12px 8px 12px 0', WebkitTapHighlightColor: 'transparent' }}>←</button>
-        <span style={{ color: th.text, fontWeight: '700', fontSize: '1rem', fontFamily: "'Playfair Display', Georgia, serif" }}>✏️ {isDE ? 'Neue Karte' : 'New Card'}</span>
+        <span style={{ color: th.text, fontWeight: '700', fontSize: '1rem', fontFamily: "'Playfair Display', Georgia, serif" }}>✏️ {t.newCardTitle}</span>
       </div>
       <div style={{ ...s.homeBox, paddingTop: '68px' }}>
 
       {/* ── SECTION 1: SPRACHEN ── */}
       <div style={{ ...s.card, marginBottom: '12px' }}>
-        {sectionHead('1', isDE ? 'Sprachen' : 'Languages')}
+        {sectionHead('1', t.languagesSection)}
 
         <p style={{ color: th.sub, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
-          {isDE ? 'Ausgangssprache(n)' : 'Source language(s)'}
+          {t.sourceLanguages}
         </p>
         {srcLangs.map(({ lang: lc, percent }) => {
           const info = LANG_LIST.find(l => l.code === lc)
@@ -8881,15 +9228,15 @@ function KarteErstellenScreen({ user, myData, setMyData, allCards, lang, theme, 
         {langWeightsDirty && (
           <button onClick={() => saveLangPrefs(srcLangs, tgtLang)}
             style={{ width: '100%', padding: '10px', borderRadius: '10px', border: `1px solid ${th.accent}`, background: `${th.accent}22`, color: th.accent, fontWeight: '700', fontSize: '0.88rem', cursor: 'pointer', marginBottom: '14px', WebkitTapHighlightColor: 'transparent' }}>
-            💾 {isDE ? 'Sprachanteil speichern' : 'Save language split'}
+            💾 {t.saveLangSplit}
           </button>
         )}
         {langWeightsSaved && (
-          <p style={{ color: '#4CAF50', fontSize: '0.8rem', textAlign: 'center', marginBottom: '10px' }}>✓ {isDE ? 'Gespeichert!' : 'Saved!'}</p>
+          <p style={{ color: '#4CAF50', fontSize: '0.8rem', textAlign: 'center', marginBottom: '10px' }}>✓ {t.savedExclaim}</p>
         )}
 
         <p style={{ color: th.sub, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
-          {isDE ? 'Zielsprache' : 'Target language'}
+          {t.targetLangHeader}
         </p>
         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
           {LANG_LIST.filter(l => !srcLangs.find(s2 => s2.lang === l.code)).map(l => (
@@ -8903,7 +9250,7 @@ function KarteErstellenScreen({ user, myData, setMyData, allCards, lang, theme, 
 
       {/* ── SECTION 2: KARTE EINGEBEN ── */}
       <div style={{ ...s.card, marginBottom: '12px' }}>
-        {sectionHead('2', isDE ? 'Karte eingeben' : 'Enter card')}
+        {sectionHead('2', t.enterCardSection)}
 
         {/* Side toggle */}
         <div style={{ display: 'flex', gap: '4px', background: `${th.border}55`, borderRadius: '10px', padding: '3px', marginBottom: '12px' }}>
@@ -8914,7 +9261,7 @@ function KarteErstellenScreen({ user, myData, setMyData, allCards, lang, theme, 
             return (
               <button key={side} onClick={() => setInputSide(side)}
                 style={{ flex: 1, padding: '7px 6px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: active ? '700' : '400', background: active ? th.accent : 'transparent', color: active ? (th.btnTextColor || '#111') : th.sub, fontSize: '0.78rem', transition: 'all 0.18s', WebkitTapHighlightColor: 'transparent' }}>
-                {isDE ? 'Ich tippe' : 'I type'}: {info?.flag} {info?.label || lc}
+                {t.iType}: {info?.flag} {info?.label || lc}
               </button>
             )
           })}
@@ -8941,7 +9288,7 @@ function KarteErstellenScreen({ user, myData, setMyData, allCards, lang, theme, 
         </p>
         <textarea
           style={{ ...s.input, minHeight: '68px', resize: 'vertical', fontFamily: 'inherit', lineHeight: '1.5', marginBottom: '10px' }}
-          placeholder={isDE ? 'Wort oder Satz eingeben…' : 'Enter word or sentence…'}
+          placeholder={t.enterWordOrSentence}
           value={frontText}
           onChange={e => { setFrontText(e.target.value); setKiDone(false) }}
         />
@@ -8950,8 +9297,8 @@ function KarteErstellenScreen({ user, myData, setMyData, allCards, lang, theme, 
         <button onClick={kiFill} disabled={!frontText.trim() || kiLoading}
           style={{ width: '100%', padding: '11px', borderRadius: '10px', border: `1px solid ${th.gold}55`, background: kiDone ? `${th.accent}18` : `${th.gold}12`, color: kiDone ? th.accent : th.gold, fontWeight: '700', fontSize: '0.88rem', cursor: frontText.trim() ? 'pointer' : 'not-allowed', opacity: (!frontText.trim() || kiLoading) ? 0.5 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px', WebkitTapHighlightColor: 'transparent' }}>
           {kiLoading
-            ? <><div style={{ width: '14px', height: '14px', border: `2px solid ${th.gold}44`, borderTopColor: th.gold, borderRadius: '50%', animation: 'spin 0.7s linear infinite', flexShrink: 0 }} />{isDE ? 'KI übersetzt…' : 'AI translating…'}</>
-            : kiDone ? `✓ ${isDE ? 'KI hat ergänzt — nochmal' : 'AI filled — redo'}` : `🤖 ${isDE ? 'KI ergänzt den Rest' : 'AI fills the rest'}`}
+            ? <><div style={{ width: '14px', height: '14px', border: `2px solid ${th.gold}44`, borderTopColor: th.gold, borderRadius: '50%', animation: 'spin 0.7s linear infinite', flexShrink: 0 }} />{t.aiTranslating}</>
+            : kiDone ? `✓ ${t.aiFillRedo}` : `🤖 ${t.aiFillBtn}`}
         </button>
 
         {/* Translation + pronunciation */}
@@ -8964,11 +9311,11 @@ function KarteErstellenScreen({ user, myData, setMyData, allCards, lang, theme, 
               style={{ ...s.input, minHeight: '56px', resize: 'vertical', fontFamily: 'inherit', lineHeight: '1.5', marginBottom: '6px' }}
               value={backText}
               onChange={e => setBackText(e.target.value)}
-              placeholder={isDE ? 'Übersetzung…' : 'Translation…'}
+              placeholder={t.translationPlaceholder}
             />
             {pronunciation && (
               <>
-                <p style={{ color: th.sub, fontSize: '0.72rem', marginBottom: '4px' }}>🔉 {isDE ? 'Aussprache' : 'Pronunciation'}</p>
+                <p style={{ color: th.sub, fontSize: '0.72rem', marginBottom: '4px' }}>🔉 {t.pronunciation}</p>
                 <input style={{ ...s.input, fontSize: '0.82rem', fontStyle: 'italic', marginBottom: 0 }}
                   value={pronunciation} onChange={e => setPronunciation(e.target.value)} />
               </>
@@ -8980,18 +9327,18 @@ function KarteErstellenScreen({ user, myData, setMyData, allCards, lang, theme, 
       {/* ── SECTION 3: KATEGORIE & ZIEL ── */}
       {kiDone && backText && (
         <div style={{ ...s.card, marginBottom: '12px', animation: 'vocaraFadeIn 0.25s ease both' }}>
-          {sectionHead('3', isDE ? 'Kategorie & Ziel' : 'Category & Destination')}
+          {sectionHead('3', t.categoryDest)}
 
           <p style={{ color: th.sub, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
-            {isDE ? 'Kategorie' : 'Category'}
+            {t.categoryLabel}
             {detectedCat && <span style={{ color: th.accent, marginLeft: '8px', fontStyle: 'italic', fontWeight: '600', textTransform: 'none', letterSpacing: 0 }}>· KI: {detectedCat}</span>}
           </p>
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '14px' }}>
             {[
-              ['vocabulary', isDE ? 'Meine Worte' : 'Word', '#8A8A9A'],
-              ['sentence', isDE ? 'Satz' : 'Sentence', '#6A9BBA'],
+              ['vocabulary', t.vocabCategoryLabel, '#8A8A9A'],
+              ['sentence', t.sentenceCategoryLabel, '#6A9BBA'],
               ['street', 'Slang', '#C8922A'],
-              ['home', isDE ? 'Zuhause' : 'Home', '#7A8A6A'],
+              ['home', t.areaHome, '#7A8A6A'],
             ].map(([key, label, color]) => (
               <button key={key} onClick={() => setCat(key)}
                 style={{ padding: '6px 12px', borderRadius: '20px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: cat === key ? '700' : '400', background: cat === key ? `${color}22` : 'transparent', color: cat === key ? color : th.sub, border: `1px solid ${cat === key ? color : th.border}`, WebkitTapHighlightColor: 'transparent' }}>
@@ -9001,12 +9348,12 @@ function KarteErstellenScreen({ user, myData, setMyData, allCards, lang, theme, 
           </div>
 
           <p style={{ color: th.sub, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
-            {isDE ? 'Für wen?' : 'For whom?'}
+            {t.forWhom}
           </p>
           <div style={{ display: 'flex', gap: '6px' }}>
             <button onClick={() => setDestination('me')}
               style={{ flex: 1, padding: '8px 6px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem', background: destination === 'me' ? th.accent : 'transparent', color: destination === 'me' ? (th.btnTextColor || '#111') : th.sub, border: `1px solid ${destination === 'me' ? th.accent : th.border}`, WebkitTapHighlightColor: 'transparent' }}>
-              {isDE ? 'Für mich' : 'For me'}
+              {t.forMe}
             </button>
             {myPartnerUID && <>
               <button onClick={() => setDestination('partner')}
@@ -9015,7 +9362,7 @@ function KarteErstellenScreen({ user, myData, setMyData, allCards, lang, theme, 
               </button>
               <button onClick={() => setDestination('both')}
                 style={{ flex: 1, padding: '8px 6px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem', background: destination === 'both' ? `linear-gradient(135deg,${th.accent}22,${th.gold}18)` : 'transparent', color: destination === 'both' ? th.accent : th.sub, border: `1px solid ${destination === 'both' ? th.accent : th.border}`, WebkitTapHighlightColor: 'transparent' }}>
-                💫 {isDE ? 'Beide' : 'Both'}
+                💫 {t.bothOption}
               </button>
             </>}
           </div>
@@ -9026,10 +9373,10 @@ function KarteErstellenScreen({ user, myData, setMyData, allCards, lang, theme, 
       {kiDone && frontText && backText && (
         <div style={{ marginBottom: '40px', animation: 'vocaraFadeIn 0.25s ease both' }}>
           <button style={{ ...s.button, marginBottom: 0, opacity: saving ? 0.6 : 1 }} onClick={save} disabled={saving}>
-            {saving ? (isDE ? 'Speichern…' : 'Saving…') :
+            {saving ? (t.saving) :
               destination === 'partner' ? (isDE ? `🎁 An ${partnerName} senden` : `🎁 Send to ${partnerName}`) :
               destination === 'both' ? (isDE ? '💫 Für dich & Partner' : '💫 For you & partner') :
-              (isDE ? 'Karte speichern ✓' : 'Save card ✓')}
+              (t.saveCardBtn)}
           </button>
           {status && (
             <p style={{ color: th.accent, fontSize: '0.88rem', marginTop: '10px', textAlign: 'center', fontWeight: '600', animation: 'vocaraFadeIn 0.3s ease both' }}>{status}</p>
@@ -9045,6 +9392,7 @@ function KarteErstellenScreen({ user, myData, setMyData, allCards, lang, theme, 
 function GeschenkkarteScreen({ user, myData, lang, theme, onBack, allCards, cardProgress }) {
   const th = THEMES[theme]; const s = makeStyles(th)
   const isDE = lang === 'de'
+  const t = T[lang] || T.en
   const [selectedCard, setSelectedCard] = useState(null)
   const [message, setMessage] = useState('')
   const [status, setStatus] = useState(null)
@@ -9065,13 +9413,13 @@ function GeschenkkarteScreen({ user, myData, lang, theme, onBack, allCards, card
       const existing = existingSnap.docs.map(d => d.data())
       const sameCard = existing.find(e => e.front === selectedCard.front && e.back === selectedCard.back)
       if (sameCard) {
-        setStatus(isDE ? '⚠️ Partner hat diese Karte bereits erhalten' : '⚠️ Partner already received this card')
+        setStatus(t.partnerHasCard)
         setTimeout(() => setStatus(null), 3000)
         return
       }
       const sentToday = existing.find(e => e.front === selectedCard.front && e.back === selectedCard.back && e.date === today)
       if (sentToday) {
-        setStatus(isDE ? '⚠️ Du hast diese Karte heute bereits gesendet' : '⚠️ You already sent this card today')
+        setStatus(t.alreadySentToday)
         setTimeout(() => setStatus(null), 3000)
         return
       }
@@ -9090,30 +9438,30 @@ function GeschenkkarteScreen({ user, myData, lang, theme, onBack, allCards, card
       setStatus(isDE ? `🎁 Geschenkt an ${partnerName} ✓` : `🎁 Gifted to ${partnerName} ✓`)
       setSelectedCard(null); setMessage('')
       setTimeout(() => { setStatus(null); onBack() }, 2000)
-    } catch (e) { console.warn(e); setStatus(isDE ? 'Fehler beim Senden' : 'Error sending') }
+    } catch (e) { console.warn(e); setStatus(t.errorSending) }
     finally { setSending(false) }
   }
 
   if (!myPartnerUID) return (
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
-      <button style={s.backBtn} onClick={onBack}>← {isDE ? 'Zurück' : 'Back'}</button>
+      <button style={s.backBtn} onClick={onBack}>← {t.back}</button>
       <div style={{ textAlign: 'center', marginTop: '60px' }}>
         <p style={{ fontSize: '2.5rem', marginBottom: '12px' }}>🤝</p>
-        <p style={{ color: th.sub }}>{isDE ? 'Verbinde zuerst deinen Partner.' : 'Connect a partner first.'}</p>
+        <p style={{ color: th.sub }}>{t.noPartnerConnected}</p>
       </div>
     </div></div>
   )
 
   return (
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
-      <button style={s.backBtn} onClick={onBack}>← {isDE ? 'Zurück' : 'Back'}</button>
+      <button style={s.backBtn} onClick={onBack}>← {t.back}</button>
       <h2 style={{ color: th.text, marginBottom: '16px', fontSize: '1.2rem', fontFamily: "'Playfair Display', Georgia, serif" }}>
         🎁 {isDE ? `Geschenk für ${partnerName}` : `Gift for ${partnerName}`}
       </h2>
       <div style={s.card}>
-        <p style={{ ...s.cardLabel, marginBottom: '12px' }}>{isDE ? 'Wähle eine gemeisterte Karte:' : 'Choose a mastered card:'}</p>
+        <p style={{ ...s.cardLabel, marginBottom: '12px' }}>{t.chooseMasteredCard}</p>
         {masteredCards.length === 0 ? (
-          <p style={{ color: th.sub, fontSize: '0.85rem' }}>{isDE ? 'Noch keine gemeisterten Karten.' : 'No mastered cards yet.'}</p>
+          <p style={{ color: th.sub, fontSize: '0.85rem' }}>{t.noMasteredCards}</p>
         ) : masteredCards.map(card => (
           <button key={card.id} onClick={() => setSelectedCard(selectedCard?.id === card.id ? null : card)}
             style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', padding: '9px 12px', marginBottom: '6px', borderRadius: '10px', cursor: 'pointer', background: selectedCard?.id === card.id ? `${th.accent}22` : 'transparent', border: `1px solid ${selectedCard?.id === card.id ? th.accent : th.border}`, textAlign: 'left' }}>
@@ -9124,9 +9472,9 @@ function GeschenkkarteScreen({ user, myData, lang, theme, onBack, allCards, card
       </div>
       {selectedCard && (
         <div style={{ ...s.card, animation: 'vocaraFadeIn 0.2s ease both' }}>
-          <p style={{ ...s.cardLabel, marginBottom: '10px' }}>{isDE ? 'Persönliche Nachricht (optional):' : 'Personal message (optional):'}</p>
+          <p style={{ ...s.cardLabel, marginBottom: '10px' }}>{t.personalMessage}</p>
           <input style={{ ...s.input, marginBottom: '0' }}
-            placeholder={isDE ? 'z.B. „Dieses Wort gefällt mir für dich…"' : 'e.g. "I thought you\'d like this word…"'}
+            placeholder={lang === 'de' ? 'z.B. „Dieses Wort gefällt mir für dich…"' : 'e.g. "I thought you\'d like this word…"'}
             value={message} maxLength={100} onChange={e => setMessage(e.target.value)} />
           <p style={{ color: th.sub, fontSize: '0.7rem', textAlign: 'right', margin: '4px 0 12px' }}>{message.length}/100</p>
           <button style={{ ...s.button, marginBottom: 0, opacity: sending ? 0.6 : 1 }} onClick={send} disabled={sending}>
@@ -9142,6 +9490,7 @@ function GeschenkkarteScreen({ user, myData, lang, theme, onBack, allCards, card
 function MainSelectionScreen({ lang, theme, firstName, uniqueTargetLangs, pausedLanguages, onSprechen, onEntdecken }) {
   const th = THEMES[theme]; const s = makeStyles(th)
   const isDE = lang === 'de'
+  const t = T[lang] || T.en
   const [pressedBtn, setPressedBtn] = React.useState(null)
 
   const glassBtn = (id, onClick, titleMain, titleSub, desc, disabled) => {
@@ -9182,7 +9531,7 @@ function MainSelectionScreen({ lang, theme, firstName, uniqueTargetLangs, paused
         <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.45)', lineHeight: 1.4 }}>{desc}</span>
         {disabled && (
           <span style={{ marginTop: '4px', background: `${th.gold}18`, color: th.gold, border: `1px solid ${th.gold}44`, borderRadius: '20px', padding: '2px 12px', fontSize: '0.7rem', fontWeight: '700' }}>
-            {isDE ? 'Bald verfügbar' : 'Coming soon'}
+            {t.comingSoonAlt}
           </span>
         )}
       </button>
@@ -9205,10 +9554,10 @@ function MainSelectionScreen({ lang, theme, firstName, uniqueTargetLangs, paused
             filter: 'drop-shadow(0 0 8px rgba(255,215,0,0.55)) drop-shadow(0 0 22px rgba(255,215,0,0.28))',
           }}>Bridgelab</h1>
           <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: '0.82rem', fontStyle: 'italic', letterSpacing: '0.03em', marginBottom: '0' }}>
-            {isDE ? 'Wir bauen keine Apps. Wir bauen Brücken.' : 'We don\'t build apps. We build bridges.'}
+            {t.bridgeDesc}
           </p>
         </div>
-        {glassBtn('vocara', onSprechen, 'Vocara', isDE ? 'Sprache' : 'Language', isDE ? 'Wörter, Sätze & Gespräche' : 'Words, sentences & conversation', false)}
+        {glassBtn('vocara', onSprechen, 'Vocara', t.vocabraLanguage, t.wordsSentencesConv, false)}
         {glassBtn('entdecken', onEntdecken, 'Katara', 'Strukturiertes Lernen', 'Lern was du willst. Wann du willst.', false)}
       </div>
     </div>
@@ -9219,6 +9568,7 @@ function MainSelectionScreen({ lang, theme, firstName, uniqueTargetLangs, paused
 function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCards, cardProgress, coupleId, onBack, onLiveSession }) {
   const th = THEMES[theme]; const s = makeStyles(th)
   const isDE = lang === 'de'
+  const t = T[lang] || T.en
   const [innerScreen, setInnerScreen] = useState('list') // 'list' | 'create' | 'set'
   const [activeSet, setActiveSet] = useState(null)
   const [setAction, setSetAction] = useState(null) // 'manual' | 'ki' | null
@@ -9332,7 +9682,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
       console.log('[Vocara] createKategorie — list refreshed ✓')
     } catch (e) {
       console.error('[Vocara] createKategorie — addDoc failed:', e)
-      setCatError(isDE ? 'Fehler beim Speichern. Bitte erneut versuchen.' : 'Error saving. Please try again.')
+      setCatError(t.errorSaving)
     }
     setCatSaving(false)
   }
@@ -9344,7 +9694,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
     const updated = sets.map(s => s.id === activeSet.id ? updatedSet : s)
     await saveSet(updated)
     setActiveSet(updatedSet); setCardFront(''); setCardBack('')
-    setStatus(isDE ? 'Karte hinzugefügt ✓' : 'Card added ✓')
+    setStatus(t.cardAdded)
     setTimeout(() => setStatus(null), 2000)
   }
 
@@ -9355,7 +9705,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
   }
 
   const deleteSet = async (setId) => {
-    if (!window.confirm(isDE ? 'Set wirklich löschen?' : 'Delete this set?')) return
+    if (!window.confirm(t.deleteConfirm)) return
     const updated = sets.filter(s => s.id !== setId)
     await saveSet(updated); setInnerScreen('list'); setActiveSet(null)
   }
@@ -9382,7 +9732,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
       setStatus(isDE ? `${newCards.length} KI-Karten hinzugefügt ✓` : `${newCards.length} AI cards added ✓`)
       setTimeout(() => setStatus(null), 3000)
     } catch (e) {
-      setStatus(isDE ? 'Fehler bei KI-Generierung' : 'AI generation failed')
+      setStatus(t.aiFailed)
       setTimeout(() => setStatus(null), 3000)
     } finally { setKiLoading(false); setSetAction(null) }
   }
@@ -9410,7 +9760,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
       setStatus(isDE ? `${newCards.length} Karten importiert ✓` : `${newCards.length} cards imported ✓`)
       setTimeout(() => setStatus(null), 3000)
     } catch (e) {
-      setStatus(isDE ? 'Import fehlgeschlagen' : 'Import failed')
+      setStatus(t.importFailed)
       setTimeout(() => setStatus(null), 3000)
     } finally { setImportLoading(false); setSetAction(null) }
   }
@@ -9423,8 +9773,8 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
       const existing = pSnap.data()?.cardSets || []
       const shared = { ...set, id: `set_shared_${Date.now()}`, sharedBy: user.displayName?.split(' ')[0] || 'Partner', sharedAt: Date.now() }
       await updateDoc(doc(db, 'users', myData.partnerUID), { cardSets: [...existing, shared] })
-      setStatus(isDE ? 'Set geteilt ✓' : 'Set shared ✓'); setTimeout(() => setStatus(null), 2500)
-    } catch (e) { setStatus(isDE ? 'Teilen fehlgeschlagen' : 'Share failed'); setTimeout(() => setStatus(null), 2500) }
+      setStatus(t.setShared); setTimeout(() => setStatus(null), 2500)
+    } catch (e) { setStatus(t.shareFailed); setTimeout(() => setStatus(null), 2500) }
   }
 
   // ── SET detail view ──
@@ -9433,41 +9783,41 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
       <div style={s.container} className="vocara-screen">
         <div style={{ ...s.homeBox, paddingTop: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
-            <button style={s.backBtn} onClick={() => { setInnerScreen('list'); setActiveSet(null); setSetAction(null) }}>← {isDE ? 'Zurück' : 'Back'}</button>
+            <button style={s.backBtn} onClick={() => { setInnerScreen('list'); setActiveSet(null); setSetAction(null) }}>← {t.back}</button>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
             <span style={{ fontSize: '1.8rem' }}>{activeSet.icon}</span>
             <div style={{ flex: 1, textAlign: 'left' }}>
               <h2 style={{ color: th.text, fontSize: '1.2rem', fontWeight: '700', margin: 0 }}>{activeSet.name}</h2>
-              <p style={{ color: th.sub, fontSize: '0.8rem', margin: 0 }}>{activeSet.cards?.length || 0} {isDE ? 'Karten' : 'cards'}</p>
+              <p style={{ color: th.sub, fontSize: '0.8rem', margin: 0 }}>{activeSet.cards?.length || 0} {t.cards}</p>
             </div>
             {myData?.partnerUID && (
-              <button onClick={() => shareSetWithPartner(activeSet)} style={{ background: 'transparent', border: `1px solid ${th.border}`, color: th.gold, borderRadius: '10px', padding: '6px 12px', cursor: 'pointer', fontSize: '0.75rem' }}>↗ {isDE ? 'Teilen' : 'Share'}</button>
+              <button onClick={() => shareSetWithPartner(activeSet)} style={{ background: 'transparent', border: `1px solid ${th.border}`, color: th.gold, borderRadius: '10px', padding: '6px 12px', cursor: 'pointer', fontSize: '0.75rem' }}>↗ {t.share}</button>
             )}
           </div>
 
           {/* ── Action buttons ── */}
           <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
-            <button onClick={() => setSetAction(a => a === 'manual' ? null : 'manual')} style={{ flex: 1, padding: '10px 6px', borderRadius: '12px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: '600', background: setAction === 'manual' ? `${th.accent}25` : 'transparent', color: setAction === 'manual' ? th.text : th.sub, border: `1px solid ${setAction === 'manual' ? th.accent : th.border}` }}>+ {isDE ? 'Manuell' : 'Manual'}</button>
-            <button onClick={() => setSetAction(a => a === 'ki' ? null : 'ki')} style={{ flex: 1, padding: '10px 6px', borderRadius: '12px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: '600', background: setAction === 'ki' ? `${th.accent}25` : 'transparent', color: setAction === 'ki' ? th.text : th.sub, border: `1px solid ${setAction === 'ki' ? th.accent : th.border}` }}>🤖 {isDE ? 'KI' : 'AI'}</button>
+            <button onClick={() => setSetAction(a => a === 'manual' ? null : 'manual')} style={{ flex: 1, padding: '10px 6px', borderRadius: '12px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: '600', background: setAction === 'manual' ? `${th.accent}25` : 'transparent', color: setAction === 'manual' ? th.text : th.sub, border: `1px solid ${setAction === 'manual' ? th.accent : th.border}` }}>+ {t.manual}</button>
+            <button onClick={() => setSetAction(a => a === 'ki' ? null : 'ki')} style={{ flex: 1, padding: '10px 6px', borderRadius: '12px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: '600', background: setAction === 'ki' ? `${th.accent}25` : 'transparent', color: setAction === 'ki' ? th.text : th.sub, border: `1px solid ${setAction === 'ki' ? th.accent : th.border}` }}>🤖 {t.aiLabel}</button>
             <button onClick={() => fileRef.current?.click()} style={{ flex: 1, padding: '10px 6px', borderRadius: '12px', cursor: importLoading ? 'default' : 'pointer', fontSize: '0.78rem', fontWeight: '600', background: 'transparent', color: importLoading ? th.sub : th.sub, border: `1px solid ${th.border}` }}>
-              {importLoading ? '...' : `📄 ${isDE ? 'Import' : 'Import'}`}
+              {importLoading ? '...' : `📄 Import`}
             </button>
             <input ref={fileRef} type="file" accept=".txt,.csv" style={{ display: 'none' }} onChange={e => { if (e.target.files[0]) handleImport(e.target.files[0]); e.target.value = '' }} />
           </div>
 
           {setAction === 'manual' && (
             <div style={{ ...s.card, marginBottom: '12px' }}>
-              <input style={{ ...s.input, marginBottom: '8px' }} placeholder={isDE ? 'Vorderseite' : 'Front'} value={cardFront} onChange={e => setCardFront(e.target.value)} />
-              <input style={{ ...s.input, marginBottom: '10px' }} placeholder={isDE ? 'Rückseite' : 'Back'} value={cardBack} onChange={e => setCardBack(e.target.value)} />
-              <button style={{ ...s.button, marginBottom: 0 }} onClick={addCardToSet}>{isDE ? 'Karte hinzufügen' : 'Add card'}</button>
+              <input style={{ ...s.input, marginBottom: '8px' }} placeholder={t.front} value={cardFront} onChange={e => setCardFront(e.target.value)} />
+              <input style={{ ...s.input, marginBottom: '10px' }} placeholder={t.backLabel} value={cardBack} onChange={e => setCardBack(e.target.value)} />
+              <button style={{ ...s.button, marginBottom: 0 }} onClick={addCardToSet}>{t.addCard}</button>
             </div>
           )}
 
           {setAction === 'ki' && (
             <div style={{ ...s.card, marginBottom: '12px' }}>
-              <input style={{ ...s.input, marginBottom: '10px' }} placeholder={isDE ? 'Thema (z.B. Farben auf Spanisch)' : 'Topic (e.g. Colors in Spanish)'} value={kiTopic} onChange={e => setKiTopic(e.target.value)} />
-              <button style={{ ...s.button, marginBottom: 0, opacity: kiLoading ? 0.6 : 1 }} onClick={generateKiCards} disabled={kiLoading}>{kiLoading ? '...' : isDE ? '10 Karten generieren' : 'Generate 10 cards'}</button>
+              <input style={{ ...s.input, marginBottom: '10px' }} placeholder={t.topicPlaceholder} value={kiTopic} onChange={e => setKiTopic(e.target.value)} />
+              <button style={{ ...s.button, marginBottom: 0, opacity: kiLoading ? 0.6 : 1 }} onClick={generateKiCards} disabled={kiLoading}>{kiLoading ? '...' : t.generate10}</button>
             </div>
           )}
 
@@ -9476,7 +9826,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
           {/* ── Card list ── */}
           {(activeSet.cards || []).length === 0 ? (
             <div style={{ ...s.card, textAlign: 'center', padding: '28px' }}>
-              <p style={{ color: th.sub, fontSize: '0.9rem', margin: 0 }}>{isDE ? 'Noch keine Karten — füge welche hinzu!' : 'No cards yet — add some!'}</p>
+              <p style={{ color: th.sub, fontSize: '0.9rem', margin: 0 }}>{t.noCardsYet}</p>
             </div>
           ) : (
             <div style={s.card}>
@@ -9492,7 +9842,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
               ))}
             </div>
           )}
-          <button onClick={() => deleteSet(activeSet.id)} style={{ ...s.logoutBtn, marginTop: '16px', color: '#f44336', borderColor: '#f4433644' }}>{isDE ? 'Set löschen' : 'Delete set'}</button>
+          <button onClick={() => deleteSet(activeSet.id)} style={{ ...s.logoutBtn, marginTop: '16px', color: '#f44336', borderColor: '#f4433644' }}>{t.deleteSet}</button>
         </div>
       </div>
     )
@@ -9503,12 +9853,12 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
     return (
       <div style={s.container} className="vocara-screen">
         <div style={{ ...s.homeBox, paddingTop: '16px' }}>
-          <button style={s.backBtn} onClick={() => { setInnerScreen('list'); setNewCatName(''); setCatError('') }}>← {isDE ? 'Zurück' : 'Back'}</button>
-          <h2 style={{ color: th.text, fontSize: '1.2rem', fontWeight: '700', marginBottom: '20px', textAlign: 'left' }}>{isDE ? 'Neue Kategorie' : 'New category'}</h2>
+          <button style={s.backBtn} onClick={() => { setInnerScreen('list'); setNewCatName(''); setCatError('') }}>← {t.back}</button>
+          <h2 style={{ color: th.text, fontSize: '1.2rem', fontWeight: '700', marginBottom: '20px', textAlign: 'left' }}>{t.newCategory}</h2>
           <div style={s.card}>
             <input
               style={{ ...s.input, marginBottom: catError ? '6px' : '14px', borderColor: catError ? '#f44336' : undefined }}
-              placeholder={isDE ? 'Name der Kategorie' : 'Category name'}
+              placeholder={t.categoryName}
               value={newCatName}
               onChange={e => { setNewCatName(e.target.value); if (catError) setCatError('') }}
               onKeyDown={e => { if (e.key === 'Enter') createKategorie() }}
@@ -9522,7 +9872,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
               onClick={createKategorie}
               disabled={catSaving}
             >
-              {catSaving ? (isDE ? 'Speichern…' : 'Saving…') : (isDE ? 'Kategorie erstellen' : 'Create category')}
+              {catSaving ? (t.saving) : (t.createCategory)}
             </button>
           </div>
         </div>
@@ -9535,7 +9885,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
     <div style={s.container} className="vocara-screen">
       <div style={{ ...s.homeBox, paddingTop: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: '18px' }}>
-          <button style={{ ...s.backBtn, marginBottom: 0, marginRight: '8px' }} onClick={onBack}>← {isDE ? 'Zurück' : 'Back'}</button>
+          <button style={{ ...s.backBtn, marginBottom: 0, marginRight: '8px' }} onClick={onBack}>← {t.back}</button>
           <h2 style={{ color: th.text, fontSize: '1.2rem', fontWeight: '700', flex: 1, textAlign: 'center', margin: 0 }}>Katara</h2>
         </div>
 
@@ -9545,7 +9895,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
               <span style={{ fontSize: '1.3rem' }}>🤝</span>
               <p style={{ color: th.text, fontWeight: '700', fontSize: '0.95rem', margin: 0 }}>
-                {isDE ? 'Diese Woche zusammen' : 'This week together'}
+                {t.thisWeekTogether}
               </p>
               {bothDone && <span style={{ marginLeft: 'auto', fontSize: '1.2rem' }}>🎉</span>}
             </div>
@@ -9573,26 +9923,26 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
                 </div>
                 {bothDone && (
                   <p style={{ color: th.gold, fontSize: '0.82rem', fontWeight: '700', textAlign: 'center', marginTop: '10px', marginBottom: 0 }}>
-                    {isDE ? '✓ Beide Ziele erreicht!' : '✓ Both goals reached!'}
+                    {t.bothGoalsDone}
                   </p>
                 )}
                 <button onClick={() => setChallengeInput(String(challengeTarget))}
                   style={{ background: 'transparent', border: 'none', color: th.sub, fontSize: '0.72rem', cursor: 'pointer', padding: '6px 0 0', WebkitTapHighlightColor: 'transparent' }}>
-                  {isDE ? 'Ziel ändern' : 'Change goal'}
+                  {t.changeGoal}
                 </button>
               </>
             ) : (
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <input
                   type="number" min="1" max="500"
-                  placeholder={isDE ? 'Ziel (z.B. 50)' : 'Goal (e.g. 50)'}
+                  placeholder={lang === 'de' ? 'Ziel (z.B. 50)' : 'Goal (e.g. 50)'}
                   value={challengeInput}
                   onChange={e => setChallengeInput(e.target.value)}
                   style={{ ...s.input, flex: 1, marginBottom: 0, fontSize: '0.9rem', padding: '10px 12px' }}
                 />
                 <button onClick={saveChallenge} disabled={challengeSaving || !challengeInput}
                   style={{ ...s.button, padding: '10px 16px', fontSize: '0.85rem', marginBottom: 0, opacity: (!challengeInput || challengeSaving) ? 0.5 : 1 }}>
-                  {isDE ? 'Setzen' : 'Set'}
+                  {t.save}
                 </button>
               </div>
             )}
@@ -9600,7 +9950,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '8px' }}>
                 <input
                   type="number" min="1" max="500"
-                  placeholder={isDE ? 'Neues Ziel' : 'New goal'}
+                  placeholder={lang === 'de' ? 'Neues Ziel' : 'New goal'}
                   value={challengeInput}
                   onChange={e => setChallengeInput(e.target.value)}
                   style={{ ...s.input, flex: 1, marginBottom: 0, fontSize: '0.9rem', padding: '10px 12px' }}
@@ -9633,7 +9983,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                 <span style={{ fontSize: '1.3rem' }}>💑</span>
                 <p style={{ color: th.text, fontWeight: '700', fontSize: '0.95rem', margin: 0 }}>
-                  {isDE ? 'Unsere Karten' : 'Our Cards'}
+                  {t.ourCards}
                 </p>
                 <span style={{ marginLeft: 'auto', background: `${th.gold}18`, color: th.gold, border: `1px solid ${th.gold}44`, borderRadius: '12px', padding: '2px 10px', fontSize: '0.72rem', fontWeight: '700' }}>
                   {sharedMastered.length}
@@ -9652,7 +10002,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
                   </div>
                 ))}
                 {sharedMastered.length > 20 && (
-                  <p style={{ color: th.sub, fontSize: '0.72rem', textAlign: 'center', margin: '4px 0 0' }}>+{sharedMastered.length - 20} {isDE ? 'weitere' : 'more'}</p>
+                  <p style={{ color: th.sub, fontSize: '0.72rem', textAlign: 'center', margin: '4px 0 0' }}>+{sharedMastered.length - 20} {t.more}</p>
                 )}
               </div>
             </div>
@@ -9665,8 +10015,8 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
             style={{ ...s.card, display: 'flex', alignItems: 'center', gap: '14px', width: '100%', cursor: 'pointer', marginBottom: '18px', padding: '16px', textAlign: 'left', border: `1px solid ${th.gold}44`, background: `${th.gold}08` }}>
             <span style={{ fontSize: '1.8rem', flexShrink: 0 }}>⚡</span>
             <div style={{ flex: 1 }}>
-              <p style={{ color: th.text, fontWeight: '700', margin: '0 0 2px', fontSize: '0.95rem' }}>{isDE ? 'Jetzt zusammen lernen' : 'Learn together now'}</p>
-              <p style={{ color: th.sub, fontSize: '0.78rem', margin: 0 }}>{isDE ? 'Gleiche Karten — gleichzeitig' : 'Same cards — at the same time'}</p>
+              <p style={{ color: th.text, fontWeight: '700', margin: '0 0 2px', fontSize: '0.95rem' }}>{t.learnTogether}</p>
+              <p style={{ color: th.sub, fontSize: '0.78rem', margin: 0 }}>{t.learnTogetherSub}</p>
             </div>
             <span style={{ color: th.gold, fontSize: '1rem' }}>›</span>
           </button>
@@ -9675,12 +10025,12 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
         {/* ── KATEGORIEN ── */}
         <div style={{ marginBottom: '8px' }}>
           <p style={{ color: th.sub, fontSize: '0.72rem', fontWeight: '700', letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 10px' }}>
-            {isDE ? 'Kategorien' : 'Categories'} {categories.length > 0 && `(${categories.length})`}
+            {t.categories} {categories.length > 0 && `(${categories.length})`}
           </p>
           {categories.length === 0 ? (
             <div style={{ ...s.card, textAlign: 'center', padding: '28px 20px', marginBottom: '10px' }}>
               <span style={{ fontSize: '2rem', display: 'block', marginBottom: '8px' }}>📂</span>
-              <p style={{ color: th.sub, fontSize: '0.85rem', margin: 0 }}>{isDE ? 'Noch keine Kategorien — erstelle deine erste!' : 'No categories yet — create your first one!'}</p>
+              <p style={{ color: th.sub, fontSize: '0.85rem', margin: 0 }}>{t.noCategoriesYet}</p>
             </div>
           ) : (
             categories.map(cat => (
@@ -9695,7 +10045,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
             ))
           )}
           <button style={{ ...s.button, marginTop: '4px', marginBottom: '20px' }} onClick={() => setInnerScreen('create')}>
-            + {isDE ? 'Neue Kategorie' : 'New category'}
+            + {t.newCategory}
           </button>
         </div>
 
@@ -9711,7 +10061,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
                   <span style={{ fontSize: '1.8rem', flexShrink: 0 }}>{set.icon}</span>
                   <div style={{ flex: 1 }}>
                     <p style={{ color: th.text, fontWeight: '700', margin: '0 0 2px', fontSize: '0.95rem' }}>{set.name}</p>
-                    <p style={{ color: th.sub, fontSize: '0.78rem', margin: 0 }}>{set.cards?.length || 0} {isDE ? 'Karten' : 'cards'}</p>
+                    <p style={{ color: th.sub, fontSize: '0.78rem', margin: 0 }}>{set.cards?.length || 0} {t.cards}</p>
                   </div>
                   {isLocked ? (
                     <span style={{ background: `${th.gold}18`, color: th.gold, border: `1px solid ${th.gold}44`, borderRadius: '12px', padding: '3px 10px', fontSize: '0.72rem', fontWeight: '600', flexShrink: 0 }}>🔒 Premium</span>
@@ -9829,9 +10179,9 @@ function LiveSessionScreen({ user, myData, partnerData, coupleId, allCards, lang
       <div style={s.container} className="vocara-screen"><div style={{ ...s.homeBox, paddingTop: '40px' }}>
         <div style={{ textAlign: 'center', animation: 'vocaraFadeIn 0.4s ease both' }}>
           <p style={{ fontSize: '3rem', marginBottom: '16px' }}>🎉</p>
-          <h2 style={{ color: th.text, fontSize: '1.4rem', fontWeight: '700', marginBottom: '20px' }}>{isDE ? 'Session beendet!' : 'Session done!'}</h2>
+          <h2 style={{ color: th.text, fontSize: '1.4rem', fontWeight: '700', marginBottom: '20px' }}>{t.sessionResult}</h2>
           <div style={{ ...s.card, marginBottom: '12px' }}>
-            <p style={{ color: th.sub, fontSize: '0.78rem', margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '1px' }}>{isDE ? 'Ergebnis' : 'Results'}</p>
+            <p style={{ color: th.sub, fontSize: '0.78rem', margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '1px' }}>{t.results}</p>
             <div style={{ display: 'flex', justifyContent: 'space-around' }}>
               <div style={{ textAlign: 'center' }}>
                 <p style={{ color: th.text, fontWeight: '700', fontSize: '1.6rem', margin: '0 0 4px' }}>{myCorrect}</p>
@@ -9843,7 +10193,7 @@ function LiveSessionScreen({ user, myData, partnerData, coupleId, allCards, lang
               </div>
             </div>
           </div>
-          <button style={s.button} onClick={onBack}>{isDE ? '← Zurück' : '← Back'}</button>
+          <button style={s.button} onClick={onBack}>{'← ' + t.back}</button>
         </div>
       </div></div>
     )
@@ -9852,27 +10202,27 @@ function LiveSessionScreen({ user, myData, partnerData, coupleId, allCards, lang
   return (
     <div style={s.container} className="vocara-screen"><div style={{ ...s.homeBox, paddingTop: '16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
-        <button style={{ ...s.backBtn, marginBottom: 0 }} onClick={endSession}>← {isDE ? 'Beenden' : 'End'}</button>
+        <button style={{ ...s.backBtn, marginBottom: 0 }} onClick={endSession}>← {t.endBtn}</button>
         <p style={{ color: th.text, fontWeight: '700', fontSize: '1rem', flex: 1, textAlign: 'center', margin: 0 }}>
-          {isDE ? '⚡ Gemeinsam lernen' : '⚡ Learn together'}
+          {t.learnToge}
         </p>
       </div>
 
       {status === 'waiting' && !liveData && (
         <div style={{ ...s.card, textAlign: 'center', padding: '36px 24px' }}>
           <p style={{ fontSize: '2.5rem', marginBottom: '14px' }}>⚡</p>
-          <p style={{ color: th.text, fontWeight: '700', fontSize: '1rem', marginBottom: '8px' }}>{isDE ? 'Bereit für eine gemeinsame Session?' : 'Ready for a joint session?'}</p>
+          <p style={{ color: th.text, fontWeight: '700', fontSize: '1rem', marginBottom: '8px' }}>{t.readyJointSession}</p>
           <p style={{ color: th.sub, fontSize: '0.85rem', marginBottom: '20px' }}>
             {isDE ? `Beide sehen dieselben Karten gleichzeitig.` : `Both see the same cards at the same time.`}
           </p>
-          <button style={s.button} onClick={startSession}>{isDE ? '🚀 Session starten' : '🚀 Start session'}</button>
+          <button style={s.button} onClick={startSession}>{t.startSession}</button>
         </div>
       )}
 
       {status === 'waiting' && liveData?.active && (
         <div style={{ ...s.card, textAlign: 'center', padding: '24px' }}>
-          <p style={{ color: th.sub, fontSize: '0.9rem' }}>{partnerName} {isDE ? 'hat eine Session gestartet.' : 'started a session.'}</p>
-          <button style={{ ...s.button, marginTop: '12px' }} onClick={() => setStatus('active')}>{isDE ? 'Beitreten' : 'Join'}</button>
+          <p style={{ color: th.sub, fontSize: '0.9rem' }}>{partnerName} {t.partnerStarted}</p>
+          <button style={{ ...s.button, marginTop: '12px' }} onClick={() => setStatus('active')}>{t.joinBtn}</button>
         </div>
       )}
 
@@ -9880,7 +10230,7 @@ function LiveSessionScreen({ user, myData, partnerData, coupleId, allCards, lang
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
             <span style={{ color: th.sub, fontSize: '0.78rem' }}>{currentIdx + 1} / {totalCards}</span>
-            <span style={{ color: th.sub, fontSize: '0.78rem' }}>{isDE ? 'Synchron' : 'Sync'} ⚡</span>
+            <span style={{ color: th.sub, fontSize: '0.78rem' }}>{t.sync} ⚡</span>
           </div>
           <div style={{ ...s.bigCard, marginBottom: '20px' }}>
             <p style={{ ...s.cardFront, marginBottom: '10px' }}>{currentCard.front}</p>
@@ -9890,18 +10240,18 @@ function LiveSessionScreen({ user, myData, partnerData, coupleId, allCards, lang
           {/* Partner status */}
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', padding: '0 4px' }}>
             <span style={{ color: myAnswerNow === 'correct' ? '#4CAF50' : myAnswerNow === 'wrong' ? th.accent : th.sub, fontSize: '0.82rem' }}>
-              {myName}: {myAnswerNow === 'correct' ? '✓' : myAnswerNow === 'wrong' ? '✗' : (isDE ? 'antwortet…' : 'answering…')}
+              {myName}: {myAnswerNow === 'correct' ? '✓' : myAnswerNow === 'wrong' ? '✗' : (t.answering)}
             </span>
             <span style={{ color: partnerAnswerNow === 'correct' ? '#4CAF50' : partnerAnswerNow === 'wrong' ? th.accent : th.sub, fontSize: '0.82rem' }}>
-              {partnerName}: {partnerAnswerNow === 'correct' ? '✓' : partnerAnswerNow === 'wrong' ? '✗' : (isDE ? 'antwortet…' : 'answering…')}
+              {partnerName}: {partnerAnswerNow === 'correct' ? '✓' : partnerAnswerNow === 'wrong' ? '✗' : (t.answering)}
             </span>
           </div>
           {!myAnswerNow && (
             <div style={{ display: 'flex', gap: '12px' }}>
               <button onClick={() => recordAnswer(true)}
-                style={{ ...s.button, flex: 1, background: 'rgba(76,175,80,0.15)', border: '1px solid rgba(76,175,80,0.4)', color: '#81c784', marginBottom: 0 }}>✓ {isDE ? 'Gewusst' : 'Correct'}</button>
+                style={{ ...s.button, flex: 1, background: 'rgba(76,175,80,0.15)', border: '1px solid rgba(76,175,80,0.4)', color: '#81c784', marginBottom: 0 }}>✓ {t.knew}</button>
               <button onClick={() => recordAnswer(false)}
-                style={{ ...s.button, flex: 1, background: `${th.accent}15`, border: `1px solid ${th.accent}44`, color: th.accent, marginBottom: 0 }}>✗ {isDE ? 'Nicht gewusst' : 'Wrong'}</button>
+                style={{ ...s.button, flex: 1, background: `${th.accent}15`, border: `1px solid ${th.accent}44`, color: th.accent, marginBottom: 0 }}>✗ {t.didntKnow}</button>
             </div>
           )}
           {myAnswerNow && (

@@ -1,5 +1,15 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 05.05.2026)
 
+## ✅ i18n Audit & Swahili Support (05.05.2026 Session 80+81) — V01.069.101
+- T.sw BLOCK HINZUGEFÜGT: vollständiger Swahili-Übersetzungsblock (~200 Keys) in T-Objekt ✅
+- const t = T[lang] || T.en FALLBACK: 6 Screens ohne loadLocale gefixed (Admin, Diary, MeineKarten, Geschenkkarte, MainSelection, Sets) ✅
+- ~250 isDE/isMarkLang UI-String-Patterns ersetzt durch t.key Referenzen (App.jsx) ✅
+- ~140 neue Keys zu T.de + T.en + T.sw hinzugefügt (diffLeicht/Mittel/Schwer, area-Labels, gimmick-Texte etc.) ✅
+- public/locales/sw.json ERSTELLT: ~250 Keys vollständige Swahili-Übersetzungen ✅
+- public/locales/de.json + en.json AKTUALISIERT: alle neuen Keys ergänzt ✅
+- FIRESTORE RULES: isAdmin() für cardProgress + settings bereits vorhanden — kein Redeploy nötig ✅
+- VERSION V01.069.101 ✅
+
 ## ✅ Pool Architecture Overhaul (05.05.2026 Session 79) — V01.069.100
 - POOL_STRUCTURE KONSTANTE ✅
   - `api/_poolStructure.js` erstellt: AUTHORITATIVE config für cardsPerLevel + totalLevels pro Kategorie
