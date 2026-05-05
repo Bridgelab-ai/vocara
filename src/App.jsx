@@ -44,7 +44,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.059.099'
+const APP_VERSION = 'V01.060.000'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -646,6 +646,31 @@ function buildCardPair(card) {
     }]
   }
   return [forwardCard, ...reversedCards]
+}
+
+async function addTenseVariants(masteredCards, toLang, fromLang, langA, langB) {
+  if (!masteredCards.length) return []
+  const LNF = { en: 'English', de: 'German', sw: 'Swahili', fr: 'French', es: 'Spanish', th: 'Thai' }
+  const toLangName = LNF[toLang] || toLang
+  const fromLangName = LNF[fromLang] || fromLang
+  const wordList = masteredCards.slice(0, 3).map(c => `"${c.back}"`).join(', ')
+  const res = await fetch('/api/chat', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001', max_tokens: 300,
+      messages: [{ role: 'user', content: `For each ${toLangName} word/phrase: ${wordList} — give the past tense form in ${toLangName} and its ${fromLangName} translation. Return ONLY JSON array (no markdown): [{"pastFront":"${fromLangName} prompt for past tense","pastBack":"${toLangName} past tense form"}]` }]
+    })
+  })
+  const d = await res.json()
+  const raw = (d.content?.[0]?.text || '').trim()
+  const match = raw.match(/\[[\s\S]*\]/)
+  if (!match) return []
+  const parsed = JSON.parse(match[0])
+  const ts = Date.now()
+  return parsed.filter(p => p.pastFront && p.pastBack).map((p, i) => ({
+    id: `tense_past_${ts}_${i}`, front: p.pastFront, back: p.pastBack,
+    category: 'tense-variant', tense: 'past', langA, langB, source: 'tense-variant',
+  })).flatMap(buildCardPair)
 }
 
 const ALL_MARK_CARDS = ALL_MARK_CARDS_BASE.flatMap(buildCardPair)
@@ -2043,6 +2068,7 @@ function KiGespraechScreen({ lang, theme, onBack, userName, userToLang = 'en', s
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [translations, setTranslations] = useState({})
+  const [visibleTranslations, setVisibleTranslations] = useState({})
   const [translating, setTranslating] = useState(null)
   const [feedback, setFeedback] = useState(null)
   const [loadingFeedback, setLoadingFeedback] = useState(false)
@@ -2057,6 +2083,13 @@ function KiGespraechScreen({ lang, theme, onBack, userName, userToLang = 'en', s
   const targetLang = LANG_NAMES_FULL[ttsLangCode] || ttsLangCode
   const nativeLang = LANG_NAMES_FULL[lang] || lang
   const ui = (de, en) => lang === 'de' ? de : en
+  const masteredCount = Object.values(myData?.cardProgress || {}).filter(p => (p?.interval || 0) >= 7).length
+  const tenseUnlocks = getTenseUnlocks(masteredCount)
+  const tenseRule = !tenseUnlocks.past
+    ? 'TENSE RULE: Use only present tense (Präsens/Present tense). Keep all sentences in present tense only.'
+    : !tenseUnlocks.future
+    ? 'TENSE RULE: Use present and past tense (Präsens + Vergangenheit/Past tense). Avoid future tense.'
+    : 'TENSE RULE: You may use all tenses freely (present, past, and future tense).'
 
   // Load today's KI usage from Firestore on mount
   useEffect(() => {
@@ -2072,7 +2105,9 @@ function KiGespraechScreen({ lang, theme, onBack, userName, userToLang = 'en', s
     const regCtx = socialRegisterContext(sessionRegister)
     return `You are playing the role of a ${sc.role} in a ${sc.en} scenario. The user ${userName} is practicing ${targetLang}.
 Social register / tone: ${regCtx}. Adapt your vocabulary and formality accordingly.
-Stay in character throughout. Respond ONLY in ${targetLang}. Never switch to ${nativeLang}.
+LANGUAGE RULE: You MUST always respond ONLY in ${targetLang}. Never switch languages regardless of what language the user writes in. If the user writes in ${nativeLang} or any other language, gently remind them to practice ${targetLang} and respond in ${targetLang}.
+${tenseRule}
+Stay in character throughout.
 If the user makes a grammar mistake, continue naturally, then add a brief tip like "💡 Tip: ..."
 Keep each response to 1-3 sentences. Be realistic and helpful for the scenario.
 After the user has sent ${MAX_EXCHANGES} messages, add "---END---" at the end of your response.`
@@ -2188,15 +2223,21 @@ Return ONLY valid JSON (no markdown): {"intro":"brief 1-2 sentence situation des
   }
 
   const translateMessage = async (msgIndex, text) => {
+    if (translations[msgIndex]) { setVisibleTranslations(prev => ({ ...prev, [msgIndex]: true })); return }
     setTranslating(msgIndex)
     try {
       const res = await fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 150, messages: [{ role: 'user', content: `Translate to ${nativeLang}. Return ONLY translation:\n"${text}"` }] })
+        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 150, messages: [{ role: 'user', content: `Translate to ${nativeLang}. Return ONLY the translation, nothing else:\n"${text}"` }] })
       })
       const d = await res.json()
-      setTranslations(prev => ({ ...prev, [msgIndex]: (d.content?.[0]?.text || '').trim() }))
-    } catch (_) { setTranslations(prev => ({ ...prev, [msgIndex]: '⚠️' })) }
+      const translated = (d.content?.[0]?.text || '').trim()
+      setTranslations(prev => ({ ...prev, [msgIndex]: translated }))
+      setVisibleTranslations(prev => ({ ...prev, [msgIndex]: true }))
+    } catch (_) {
+      setTranslations(prev => ({ ...prev, [msgIndex]: '⚠️' }))
+      setVisibleTranslations(prev => ({ ...prev, [msgIndex]: true }))
+    }
     setTranslating(null)
   }
 
@@ -2299,14 +2340,18 @@ Return ONLY valid JSON (no markdown): {"intro":"brief 1-2 sentence situation des
                 {msg.content.replace('---END---', '').trim()}
               </div>
               {msg.role === 'assistant' && (
-                <div style={{ maxWidth: '85%', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <button onClick={() => speak(msg.content, ttsLangCode)} style={{ background: 'none', border: 'none', color: th.sub, fontSize: '1rem', cursor: 'pointer', padding: '2px 4px', opacity: 0.6 }}>🔊</button>
-                  {translations[i] ? (
-                    <p style={{ color: th.sub, fontSize: '0.75rem', margin: 0, fontStyle: 'italic' }}>{translations[i]}</p>
-                  ) : (
-                    <button onClick={() => translateMessage(i, msg.content)} disabled={translating === i} style={{ background: 'none', border: 'none', color: th.sub, fontSize: '0.72rem', cursor: 'pointer', opacity: translating === i ? 0.5 : 0.7, textDecoration: 'underline' }}>
-                      {translating === i ? '...' : t.kiTranslate}
+                <div style={{ maxWidth: '85%', marginTop: '4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <button onClick={() => speak(msg.content, ttsLangCode)} style={{ background: 'none', border: 'none', color: th.sub, fontSize: '1rem', cursor: 'pointer', padding: '2px 4px', opacity: 0.6 }}>🔊</button>
+                    <button
+                      onClick={() => visibleTranslations[i] ? setVisibleTranslations(prev => ({ ...prev, [i]: false })) : translateMessage(i, msg.content)}
+                      disabled={translating === i}
+                      style={{ background: 'none', border: 'none', color: th.sub, fontSize: '0.72rem', cursor: 'pointer', opacity: translating === i ? 0.5 : 0.7, textDecoration: 'underline' }}>
+                      {translating === i ? '...' : visibleTranslations[i] ? `🌐 ${ui('Ausblenden', 'Hide')}` : `🌐 ${ui('Übersetzen', 'Translate')}`}
                     </button>
+                  </div>
+                  {visibleTranslations[i] && translations[i] && (
+                    <p style={{ color: th.sub, fontSize: '0.75rem', margin: '4px 0 0', fontStyle: 'italic', paddingLeft: '4px' }}>{translations[i]}</p>
                   )}
                 </div>
               )}
@@ -6168,7 +6213,7 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
     startUrlaubWithCards(fallbackCards)
   }
 
-  const startCategorySession = (category) => {
+  const startCategorySession = async (category) => {
     console.log('[Vocara] startCategorySession:', category)
     // ── MEINE WORTE HARD FILTER ─────────────────────────────────
     // Only single-word or max 2-word fronts are allowed in vocabulary.
@@ -6266,8 +6311,20 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
     if (sess.length === 0) return
     setCurrentSessionMode(category)
     // Show Wort des Tages banner for 2s before starting any session
-    const startSession = () => {
-      setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+    const startSession = async () => {
+      let finalSess = sess
+      if (getTenseUnlocks(myMasteredCount).past) {
+        const masteredForTense = cards.filter(c => !/_r(_\d+)?$/.test(c.id) && (cardProgress[c.id]?.interval || 0) >= 7).slice(0, 3)
+        if (masteredForTense.length > 0) {
+          const lA = isMarkLang ? 'de' : 'en'
+          const lB = activeToLang || (isMarkLang ? 'en' : 'de')
+          try {
+            const variants = await addTenseVariants(masteredForTense, lB, lA, lA, lB)
+            if (variants.length) finalSess = [...sess, ...variants].sort(() => Math.random() - 0.5)
+          } catch (_) {}
+        }
+      }
+      setSession(finalSess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
       if (['vocabulary', 'street', 'home', 'basics', 'urlaub'].includes(category)) markAreaDone(category)
     }
     if (wordOfDay) {
@@ -6284,7 +6341,19 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
     const existingBasics = activeCards.filter(c => c.category === 'basics' && (!c.level || Number(c.level) <= maxBasicsLevel))
     if (existingBasics.length > 0) {
       const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
-      const sess = buildSession(existingBasics, cardProgress)
+      let sess = buildSession(existingBasics, cardProgress)
+      const toLangsBasics = myData?.toLangs
+      if (toLangsBasics && toLangsBasics.length > 1) {
+        const mixed = []
+        for (const { lang: lc, percent } of toLangsBasics) {
+          const langCards = existingBasics.filter(c => (c.langB || '').toLowerCase() === lc || (c.langA || '').toLowerCase() === lc)
+          if (langCards.length === 0) continue
+          const count = Math.max(1, Math.round(percent / 100 * SESSION_SIZE))
+          const built = buildSession(langCards, cardProgress)
+          mixed.push(...(built.length > 0 ? built.slice(0, count) : shuffle(langCards).slice(0, count)))
+        }
+        if (mixed.length > 0) sess = shuffle(mixed).slice(0, SESSION_SIZE)
+      }
       if (sess.length > 0) {
         setCurrentSessionMode('basics'); setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
         markAreaDone('basics'); return
@@ -6313,7 +6382,7 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
           newCards.forEach(c => { updatedProgress[c.id] = { interval: 0, consecutiveRight: 0, wrongSessions: 0, nextReview: todayStr() } })
           try { await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress, basicsPoolLevel: nextLevel }) } catch (e) { console.warn('[Vocara] basics level save failed:', e?.message) }
           setMyData(d => ({ ...d, aiCards: updatedAiCards, cardProgress: updatedProgress, basicsPoolLevel: nextLevel }))
-          const finalSess = [...newCards].sort(() => Math.random() - 0.5).slice(0, SESSION_SIZE)
+          const finalSess = [...newCards.flatMap(buildCardPair)].sort(() => Math.random() - 0.5).slice(0, SESSION_SIZE)
           setCurrentSessionMode('basics'); setSession(finalSess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
           markAreaDone('basics'); setBasicsLoading(false); return
         }
@@ -6342,7 +6411,7 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
       newCards.forEach(c => { updatedProgress[c.id] = { interval: 0, consecutiveRight: 0, wrongSessions: 0, nextReview: todayStr() } })
       try { await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress }) } catch (e) { console.warn('[Vocara] basics pool save failed:', e?.message) }
       setMyData(d => ({ ...d, aiCards: updatedAiCards, cardProgress: updatedProgress }))
-      const sess = [...newCards].sort(() => Math.random() - 0.5).slice(0, SESSION_SIZE)
+      const sess = [...newCards.flatMap(buildCardPair)].sort(() => Math.random() - 0.5).slice(0, SESSION_SIZE)
       setCurrentSessionMode('basics'); setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
       markAreaDone('basics'); setBasicsLoading(false); return
     }
@@ -6360,7 +6429,7 @@ Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","
       const updatedAiCards = [...(myData?.aiCards || []), ...newCards]
       try { await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards }) } catch (e) { console.warn('[Vocara] basics KI save failed:', e?.message) }
       setMyData(d => ({ ...d, aiCards: updatedAiCards }))
-      const sess2 = [...newCards].sort(() => Math.random() - 0.5).slice(0, SESSION_SIZE)
+      const sess2 = [...newCards.flatMap(buildCardPair)].sort(() => Math.random() - 0.5).slice(0, SESSION_SIZE)
       setCurrentSessionMode('basics'); setSession(sess2); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
       markAreaDone('basics'); setBasicsLoading(false); return
     } catch(e) { console.warn('[Vocara] basics KI failed:', e) }
@@ -6392,7 +6461,7 @@ Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","
     const fallbackRaw = BASICS_FALLBACK[fallbackKey] || BASICS_FALLBACK['de_en']
     const ts3 = Date.now()
     const fallbackCards = fallbackRaw.map((c, i) => ({ ...c, id: `basics_fallback_${ts3}_${i}`, langA, langB, category: 'basics', source: 'fallback', createdAt: ts3 }))
-    setCurrentSessionMode('basics'); setSession(fallbackCards); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+    setCurrentSessionMode('basics'); setSession(fallbackCards.flatMap(buildCardPair)); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
     markAreaDone('basics')
     setBasicsLoading(false)
   }
