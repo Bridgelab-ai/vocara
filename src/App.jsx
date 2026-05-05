@@ -44,7 +44,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.059.098'
+const APP_VERSION = 'V01.059.099'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -3026,7 +3026,6 @@ function PartnerScreen({ user, myData, lang, theme, onBack, onPartnerUpdate }) {
     if (!window.confirm(lang === 'de' ? 'Partner wirklich trennen?' : 'Really disconnect?')) return
     try { localStorage.setItem('vocara_manually_disconnected', 'true') } catch {}
     await updateDoc(doc(db, 'users', user.uid), { partnerUID: null, partnerName: null })
-    setDoc(doc(db, 'users', user.uid, 'publicStats', 'data'), { partnerUID: null, partnerName: null }, { merge: true }).catch(() => {})
     onPartnerUpdate(null)
   }
 
