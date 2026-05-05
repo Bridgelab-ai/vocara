@@ -1,6 +1,6 @@
 // POST /api/generate-sentence-training-pool
-// 12 levels, 30 exercises each. Body: { level: 1-12, pair? }
-// Writes to sharedExercises/{pair}_satz_level{N}
+// Body: { level: 1-14, pair? } — Writes to sharedExercises/{pair}_satz_level{N}
+import { POOL_STRUCTURE, getRarity, markImportant } from './_poolStructure.js'
 export const config = { api: { bodyParser: true } }
 
 const FIRESTORE_BASE = 'https://firestore.googleapis.com/v1/projects/vocara-ca2b7/databases/(default)/documents'
@@ -27,11 +27,12 @@ async function generateBatch(fromLang, toLang, level) {
   const toName = LANG_NAMES[toLang]
   const spec = LEVEL_SPEC[level]
 
-  const prompt = `Generate exactly 30 sentence training exercises (Level ${level}/12, ${spec.desc}) for a ${fromName} speaker learning ${toName}.
+  const batchCount = POOL_STRUCTURE.satztraining.cardsPerLevel
+  const prompt = `Generate exactly ${batchCount} sentence training exercises (Level ${level}, ${spec.desc}) for a ${fromName} speaker learning ${toName}.
 Grammar focus: ${spec.grammar}
 Vocabulary focus: ${spec.vocab}
 
-Mix these 5 exercise types (6 each):
+Mix these 5 exercise types evenly:
 - gap: fill-in-the-blank — question sentence has [___] placeholder for missing word
 - order: word chip arrangement — user arranges shuffled chips into correct sentence
 - tense: tense conversion — user rewrites sentence in a different tense as instructed
@@ -59,7 +60,7 @@ Return ONLY a valid JSON array (no markdown, no extra text):
   const text = (data.content?.[0]?.text || '[]').trim()
   const match = text.match(/\[[\s\S]*\]/)
   if (!match) return []
-  try { return JSON.parse(match[0]).slice(0, 30) } catch { return [] }
+  try { return JSON.parse(match[0]).slice(0, POOL_STRUCTURE.satztraining.cardsPerLevel) } catch { return [] }
 }
 
 function toFirestoreValue(v) {
@@ -78,6 +79,8 @@ async function writeToFirestore(langPair, level, exercises) {
             fields: {
               ...Object.fromEntries(Object.entries(ex).map(([k, v]) => [k, toFirestoreValue(v)])),
               level: { integerValue: String(level) },
+              rarity: { stringValue: getRarity(level) },
+              important: { booleanValue: markImportant(level) },
             }
           }
         }))
@@ -99,7 +102,7 @@ async function writeToFirestore(langPair, level, exercises) {
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
   const { pair, level: bodyLevel } = req.body || {}
-  const level = Math.min(12, Math.max(1, parseInt(bodyLevel) || 1))
+  const level = Math.min(POOL_STRUCTURE.satztraining.totalLevels, Math.max(1, parseInt(bodyLevel) || 1))
   const pairsToRun = pair ? [PAIRS.find(p => `${p.from}_${p.to}` === pair)].filter(Boolean) : PAIRS
   const results = []
   for (const p of pairsToRun) {

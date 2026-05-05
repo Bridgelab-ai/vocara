@@ -1,6 +1,6 @@
 // Vocab pool generator — POST /api/generate-vocab-pool
-// 12 levels, ~67 cards each. Body: { level: 1-12, from?, to? }
-// Writes to sharedCards/{pair}_vocab_level{N}
+// Body: { level: 1-22, from?, to? } — Writes to sharedCards/{pair}_vocab_level{N}
+import { POOL_STRUCTURE, getRarity, markImportant } from './_poolStructure.js'
 export const config = { api: { bodyParser: false } }
 
 const LANG_NAMES = { en: 'English', de: 'German', sw: 'Swahili' }
@@ -31,8 +31,9 @@ const LEVEL_SPEC = {
 async function generateLevel(fromLang, toLang, level) {
   const fromName = LANG_NAMES[fromLang]
   const toName = LANG_NAMES[toLang]
-  const spec = LEVEL_SPEC[level]
-  const prompt = `Generate exactly ${spec.count} vocabulary flashcards (Level ${level}/12, ${spec.diff}) for a ${fromName} speaker learning ${toName}.
+  const spec = LEVEL_SPEC[level] || LEVEL_SPEC[12]
+  const count = POOL_STRUCTURE.vocab.cardsPerLevel
+  const prompt = `Generate exactly ${count} vocabulary flashcards (Level ${level}, ${spec.diff}) for a ${fromName} speaker learning ${toName}.
 Focus: ${spec.focus}
 
 Rules:
@@ -59,7 +60,7 @@ Return ONLY a valid JSON array (no markdown):
   const raw = (data.content?.[0]?.text || '').trim()
   const match = raw.match(/\[[\s\S]*\]/)
   if (!match) return []
-  try { return JSON.parse(match[0]).slice(0, spec.count) } catch { return [] }
+  try { return JSON.parse(match[0]).slice(0, count) } catch { return [] }
 }
 
 function cardToFirestore(c, fromLang, toLang, level) {
@@ -78,6 +79,8 @@ function cardToFirestore(c, fromLang, toLang, level) {
         langA: { stringValue: fromLang },
         langB: { stringValue: toLang },
         source: { stringValue: 'vocab-pool' },
+        rarity: { stringValue: getRarity(level) },
+        important: { booleanValue: markImportant(level) },
         createdAt: { integerValue: Date.now().toString() },
       }
     }
@@ -106,7 +109,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
   let body = {}
   try { const chunks = []; for await (const chunk of req) chunks.push(chunk); body = JSON.parse(Buffer.concat(chunks).toString() || '{}') } catch {}
-  const level = Math.min(12, Math.max(1, body.level || 1))
+  const level = Math.min(POOL_STRUCTURE.vocab.totalLevels, Math.max(1, body.level || 1))
   const pairsToRun = (body.from && body.to) ? [{ from: body.from, to: body.to }] : PAIRS
   const results = []
   for (const { from, to } of pairsToRun) {

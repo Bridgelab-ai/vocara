@@ -4,6 +4,16 @@ import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from
 import { doc, setDoc, getDoc, getDocFromServer, updateDoc, deleteDoc, onSnapshot, collection, addDoc, getDocs, writeBatch } from 'firebase/firestore'
 import { getCards, setCards, invalidateCache } from './hooks/useCardCache'
 import './App.css'
+import { POOL_STRUCTURE } from '../api/_poolStructure.js'
+
+const ADMIN_POOL_CONFIGS = [
+  { catKey: 'grundlagen', label: 'Base', endpoint: '/api/generate-base-pool', bodyFn: l => ({ level: l }), docFn: (p, l) => `${p}_grundlagen_${l}`, coll: 'sharedCards' },
+  { catKey: 'vocab', label: 'Vocab', endpoint: '/api/generate-vocab-pool', bodyFn: l => ({ level: l }), docFn: (p, l) => `${p}_vocab_level${l}`, coll: 'sharedCards' },
+  { catKey: 'street', label: 'Street', endpoint: '/api/generate-street-pool', bodyFn: l => ({ level: l }), docFn: (p, l) => `${p}_street_level${l}`, coll: 'sharedCards' },
+  { catKey: 'home', label: 'Home', endpoint: '/api/generate-home-pool', bodyFn: l => ({ level: l }), docFn: (p, l) => `${p}_home_level${l}`, coll: 'sharedCards' },
+  { catKey: 'satztraining', label: 'SatzFC', endpoint: '/api/generate-sentence-pool', bodyFn: l => ({ type: 'flashcards', level: l }), docFn: (p, l) => `${p}_sentence_level${l}`, coll: 'sharedCards' },
+  { catKey: 'satztraining', label: 'SatzTr', endpoint: '/api/generate-sentence-training-pool', bodyFn: l => ({ level: l }), docFn: (p, l) => `${p}_satz_level${l}`, coll: 'sharedExercises' },
+]
 
 // ── APP PREFS CONTEXT (lightMode, cardSize) ─────────────────────
 const AppPrefsContext = React.createContext({ lightMode: false, cardSize: 'normal' })
@@ -44,7 +54,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.068.100'
+const APP_VERSION = 'V01.069.100'
 
 // Returns a language instruction appended to KI prompts so the AI responds in the user's native language
 const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
@@ -7035,7 +7045,14 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     // ── Level unlock detection ──────────────────────────────────
     const SESSION_TO_CAT = { vocabulary: 'vocabulary', street: 'street', home: 'home', urlaub: 'urlaub', sentence: 'sentence', satztraining: 'sentence', basics: 'basics' }
     const CAT_TO_KEY = { vocabulary: 'vocab', street: 'street', home: 'home', urlaub: 'urlaub', sentence: 'satz', basics: 'grundlagen' }
-    const CAT_MAX_LEVELS = { vocab: 12, satz: 12, street: 12, home: 10, grundlagen: 10, urlaub: 10 }
+    const CAT_MAX_LEVELS = {
+      vocab: POOL_STRUCTURE.vocab.totalLevels,
+      satz: POOL_STRUCTURE.satztraining.totalLevels,
+      street: POOL_STRUCTURE.street.totalLevels,
+      home: POOL_STRUCTURE.home.totalLevels,
+      grundlagen: POOL_STRUCTURE.grundlagen.totalLevels,
+      urlaub: POOL_STRUCTURE.urlaub.totalLevels,
+    }
     const sessionCat = SESSION_TO_CAT[currentSessionMode]
     const unlockCatKey = sessionCat ? CAT_TO_KEY[sessionCat] : null
     if (unlockCatKey) {
@@ -7993,6 +8010,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
   const [resetSelectedUid, setResetSelectedUid] = useState(MARK_UID)
   const [resetRunning, setResetRunning] = useState(false)
   const [resetToast, setResetToast] = useState(null)
+  const [poolStatus, setPoolStatus] = useState({})
 
   const load = async () => {
     setLoading(true)
@@ -8007,6 +8025,33 @@ function AdminScreen({ user, lang, theme, onBack }) {
       setReports(rSnap.docs.map(d => ({ _id: d.id, ...d.data() })).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)))
     } catch (_) {}
     setLoading(false)
+    loadPoolStatus()
+  }
+
+  const loadPoolStatus = async () => {
+    try {
+      const PAIRS = ['de_en', 'en_de', 'de_sw']
+      const [cardSnap, exSnap] = await Promise.all([
+        getDocs(collection(db, 'sharedCards')),
+        getDocs(collection(db, 'sharedExercises')),
+      ])
+      const cardMap = {}
+      for (const d of cardSnap.docs) { cardMap[d.id] = d.data().count ? Number(d.data().count) : (d.data().cards?.length || 0) }
+      const exMap = {}
+      for (const d of exSnap.docs) { exMap[d.id] = d.data().count ? Number(d.data().count) : (d.data().exercises?.length || 0) }
+      const status = {}
+      for (const cfg of ADMIN_POOL_CONFIGS) {
+        const totalLevels = POOL_STRUCTURE[cfg.catKey].totalLevels
+        const threshold = POOL_STRUCTURE[cfg.catKey].cardsPerLevel
+        const map = cfg.coll === 'sharedCards' ? cardMap : exMap
+        for (let l = 1; l <= totalLevels; l++) {
+          const key = `${cfg.label}_${l}`
+          const counts = PAIRS.map(p => map[cfg.docFn(p, l)] || 0)
+          status[key] = counts.every(c => c === 0) ? 'empty' : counts.every(c => c >= threshold) ? 'full' : 'partial'
+        }
+      }
+      setPoolStatus(status)
+    } catch (e) { console.warn('loadPoolStatus failed:', e) }
   }
 
   useEffect(() => { load() }, [])
@@ -8085,6 +8130,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
       setPoolLog(prev => [...prev, `✕ ${label}: ${e.message}`])
     }
     setPoolRunning(false)
+    loadPoolStatus()
   }
 
   const triggerAllPools = async () => {
@@ -8233,21 +8279,20 @@ function AdminScreen({ user, lang, theme, onBack }) {
           </button>
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
-          {[
-            { label: 'Base L1', endpoint: '/api/generate-base-pool', body: { level: 1 } },
-            { label: 'Base L2', endpoint: '/api/generate-base-pool', body: { level: 2 } },
-            { label: 'Base L3', endpoint: '/api/generate-base-pool', body: { level: 3 } },
-            ...[1,2,3,4,5,6,7,8,9,10,11,12].map(l => ({ label: `Vocab L${l}`, endpoint: '/api/generate-vocab-pool', body: { level: l } })),
-            ...[1,2,3,4,5,6,7,8,9,10,11,12].map(l => ({ label: `Street L${l}`, endpoint: '/api/generate-street-pool', body: { level: l } })),
-            ...[1,2,3,4,5,6,7,8,9,10].map(l => ({ label: `Home L${l}`, endpoint: '/api/generate-home-pool', body: { level: l } })),
-            ...[1,2,3,4,5,6,7,8,9,10,11,12].map(l => ({ label: `SatzFC L${l}`, endpoint: '/api/generate-sentence-pool', body: { type: 'flashcards', level: l } })),
-            ...[1,2,3,4,5,6,7,8,9,10,11,12].map(l => ({ label: `SatzTr L${l}`, endpoint: '/api/generate-sentence-training-pool', body: { level: l } })),
-          ].map(({ label, endpoint, body }) => (
-            <button key={label} onClick={() => triggerPool(endpoint, body, label)} disabled={poolRunning}
-              style={{ background: `${th.gold}15`, border: `1px solid ${th.gold}44`, color: th.gold, borderRadius: '8px', padding: '4px 10px', fontSize: '0.68rem', fontWeight: '700', cursor: poolRunning ? 'not-allowed' : 'pointer', opacity: poolRunning ? 0.6 : 1 }}>
-              {label}
-            </button>
-          ))}
+          {ADMIN_POOL_CONFIGS.flatMap(cfg =>
+            Array.from({ length: POOL_STRUCTURE[cfg.catKey].totalLevels }, (_, i) => i + 1).map(l => {
+              const key = `${cfg.label}_${l}`
+              const st = poolStatus[key]
+              const btnColor = st === 'full' ? '#66bb6a' : st === 'partial' ? '#ffa726' : '#42a5f5'
+              const label = `${cfg.label} L${l}`
+              return (
+                <button key={key} onClick={() => triggerPool(cfg.endpoint, cfg.bodyFn(l), label)} disabled={poolRunning}
+                  style={{ background: `${btnColor}15`, border: `1px solid ${btnColor}44`, color: btnColor, borderRadius: '8px', padding: '4px 10px', fontSize: '0.68rem', fontWeight: '700', cursor: poolRunning ? 'not-allowed' : 'pointer', opacity: poolRunning ? 0.6 : 1 }}>
+                  {label}
+                </button>
+              )
+            })
+          )}
         </div>
         <button onClick={deleteSharedCards} disabled={poolRunning}
           style={{ background: 'rgba(229,115,115,0.12)', border: '1px solid rgba(229,115,115,0.4)', color: '#e57373', borderRadius: '8px', padding: '5px 14px', fontSize: '0.72rem', fontWeight: '700', cursor: poolRunning ? 'not-allowed' : 'pointer', marginBottom: '8px' }}>

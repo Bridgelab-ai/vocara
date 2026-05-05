@@ -1,5 +1,5 @@
 // Sentence pool generator — POST /api/generate-sentence-pool
-// Generates 50 exercises per level (1-3) for 3 language pairs = 450 total
+import { POOL_STRUCTURE, getRarity, markImportant } from './_poolStructure.js'
 export const config = { api: { bodyParser: false } }
 
 const LANG_NAMES = { en: 'English', de: 'German', sw: 'Swahili' }
@@ -190,7 +190,9 @@ async function writeFlashcardPool(fromLang, toLang, level, cards) {
               front: { stringValue: c.front || '' }, back: { stringValue: c.back || '' },
               category: { stringValue: 'sentence' }, vocabCategory: { stringValue: c.vocabCategory || '' },
               level: { integerValue: String(level) }, langA: { stringValue: fromLang }, langB: { stringValue: toLang },
-              source: { stringValue: 'sentence-pool' }, createdAt: { integerValue: Date.now().toString() },
+              source: { stringValue: 'sentence-pool' },
+              rarity: { stringValue: getRarity(level) }, important: { booleanValue: markImportant(level) },
+              createdAt: { integerValue: Date.now().toString() },
             }
           }
         }))
@@ -219,7 +221,9 @@ async function writeFlatSentencePool(fromLang, toLang, level, cards) {
               front: { stringValue: c.front || '' }, back: { stringValue: c.back || '' },
               category: { stringValue: 'sentence' }, vocabCategory: { stringValue: c.vocabCategory || '' },
               level: { integerValue: String(level) }, langA: { stringValue: fromLang }, langB: { stringValue: toLang },
-              source: { stringValue: 'sentence-pool' }, createdAt: { integerValue: Date.now().toString() },
+              source: { stringValue: 'sentence-pool' },
+              rarity: { stringValue: getRarity(level) }, important: { booleanValue: markImportant(level) },
+              createdAt: { integerValue: Date.now().toString() },
             }
           }
         }))
@@ -292,7 +296,7 @@ export default async function handler(req, res) {
 
   // type: 'flashcards' → generate sentence flashcards to sharedCards/{pair}_sentence_level{N}
   if (body.type === 'flashcards') {
-    const level = Math.min(12, Math.max(1, body.level || 1))
+    const level = Math.min(POOL_STRUCTURE.satztraining.totalLevels, Math.max(1, body.level || 1))
     const pairsToRun = body.pair
       ? PAIRS.filter(p => `${p.from}_${p.to}` === body.pair)
       : PAIRS

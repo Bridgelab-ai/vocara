@@ -1,4 +1,27 @@
-# Vocara – Vollständige ToDo & Ideen-Liste (Stand 03.05.2026)
+# Vocara – Vollständige ToDo & Ideen-Liste (Stand 05.05.2026)
+
+## ✅ Pool Architecture Overhaul (05.05.2026 Session 79) — V01.069.100
+- POOL_STRUCTURE KONSTANTE ✅
+  - `api/_poolStructure.js` erstellt: AUTHORITATIVE config für cardsPerLevel + totalLevels pro Kategorie
+  - Exportiert: `POOL_STRUCTURE`, `getRarity(level)`, `markImportant(level)`, `getImportantPct(level)`
+  - Importiert von allen Pool-Generatoren UND App.jsx (Vite bundelt es client-seitig)
+- ALL POOL GENERATORS UPDATED ✅
+  - `api/generate-base-pool.js`: Import + rarity/important in writeToFirestore + count field + level cap 10
+  - `api/generate-vocab-pool.js`: Import + count override (30) + rarity/important in cardToFirestore + cap 22
+  - `api/generate-street-pool.js`: Import + count override (25) + rarity/important + cap 18
+  - `api/generate-home-pool.js`: Import + count override (22) + rarity/important + cap 14
+  - `api/generate-sentence-training-pool.js`: Import + 22 exercises + rarity/important per exercise + cap 14
+  - `api/generate-sentence-pool.js`: Import + rarity/important in both writeFlashcardPool + writeFlatSentencePool + cap 14
+- ADMIN PANEL POOL-BUTTONS FARB-STATUS ✅
+  - `ADMIN_POOL_CONFIGS` als module-level const (Button-Config + Firestore docFn)
+  - `loadPoolStatus()`: liest sharedCards + sharedExercises → checkt 3 Pairs pro Level
+    → empty (0/3) = 🔵 blau, partial (1-2/3 oder unter threshold) = 🟡 gelb, full (alle ≥ threshold) = 🟢 grün
+  - Buttons zeigen nur bis totalLevels (kein hardcoded 12 mehr)
+  - `loadPoolStatus()` wird bei AdminScreen-Load + nach jedem `triggerPool()` aufgerufen
+- APP.JSX CAT_MAX_LEVELS ✅
+  - `import { POOL_STRUCTURE } from '../api/_poolStructure.js'` hinzugefügt
+  - `CAT_MAX_LEVELS` nutzt jetzt `POOL_STRUCTURE.{cat}.totalLevels` statt hardcoded Zahlen
+- VERSION V01.069.100 ✅
 
 ## ✅ Pool Generation (05.05.2026 Session 78) — NO CODE CHANGE
 - SENTENCE POOL LEVEL 3 FIX ✅

@@ -1,6 +1,7 @@
 // Base pool generator — POST /api/generate-base-pool
 // Generates Grundlagen Level 4 + vocab_emotions cards for all 6 language pairs
 // Levels 1-3 already generated; this run adds Level 4 + emotions focus vocab
+import { POOL_STRUCTURE, getRarity, markImportant } from './_poolStructure.js'
 export const config = { api: { bodyParser: false } }
 
 const LANG_NAMES = { en: 'English', de: 'German', sw: 'Swahili', fr: 'French', es: 'Spanish', th: 'Thai' }
@@ -132,7 +133,7 @@ async function generateCards(fromLang, toLang, level) {
   const raw = (data.content?.[0]?.text || '').trim()
   const match = raw.match(/\[[\s\S]*\]/)
   if (!match) return []
-  try { return JSON.parse(match[0]).slice(0, 50) } catch { return [] }
+  try { return JSON.parse(match[0]).slice(0, POOL_STRUCTURE.grundlagen.cardsPerLevel) } catch { return [] }
 }
 
 async function writeToFirestore(fromLang, toLang, level, cards) {
@@ -160,14 +161,17 @@ async function writeToFirestore(fromLang, toLang, level, cards) {
               langA: { stringValue: fromLang },
               langB: { stringValue: toLang },
               source: { stringValue: 'base-pool' },
+              rarity: { stringValue: getRarity(level) },
+              important: { booleanValue: markImportant(level) },
               createdAt: { integerValue: Date.now().toString() },
             }
           }
         }))
       }
-    }
+    },
+    count: { integerValue: String(cards.length) },
   }
-  const mask = ['fromLang','toLang','level','category','generatedAt','cards']
+  const mask = ['fromLang','toLang','level','category','generatedAt','count','cards']
     .map(f => `updateMask.fieldPaths=${f}`).join('&')
   await fetch(`${docPath}?${mask}`, {
     method: 'PATCH',
@@ -233,7 +237,7 @@ export default async function handler(req, res) {
       } catch (e) { results.push({ pair: `${from}→${to}`, type: 'vocab_emotions', error: e.message }) }
     }
   } else {
-    const level = body.level || 5
+    const level = Math.min(POOL_STRUCTURE.grundlagen.totalLevels, Math.max(1, body.level || 5))
     const pairsToRun = body.pair
       ? LANG_PAIRS.filter(p => `${p.from}_${p.to}` === body.pair)
       : LANG_PAIRS
