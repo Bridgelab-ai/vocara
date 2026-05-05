@@ -52,31 +52,34 @@ Return ONLY a valid JSON array (no markdown):
 [{"front":"word/phrase in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic for ${toName}","category":"grundlagen","level":3,"wordType":"noun|adjective|question|phrase","tense":"present"}]`,
 
   4: (fromName, toName) =>
-    `Generate exactly 30 Level 4 Grundlagen flashcards for a ${fromName} speaker learning ${toName}.
-Cover these 3 groups (10 cards each):
-1. Subordinating conjunctions: weil/because, obwohl/although, damit/so that, während/while, wenn/if, bevor/before, nachdem/after, seit/since, trotzdem/nevertheless, falls/in case
-2. Common compound nouns: Handtuch/towel, Flugzeug/airplane, Krankenhaus/hospital, Kühlschrank/fridge, Hausaufgabe/homework, Fahrkarte/ticket, Briefkasten/mailbox, Reisepass/passport, Schreibtisch/desk, Jahreszeit/season
-3. Opinion phrases: I think, in my opinion, I agree, I disagree, on one hand, on the other hand, it depends, generally, as far as I know, to be honest
-Keep all fronts short (max 5 words). All ${fromName} fronts, all ${toName} backs. Include phonetic pronunciation for ${toName}.
+    `Generate exactly 20 Level 4 Grundlagen flashcards (A2+) for a ${fromName} speaker learning ${toName}.
+Cover these 3 groups:
+1. Modal verbs (8 cards): can/können, must/müssen, may/dürfen, should/sollen, want/wollen, like/mögen, need to/brauchen zu, be allowed to/dürfen — use the natural ${toName} equivalent with a short example sentence as front
+2. Comparative & superlative (6 cards): bigger/größer, smaller/kleiner, faster/schneller, better/besser, worse/schlechter, more expensive/teurer — front in ${fromName}, back in ${toName}
+3. Time expressions (6 cards): yesterday/gestern, tomorrow/morgen, soon/bald, already/schon, still/noch, sometimes/manchmal — front in ${fromName}, back in ${toName}
+All ${fromName} fronts, all ${toName} backs. 100% accurate. Include phonetic pronunciation for ${toName}.
 Return ONLY a valid JSON array (no markdown):
-[{"front":"short phrase in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic","category":"grundlagen","level":4,"wordType":"conjunction","tense":"present"}]`,
+[{"front":"short phrase in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic","category":"grundlagen","level":4,"wordType":"modal|adjective|adverb","tense":"present"}]`,
 
   5: (fromName, toName) =>
-    `Generate exactly 30 Level 5 Grundlagen flashcards for a ${fromName} speaker learning ${toName}.
-Cover in this order:
-- Common idiomatic expressions (10 cards): expressions like "break the ice", "costs an arm and a leg", "under the weather", "piece of cake", "bite the bullet", "once in a blue moon", "hit the sack", "spill the beans", "let it go", "back to square one" — give the natural ${toName} equivalent (not literal translation)
-- Complex B1 communication phrases (10 cards): "I couldn't agree more", "that's a good point", "what do you mean by that?", "could you elaborate?", "in the long run", "as a result", "on the contrary", "for the most part", "needless to say", "all things considered"
-- Culture-specific expressions that sound natural to ${toName} speakers (10 cards): phrases essential for authentic communication that language learners rarely learn in textbooks but native speakers use constantly
+    `Generate exactly 20 Level 5 Grundlagen flashcards (B1) for a ${fromName} speaker learning ${toName}.
+Cover these 3 groups:
+1. Subordinating conjunctions (7 cards): because/weil, although/obwohl, so that/damit, while/während, if/wenn, after/nachdem, as soon as/sobald — give the ${toName} conjunction with a short example
+2. Common B1 connectors & discourse markers (7 cards): moreover/außerdem, nevertheless/trotzdem, therefore/deswegen, on the other hand/andererseits, firstly/zunächst, finally/schließlich, overall/insgesamt
+3. Everyday B1 phrases (6 cards): that depends/das kommt darauf an, I mean/ich meine, in my opinion/meiner Meinung nach, you're right/du hast recht, I'm not sure/ich bin nicht sicher, that makes sense/das macht Sinn
 All ${fromName} fronts, all ${toName} backs. 100% accurate. Include phonetic pronunciation for ${toName}.
 Return ONLY a valid JSON array (no markdown):
-[{"front":"word/phrase in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic for ${toName}","category":"grundlagen","level":5,"wordType":"idiom|phrase","tense":"present"}]`,
+[{"front":"phrase in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic for ${toName}","category":"grundlagen","level":5,"wordType":"conjunction|phrase","tense":"present"}]`,
 
   6: (fromName, toName) =>
-    `Generate exactly 20 Level 6 Grundlagen flashcards (B1 solid intermediate) for a ${fromName} speaker learning ${toName}.
-Focus on: modal verbs in nuanced uses (should/ought/might/could/would), expressing degrees of certainty and probability, phrases for giving advice and making suggestions, expressing wishes and hypotheticals.
+    `Generate exactly 20 Level 6 Grundlagen flashcards (B1+) for a ${fromName} speaker learning ${toName}.
+Cover these 3 groups:
+1. Passive voice constructions (7 cards): is being built/wird gebaut, was done/wurde gemacht, it is said/es wird gesagt, has been found/wurde gefunden, is known/ist bekannt, will be opened/wird geöffnet, can be seen/kann gesehen werden — give the ${toName} passive phrase and its ${fromName} meaning
+2. Relative clause starters (6 cards): the man who/der Mann, der; the woman who/die Frau, die; the thing that/das Ding, das; the people who/die Leute, die; the reason why/der Grund, warum; the day when/der Tag, als
+3. Common idioms (7 cards): to keep fingers crossed/Daumen drücken, to get to the point/auf den Punkt kommen, to hit the nail on the head/ins Schwarze treffen, to be on the same page/einer Meinung sein, to cost an arm and a leg/ein Vermögen kosten, once in a blue moon/alle Jubeljahre, to break the ice/das Eis brechen
 All ${fromName} fronts, all ${toName} backs. 100% accurate. Include phonetic pronunciation for ${toName}.
 Return ONLY a valid JSON array (no markdown):
-[{"front":"word/phrase in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic for ${toName}","category":"grundlagen","level":6,"wordType":"phrase|verb","tense":"present"}]`,
+[{"front":"phrase in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic for ${toName}","category":"grundlagen","level":6,"wordType":"phrase|idiom","tense":"present"}]`,
 
   7: (fromName, toName) =>
     `Generate exactly 20 Level 7 Grundlagen flashcards (B1-B2 intermediate-upper) for a ${fromName} speaker learning ${toName}.
@@ -231,7 +234,10 @@ export default async function handler(req, res) {
     }
   } else {
     const level = body.level || 5
-    for (const { from, to } of LANG_PAIRS) {
+    const pairsToRun = body.pair
+      ? LANG_PAIRS.filter(p => `${p.from}_${p.to}` === body.pair)
+      : LANG_PAIRS
+    for (const { from, to } of pairsToRun) {
       try {
         const cards = await generateCards(from, to, level)
         if (cards.length > 0) { await writeToFirestore(from, to, level, cards); results.push({ pair: `${from}→${to}`, level, count: cards.length }) }
