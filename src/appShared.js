@@ -1,3 +1,36 @@
+export const AVAILABLE_LANGS = [
+  { code: 'en', label: 'Englisch', flag: '🇬🇧' },
+  { code: 'de', label: 'Deutsch', flag: '🇩🇪' },
+  { code: 'sw', label: 'Swahili', flag: '🇰🇪' },
+  { code: 'th', label: 'Thai', flag: '🇹🇭' },
+  { code: 'es', label: 'Spanisch', flag: '🇪🇸' },
+  { code: 'fr', label: 'Französisch', flag: '🇫🇷' },
+  { code: 'ar', label: 'Arabisch', flag: '🇸🇦' },
+  { code: 'tr', label: 'Türkisch', flag: '🇹🇷' },
+  { code: 'pt', label: 'Portugiesisch', flag: '🇵🇹' },
+]
+
+export const TOPICS_LIST = [
+  { key: 'cooking',  emoji: '🍳', de: 'Kochen',    en: 'Cooking'   },
+  { key: 'sports',   emoji: '⚽', de: 'Fußball',   en: 'Football'  },
+  { key: 'music',    emoji: '🎵', de: 'Musik',     en: 'Music'     },
+  { key: 'travel',   emoji: '✈️', de: 'Reisen',    en: 'Travel'    },
+  { key: 'tech',     emoji: '💻', de: 'Technik',   en: 'Tech'      },
+  { key: 'business', emoji: '💼', de: 'Business',  en: 'Business'  },
+  { key: 'nature',   emoji: '🌿', de: 'Natur',     en: 'Nature'    },
+]
+
+export const CARD_GEN_SYSTEM = `You are a professional native-level translator and linguist.
+STRICT RULES:
+- NEVER translate word-for-word or literally
+- Always use natural idiomatic expressions a native speaker would actually say
+- German must sound like real spoken German, not textbook German
+- Bad: 'Du musst wahrscheinlich aufhören aufzuschieben' — Good: 'Hör endlich auf zu prokrastinieren!'
+- Check: would a native speaker say this? If not, rewrite.
+- Prefer natural colloquial over grammatically perfect but unnatural
+- Every translation must be 100% grammatically correct
+Return ONLY valid JSON, no markdown, no explanation.`
+
 export const MARK_UID = 'aiNZh4Myn8Y0KfYkGGrkNNW0HC72'
 export const ELOSY_UID = 'NIX3DYenRdbRjmr2EHsIad9GcqG3'
 
@@ -18,7 +51,7 @@ export const socialRegisterContext = (key) => ({
   family: 'family members (warm, supportive, generational)',
 }[key] || 'friends')
 
-const TENSE_THRESHOLDS = { past: 20, future: 50 }
+export const TENSE_THRESHOLDS = { past: 20, future: 50 }
 export const getTenseUnlocks = (mastered) => ({
   present: true,
   past:    mastered >= TENSE_THRESHOLDS.past,
@@ -77,4 +110,51 @@ export function fuzzyWordMatch(expected, got) {
   if (!e || !g) return false
   const maxDist = Math.max(1, Math.floor(e.length * 0.4))
   return levenshtein(e, g) <= maxDist
+}
+
+export function todayStr() { return new Date().toISOString().split('T')[0] }
+
+export function getISOWeekStr(date = new Date()) {
+  const d = new Date(date); d.setHours(0, 0, 0, 0)
+  d.setDate(d.getDate() + 4 - (d.getDay() || 7))
+  const yearStart = new Date(d.getFullYear(), 0, 1)
+  const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7)
+  return `${d.getFullYear()}-W${String(weekNo).padStart(2, '0')}`
+}
+
+export function calcStreak(history) {
+  if (!history || history.length === 0) return 0
+  const dates = [...new Set(history.map(h => h.date))].sort().reverse()
+  const today = todayStr()
+  const yesterday = (() => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().split('T')[0] })()
+  if (dates[0] !== today && dates[0] !== yesterday) return 0
+  let streak = 0; let check = dates[0] === today ? today : yesterday
+  for (const date of dates) {
+    if (date === check) { streak++; const d = new Date(check); d.setDate(d.getDate() - 1); check = d.toISOString().split('T')[0] }
+    else break
+  }
+  return streak
+}
+
+export function calcLongestStreak(history) {
+  if (!history?.length) return 0
+  const dates = [...new Set(history.map(h => h.date))].sort()
+  if (!dates.length) return 0
+  let maxStreak = 1, streak = 1
+  for (let i = 1; i < dates.length; i++) {
+    const [py, pm, pd] = dates[i - 1].split('-').map(Number)
+    const prev = new Date(py, pm - 1, pd); prev.setDate(prev.getDate() + 1)
+    const [cy, cm, cd] = dates[i].split('-').map(Number)
+    const curr = new Date(cy, cm - 1, cd)
+    if (prev.getTime() === curr.getTime()) { streak++; maxStreak = Math.max(maxStreak, streak) }
+    else streak = 1
+  }
+  return maxStreak
+}
+
+const CAT_LEVEL_THRESHOLDS = [0, 1, 5, 10, 15, 20, 30, 40, 50, 65, 80]
+export function getCatLevel(masteredCount) {
+  let lv = 0
+  for (let i = 1; i <= 10; i++) { if (masteredCount >= CAT_LEVEL_THRESHOLDS[i]) lv = i }
+  return lv
 }
