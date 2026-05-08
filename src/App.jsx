@@ -2288,8 +2288,6 @@ function ThaiColorPronunciation({ text }) {
   )
 }
 
-// StreakWidget → src/components/StreakWidget.jsx
-// KiGespraechScreen → src/components/KiGespraechScreen.jsx
 function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userName, userToLang = 'en', onSatzComplete, t: tProp }) {
   const th = THEMES[theme]; const s = makeStyles(th); const t = tProp || T[lang] || T.en
   const LANG_NAMES_FULL = { en: 'English', de: 'German', sw: 'Swahili', th: 'Thai', es: 'Spanish', fr: 'French', ar: 'Arabic', tr: 'Turkish', pt: 'Portuguese' }
@@ -3038,8 +3036,6 @@ function PartnerScreen({ user, myData, lang, theme, onBack, onPartnerUpdate }) {
   )
 }
 
-// ── SPRACHRHYTHMUS-TRAINING (#31) ──────────────────────────────
-// RhythmusScreen → src/components/RhythmusScreen.jsx
 // ── KONTEXTWECHSEL SCREEN ──────────────────────────────────────
 function KontextwechselScreen({ card, lang, theme, userToLang = 'en', user, onBack, onSaveCard, t: tProp }) {
   const th = THEMES[theme]; const s = makeStyles(th); const t = tProp || T[lang] || T.en
@@ -3991,8 +3987,6 @@ function ResultScreen({ correct, wrong, fast, easy, weakestCard, strongestCard, 
   )
 }
 
-// SettingsScreen → src/components/SettingsScreen.jsx
-// StatsScreen → src/components/StatsScreen.jsx
 function VocaraLogoSVG({ withSlogans = false, animate = false, isDE = true }) {
   return (
     <div style={{ textAlign: 'center' }}>
