@@ -10,6 +10,7 @@ import KiGespraechScreen from './components/KiGespraechScreen'
 import RhythmusScreen from './components/RhythmusScreen'
 import SettingsScreen from './components/SettingsScreen'
 import StatsScreen from './components/StatsScreen'
+import StreakWidget from './components/StreakWidget'
 
 const ADMIN_POOL_CONFIGS = [
   { catKey: 'grundlagen', label: 'Base', endpoint: '/api/generate-base-pool', bodyFn: l => ({ level: l }), docFn: (p, l) => `${p}_grundlagen_${l}`, coll: 'sharedCards' },
