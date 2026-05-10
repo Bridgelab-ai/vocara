@@ -1,4 +1,13 @@
-# Vocara – Vollständige ToDo & Ideen-Liste (Stand 05.05.2026)
+# Vocara – Vollständige ToDo & Ideen-Liste (Stand 11.05.2026)
+
+## ✅ Admin Panel Komplett-Überarbeitung (11.05.2026) — V01.002.009
+- POOL-BUTTONS ALLE PAARE: Ein Klick generiert alle 6 lang pairs für gewähltes Level ✅
+- DUPLIKAT-SCHUTZ: Skip wenn poolCounts[cat][level][lp] >= cardsPerLevel ✅
+- LIVE-FARB-STATUS: 🔵 leer / 🟡 teilweise / 🟢 vollständig, refresh nach Generation ✅
+- DELETE ALL: 🗑️ "Alle sharedCards löschen" per writeBatch in 500er-Chunks ✅
+- NUTZER RESET: categoryLevels→1, cardProgress→{}, publicStats→deleteField() ✅
+- BASE URL: alle API-Calls auf https://vocara-peach.vercel.app ✅
+- VERSION V01.002.009 ✅
 
 ## ✅ i18n Audit & Swahili Support (05.05.2026 Session 80+81) — V01.069.101
 - T.sw BLOCK HINZUGEFÜGT: vollständiger Swahili-Übersetzungsblock (~200 Keys) in T-Objekt ✅
