@@ -3,6 +3,8 @@ import { auth, db } from './firebase'
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
 import { doc, setDoc, getDoc, updateDoc, deleteDoc, onSnapshot, collection, addDoc, getDocs } from 'firebase/firestore'
 import './App.css'
+import SettingsScreen from './components/SettingsScreen'
+import StatsScreen from './components/StatsScreen'
 
 // ── APP PREFS CONTEXT (lightMode, cardSize) ─────────────────────
 const AppPrefsContext = React.createContext({ lightMode: false, cardSize: 'normal' })
@@ -43,7 +45,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.002.004'
+const APP_VERSION = 'V01.002.005'
 const MARK_UID = 'aiNZh4Myn8Y0KfYkGGrkNNW0HC72'
 const ELOSY_UID = 'NIX3DYenRdbRjmr2EHsIad9GcqG3'
 const SESSION_SIZE = 15
