@@ -2,7 +2,17 @@ import React, { useState, useEffect } from 'react'
 import { getDocs, collection, doc, updateDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 import { THEMES, makeStyles } from '../theme'
-import { todayStr, getISOWeekStr } from '../appShared'
+import { todayStr, getISOWeekStr, MARK_UID, ELOSY_UID } from '../appShared'
+
+const POOL_STRUCTURE = {
+  grundlagen:   { endpoint: 'generate-base-pool',             totalLevels: 10 },
+  vocab:        { endpoint: 'generate-vocab-pool',            totalLevels: 22 },
+  street:       { endpoint: 'generate-street-pool',           totalLevels: 18 },
+  home:         { endpoint: 'generate-home-pool',             totalLevels: 14 },
+  urlaub:       { endpoint: 'generate-sentence-pool',         totalLevels: 10 },
+  satztraining: { endpoint: 'generate-sentence-training-pool',totalLevels: 14 },
+}
+const LANGUAGE_PAIRS = ['de_en','de_sw','en_de','en_sw','sw_de','sw_en']
 
 function AdminScreen({ user, lang, theme, onBack }) {
   const th = THEMES[theme]; const s = makeStyles(th)
@@ -10,6 +20,13 @@ function AdminScreen({ user, lang, theme, onBack }) {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [toggling, setToggling] = useState(null)
+  const [poolLangPair, setPoolLangPair] = useState('de_en')
+  const [poolLevel, setPoolLevel] = useState(1)
+  const [poolLoading, setPoolLoading] = useState(null)
+  const [poolStatus, setPoolStatus] = useState(null)
+  const [resetTarget, setResetTarget] = useState('mark')
+  const [resetLoading, setResetLoading] = useState(false)
+  const [resetStatus, setResetStatus] = useState(null)
 
   const load = async () => {
     setLoading(true)
@@ -62,6 +79,33 @@ function AdminScreen({ user, lang, theme, onBack }) {
       if (hist.some(h => h.date === ds)) { streak++; d.setDate(d.getDate()-1) } else break
     }
     return streak
+  }
+
+  const generatePool = async (category) => {
+    const { endpoint } = POOL_STRUCTURE[category]
+    setPoolLoading(category); setPoolStatus(null)
+    try {
+      const res = await fetch(`/api/${endpoint}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ level: poolLevel, langPair: poolLangPair })
+      })
+      const data = await res.json()
+      setPoolStatus(`✓ ${category} L${poolLevel} ${poolLangPair}: ${data.count ?? data.cards?.length ?? 'ok'} cards`)
+    } catch (e) { setPoolStatus(`✗ ${category}: ${e.message}`) }
+    setPoolLoading(null)
+  }
+
+  const resetUser = async () => {
+    const uid = resetTarget === 'mark' ? MARK_UID : ELOSY_UID
+    const name = resetTarget === 'mark' ? 'Mark' : 'Elosy'
+    if (!window.confirm(`Wirklich ${name} zurücksetzen? (categoryLevels, cardProgress, publicStats)`)) return
+    setResetLoading(true); setResetStatus(null)
+    try {
+      await updateDoc(doc(db, 'users', uid), { categoryLevels: {}, cardProgress: {}, publicStats: {} })
+      setResetStatus(`✓ ${name} zurückgesetzt`)
+      load()
+    } catch (e) { setResetStatus(`✗ ${e.message}`) }
+    setResetLoading(false)
   }
 
   const thisWeek = getISOWeekStr()
@@ -121,6 +165,49 @@ function AdminScreen({ user, lang, theme, onBack }) {
           })}
         </div>
       )}
+
+      {/* Pool Generation */}
+      <div style={{ ...s.card, marginTop: '16px' }}>
+        <p style={{ color: th.text, fontSize: '0.88rem', fontWeight: '700', margin: '0 0 12px' }}>🔵 Pool Generieren</p>
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
+          <select value={poolLangPair} onChange={e => setPoolLangPair(e.target.value)}
+            style={{ background: th.card, color: th.text, border: `1px solid ${th.border}`, borderRadius: '8px', padding: '5px 8px', fontSize: '0.78rem', cursor: 'pointer' }}>
+            {LANGUAGE_PAIRS.map(lp => <option key={lp} value={lp}>{lp}</option>)}
+          </select>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ color: th.sub, fontSize: '0.75rem' }}>Level:</span>
+            <input type="number" min={1} max={22} value={poolLevel} onChange={e => setPoolLevel(Number(e.target.value))}
+              style={{ background: th.card, color: th.text, border: `1px solid ${th.border}`, borderRadius: '8px', padding: '5px 6px', fontSize: '0.78rem', width: '50px', textAlign: 'center' }} />
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+          {Object.keys(POOL_STRUCTURE).map(cat => (
+            <button key={cat} onClick={() => generatePool(cat)} disabled={!!poolLoading}
+              style={{ padding: '7px 12px', borderRadius: '10px', fontSize: '0.78rem', fontWeight: '600', cursor: 'pointer', opacity: poolLoading === cat ? 0.5 : 1, background: 'rgba(40,100,220,0.15)', color: '#6fa3ef', border: '1px solid rgba(40,100,220,0.35)' }}>
+              {poolLoading === cat ? '…' : cat}
+            </button>
+          ))}
+        </div>
+        {poolStatus && <p style={{ color: poolStatus.startsWith('✓') ? '#81c784' : '#e06c75', fontSize: '0.75rem', margin: '8px 0 0' }}>{poolStatus}</p>}
+      </div>
+
+      {/* Reset User */}
+      <div style={{ ...s.card, marginTop: '12px' }}>
+        <p style={{ color: th.text, fontSize: '0.88rem', fontWeight: '700', margin: '0 0 12px' }}>⚠ Nutzer zurücksetzen</p>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <select value={resetTarget} onChange={e => setResetTarget(e.target.value)}
+            style={{ background: th.card, color: th.text, border: `1px solid ${th.border}`, borderRadius: '8px', padding: '5px 8px', fontSize: '0.78rem', cursor: 'pointer' }}>
+            <option value="mark">Mark</option>
+            <option value="elosy">Elosy</option>
+          </select>
+          <button onClick={resetUser} disabled={resetLoading}
+            style={{ padding: '7px 14px', borderRadius: '10px', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', opacity: resetLoading ? 0.5 : 1, background: 'rgba(220,40,40,0.15)', color: '#e06c75', border: '1px solid rgba(220,40,40,0.35)' }}>
+            {resetLoading ? '…' : 'Zurücksetzen'}
+          </button>
+        </div>
+        {resetStatus && <p style={{ color: resetStatus.startsWith('✓') ? '#81c784' : '#e06c75', fontSize: '0.75rem', margin: '8px 0 0' }}>{resetStatus}</p>}
+      </div>
+
     </div></div>
   )
 }

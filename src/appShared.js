@@ -160,7 +160,7 @@ export function getCatLevel(masteredCount) {
 }
 
 // ── CONSTANTS ─────────────────────────────────────────────────
-export const APP_VERSION = 'V01.002.006'
+export const APP_VERSION = 'V01.002.007'
 export const SESSION_SIZE = 15
 export const NEW_CARDS_BATCH = 3
 export const MASTERY_THRESHOLD = 0.85
