@@ -41,11 +41,16 @@ service cloud.firestore {
         allow read, delete: if request.auth != null && request.auth.uid == userId;
         allow create: if request.auth != null;
       }
+
+      // session — own only (pending session state)
+      match /session/{doc} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
     }
 
-    // publicStats — absolute path, any authenticated user (partner cross-writes Mark↔Elosy)
+    // publicStats — absolute path, any authenticated user (partner cross-writes Mark↔Elosy) or admin
     match /users/{uid}/publicStats/data {
-      allow read, write: if request.auth != null;
+      allow read, write: if request.auth != null || isAdmin();
     }
 
     // globalStats — read-only for any authenticated user (subcollection of users/{uid})
@@ -64,10 +69,10 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
 
-    // Shared card pool — any authenticated user can read, server writes via API (unauthenticated REST)
+    // Shared card pool — any authenticated user can read, admin can write/delete
     match /sharedCards/{docId} {
       allow read: if request.auth != null;
-      allow write: if request.auth == null;
+      allow write, delete: if isAdmin();
     }
 
     // Shared sentence exercise pool — any authenticated user can read, server writes via API
@@ -90,6 +95,18 @@ service cloud.firestore {
     // Streak milestone gimmick guard — own data only
     match /streakGimmick/{userId}/milestones/{milestone} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // globalStats top-level — read-only for any authenticated user
+    match /globalStats/{doc} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // inviteCodes — any authenticated user can read/write (written on every login)
+    match /inviteCodes/{code} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
     }
 
     // Reports — any authenticated user can create; admin (Mark) can read/update/delete
