@@ -249,3 +249,17 @@ export function makeStyles(th) {
     },
   }
 }
+
+export function resolveTheme(themeKey, lightMode = false) {
+  const th = THEMES[themeKey] || THEMES.nairobi
+  if (!lightMode) return th
+  return {
+    ...th,
+    bg: '#F2F2F4',
+    card: 'rgba(255,255,255,0.90)',
+    text: '#1a1a1a',
+    sub: '#666',
+    border: 'rgba(0,0,0,0.10)',
+    bgGrad: `radial-gradient(ellipse at 50% 0%, ${th.accent}18 0%, #EDEDF0 40%, #F2F2F4 100%)`,
+  }
+}

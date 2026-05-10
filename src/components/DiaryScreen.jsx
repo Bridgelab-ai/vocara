@@ -1,0 +1,149 @@
+import React, { useState } from 'react'
+import { doc, updateDoc } from 'firebase/firestore'
+import { db } from '../firebase'
+import { THEMES, makeStyles } from '../theme'
+import { todayStr } from '../appShared'
+
+function DiaryScreen({ user, myData, setMyData, partnerData, lang, theme, onBack }) {
+  const th = THEMES[theme]; const s = makeStyles(th)
+  const isDE = lang === 'de'
+  const [myEntry, setMyEntry] = useState('')
+  const [feedback, setFeedback] = useState(null)
+  const [feedbackLoading, setFeedbackLoading] = useState(false)
+  const [langWarning, setLangWarning] = useState(null)
+  const today = todayStr()
+  // Target language for diary: Mark=EN, Elosy=DE
+  const targetLang = lang === 'de' ? 'en' : 'de'
+  const targetLangLabel = targetLang === 'en' ? (isDE ? 'Englisch' : 'English') : (isDE ? 'Deutsch' : 'German')
+  const DE_WORDS = ['ich','du','er','sie','es','wir','ihr','und','oder','aber','nicht','ist','sind','war','haben','sein','mit','von','auf','bei','für','das','die','der','ein','eine','einen','einen','zu','in','an','im','am','dem','den','diese','diese','mein','dein']
+  const EN_WORDS = ['i','you','he','she','it','we','they','and','or','but','not','is','are','was','have','be','with','from','on','at','for','the','a','an','to','in','this','my','your','that']
+  const detectWrongLang = (text) => {
+    if (!text || text.trim().split(/\s+/).length < 3) return false
+    const words = text.toLowerCase().replace(/[^a-züöäß\s]/g,'').split(/\s+/)
+    const deCount = words.filter(w => DE_WORDS.includes(w)).length
+    const enCount = words.filter(w => EN_WORDS.includes(w)).length
+    if (targetLang === 'en' && deCount > enCount) return true
+    if (targetLang === 'de' && enCount > deCount) return true
+    return false
+  }
+
+  const diaryEntries = myData?.diaryEntries || []
+  const todayMyEntry = diaryEntries.find(e => e.date === today)
+  const partnerEntries = partnerData?.diaryEntries || []
+  const hasPartner = !!(myData?.partnerUID || partnerData)
+  const partnerName = myData?.partnerName || partnerData?.name?.split(' ')[0] || 'Partner'
+  const myFirstName = user.displayName?.split(' ')[0] || 'Ich'
+
+  const saveEntry = async () => {
+    if (!myEntry.trim()) return
+    const entry = { date: today, text: myEntry.trim() }
+    const updated = [...diaryEntries.filter(e => e.date !== today), entry]
+    await updateDoc(doc(db, 'users', user.uid), { diaryEntries: updated }).catch(() => {})
+    setMyData(d => ({ ...d, diaryEntries: updated }))
+    const saved = myEntry.trim(); setMyEntry('')
+    setFeedbackLoading(true)
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001', max_tokens: 80,
+          messages: [{ role: 'user', content: `The user wrote this sentence in ${isDE ? 'German' : 'English'}: "${saved}". In 1 very short sentence in ${isDE ? 'German' : 'English'}, give kind grammar feedback or encouragement. Be concise.` }]
+        })
+      })
+      const data = await res.json()
+      setFeedback(data.content?.[0]?.text?.trim() || null)
+    } catch (e) {}
+    finally { setFeedbackLoading(false) }
+  }
+
+  const allDates = [...new Set([...diaryEntries.map(e => e.date), ...partnerEntries.map(e => e.date)])]
+    .sort().reverse().slice(0, 7)
+
+  return (
+    <div style={s.container} className="vocara-screen">
+      <div style={{ ...s.homeBox, paddingTop: '16px' }}>
+        <button style={s.backBtn} onClick={onBack}>← {isDE ? 'Zurück' : 'Back'}</button>
+        <div style={{ textAlign: 'left', marginBottom: '18px' }}>
+          <h2 style={{ color: th.text, fontFamily: "'Playfair Display', Georgia, serif", fontSize: '1.3rem', fontWeight: '700', margin: '0 0 4px' }}>
+            📔 {isDE ? 'Gemeinsames Tagebuch' : 'Shared Diary'}
+          </h2>
+          <p style={{ color: th.sub, fontSize: '0.8rem', margin: 0 }}>
+            {isDE ? 'Ein Satz pro Tag in eurer Zielsprache.' : 'One sentence per day in your target language.'}
+          </p>
+        </div>
+
+        {/* Today's entry */}
+        <div style={{ ...s.card, marginBottom: '14px' }}>
+          <p style={{ ...s.cardLabel, marginBottom: '10px' }}>{isDE ? 'Heute' : 'Today'} — {today}</p>
+          {todayMyEntry ? (
+            <p style={{ color: th.accent, fontWeight: '600', fontSize: '0.92rem', margin: 0, fontStyle: 'italic' }}>„{todayMyEntry.text}"</p>
+          ) : (
+            <>
+              <p style={{ color: th.sub, fontSize: '0.72rem', margin: '0 0 6px', opacity: 0.7 }}>
+                {isDE ? `Schreib auf ${targetLangLabel}` : `Write in ${targetLangLabel}`}
+              </p>
+              <input
+                style={{ ...s.input, marginBottom: '8px', borderColor: langWarning ? 'rgba(255,160,0,0.6)' : undefined }}
+                placeholder={targetLang === 'en' ? (isDE ? 'Your sentence in English…' : 'Your sentence in English…') : (isDE ? 'Dein Satz auf Deutsch…' : 'Dein Satz auf Deutsch…')}
+                value={myEntry}
+                onChange={e => { setMyEntry(e.target.value); setLangWarning(detectWrongLang(e.target.value)) }}
+                onKeyDown={e => e.key === 'Enter' && saveEntry()}
+              />
+              {langWarning && (
+                <p style={{ color: '#FFA500', fontSize: '0.72rem', margin: '-4px 0 8px', animation: 'vocaraFadeIn 0.2s ease both' }}>
+                  ⚠️ {isDE ? `Bitte auf ${targetLangLabel} schreiben` : `Please write in ${targetLangLabel}`}
+                </p>
+              )}
+              <button style={{ ...s.button, marginBottom: 0 }} onClick={saveEntry}>{isDE ? 'Eintragen' : 'Save'}</button>
+            </>
+          )}
+          {feedbackLoading && <p style={{ color: th.sub, fontSize: '0.75rem', margin: '8px 0 0' }}>💡 …</p>}
+          {feedback && <p style={{ color: '#81c784', fontSize: '0.75rem', margin: '8px 0 0', lineHeight: 1.4 }}>💡 {feedback}</p>}
+        </div>
+
+        {/* Timeline */}
+        {allDates.length > 0 && (
+          <div style={s.card}>
+            {hasPartner && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <span style={{ color: th.accent, fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase' }}>{myFirstName}</span>
+                <span style={{ color: th.gold, fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase' }}>{partnerName}</span>
+              </div>
+            )}
+            {allDates.map(date => {
+              const my = diaryEntries.find(e => e.date === date)
+              const partner = partnerEntries.find(e => e.date === date)
+              return (
+                <div key={date} style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: `1px solid ${th.border}` }}>
+                  <p style={{ color: th.sub, fontSize: '0.68rem', fontWeight: '600', margin: '0 0 5px', letterSpacing: '0.4px' }}>{date}</p>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ flex: 1 }}>
+                      {my
+                        ? <p style={{ color: th.text, fontSize: '0.82rem', margin: 0, fontStyle: 'italic' }}>„{my.text}"</p>
+                        : <p style={{ color: th.border, fontSize: '0.75rem', margin: 0 }}>—</p>}
+                    </div>
+                    {hasPartner && (
+                      <div style={{ flex: 1 }}>
+                        {partner
+                          ? <p style={{ color: th.gold, fontSize: '0.82rem', margin: 0, fontStyle: 'italic' }}>„{partner.text}"</p>
+                          : <p style={{ color: th.border, fontSize: '0.75rem', margin: 0 }}>—</p>}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+        {allDates.length === 0 && (
+          <div style={{ ...s.card, textAlign: 'center', padding: '36px 20px' }}>
+            <span style={{ fontSize: '2rem', display: 'block', marginBottom: '10px' }}>📔</span>
+            <p style={{ color: th.sub, fontSize: '0.88rem', margin: 0 }}>{isDE ? 'Noch keine Einträge — schreib den ersten!' : 'No entries yet — write the first one!'}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default DiaryScreen

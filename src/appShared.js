@@ -158,3 +158,164 @@ export function getCatLevel(masteredCount) {
   for (let i = 1; i <= 10; i++) { if (masteredCount >= CAT_LEVEL_THRESHOLDS[i]) lv = i }
   return lv
 }
+
+// ── CONSTANTS ─────────────────────────────────────────────────
+export const APP_VERSION = 'V01.002.006'
+export const SESSION_SIZE = 15
+export const NEW_CARDS_BATCH = 3
+export const MASTERY_THRESHOLD = 0.85
+export const MONTHLY_TEST_DAYS = 30
+
+export const LANG_FLAGS = { en: '🇬🇧', de: '🇩🇪', sw: '🇰🇪', th: '🇹🇭', es: '🇪🇸', fr: '🇫🇷', ar: '🇸🇦', tr: '🇹🇷', pt: '🇵🇹' }
+
+export const CEFR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
+export const CEFR_COLORS = { A1: '#81c784', A2: '#4CAF50', B1: '#29b6f6', B2: '#1976d2', C1: '#ab47bc', C2: '#e53935' }
+export const CEFR_MASTERY_REQ = { A1: 0, A2: 30, B1: 70, B2: 150, C1: 260, C2: 400 }
+export const CEFR_DESC = {
+  de: { A1: 'Anfänger', A2: 'Grundlagen', B1: 'Mittelstufe', B2: 'Fortgeschritten', C1: 'Kompetent', C2: 'Meister' },
+  en: { A1: 'Beginner', A2: 'Elementary', B1: 'Intermediate', B2: 'Upper-Intermediate', C1: 'Advanced', C2: 'Mastery' },
+}
+
+const LEVEL_NAMES = [
+  { upTo: 20,  de: 'Hafen-Neuling',   en: 'Harbor Newcomer' },
+  { upTo: 50,  de: 'Elbe-Entdecker',  en: 'Elbe Explorer'   },
+  { upTo: 100, de: 'Swahili-Freund',  en: 'Swahili Friend'  },
+  { upTo: 200, de: 'Nairobi-Kenner',  en: 'Nairobi Expert'  },
+  { upTo: 300, de: 'Brücken-Bauer',   en: 'Bridge Builder'  },
+  { upTo: Infinity, de: 'Vocara-Meister', en: 'Vocara Master' },
+]
+export function getLevelName(masteredCount, lang) {
+  const lv = LEVEL_NAMES.find(l => masteredCount <= l.upTo) || LEVEL_NAMES[LEVEL_NAMES.length - 1]
+  return lang === 'de' ? lv.de : lv.en
+}
+
+export const WEEK_AREAS = [
+  { key: 'vocabulary', labelDe: 'Wörter', labelEn: 'Words', tipDe: 'Meine Worte – diese Woche noch nicht geübt', tipEn: 'My Words – not practiced this week' },
+  { key: 'sentence', labelDe: 'Sätze', labelEn: 'Sentences', tipDe: 'Sätze – diese Woche noch nicht geübt', tipEn: 'Sentences – not practiced this week' },
+  { key: 'street', labelDe: 'Straße', labelEn: 'Street', tipDe: 'Auf der Straße – diese Woche noch nicht geübt', tipEn: 'On the Street – not practiced this week' },
+  { key: 'home', labelDe: 'Zuhause', labelEn: 'Home', tipDe: 'Zu Hause – diese Woche noch nicht geübt', tipEn: 'At Home – not practiced this week' },
+  { key: 'satztraining', labelDe: 'Training', labelEn: 'Training', tipDe: 'Satztraining – diese Woche noch nicht geübt', tipEn: 'Sentence Training – not practiced this week' },
+  { key: 'basics', labelDe: 'Grundlagen', labelEn: 'Basics', tipDe: 'Grundlagen – noch nicht geübt', tipEn: 'Basics – not practiced yet' },
+]
+
+export function daysSince(dateStr) {
+  if (!dateStr) return 9999
+  return Math.floor((Date.now() - new Date(dateStr)) / 86400000)
+}
+
+// ── CARD CATEGORIES ───────────────────────────────────────────
+export const VALID_CATEGORIES = ['vocabulary', 'sentence', 'street', 'home', 'basics']
+export const VALID_CATEGORY_SET = new Set(VALID_CATEGORIES)
+
+const DE_VOCAB_WHITELIST = new Set([
+  'schließlich','jedoch','deshalb','trotzdem','eigentlich','vielleicht','natürlich',
+  'außerdem','dennoch','daher','folglich','inzwischen','mittlerweile','allerdings',
+  'meistens','manchmal','häufig','selten','bereits','wirklich','tatsächlich','leider',
+  'hoffentlich','wahrscheinlich','offensichtlich','übrigens','zumindest','sogar',
+  'vorher','nachher','seitdem','anschließend','zunächst','bisher','plötzlich',
+  'irgendwie','irgendwann','irgendwo','ungefähr','überhaupt','sowieso','ohnehin',
+  'jedenfalls','immerhin','schon','noch','wieder','weiterhin','gleichzeitig',
+  'ansonsten','andererseits','einerseits','insgesamt','grundsätzlich','tatsächlich',
+  'beispielsweise','beziehungsweise','normalerweise','üblicherweise','regelmäßig',
+  'gelegentlich','ständig','dauerhaft','vorwiegend','hauptsächlich','besonders',
+  'lediglich','ausschließlich','laut','gegenüber','entsprechend','bezüglich',
+])
+export function ruleCategory(card) {
+  const front = card.front || ''
+  const back = card.back || ''
+  const words = front.trim().split(/\s+/).filter(Boolean)
+  const backWords = back.trim().split(/\s+/).filter(Boolean)
+  if (words.length === 1 && DE_VOCAB_WHITELIST.has(front.trim().toLowerCase())) return 'vocabulary'
+  const swahiliRe = /\b(habari|yako|nzuri|asante|karibu|pole|sawa|jambo|mambo|rafiki|wewe|mimi|nina|hii|hilo|chakula|maji|nyumba|watoto|upendo)\b/i
+  if (card.langA === 'sw' || card.pronunciation || swahiliRe.test(front)) return 'street'
+  if (/['']/.test(front) || /\b(im|youre|its|lets|dont|cant|wont|ive|theyre|were|thats|whats|theres|ill|youll)\b/i.test(front)) return 'street'
+  if (words.length === 1 && backWords.length >= 3) return 'street'
+  if (words.length === 1) return 'vocabulary'
+  if (/^to\s/i.test(front)) return 'vocabulary'
+  if (front.trim().endsWith('?')) {
+    const homeRe = /\b(love|miss|okay|home|eat|sleep|baby|darling|babe|honey)\b/i
+    return homeRe.test(front) ? 'home' : 'sentence'
+  }
+  if (words.length >= 3) return 'sentence'
+  return 'sentence'
+}
+
+export function buildCardPair(card) {
+  const targetLang = card.langA
+  const raw = card.category || ruleCategory(card)
+  const category = VALID_CATEGORY_SET.has(raw) ? raw : 'vocabulary'
+  const forwardCard = { ...card, targetLang, category }
+  const meanings = card.back.split(' / ').map(m => m.trim()).filter(Boolean)
+  let reversedCards
+  if (meanings.length > 1) {
+    reversedCards = meanings.map((meaning, i) => ({
+      ...card, id: `${card.id}_r_${i}`, front: meaning, back: card.front,
+      langA: card.langB, langB: card.langA, targetLang, category,
+    }))
+  } else {
+    reversedCards = [{ ...card, id: `${card.id}_r`, front: card.back, back: card.front, langA: card.langB, langB: card.langA, targetLang, category }]
+  }
+  return [forwardCard, ...reversedCards]
+}
+
+export function buildSession(allCards, cardProgress) {
+  const today = todayStr()
+  const forced = [], due = [], newCards = []
+  allCards.forEach(card => {
+    const p = cardProgress[card.id]
+    if (!p) newCards.push(card)
+    else if (p.wrongSessions > 0) forced.push(card)
+    else if (p.nextReview <= today) due.push(card)
+  })
+  const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
+  const sortedDue = due.slice().sort((a, b) => {
+    const pa = cardProgress[a.id]?.nextReview || ''
+    const pb = cardProgress[b.id]?.nextReview || ''
+    return pa < pb ? -1 : pa > pb ? 1 : 0
+  })
+  const reviews = [...shuffle(forced), ...sortedDue]
+  const newBatch = reviews.length < 10 ? shuffle(newCards).slice(0, 5) : []
+  return [...reviews, ...newBatch].slice(0, SESSION_SIZE)
+}
+
+export function checkMastery(allCards, cardProgress, sessionCorrect, sessionTotal) {
+  const active = allCards.filter(c => {
+    const p = cardProgress[c.id]
+    return p && (p.interval > 0 || p.wrongSessions > 0)
+  })
+  if (active.length < 20) return false
+  if (sessionTotal > 0 && sessionCorrect / sessionTotal < 0.6) return false
+  const mastered = active.filter(c => (cardProgress[c.id]?.interval || 0) >= 7)
+  return mastered.length / active.length >= MASTERY_THRESHOLD
+}
+
+export function getNextNewCards(allCards, cardProgress, count) {
+  const unstarted = allCards.filter(c => !cardProgress[c.id])
+  const unstartedEN = unstarted.filter(c => c.targetLang === 'en')
+  const unstartedSW = unstarted.filter(c => c.targetLang === 'sw')
+  if (unstartedEN.length >= count) return unstartedEN.slice(0, count)
+  const maxSW = Math.max(0, Math.floor(count * 0.2))
+  const swCards = unstartedSW.slice(0, Math.min(maxSW, count - unstartedEN.length))
+  return [...unstartedEN, ...swCards].slice(0, count)
+}
+
+// ── SESSION STATE (Firebase) ──────────────────────────────────
+import { doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore'
+import { db } from './firebase'
+
+export async function saveSessionHistory(uid, correct, total, currentHistory, extraUpdate) {
+  const entry = { date: todayStr(), correct, total, ts: Date.now() }
+  const updated = [entry, ...(currentHistory || [])].slice(0, 60)
+  await updateDoc(doc(db, 'users', uid), { sessionHistory: updated, ...(extraUpdate || {}) })
+  return updated
+}
+
+export async function saveSessionState(uid, queue, index, newProgress) {
+  try { await setDoc(doc(db, 'users', uid, 'session', 'current'), { queue, index, newProgress, savedAt: Date.now() }) }
+  catch (e) { console.warn('Could not save session state:', e) }
+}
+
+export async function clearSessionState(uid) {
+  try { await deleteDoc(doc(db, 'users', uid, 'session', 'current')) }
+  catch (e) { console.warn('Could not clear session state:', e) }
+}
