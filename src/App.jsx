@@ -1,25 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback, Component } from 'react'
+import React, { useState, useEffect, useRef, Component } from 'react'
 import { auth, db } from './firebase'
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
-import { doc, setDoc, getDoc, getDocFromServer, updateDoc, deleteDoc, onSnapshot, collection, addDoc, getDocs, writeBatch } from 'firebase/firestore'
-import { getCards, setCards, invalidateCache } from './hooks/useCardCache'
+import { doc, setDoc, getDoc, updateDoc, deleteDoc, onSnapshot, collection, addDoc, getDocs } from 'firebase/firestore'
 import './App.css'
-import { POOL_STRUCTURE, LANGUAGE_PAIRS } from '../api/_poolStructure.js'
-import { MARK_UID, ELOSY_UID, SOCIAL_REGISTERS, socialRegisterLabel, socialRegisterContext, getTenseUnlocks, TENSE_LABELS, SPEECH_LANGS, getToLangText, speak, fuzzyWordMatch } from './appShared'
-import KiGespraechScreen from './components/KiGespraechScreen'
-import RhythmusScreen from './components/RhythmusScreen'
-import SettingsScreen from './components/SettingsScreen'
-import StatsScreen from './components/StatsScreen'
-import StreakWidget from './components/StreakWidget'
-
-const ADMIN_POOL_CONFIGS = [
-  { catKey: 'grundlagen', label: 'Base', endpoint: '/api/generate-base-pool', bodyFn: l => ({ level: l }), docFn: (p, l) => `${p}_grundlagen_${l}`, coll: 'sharedCards' },
-  { catKey: 'vocab', label: 'Vocab', endpoint: '/api/generate-vocab-pool', bodyFn: l => ({ level: l }), docFn: (p, l) => `${p}_vocab_level${l}`, coll: 'sharedCards' },
-  { catKey: 'street', label: 'Street', endpoint: '/api/generate-street-pool', bodyFn: l => ({ level: l }), docFn: (p, l) => `${p}_street_level${l}`, coll: 'sharedCards' },
-  { catKey: 'home', label: 'Home', endpoint: '/api/generate-home-pool', bodyFn: l => ({ level: l }), docFn: (p, l) => `${p}_home_level${l}`, coll: 'sharedCards' },
-  { catKey: 'satztraining', label: 'SatzFC', endpoint: '/api/generate-sentence-pool', bodyFn: l => ({ type: 'flashcards', level: l }), docFn: (p, l) => `${p}_sentence_level${l}`, coll: 'sharedCards' },
-  { catKey: 'satztraining', label: 'SatzTr', endpoint: '/api/generate-sentence-training-pool', bodyFn: l => ({ level: l }), docFn: (p, l) => `${p}_satz_level${l}`, coll: 'sharedExercises' },
-]
 
 // ── APP PREFS CONTEXT (lightMode, cardSize) ─────────────────────
 const AppPrefsContext = React.createContext({ lightMode: false, cardSize: 'normal' })
@@ -60,36 +43,9 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.069.102'
-
-// Returns a language instruction appended to KI prompts so the AI responds in the user's native language
-const kiRespondIn = (lang) => lang === 'de' ? 'Antworte auf Deutsch.' : 'Respond in English.'
-
-// ── KATEGORIE-LEVELS (1-10) ─────────────────────────────────────
-const CAT_LEVEL_THRESHOLDS = [0, 1, 5, 10, 15, 20, 30, 40, 50, 65, 80] // index = level; value = min mastered to reach it
-const CAT_LEVEL_NAMES = {
-  de: ['', 'Anfänger', 'Grundlagen', 'Aufbau', 'Mittelstufe', 'Fortgeschritten', 'Sicher', 'Gewandt', 'Kompetent', 'Experte', 'Fließend'],
-  en: ['', 'Beginner', 'Basics', 'Building', 'Intermediate', 'Advanced', 'Confident', 'Fluent', 'Competent', 'Expert', 'Fluent'],
-}
-const getCatLevel = (masteredCount) => {
-  let lv = 0
-  for (let i = 1; i <= 10; i++) { if (masteredCount >= CAT_LEVEL_THRESHOLDS[i]) lv = i }
-  return lv
-}
-const CAT_LEVEL_COLORS = ['','#81c784','#81c784','#4CAF50','#29b6f6','#1976d2','#7c4dff','#9c27b0','#e91e63','#ff5722','#FFD700']
-
-// ── THEMEN (Unlock-System) ──────────────────────────────────────
-const TOPICS_LIST = [
-  { key: 'cooking',  emoji: '🍳', de: 'Kochen',    en: 'Cooking'   },
-  { key: 'sports',   emoji: '⚽', de: 'Fußball',   en: 'Football'  },
-  { key: 'music',    emoji: '🎵', de: 'Musik',     en: 'Music'     },
-  { key: 'travel',   emoji: '✈️', de: 'Reisen',    en: 'Travel'    },
-  { key: 'tech',     emoji: '💻', de: 'Technik',   en: 'Tech'      },
-  { key: 'business', emoji: '💼', de: 'Business',  en: 'Business'  },
-  { key: 'nature',   emoji: '🌿', de: 'Natur',     en: 'Nature'    },
-]
-
-// SOCIAL_REGISTERS, socialRegisterLabel/Context, getTenseUnlocks/TENSE_LABELS, MARK_UID, ELOSY_UID → imported from ./appShared
+const APP_VERSION = 'V01.002.004'
+const MARK_UID = 'aiNZh4Myn8Y0KfYkGGrkNNW0HC72'
+const ELOSY_UID = 'NIX3DYenRdbRjmr2EHsIad9GcqG3'
 const SESSION_SIZE = 15
 const MASTERY_THRESHOLD = 0.85
 const NEW_CARDS_BATCH = 3
@@ -101,14 +57,14 @@ const MONTHLY_TEST_DAYS = 30
 const THEMES = {
   nairobi: {
     name: '🌙 Nairobi',
-    bg: '#060400', card: '#0F0C00', text: '#FFFFFF', sub: '#B8860B', border: '#1C1600',
-    accent: '#FFD700', gold: '#FFD700', glowColor: '#FFD700', btnTextColor: '#060400',
-    bgGrad: 'radial-gradient(ellipse at 50% 100%, #0D0A00 0%, #080600 40%, #060400 70%), radial-gradient(ellipse at 65% 60%, #0A0800 0%, transparent 50%), radial-gradient(ellipse at 30% 40%, #070500 0%, transparent 50%)',
-    metalGrad: 'linear-gradient(145deg, #FFF0A0 0%, #FFD700 30%, #B8860B 52%, #FFD700 72%, #FFF0A0 100%)',
-    metalText: 'linear-gradient(90deg, #B8860B 0%, #FFF0A0 16%, #FFD700 33%, #FFF0A0 50%, #B8860B 66%, #FFF0A0 83%, #FFD700 100%)',
-    btnFaceGrad: 'linear-gradient(90deg, #B8860B 0%, #FFD700 20%, #FFF0A0 40%, #FFD700 50%, #FFF0A0 60%, #FFD700 80%, #B8860B 100%)',
-    shadow3d: '0 1px 0 rgba(255,240,160,0.5) inset, 0 -1px 0 rgba(0,0,0,0.7) inset, 0 4px 0 #B8860B, 0 6px 0 #8B6800, 0 8px 0 #5C4400, 0 10px 20px rgba(0,0,0,0.85)',
-    shadowPressed: '0 1px 0 rgba(255,240,160,0.25) inset, 0 -1px 0 rgba(0,0,0,0.6) inset, 0 1px 0 #B8860B, 0 3px 8px rgba(0,0,0,0.75)',
+    bg: '#0D0800', card: '#1A0F00', text: '#FFF5E0', sub: '#C8860A', border: '#3A2800',
+    accent: '#C8860A', gold: '#F5C842', glowColor: '#F5C842', btnTextColor: '#1A0800',
+    bgGrad: 'radial-gradient(ellipse at 50% 100%, #5C3000 0%, #2A1200 35%, #0D0800 65%), radial-gradient(ellipse at 65% 75%, #3A1800 0%, transparent 45%), radial-gradient(ellipse at 30% 55%, #1E0C00 0%, transparent 45%)',
+    metalGrad: 'linear-gradient(145deg, #F5C842 0%, #C8860A 30%, #7A4F00 52%, #C8860A 72%, #F5C842 100%)',
+    metalText: 'linear-gradient(90deg, #7A4F00 0%, #F5D060 16%, #C8860A 33%, #F5C842 50%, #7A4F00 66%, #F5D060 83%, #C8860A 100%)',
+    btnFaceGrad: 'linear-gradient(90deg, #7A4F00 0%, #C8860A 20%, #E8A020 40%, #F5C842 50%, #E8A020 60%, #C8860A 80%, #7A4F00 100%)',
+    shadow3d: '0 1px 0 rgba(245,200,66,0.4) inset, 0 -1px 0 rgba(0,0,0,0.5) inset, 0 4px 0 #7A4F00, 0 6px 0 #5A3800, 0 8px 0 #3A2000, 0 10px 20px rgba(20,10,0,0.8)',
+    shadowPressed: '0 1px 0 rgba(245,200,66,0.2) inset, 0 -1px 0 rgba(0,0,0,0.4) inset, 0 1px 0 #7A4F00, 0 3px 8px rgba(20,10,0,0.6)',
   },
   hamburg: {
     name: '🌊 Hamburg',
@@ -140,24 +96,40 @@ const THEMES = {
     shadow3d: '0 1px 0 rgba(255,255,255,0.3) inset, 0 -1px 0 rgba(0,0,0,0.5) inset, 0 4px 0 #9B3BFF, 0 6px 0 #7B1BDF, 0 8px 0 #3D008F, 0 10px 20px rgba(0,0,0,0.75)',
     shadowPressed: '0 1px 0 rgba(255,255,255,0.15) inset, 0 -1px 0 rgba(0,0,0,0.4) inset, 0 1px 0 #7B1BDF, 0 3px 8px rgba(0,0,0,0.6)',
   },
+  lyon: {
+    name: '🍷 Lyon',
+    bg: '#0D0000', card: '#1A0505', text: '#F5EDE0', sub: '#A0706A', border: '#3A1010',
+    accent: '#8B1A1A', gold: '#D4A017', glowColor: '#C0392B', btnTextColor: '#F5EDE0',
+    bgGrad: 'radial-gradient(ellipse at 50% 20%, #3A0808 0%, #1A0404 50%, #0D0000 100%)',
+    metalGrad: 'linear-gradient(145deg, #D4A017 0%, #8B1A1A 30%, #3D0C0C 52%, #8B1A1A 72%, #D4A017 100%)',
+    metalText: 'linear-gradient(90deg, #3D0C0C 0%, #D4A017 16%, #8B1A1A 33%, #D4A017 50%, #3D0C0C 66%, #D4A017 83%, #8B1A1A 100%)',
+    btnFaceGrad: 'linear-gradient(90deg, #3D0C0C 0%, #8B1A1A 20%, #B02020 40%, #D4A017 50%, #B02020 60%, #8B1A1A 80%, #3D0C0C 100%)',
+    shadow3d: '0 1px 0 rgba(212,160,23,0.4) inset, 0 -1px 0 rgba(0,0,0,0.5) inset, 0 4px 0 #5A0A0A, 0 6px 0 #3D0505, 0 8px 0 #200000, 0 10px 20px rgba(20,0,0,0.8)',
+    shadowPressed: '0 1px 0 rgba(212,160,23,0.2) inset, 0 -1px 0 rgba(0,0,0,0.4) inset, 0 1px 0 #5A0A0A, 0 3px 8px rgba(20,0,0,0.6)',
+  },
+  sevilla: {
+    name: '💃 Sevilla',
+    bg: '#0D0500', card: '#1A0A02', text: '#FFF0E0', sub: '#A07050', border: '#3A1800',
+    accent: '#C0392B', gold: '#F39C12', glowColor: '#E67E22', btnTextColor: '#FFF0E0',
+    bgGrad: 'radial-gradient(ellipse at 50% 20%, #3A1200 0%, #1A0700 50%, #0D0500 100%)',
+    metalGrad: 'linear-gradient(145deg, #F39C12 0%, #C0392B 30%, #6E1A0C 52%, #C0392B 72%, #F39C12 100%)',
+    metalText: 'linear-gradient(90deg, #6E1A0C 0%, #F39C12 16%, #C0392B 33%, #F39C12 50%, #6E1A0C 66%, #F39C12 83%, #C0392B 100%)',
+    btnFaceGrad: 'linear-gradient(90deg, #6E1A0C 0%, #C0392B 20%, #D45030 40%, #F39C12 50%, #D45030 60%, #C0392B 80%, #6E1A0C 100%)',
+    shadow3d: '0 1px 0 rgba(243,156,18,0.4) inset, 0 -1px 0 rgba(0,0,0,0.5) inset, 0 4px 0 #7A1500, 0 6px 0 #560E00, 0 8px 0 #300500, 0 10px 20px rgba(20,5,0,0.8)',
+    shadowPressed: '0 1px 0 rgba(243,156,18,0.2) inset, 0 -1px 0 rgba(0,0,0,0.4) inset, 0 1px 0 #7A1500, 0 3px 8px rgba(20,5,0,0.6)',
+  },
+  chiangmai: {
+    name: '🏯 Chiang Mai',
+    bg: '#2C1810', card: '#3D2318', text: '#FFF0D8', sub: '#D4A017', border: '#5C3820',
+    accent: '#D4A017', gold: '#FFD700', glowColor: '#D4A017', btnTextColor: '#2C1810',
+    bgGrad: 'radial-gradient(ellipse at 50% 20%, #6B3A20 0%, #3D2318 50%, #2C1810 100%)',
+    metalGrad: 'linear-gradient(145deg, #FFD700 0%, #D4A017 30%, #8B4513 52%, #D4A017 72%, #FFD700 100%)',
+    metalText: 'linear-gradient(90deg, #8B4513 0%, #FFD700 16%, #D4A017 33%, #FFD700 50%, #8B4513 66%, #FFD700 83%, #D4A017 100%)',
+    btnFaceGrad: 'linear-gradient(90deg, #5C3820 0%, #8B4513 20%, #C0832A 40%, #D4A017 50%, #C0832A 60%, #8B4513 80%, #5C3820 100%)',
+    shadow3d: '0 1px 0 rgba(255,215,0,0.4) inset, 0 -1px 0 rgba(0,0,0,0.5) inset, 0 4px 0 #5C3820, 0 6px 0 #3D2318, 0 8px 0 #2C1810, 0 10px 20px rgba(30,10,0,0.8)',
+    shadowPressed: '0 1px 0 rgba(255,215,0,0.2) inset, 0 -1px 0 rgba(0,0,0,0.4) inset, 0 1px 0 #5C3820, 0 3px 8px rgba(30,10,0,0.6)',
+  },
 }
-
-const VOICE_MAP = {
-  'EN': ['en-GB', 'en-US'],
-  'DE': ['de-DE', 'de-AT', 'de-CH'],
-  'SW': ['sw-KE', 'sw-TZ'],
-}
-
-const CARD_GEN_SYSTEM = `You are a professional native-level translator and linguist.
-STRICT RULES:
-- NEVER translate word-for-word or literally
-- Always use natural idiomatic expressions a native speaker would actually say
-- German must sound like real spoken German, not textbook German
-- Bad: 'Du musst wahrscheinlich aufhören aufzuschieben' — Good: 'Hör endlich auf zu prokrastinieren!'
-- Check: would a native speaker say this? If not, rewrite.
-- Prefer natural colloquial over grammatically perfect but unnatural
-- Every translation must be 100% grammatically correct
-Return ONLY valid JSON, no markdown, no explanation.`
 
 const AVAILABLE_LANGS = [
   { code: 'en', label: 'Englisch', flag: '🇬🇧' },
@@ -173,7 +145,43 @@ const AVAILABLE_LANGS = [
 
 const LANG_FLAGS = { en: '🇬🇧', de: '🇩🇪', sw: '🇰🇪', th: '🇹🇭', es: '🇪🇸', fr: '🇫🇷', ar: '🇸🇦', tr: '🇹🇷', pt: '🇵🇹' }
 
-// SPEECH_LANGS, getToLangText, speak → imported from ./appShared
+const SPEECH_LANGS = { en: 'en-GB', de: 'de-DE', sw: 'sw-KE', th: 'th-TH', fr: 'fr-FR', es: 'es-ES', ar: 'ar-SA', tr: 'tr-TR', pt: 'pt-PT' }
+// Returns { text, langCode } for the TARGET language side of a card.
+// userToLang (from Firestore profile) takes priority over card.targetLang.
+// All comparisons are case-insensitive (Firestore may store 'EN' or 'en').
+// Returns null only if the card has no text at all — callers should handle null.
+function getToLangText(card, userToLang) {
+  if (!card) return null
+  const toLang = (userToLang || card.targetLang || card.langA || 'en').toLowerCase()
+  if ((card.langA || '').toLowerCase() === toLang) return { text: card.front, langCode: toLang }
+  if ((card.langB || '').toLowerCase() === toLang) return { text: card.back, langCode: toLang }
+  return null // never guess — silence is better than speaking the wrong language
+}
+
+async function speak(text, langCode) {
+  if (!window.speechSynthesis || !text) return
+  window.speechSynthesis.cancel()
+  const u = new SpeechSynthesisUtterance(text)
+  const langTag = SPEECH_LANGS[langCode] || 'en-GB'
+  u.lang = langTag; u.rate = 0.85
+  const voices = await new Promise(resolve => {
+    const v = window.speechSynthesis.getVoices()
+    if (v.length) { resolve(v); return }
+    window.speechSynthesis.onvoiceschanged = () => resolve(window.speechSynthesis.getVoices())
+  })
+  const preferred = voices.find(v => v.lang === langTag && v.name.toLowerCase().includes('google'))
+    || voices.find(v => v.lang === langTag && !v.localService)
+    || voices.find(v => v.lang.startsWith(langTag.split('-')[0]) && v.name.toLowerCase().includes('google'))
+    || voices.find(v => v.lang.startsWith(langTag.split('-')[0]))
+  if (preferred) { u.voice = preferred }
+  else if (langTag === 'sw-KE') {
+    // No Swahili voice available — fall back to en-US to avoid system default (e.g. de-DE)
+    const enFallback = voices.find(v => v.lang === 'en-US') || voices.find(v => v.lang.startsWith('en-'))
+    if (enFallback) u.voice = enFallback
+    u.lang = 'en-US'
+  }
+  window.speechSynthesis.speak(u)
+}
 async function speakSyllable(text, langCode) {
   if (!window.speechSynthesis || !text) return
   window.speechSynthesis.cancel()
@@ -510,7 +518,7 @@ const ALL_MARK_CARDS_BASE = [
   { id: 'en_86', front: "I'll be there for you.", back: "Ich bin für dich da.", context: "I'll be there for you — über jeden Ozean, durch jede Zeitzone. Das ist das Versprechen hinter der Stimme.", langA: 'en', langB: 'de' },
 ]
 
-const VALID_CATEGORIES = ['vocabulary', 'sentence', 'street', 'home', 'basics', 'urlaub']
+const VALID_CATEGORIES = ['vocabulary', 'sentence', 'street', 'home', 'basics']
 const VALID_CATEGORY_SET = new Set(VALID_CATEGORIES)
 
 function autoCategory(front) {
@@ -538,10 +546,9 @@ function ruleCategory(card) {
   const backWords = back.trim().split(/\s+/).filter(Boolean)
   // Rule 0: German common-word whitelist → always vocabulary
   if (words.length === 1 && DE_VOCAB_WHITELIST.has(front.trim().toLowerCase())) return 'vocabulary'
-  // Rule 1: Swahili slang phrases embedded in non-Swahili text → street
-  // (Do NOT force langA='sw' cards to street — let content rules decide their category)
+  // Rule 1: Swahili card, pronunciation field, or common Swahili words → street
   const swahiliRe = /\b(habari|yako|nzuri|asante|karibu|pole|sawa|jambo|mambo|rafiki|wewe|mimi|nina|hii|hilo|chakula|maji|nyumba|watoto|upendo)\b/i
-  if (card.langA !== 'sw' && card.langB !== 'sw' && swahiliRe.test(front)) return 'street'
+  if (card.langA === 'sw' || card.pronunciation || swahiliRe.test(front)) return 'street'
   // Rule 2: apostrophes or contractions → street
   if (/['']/.test(front) || /\b(im|youre|its|lets|dont|cant|wont|ive|theyre|were|thats|whats|theres|ill|youll)\b/i.test(front)) return 'street'
   // Rule 3: single front word but back is 3+ words → street (single word that expands to phrase)
@@ -595,31 +602,6 @@ function buildCardPair(card) {
     }]
   }
   return [forwardCard, ...reversedCards]
-}
-
-async function addTenseVariants(masteredCards, toLang, fromLang, langA, langB) {
-  if (!masteredCards.length) return []
-  const LNF = { en: 'English', de: 'German', sw: 'Swahili', fr: 'French', es: 'Spanish', th: 'Thai' }
-  const toLangName = LNF[toLang] || toLang
-  const fromLangName = LNF[fromLang] || fromLang
-  const wordList = masteredCards.slice(0, 3).map(c => `"${c.back}"`).join(', ')
-  const res = await fetch('/api/chat', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001', max_tokens: 300,
-      messages: [{ role: 'user', content: `For each ${toLangName} word/phrase: ${wordList} — give the past tense form in ${toLangName} and its ${fromLangName} translation. Return ONLY JSON array (no markdown): [{"pastFront":"${fromLangName} prompt for past tense","pastBack":"${toLangName} past tense form"}]` }]
-    })
-  })
-  const d = await res.json()
-  const raw = (d.content?.[0]?.text || '').trim()
-  const match = raw.match(/\[[\s\S]*\]/)
-  if (!match) return []
-  const parsed = JSON.parse(match[0])
-  const ts = Date.now()
-  return parsed.filter(p => p.pastFront && p.pastBack).map((p, i) => ({
-    id: `tense_past_${ts}_${i}`, front: p.pastFront, back: p.pastBack,
-    category: 'tense-variant', tense: 'past', langA, langB, source: 'tense-variant',
-  })).flatMap(buildCardPair)
 }
 
 const ALL_MARK_CARDS = ALL_MARK_CARDS_BASE.flatMap(buildCardPair)
@@ -720,7 +702,20 @@ function daysSince(dateStr) {
   return Math.floor((Date.now() - new Date(dateStr)) / 86400000)
 }
 
-// levenshtein, fuzzyWordMatch → imported from ./appShared
+function levenshtein(a, b) {
+  const m = a.length, n = b.length
+  const dp = Array.from({ length: m + 1 }, (_, i) => Array.from({ length: n + 1 }, (_, j) => i === 0 ? j : j === 0 ? i : 0))
+  for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++)
+    dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1])
+  return dp[m][n]
+}
+function fuzzyWordMatch(expected, got) {
+  const e = expected.toLowerCase().replace(/[^\w]/g, '')
+  const g = got.toLowerCase().replace(/[^\w]/g, '')
+  if (!e || !g) return false
+  const maxDist = Math.max(1, Math.floor(e.length * 0.4))
+  return levenshtein(e, g) <= maxDist
+}
 
 function calcStreak(history) {
   if (!history || history.length === 0) return 0
@@ -763,8 +758,8 @@ function getLast7Days(history) {
   }
   return result
 }
-async function saveSessionHistory(uid, correct, total, currentHistory, extraUpdate, area) {
-  const entry = { date: todayStr(), correct, total, ts: Date.now(), ...(area ? { area } : {}) }
+async function saveSessionHistory(uid, correct, total, currentHistory, extraUpdate) {
+  const entry = { date: todayStr(), correct, total, ts: Date.now() }
   const updated = [entry, ...(currentHistory || [])].slice(0, 60)
   await updateDoc(doc(db, 'users', uid), { sessionHistory: updated, ...(extraUpdate || {}) })
   return updated
@@ -820,33 +815,13 @@ function getLangStats(allCards, cardProgress, langCode) {
   const mastered = active.filter(c => (cardProgress[c.id]?.interval || 0) >= 7)
   return { total: cards.length, active: active.length, mastered: mastered.length }
 }
-function saveSessionState(uid, queue, index, newProgress) {
-  try { localStorage.setItem('vocara_session_' + uid, JSON.stringify({ queue, index, newProgress, savedAt: Date.now() })) }
+async function saveSessionState(uid, queue, index, newProgress) {
+  try { await setDoc(doc(db, 'users', uid, 'session', 'current'), { queue, index, newProgress, savedAt: Date.now() }) }
   catch (e) { console.warn('Could not save session state:', e) }
 }
-function clearSessionState(uid) {
-  try { localStorage.removeItem('vocara_session_' + uid) }
+async function clearSessionState(uid) {
+  try { await deleteDoc(doc(db, 'users', uid, 'session', 'current')) }
   catch (e) { console.warn('Could not clear session state:', e) }
-}
-async function writePublicStats(uid, user, db) {
-  try {
-    const globalRef = doc(db, 'users', uid, 'globalStats', 'summary')
-    const globalSnap = await getDoc(globalRef)
-    const existing = globalSnap.exists() ? globalSnap.data() : {}
-    let resolvedName = user.displayName || ''
-    if (!resolvedName) {
-      try {
-        const profSnap = await getDoc(doc(db, 'users', uid, 'profile', 'data'))
-        if (profSnap.exists()) resolvedName = profSnap.data().displayName || profSnap.data().name || ''
-      } catch (_) {}
-    }
-    const writeData = { ...existing, displayName: resolvedName, lastActive: Date.now(), uid }
-    console.log('[publicStats] WRITING DATA:', JSON.stringify(writeData))
-    await setDoc(doc(db, 'users', uid, 'publicStats', 'data'), writeData, { merge: true })
-    console.log('[Vocara] publicStats written for', uid)
-  } catch (e) {
-    console.error('[publicStats] FULL ERROR:', JSON.stringify({ code: e.code, message: e.message, stack: e.stack?.slice(0, 200) }))
-  }
 }
 
 const GLOBAL_CSS = `
@@ -858,10 +833,6 @@ html, body, #root {
 @keyframes vocaraFadeIn {
   from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes vocaraKontextGlow {
-  0%, 100% { box-shadow: 0 0 10px rgba(0,191,165,0.3), 0 0 0 2px rgba(0,191,165,0.06); }
-  50%       { box-shadow: 0 0 22px rgba(0,191,165,0.6), 0 0 0 4px rgba(0,191,165,0.12); }
 }
 @keyframes vocaraFadeOut {
   from { opacity: 1; }
@@ -912,19 +883,6 @@ html, body, #root {
   40%  { transform: scale(1.6); }
   100% { transform: scale(1); }
 }
-@keyframes vocaraSlideIn {
-  0%   { opacity: 0; transform: translateX(-60px) scale(0.95); }
-  100% { opacity: 1; transform: translateX(0) scale(1); }
-}
-@keyframes particleBurst {
-  0%   { opacity: 1; transform: translate(0,0) scale(1); }
-  100% { opacity: 0; transform: translate(var(--px), var(--py)) scale(0); }
-}
-@keyframes sparkleRing {
-  0%   { opacity: 0.9; transform: scale(0.5); }
-  60%  { opacity: 0.6; transform: scale(1.8); }
-  100% { opacity: 0; transform: scale(2.5); }
-}
 @keyframes vocaraCardFlip {
   0%   { transform: rotateY(0deg); }
   45%  { transform: rotateY(90deg); opacity: 0.6; }
@@ -932,21 +890,6 @@ html, body, #root {
   100% { transform: rotateY(0deg); }
 }
 
-@keyframes vocaraLogoSweep {
-  0%   { background-position: -200% center; }
-  12%  { background-position: 200% center; }
-  100% { background-position: 200% center; }
-}
-.vocara-logo-text {
-  position: relative;
-  display: inline-block;
-  background: linear-gradient(100deg, #B8860B 0%, #FFD700 35%, #FFF0A0 48%, #FFD700 55%, #B8860B 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-size: 300% 100%;
-  animation: vocaraLogoSweep 8s ease-in-out infinite;
-}
 @keyframes vocaraRayHamburg {
   0%   { transform: translateX(-120%) rotate(22deg); opacity: 0; }
   18%  { opacity: 0.55; }
@@ -1353,18 +1296,12 @@ function makeStyles(th) {
     infoBox: { background: th.accent + '18', border: `1px solid ${th.accent}`, borderRadius: '12px', padding: '12px', marginBottom: '10px', color: th.text, fontSize: '0.9rem' },
     resumeBanner: { background: th.card, border: `1px solid ${th.accent}`, borderRadius: '14px', padding: '14px 16px', marginBottom: '12px', textAlign: 'left' },
     catBtn: {
-      background: 'linear-gradient(145deg, rgba(255,255,255,0.1), rgba(255,255,255,0.03))',
-      color: '#fff',
-      border: '1px solid rgba(255,255,255,0.12)',
-      padding: '10px 12px', borderRadius: '16px', fontSize: '0.9rem', cursor: 'pointer',
+      background: th.btnFaceGrad, color: th.btnTextColor, border: 'none',
+      padding: '14px 10px', borderRadius: '20px', fontSize: '0.84rem', cursor: 'pointer',
       fontWeight: '700', flex: 1, lineHeight: '1.3', textAlign: 'center',
-      boxShadow: '0 6px 0 rgba(0,0,0,0.4), 0 8px 16px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.15)',
+      boxShadow: th.shadow3d,
       fontFamily: "'Playfair Display', Georgia, serif",
       letterSpacing: '0.1px',
-      display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center',
-      minHeight: '60px',
-      transition: 'transform 0.1s, box-shadow 0.1s',
-      WebkitAppearance: 'none', appearance: 'none',
     },
     navBtn: {
       background: 'linear-gradient(145deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%)',
@@ -1383,10 +1320,10 @@ const T = {
   de: {
     hello: 'Hallo', mySession: '🃏 Meine Session', whereAmI: '🎯 Wo stehe ich?',
     aiChat: '🤖 KI-Gespräch', dailyPhrase: '☀️ Tages-Phrase',
-    progressBtn: '📊 Statistiken', logout: 'Abmelden',
+    progressBtn: '📈 Fortschritt', logout: 'Abmelden',
     myProgress: 'Dein Fortschritt', notActive: 'Noch kein Partner',
     card: 'Karte', of: 'von', showSolution: 'Lösung anzeigen',
-    correct: 'Richtig', wrong: 'Falsch', fast: 'Fast', easy: 'Easy', stop: '✕ Beenden',
+    correct: 'Richtig', wrong: 'Falsch', fast: 'Fast', easy: '⚡ Easy', stop: '✕ Beenden',
     stopConfirm: 'Session wirklich beenden?', done: 'Heute. Gut gemacht.', back: 'Zurück',
     masteryMsg: 'Deine Stimme wächst. 3 neue Karten.',
     comingSoon: 'Kommt bald', chooseTheme: 'Wähle dein Theme', settingsTitle: 'Einstellungen',
@@ -1408,160 +1345,19 @@ const T = {
     monthlyTestSub: 'Teste dein aktuelles Niveau',
     menuWorte: 'Meine\nWorte', menuSaetze: 'werden\nSätze', menuStraße: 'Auf der\nStraße', menuHause: 'und zu\nHause',
     menuAlle: 'Wir lernen alles, überall',
-    menuGrundlagen: 'Die\nGrundlagen', menuUrlaub: 'Im\nUrlaub',
+    menuGrundlagen: 'Die\nGrundlagen',
     menuKi: 'KI-Gespräch', menuSatz: 'Satztraining',
     menuAddCards: 'Karten hinzufügen', menuCategorize: 'Kategorisieren', menuSettings: 'Einstellungen', menuSignOut: 'Abmelden',
     menuPartnerConnect: 'Partner verbinden', menuPartnerLabel: 'Partner',
     weekGoalTitle: 'Wochenziel', weekGoalDone: 'Heute: vollständig. ✓',
-    // ResultScreen
-    weakestCard: 'Schwächste Karte', strongestCard: 'Stärkste Karte',
-    urlaubLocked: '3 von 10 Karten freigeschaltet', urlaubPremiumNote: 'Premium schaltet alle Reisephrasen frei.',
-    rhythmusBtn: 'Rhythmus üben', again: 'Nochmal', finishDone: 'Fertig',
-    // Settings
-    music: 'Hintergrundmusik', musicOn: 'An', musicOff: 'Aus', volumeLabel: 'Lautstärke',
-    dailyGoalLabel: 'Tägliches Lernziel', cardsPerDay: 'Karten pro Tag',
-    languagesLabel: 'Sprachen', paused: 'Pausiert', active: 'Aktiv',
-    learnLanguages: '🌍 Lernsprachen & Anteile', addLanguage: 'Sprache hinzufügen:',
-    darkModeLabel: 'Dunkel', lightModeLabel: 'Hell', cardSizeLabel: '📐 Kartengröße',
-    streakProtection: 'Streak-Schutz', streakFree0: '0 Freezes verfügbar — Premium: 1x/Monat',
-    freezeAvailThis: 'Verfügbar diesen Monat:', freezeUsed: 'verwendet', freezeActivate: 'Freeze aktivieren',
-    socialRegisterLabel: 'Soziales Register', socialRegisterNote: 'Wie lernst ihr zusammen? Beeinflusst den Ton der KI.',
-    relationshipType: 'Beziehungstyp', relationshipNote: 'Prägt den Ton eurer Tageskarte.',
-    // SatzTraining
-    satzNotEnough: 'Noch nicht genug Wörter',
-    satzNotEnoughDesc: 'Übe zuerst mehr Wörter in Meine Worte — du brauchst mindestens 5 Wörter mit Mastery ≥ 2.',
-    generating: 'KI erstellt deine Grammatik-Übungen…', connectionError: 'Verbindungsfehler. Bitte erneut versuchen.',
-    retry: 'Erneut versuchen', satzDone: 'Fertig! 🎉', newExercises: '🔄 Neue Übungen',
-    yourAnswer: 'Deine Antwort…', tapWords: 'Tippe auf Wörter unten',
-    checkBtn: 'Prüfen', nextBtn: 'Weiter →', finishBtn: 'Fertig',
-    // Rhythmus
-    rhythmusTitle: 'Sprachrhythmus', rhythmusSub: 'Höre zu — dann sprich nach',
-    rhythmusNoCards: 'Lerne mehr Satz-Karten, um Rhythmus-Training freizuschalten.',
-    repeatAfter: 'Spreche nach:', listen: 'Anhören', speakNow: 'Jetzt sprechen',
-    listening: 'Zuhören…', useChrome: 'Bitte Chrome verwenden',
-    youSaid: 'Du hast gesagt:', tryAgain: 'Nochmal', pronouncePct: 'Aussprache: ',
-    // Kontextwechsel
-    kontextTitle: 'Kontextwechsel', kontextGenerating: 'KI erstellt Varianten…',
-    kontextUnavail: 'Varianten nicht verfügbar.', kontextChoose: 'Wähle einen Kontext zum Hinzufügen:',
-    learn: 'Lernen', variantSaved: 'Variante gespeichert!',
-    // Stats
-    statistics: 'Statistiken', learnedToday: 'Heute gelernt', statDays: 'Tage',
-    totalCards: 'Karten gesamt', dueTomorrow: 'Morgen fällig',
-    studyTime: '⏱ Lernzeit', week: 'Woche', month: 'Monat', total: 'Gesamt',
-    favArea: 'Lieblingsbereich', tenseLevel: '📚 Zeitformen-Level',
-    reactionTime: '⚡ Reaktionszeit', average: 'Durchschnitt', fastest: 'Schnellste',
-    hardestCard: 'Schwierigste Karte',
-    // Tense celebration
-    tenseUnlocked: 'Neue Zeitform freigeschaltet!', gotIt: 'Verstanden ✓',
-    // KI
-    kiTranslate: '🌐 Übersetzen',
-    // Karte erstellen / partner
-    noPartnerConnected: 'Verbinde zuerst deinen Partner.', chooseMasteredCard: 'Wähle eine gemeisterte Karte:',
-    noMasteredCards: 'Noch keine gemeisterten Karten.', personalMessage: 'Persönliche Nachricht (optional):',
-    // General extras
-    saving: 'Speichern…', sessionDone: 'Session beendet!', results: 'Ergebnis',
-    cards: 'Karten', noCardsYet: 'Noch keine Karten — füge welche hinzu!',
-    categories: 'Kategorien', newCategory: 'Neue Kategorie',
-    noCategoriesYet: 'Noch keine Kategorien — erstelle deine erste!',
-    manual: 'Manuell', front: 'Vorderseite', backLabel: 'Rückseite',
-    addCard: 'Karte hinzufügen', generate10: '10 Karten generieren',
-    topicPlaceholder: 'Thema (z.B. Farben auf Spanisch)', deleteSet: 'Set löschen',
-    share: 'Teilen', categoryName: 'Name der Kategorie', createCategory: 'Kategorie erstellen',
-    thisWeekTogether: 'Diese Woche zusammen', bothGoalsDone: '✓ Beide Ziele erreicht!',
-    changeGoal: 'Ziel ändern', ourCards: 'Unsere Karten', learnTogether: 'Jetzt zusammen lernen',
-    learnTogetherSub: 'Gleiche Karten — gleichzeitig',
-    sessionResult: 'Session beendet!', sessionBack: '← Zurück',
-    readyJointSession: 'Bereit für eine gemeinsame Session?',
-    jointDesc: 'Beide sehen dieselben Karten gleichzeitig.',
-    startSession: '🚀 Session starten', partnerStarted: ' hat eine Session gestartet.',
-    joinBtn: 'Beitreten', sync: 'Synchron', answering: 'antwortet…', waitingFor: 'Wartet auf ',
-    endBtn: 'Beenden', learnToge: '⚡ Gemeinsam lernen',
-    diffLeicht: 'Leicht', diffLeichtSub: 'A1–A2 · Grundlagen',
-    diffMittel: 'Mittel', diffMittelSub: 'B1 · Aufbau',
-    diffSchwer: 'Schwer', diffSchwerSub: 'B2–C1 · Fortgeschritten',
-    chooseDifficulty: 'Schwierigkeitsgrad wählen:',
-    musicComingSoon: 'Hintergrundmusik wird in einem kommenden Update verfügbar.',
-    saveFailed: 'Fehler beim Speichern', signOut: 'Wirklich abmelden?',
-    targetLangRequired: 'Bitte lege deine Zielsprache fest — TTS und Mikrofon benötigen diese Information.',
-    myLanguages: 'Meine Sprachen', nativeLanguage: 'Meine Sprache (Ausgangssprache):',
-    targetLanguage: 'Ich lerne (Zielsprache):', moreLanguages: 'Weitere Sprachen',
-    languageTypes: 'Hauptsprache · Weitere Sprache', reminderLabel: 'Tägliche Erinnerung',
-    reminderNotSupported: 'Nicht unterstützt in diesem Browser',
-    notificationsBlocked: 'Benachrichtigungen blockiert — bitte in Browser-Einstellungen erlauben',
-    myGimmicks: 'Meine Gimmiks', noGimmicks: 'Noch keine Gimmiks freigeschaltet.',
-    restore: 'Wiederherstellen', more: 'weitere', cancel: 'Abbrechen',
-    myTopics: 'Meine Themen', topicsDesc: 'Themen freispielen und 15 Karten generieren lassen.',
-    premiumOrMastered: '⭐ Premium oder 5+ gemeisterte Karten nötig.',
-    resetAreas: 'Bereiche zurücksetzen',
-    resetAreasDesc: 'Setzt den Fortschritt eines Bereichs auf Level 1 zurück. Karten bleiben erhalten.',
-    reset: 'Zurücksetzen', premiumDesc: 'Mit Premium kannst du Spanisch, Französisch, Thai und mehr lernen.',
-    unlockPremiumBtn: 'Premium freischalten', unlockPremium: 'Mehr Sprachen mit Premium',
-    adminUsers: 'Nutzer', adminActiveWeek: 'Aktiv Woche', adminReports: 'Meldungen',
-    reportedCards: 'Gemeldete Karten', openIssues: 'offen', fixedStatus: 'behoben',
-    markFixed: 'Behoben', dismiss: 'Ignorieren',
-    diaryTitle: 'Gemeinsames Tagebuch', diaryDesc: 'Ein Satz pro Tag in eurer Zielsprache.',
-    today: 'Heute', saveEntry: 'Eintragen',
-    noEntries: 'Noch keine Einträge — schreib den ersten!',
-    savedStatus: 'Gespeichert ✓', sharedStatus: 'Geteilt ✓',
-    filterAll: 'Alle', noCardsFound: 'Keine Karten gefunden.',
-    editCardTitle: 'Karte bearbeiten', shareWithPartner: 'Mit Partner teilen',
-    sourceLanguages: 'Ausgangssprache(n)', saveLangSplit: 'Sprachanteil speichern',
-    savedExclaim: 'Gespeichert!', targetLangHeader: 'Zielsprache',
-    enterCardSection: 'Karte eingeben', iType: 'Ich tippe',
-    enterWordOrSentence: 'Wort oder Satz eingeben…', aiTranslating: 'KI übersetzt…',
-    aiFillRedo: 'KI hat ergänzt — nochmal', aiFillBtn: 'KI ergänzt den Rest',
-    translationPlaceholder: 'Übersetzung…', categoryDest: 'Kategorie & Ziel',
-    categoryLabel: 'Kategorie', forWhom: 'Für wen?', forMe: 'Für mich',
-    bothOption: 'Beide', bothPartner: 'Für dich & Partner',
-    saveCardBtn: 'Karte speichern ✓',
-    partnerHasCard: '⚠️ Partner hat diese Karte bereits erhalten',
-    alreadySentToday: '⚠️ Du hast diese Karte heute bereits gesendet',
-    errorSending: 'Fehler beim Senden',
-    cardSavedForBoth: '💫 Für dich & Partner ✓', cardSaved: 'Karte gespeichert ✓',
-    newCardTitle: 'Neue Karte', languagesSection: 'Sprachen', aiLabel: 'KI',
-    levelCheckAvailable: 'Level-Check verfügbar', aiTutorLabel: 'KI-Tutor',
-    daysLabel: 'Tage', startBtn: 'Starten', writeDiaryBtn: 'Tagebuch schreiben →',
-    connectionNeedsYou: 'Die Verbindung braucht dich heute.',
-    streakFreezeConfirm: 'Streak Freeze jetzt verwenden? (1x/Monat)',
-    learnNow: 'Jetzt lernen →', streakLost: 'Streak verloren — neu starten! 💪',
-    removeFav: 'Favorit entfernen', markFav: 'Als Favorit markieren',
-    neverLearnAgain: 'Nie wieder lernen', wantsToConnect: 'möchte sich mit dir verbinden',
-    topicsHint: '🎯 Einstellungen → Meine Themen → Themen generieren',
-    dailyGoalShort: 'Tagesziel', taskOfDayLabel: 'Aufgabe des Tages',
-    practicedThisWeek: '✓ Diese Woche geübt',
-    unlimited: 'Unbegrenzt', thisWeekLabel: 'diese Woche',
-    allAreasUnlimited: 'Alle Lernbereiche unlimitiert',
-    unlimitedKI: 'Unbegrenzte KI-Gespräche', unlimitedSatz: 'Satztraining ohne Limit',
-    tryPremium: 'Premium testen →', maybeLater: 'Vielleicht später',
-    harborGimmick: 'Hafen-Gimmick freigeschaltet!',
-    harborDesc: 'Die Elbe rauscht. Du hast 5 Wochen durchgehalten.',
-    savannaGimmick: 'Savanna-Gimmick freigeschaltet!',
-    savannaDesc: 'Die Sonne über Nairobi. Deine Stimme trägt weiter.',
-    auroraGimmick: 'Aurora-Gimmick freigeschaltet!',
-    auroraDesc: 'Ein Nordlicht für deine Sprache. 5 Wochen.',
-    gimmickUnlockedLabel: 'Gimmick freigeschaltet', tapToClose: 'Tippen zum Schließen',
-    replyBtn: 'Antworten', todaysWordLabel: "Heute's Wort",
-    appearsEverywhere: '— heute begegnet es dir überall.',
-    addToDeck: 'Zum Deck', musicOffLabel: 'Musik aus', musicOnLabel: 'Musik an',
-    cardOfDayLabel: 'Karte des Tages', cardOfDayRel: 'Karte des Tages',
-    areaStreet: 'Straße', areaHome: 'Zuhause', areaVocab: 'Wörter', areaSentences: 'Sätze', areaBasics: 'Grundlagen',
-    areaUrlaub: 'Im Urlaub', areaKi: 'KI-Gespräch', areaSatz: 'Satztraining',
-    vocabCategoryLabel: 'Meine Worte', sentenceCategoryLabel: 'Satz',
-    premiumCta: 'Unbegrenzt mit Premium weitermachen',
-    createCardBtn: 'Karte kreieren', myCardsLabel: 'Meine Karten',
-    sendGiftCardBtn: 'Geschenkkarte senden',
-    bridgeDesc: 'Wir bauen keine Apps. Wir bauen Brücken.',
-    vocabraLanguage: 'Sprache', wordsSentencesConv: 'Wörter, Sätze & Gespräche',
-    comingSoonAlt: 'Bald verfügbar', langNameEn: 'Englisch', langNameDe: 'Deutsch',
-    knew: 'Gewusst', didntKnow: 'Nicht gewusst',
   },
   en: {
     hello: 'Hello', mySession: '🃏 My session', whereAmI: '🎯 Where do I stand?',
     aiChat: '🤖 AI conversation', dailyPhrase: '☀️ Phrase of the day',
-    progressBtn: '📊 Statistics', logout: 'Sign out',
+    progressBtn: '📈 Progress', logout: 'Sign out',
     myProgress: 'Your progress', notActive: 'No partner yet',
     card: 'Card', of: 'of', showSolution: 'Show answer',
-    correct: 'Correct', wrong: 'Wrong', fast: 'Fast', easy: 'Easy', stop: '✕ Stop',
+    correct: 'Correct', wrong: 'Wrong', fast: 'Fast', easy: '⚡ Easy', stop: '✕ Stop',
     stopConfirm: 'Stop this session?', done: 'Well done.', back: 'Back',
     masteryMsg: 'Your voice is growing. 3 new cards.',
     comingSoon: 'Coming soon', chooseTheme: 'Choose your theme', settingsTitle: 'Settings',
@@ -1583,375 +1379,12 @@ const T = {
     monthlyTestSub: 'Test your current level',
     menuWorte: 'My\nWords', menuSaetze: 'become\nSentences', menuStraße: 'On the\nStreet', menuHause: 'and at\nHome',
     menuAlle: 'We learn everything, everywhere',
-    menuGrundlagen: 'The\nBasics', menuUrlaub: 'On\nVacation',
+    menuGrundlagen: 'The\nBasics',
     menuKi: 'AI Chat', menuSatz: 'Sentence training',
     menuAddCards: 'Add cards', menuCategorize: 'Categorize', menuSettings: 'Settings', menuSignOut: 'Sign out',
     menuPartnerConnect: 'Connect partner', menuPartnerLabel: 'Partner',
     weekGoalTitle: 'Weekly goal', weekGoalDone: 'Today: complete. ✓',
-    // ResultScreen
-    weakestCard: 'Weakest card', strongestCard: 'Strongest card',
-    urlaubLocked: '3 of 10 cards unlocked', urlaubPremiumNote: 'Premium unlocks all travel phrases.',
-    rhythmusBtn: 'Rhythm practice', again: 'Again', finishDone: 'Done',
-    // Settings
-    music: 'Background music', musicOn: 'On', musicOff: 'Off', volumeLabel: 'Volume',
-    dailyGoalLabel: 'Daily learning goal', cardsPerDay: 'Cards per day',
-    languagesLabel: 'Languages', paused: 'Paused', active: 'Active',
-    learnLanguages: '🌍 Learning languages & share', addLanguage: 'Add language:',
-    darkModeLabel: 'Dark', lightModeLabel: 'Light', cardSizeLabel: '📐 Card size',
-    streakProtection: 'Streak Protection', streakFree0: '0 freezes available — Premium: 1x/month',
-    freezeAvailThis: 'Available this month:', freezeUsed: 'used', freezeActivate: 'Activate Freeze',
-    socialRegisterLabel: 'Social Register', socialRegisterNote: 'How do you learn together? Affects AI tone.',
-    relationshipType: 'Relationship type', relationshipNote: 'Shapes the tone of your daily card.',
-    // SatzTraining
-    satzNotEnough: 'Not enough words yet',
-    satzNotEnoughDesc: 'Practice more words in My Words first — you need at least 5 words with mastery ≥ 2.',
-    generating: 'AI is preparing your grammar exercises…', connectionError: 'Connection error. Please try again.',
-    retry: 'Try again', satzDone: 'Done! 🎉', newExercises: '🔄 New exercises',
-    yourAnswer: 'Your answer…', tapWords: 'Tap words below',
-    checkBtn: 'Check', nextBtn: 'Next →', finishBtn: 'Finish',
-    // Rhythmus
-    rhythmusTitle: 'Speech Rhythm', rhythmusSub: 'Listen — then repeat',
-    rhythmusNoCards: 'Learn more sentence cards to unlock rhythm training.',
-    repeatAfter: 'Repeat after me:', listen: 'Listen', speakNow: 'Speak now',
-    listening: 'Listening…', useChrome: 'Please use Chrome',
-    youSaid: 'You said:', tryAgain: 'Try again', pronouncePct: 'Pronunciation: ',
-    // Kontextwechsel
-    kontextTitle: 'Context Switch', kontextGenerating: 'AI generating variants…',
-    kontextUnavail: 'Variants not available.', kontextChoose: 'Choose a context to add:',
-    learn: 'Learn', variantSaved: 'Variant saved!',
-    // Stats
-    statistics: 'Statistics', learnedToday: 'Learned today', statDays: 'days',
-    totalCards: 'Total cards', dueTomorrow: 'Due tomorrow',
-    studyTime: '⏱ Study time', week: 'Week', month: 'Month', total: 'Total',
-    favArea: 'Favourite area', tenseLevel: '📚 Tense Level',
-    reactionTime: '⚡ Reaction time', average: 'Average', fastest: 'Fastest',
-    hardestCard: 'Hardest card',
-    // Tense celebration
-    tenseUnlocked: 'New tense unlocked!', gotIt: 'Got it ✓',
-    // KI
-    kiTranslate: '🌐 Translate',
-    // Karte erstellen / partner
-    noPartnerConnected: 'Connect a partner first.', chooseMasteredCard: 'Choose a mastered card:',
-    noMasteredCards: 'No mastered cards yet.', personalMessage: 'Personal message (optional):',
-    // General extras
-    saving: 'Saving…', sessionDone: 'Session done!', results: 'Results',
-    cards: 'cards', noCardsYet: 'No cards yet — add some!',
-    categories: 'Categories', newCategory: 'New category',
-    noCategoriesYet: 'No categories yet — create your first one!',
-    manual: 'Manual', front: 'Front', backLabel: 'Back',
-    addCard: 'Add card', generate10: 'Generate 10 cards',
-    topicPlaceholder: 'Topic (e.g. Colors in Spanish)', deleteSet: 'Delete set',
-    share: 'Share', categoryName: 'Category name', createCategory: 'Create category',
-    thisWeekTogether: 'This week together', bothGoalsDone: '✓ Both goals reached!',
-    changeGoal: 'Change goal', ourCards: 'Our Cards', learnTogether: 'Learn together now',
-    learnTogetherSub: 'Same cards — at the same time',
-    sessionResult: 'Session done!', sessionBack: '← Back',
-    readyJointSession: 'Ready for a joint session?',
-    jointDesc: 'Both see the same cards at the same time.',
-    startSession: '🚀 Start session', partnerStarted: ' started a session.',
-    joinBtn: 'Join', sync: 'Sync', answering: 'answering…', waitingFor: 'Waiting for ',
-    endBtn: 'End', learnToge: '⚡ Learn together',
-    diffLeicht: 'Easy', diffLeichtSub: 'A1–A2 · Basics',
-    diffMittel: 'Medium', diffMittelSub: 'B1 · Building',
-    diffSchwer: 'Hard', diffSchwerSub: 'B2–C1 · Advanced',
-    chooseDifficulty: 'Choose difficulty:',
-    musicComingSoon: 'Background music will be available in an upcoming update.',
-    saveFailed: 'Save failed', signOut: 'Really sign out?',
-    targetLangRequired: 'Please set your target language — TTS and microphone require this.',
-    myLanguages: 'My languages', nativeLanguage: 'My language (source):',
-    targetLanguage: 'I am learning (target language):', moreLanguages: 'More languages',
-    languageTypes: 'Main language · More language', reminderLabel: 'Daily reminder',
-    reminderNotSupported: 'Not supported in this browser',
-    notificationsBlocked: 'Notifications blocked — enable in browser settings',
-    myGimmicks: 'My Gimmicks', noGimmicks: 'No gimmicks unlocked yet.',
-    restore: 'Restore', more: 'more', cancel: 'Cancel',
-    myTopics: 'My Topics', topicsDesc: 'Unlock topics and generate 15 cards each.',
-    premiumOrMastered: '⭐ Premium or 5+ mastered cards required.',
-    resetAreas: 'Reset Areas',
-    resetAreasDesc: 'Resets progress for an area to Level 1. Your cards are kept.',
-    reset: 'Reset', premiumDesc: 'With Premium you can learn Spanish, French, Thai and more.',
-    unlockPremiumBtn: 'Unlock Premium', unlockPremium: 'More languages with Premium',
-    adminUsers: 'Users', adminActiveWeek: 'Active week', adminReports: 'Reports',
-    reportedCards: 'Reported cards', openIssues: 'open', fixedStatus: 'fixed',
-    markFixed: 'Fixed', dismiss: 'Dismiss',
-    diaryTitle: 'Shared Diary', diaryDesc: 'One sentence per day in your target language.',
-    today: 'Today', saveEntry: 'Save entry',
-    noEntries: 'No entries yet — write the first one!',
-    savedStatus: 'Saved ✓', sharedStatus: 'Shared ✓',
-    filterAll: 'All', noCardsFound: 'No cards found.',
-    editCardTitle: 'Edit card', shareWithPartner: 'Share with partner',
-    sourceLanguages: 'Source language(s)', saveLangSplit: 'Save language split',
-    savedExclaim: 'Saved!', targetLangHeader: 'Target language',
-    enterCardSection: 'Enter card', iType: 'I type',
-    enterWordOrSentence: 'Enter word or sentence…', aiTranslating: 'AI translating…',
-    aiFillRedo: 'AI filled — redo', aiFillBtn: 'AI fills the rest',
-    translationPlaceholder: 'Translation…', categoryDest: 'Category & Destination',
-    categoryLabel: 'Category', forWhom: 'For whom?', forMe: 'For me',
-    bothOption: 'Both', bothPartner: 'For you & partner',
-    saveCardBtn: 'Save card ✓',
-    partnerHasCard: '⚠️ Partner already received this card',
-    alreadySentToday: '⚠️ You already sent this card today',
-    errorSending: 'Error sending',
-    cardSavedForBoth: '💫 For you & partner ✓', cardSaved: 'Card saved ✓',
-    newCardTitle: 'New Card', languagesSection: 'Languages', aiLabel: 'AI',
-    levelCheckAvailable: 'Level check available', aiTutorLabel: 'AI Tutor',
-    daysLabel: 'days', startBtn: 'Start', writeDiaryBtn: 'Write diary →',
-    connectionNeedsYou: 'Your streak needs you today.',
-    streakFreezeConfirm: 'Use Streak Freeze now? (1x/month)',
-    learnNow: 'Learn now →', streakLost: 'Streak lost — start fresh! 💪',
-    removeFav: 'Remove favourite', markFav: 'Mark as favourite',
-    neverLearnAgain: 'Never learn again', wantsToConnect: 'wants to connect with you',
-    topicsHint: '🎯 Settings → My Topics → generate topics first',
-    dailyGoalShort: 'Daily goal', taskOfDayLabel: 'Task of the day',
-    practicedThisWeek: '✓ Practiced this week',
-    unlimited: 'Unlimited', thisWeekLabel: 'this week',
-    allAreasUnlimited: 'All areas unlimited',
-    unlimitedKI: 'Unlimited AI conversations', unlimitedSatz: 'Sentence training without limits',
-    tryPremium: 'Try Premium →', maybeLater: 'Maybe later',
-    harborGimmick: 'Harbor gimmick unlocked!',
-    harborDesc: 'The harbor is yours. 5 weeks completed.',
-    savannaGimmick: 'Savanna gimmick unlocked!',
-    savannaDesc: 'The savanna glows. Your voice carries further.',
-    auroraGimmick: 'Aurora gimmick unlocked!',
-    auroraDesc: 'Northern lights for your language. 5 weeks.',
-    gimmickUnlockedLabel: 'Gimmick unlocked', tapToClose: 'Tap to close',
-    replyBtn: 'Reply', todaysWordLabel: 'Word of the day',
-    appearsEverywhere: '— it will appear in every area today.',
-    addToDeck: 'Add to deck', musicOffLabel: 'Music off', musicOnLabel: 'Music on',
-    cardOfDayLabel: 'Card of the day', cardOfDayRel: 'Card of the day',
-    areaStreet: 'Street', areaHome: 'Home', areaVocab: 'Words', areaSentences: 'Sentences', areaBasics: 'Basics',
-    areaUrlaub: 'Travel', areaKi: 'AI Chat', areaSatz: 'Sentence Training',
-    vocabCategoryLabel: 'Word', sentenceCategoryLabel: 'Sentence',
-    premiumCta: 'Go unlimited with Premium',
-    createCardBtn: 'Create card', myCardsLabel: 'My Cards',
-    sendGiftCardBtn: 'Send gift card',
-    bridgeDesc: "We don't build apps. We build bridges.",
-    vocabraLanguage: 'Language', wordsSentencesConv: 'Words, sentences & conversation',
-    comingSoonAlt: 'Coming soon', langNameEn: 'English', langNameDe: 'German',
-    knew: 'Correct', didntKnow: 'Wrong',
-  },
-  sw: {
-    hello: 'Habari', mySession: '🃏 Kipindi changu', whereAmI: '🎯 Niko wapi?',
-    aiChat: '🤖 Mazungumzo ya AI', dailyPhrase: '☀️ Msemo wa leo',
-    progressBtn: '📊 Takwimu', logout: 'Toka',
-    myProgress: 'Maendeleo yako', notActive: 'Bado hakuna mshirika',
-    card: 'Kadi', of: 'ya', showSolution: 'Onyesha jibu',
-    correct: 'Sahihi', wrong: 'Kosa', fast: 'Karibu', easy: 'Rahisi', stop: '✕ Acha',
-    stopConfirm: 'Maliza kipindi hiki?', done: 'Vizuri sana.', back: 'Rudi',
-    masteryMsg: 'Sauti yako inakua. Kadi 3 mpya.',
-    comingSoon: 'Inakuja hivi karibuni', chooseTheme: 'Chagua mandhari yako', settingsTitle: 'Mipangilio',
-    partnerTitle: '🤝 Unganisha mshirika', partnerInvite: 'Shiriki kiungo hiki na mshirika wako:',
-    partnerCopy: 'Nakili kiungo', partnerCopied: '✓ Imenakiliwa!', partnerCode: 'Au ingiza nambari ya mshirika wako:',
-    partnerConnect: 'Unganisha', partnerConnected: 'Mshirika ameunganishwa ✓',
-    partnerDisconnect: 'Kata muunganisho', partnerAccept: 'Kubali', partnerDecline: 'Kataa',
-    langSetupTitle: 'Unajifunza lugha gani?', langSetupSub: 'Chagua lugha 1 hadi 3', langSetupDone: 'Endelea',
-    testQuestion: 'Swali', testOf: 'ya', testDone: 'Kiwango kilichokadiriwa:',
-    testBack: 'Rudi menyu', testScore: 'Majibu sahihi', testStop3: 'Makosa 3 mfululizo — mtihani unaisha hapa.',
-    resumeTitle: 'Endelea ulipoacha?', resumeOf: 'ya', resumeCards: 'kadi zilizojibiwa',
-    resumeContinue: 'Endelea', resumeDiscard: 'Anza upya',
-    pronunciation: 'Matamshi',
-    streak: 'siku mfululizo', streakNone: 'Bado hakuna msururu', historyLabel: 'Siku 7 zilizopita',
-    impressumLink: 'Taarifa ya kisheria & Faragha',
-    impressumTitle: 'Taarifa ya kisheria', datenschutzTitle: 'Sera ya faragha',
-    monthlyTestBanner: '🎯 Mtihani wa kiwango wa kila mwezi!', monthlyTestSub: 'Jaribu kiwango chako sasa',
-    menuWorte: 'Maneno\nyangu', menuSaetze: 'yanakuwa\nSentesi', menuStraße: 'Barabarani',
-    menuHause: 'na\nnyumbani', menuAlle: 'Tunajifunza kila kitu, kila mahali',
-    menuGrundlagen: 'Misingi', menuUrlaub: 'Likizoni',
-    menuKi: 'Mazungumzo ya AI', menuSatz: 'Mafunzo ya sentensi',
-    menuAddCards: 'Ongeza kadi', menuCategorize: 'Panga', menuSettings: 'Mipangilio', menuSignOut: 'Toka',
-    menuPartnerConnect: 'Unganisha mshirika', menuPartnerLabel: 'Mshirika',
-    weekGoalTitle: 'Lengo la wiki', weekGoalDone: 'Leo: imekamilika. ✓',
-    weakestCard: 'Kadi dhaifu zaidi', strongestCard: 'Kadi imara zaidi',
-    urlaubLocked: 'Kadi 3 kati ya 10 zimefunguliwa', urlaubPremiumNote: 'Premium inafungua misemo yote ya safari.',
-    rhythmusBtn: 'Mazoezi ya mdundo', again: 'Tena', finishDone: 'Imemaliza',
-    music: 'Muziki wa chinichini', musicOn: 'Washa', musicOff: 'Zima', volumeLabel: 'Sauti',
-    dailyGoalLabel: 'Lengo la kila siku', cardsPerDay: 'Kadi kwa siku',
-    languagesLabel: 'Lugha', paused: 'Imesimamishwa', active: 'Inafanya kazi',
-    learnLanguages: '🌍 Lugha za kujifunza', addLanguage: 'Ongeza lugha:',
-    darkModeLabel: 'Giza', lightModeLabel: 'Mwanga', cardSizeLabel: '📐 Ukubwa wa kadi',
-    streakProtection: 'Ulinzi wa msururu', streakFree0: 'Frizi 0 zinapatikana — Premium: 1x/mwezi',
-    freezeAvailThis: 'Inapatikana mwezi huu:', freezeUsed: 'imetumika', freezeActivate: 'Washa Frizi',
-    socialRegisterLabel: 'Sajili ya kijamii', socialRegisterNote: 'Mnajifunza vipi pamoja? Inaathiri sauti ya AI.',
-    relationshipType: 'Aina ya uhusiano', relationshipNote: 'Inaunda sauti ya kadi yenu ya kila siku.',
-    satzNotEnough: 'Maneno ya kutosha bado hayapo', satzNotEnoughDesc: 'Fanya mazoezi ya maneno zaidi kwanza.',
-    generating: 'AI inaunda mazoezi yako ya sarufi…', connectionError: 'Hitilafu ya muunganisho. Tafadhali jaribu tena.',
-    retry: 'Jaribu tena', satzDone: 'Imemaliza! 🎉', newExercises: '🔄 Mazoezi mapya',
-    yourAnswer: 'Jibu lako…', tapWords: 'Gonga maneno hapa chini',
-    checkBtn: 'Angalia', nextBtn: 'Inayofuata →', finishBtn: 'Maliza',
-    rhythmusTitle: 'Mdundo wa lugha', rhythmusSub: 'Sikiliza — kisha rudia',
-    rhythmusNoCards: 'Jifunza kadi zaidi za sentensi ili kufungua mafunzo ya mdundo.',
-    repeatAfter: 'Rudia baada yangu:', listen: 'Sikiliza', speakNow: 'Sema sasa',
-    listening: 'Inasikiliza…', useChrome: 'Tafadhali tumia Chrome',
-    youSaid: 'Ulisema:', tryAgain: 'Jaribu tena', pronouncePct: 'Matamshi: ',
-    kontextTitle: 'Mabadiliko ya muktadha', kontextGenerating: 'AI inaunda tofauti…',
-    kontextUnavail: 'Tofauti haipatikani.', kontextChoose: 'Chagua muktadha wa kuongeza:',
-    learn: 'Jifunza', variantSaved: 'Tofauti imehifadhiwa!',
-    statistics: 'Takwimu', learnedToday: 'Imejifunzwa leo', statDays: 'siku',
-    totalCards: 'Jumla ya kadi', dueTomorrow: 'Inastahili kesho',
-    studyTime: '⏱ Muda wa kusoma', week: 'Wiki', month: 'Mwezi', total: 'Jumla',
-    favArea: 'Eneo unalolipenda', tenseLevel: '📚 Kiwango cha nyakati',
-    reactionTime: '⚡ Muda wa kujibu', average: 'Wastani', fastest: 'Kwa haraka zaidi',
-    hardestCard: 'Kadi ngumu zaidi',
-    tenseUnlocked: 'Wakati mpya umefunguliwa!', gotIt: 'Nimeelewa ✓',
-    kiTranslate: '🌐 Tafsiri',
-    noPartnerConnected: 'Unganisha mshirika kwanza.', chooseMasteredCard: 'Chagua kadi uliyoijua:',
-    noMasteredCards: 'Bado hakuna kadi ulizozijua.', personalMessage: 'Ujumbe wa kibinafsi (hiari):',
-    saving: 'Inahifadhi…', sessionDone: 'Kipindi kimekamilika!', results: 'Matokeo',
-    cards: 'kadi', noCardsYet: 'Bado hakuna kadi — ongeza!',
-    categories: 'Makundi', newCategory: 'Kundi jipya',
-    noCategoriesYet: 'Bado hakuna makundi — unda lako la kwanza!',
-    manual: 'Mkono', front: 'Mbele', backLabel: 'Nyuma',
-    addCard: 'Ongeza kadi', generate10: 'Tengeneza kadi 10',
-    topicPlaceholder: 'Mada (mfano: Rangi kwa Kihispania)', deleteSet: 'Futa seti',
-    share: 'Shiriki', categoryName: 'Jina la kundi', createCategory: 'Unda kundi',
-    thisWeekTogether: 'Wiki hii pamoja', bothGoalsDone: '✓ Malengo yote yamefikia!',
-    changeGoal: 'Badilisha lengo', ourCards: 'Kadi zetu', learnTogether: 'Jifunza pamoja sasa',
-    learnTogetherSub: 'Kadi sawa — wakati mmoja',
-    sessionResult: 'Kipindi kimekamilika!', sessionBack: '← Rudi',
-    readyJointSession: 'Tayari kwa kipindi cha pamoja?',
-    jointDesc: 'Wote wanaona kadi sawa wakati mmoja.',
-    startSession: '🚀 Anza kipindi', partnerStarted: ' ameanza kipindi.',
-    joinBtn: 'Jiunge', sync: 'Imesawazishwa', answering: 'inajibu…', waitingFor: 'Inasubiri ',
-    endBtn: 'Maliza', learnToge: '⚡ Jifunza pamoja',
-    diffLeicht: 'Rahisi', diffLeichtSub: 'A1–A2 · Misingi',
-    diffMittel: 'Wastani', diffMittelSub: 'B1 · Ujenzi',
-    diffSchwer: 'Ngumu', diffSchwerSub: 'B2–C1 · Juu',
-    chooseDifficulty: 'Chagua ugumu:',
-    musicComingSoon: 'Muziki wa chinichini utapatikana katika sasisho lijalo.',
-    saveFailed: 'Hitilafu ya kuhifadhi', signOut: 'Toka kweli kweli?',
-    targetLangRequired: 'Tafadhali weka lugha yako ya lengo — TTS na maikrofoni zinahitaji.',
-    myLanguages: 'Lugha zangu', nativeLanguage: 'Lugha yangu (chanzo):',
-    targetLanguage: 'Ninajifunza (lengo):', moreLanguages: 'Lugha zaidi',
-    languageTypes: 'Lugha kuu · Lugha zaidi', reminderLabel: 'Ukumbusho wa kila siku',
-    reminderNotSupported: 'Haiwezi katika kivinjari hiki',
-    notificationsBlocked: 'Arifa zimezuiwa — wezesha katika mipangilio ya kivinjari',
-    myGimmicks: 'Vifaa vyangu', noGimmicks: 'Bado hakuna vifaa vilivyofunguliwa.',
-    restore: 'Rejesha', more: 'zaidi', cancel: 'Ghairi',
-    myTopics: 'Mada zangu', topicsDesc: 'Fungua mada na utengeneze kadi 15 kila moja.',
-    premiumOrMastered: '⭐ Premium au kadi 5+ zilizojua zinahitajika.',
-    resetAreas: 'Weka upya maeneo',
-    resetAreasDesc: 'Inaweka maendeleo ya eneo upya hadi Kiwango 1. Kadi zinabaki.',
-    reset: 'Weka upya', premiumDesc: 'Kwa Premium unaweza kujifunza Kihispania, Kifaransa, Thai na zaidi.',
-    unlockPremiumBtn: 'Fungua Premium', unlockPremium: 'Lugha zaidi na Premium',
-    adminUsers: 'Watumiaji', adminActiveWeek: 'Wiki hai', adminReports: 'Ripoti',
-    reportedCards: 'Kadi zilizoripotiwa', openIssues: 'wazi', fixedStatus: 'imetatuliwa',
-    markFixed: 'Imetatuliwa', dismiss: 'Puuza',
-    diaryTitle: 'Diary ya pamoja', diaryDesc: 'Sentensi moja kwa siku kwa lugha yenu ya lengo.',
-    today: 'Leo', saveEntry: 'Hifadhi',
-    noEntries: 'Bado hakuna maingizo — andika ya kwanza!',
-    savedStatus: 'Imehifadhiwa ✓', sharedStatus: 'Imeshirikiwa ✓',
-    filterAll: 'Zote', noCardsFound: 'Hakuna kadi zilizopatikana.',
-    editCardTitle: 'Hariri kadi', shareWithPartner: 'Shiriki na mshirika',
-    sourceLanguages: 'Lugha za chanzo', saveLangSplit: 'Hifadhi mgawanyo wa lugha',
-    savedExclaim: 'Imehifadhiwa!', targetLangHeader: 'Lugha ya lengo',
-    enterCardSection: 'Ingiza kadi', iType: 'Ninaandika',
-    enterWordOrSentence: 'Ingiza neno au sentensi…', aiTranslating: 'AI inatafsiri…',
-    aiFillRedo: 'AI imejaza — tena', aiFillBtn: 'AI inajaza iliyobaki',
-    translationPlaceholder: 'Tafsiri…', categoryDest: 'Kundi & Marudio',
-    categoryLabel: 'Kundi', forWhom: 'Kwa nani?', forMe: 'Kwangu',
-    bothOption: 'Wote wawili', bothPartner: 'Kwako & Mshirika',
-    saveCardBtn: 'Hifadhi kadi ✓',
-    partnerHasCard: '⚠️ Mshirika tayari amepokea kadi hii',
-    alreadySentToday: '⚠️ Tayari ulituma kadi hii leo',
-    errorSending: 'Hitilafu ya kutuma',
-    cardSavedForBoth: '💫 Kwako & Mshirika ✓', cardSaved: 'Kadi imehifadhiwa ✓',
-    newCardTitle: 'Kadi Mpya', languagesSection: 'Lugha', aiLabel: 'AI',
-    levelCheckAvailable: 'Ukaguzi wa kiwango unapatikana', aiTutorLabel: 'Mshauri wa AI',
-    daysLabel: 'siku', startBtn: 'Anza', writeDiaryBtn: 'Andika diary →',
-    connectionNeedsYou: 'Muunganisho unahitaji ushiriki wako leo.',
-    streakFreezeConfirm: 'Tumia Frizi ya Msururu sasa? (1x/mwezi)',
-    learnNow: 'Jifunza sasa →', streakLost: 'Msururu umepotea — anza upya! 💪',
-    removeFav: 'Ondoa kipendwa', markFav: 'Weka kama kipendwa',
-    neverLearnAgain: 'Usijifunze tena',
-    wantsToConnect: 'anataka kuungana nawe',
-    topicsHint: '🎯 Mipangilio → Mada zangu → tengeneza mada kwanza',
-    dailyGoalShort: 'Lengo la leo', taskOfDayLabel: 'Kazi ya leo',
-    practicedThisWeek: '✓ Imefanywa wiki hii',
-    unlimited: 'Bila mipaka', thisWeekLabel: 'wiki hii',
-    allAreasUnlimited: 'Maeneo yote bila mipaka',
-    unlimitedKI: 'Mazungumzo ya AI bila mipaka', unlimitedSatz: 'Mafunzo ya sentensi bila mipaka',
-    tryPremium: 'Jaribu Premium →', maybeLater: 'Pengine baadaye',
-    harborGimmick: 'Kifaa cha Bandari kimefunguliwa!',
-    harborDesc: 'Bandari ni yako. Wiki 5 zimekamilika.',
-    savannaGimmick: 'Kifaa cha Savana kimefunguliwa!',
-    savannaDesc: 'Savana inang\'aa. Sauti yako inafika mbali.',
-    auroraGimmick: 'Kifaa cha Aurora kimefunguliwa!',
-    auroraDesc: 'Taa za kaskazini kwa lugha yako. Wiki 5.',
-    gimmickUnlockedLabel: 'Kifaa kimefunguliwa', tapToClose: 'Gonga kufunga',
-    replyBtn: 'Jibu', todaysWordLabel: 'Neno la leo',
-    appearsEverywhere: '— litaonekana kila eneo leo.',
-    addToDeck: 'Ongeza kwenye staka', musicOffLabel: 'Zima muziki', musicOnLabel: 'Washa muziki',
-    cardOfDayLabel: 'Kadi ya leo', cardOfDayRel: 'Kadi ya leo',
-    areaStreet: 'Barabara', areaHome: 'Nyumbani', areaVocab: 'Maneno', areaSentences: 'Sentensi', areaBasics: 'Misingi',
-    areaUrlaub: 'Safari', areaKi: 'Mazungumzo ya AI', areaSatz: 'Mafunzo ya sentensi',
-    vocabCategoryLabel: 'Neno', sentenceCategoryLabel: 'Sentensi',
-    premiumCta: 'Endelea bila mipaka na Premium',
-    createCardBtn: 'Unda kadi', myCardsLabel: 'Kadi zangu',
-    sendGiftCardBtn: 'Tuma kadi ya zawadi',
-    bridgeDesc: 'Hatujengi programu. Tunajenga madaraja.',
-    vocabraLanguage: 'Lugha', wordsSentencesConv: 'Maneno, sentensi & mazungumzo',
-    comingSoonAlt: 'Inakuja hivi karibuni', langNameEn: 'Kiingereza', langNameDe: 'Kijerumani',
-    knew: 'Nilijua', didntKnow: 'Sijui',
-    signIn: 'Ingia na Google', signInSub: 'Maendeleo yako yanaohifadhiwa kwa usalama.',
-    level: 'Kiwango', mastered: 'imejua', dueNow: 'inastahili',
-    noSessionToday: 'Bado hakuna kipindi leo', startLearning: 'Anza kujifunza',
-    coachLoading: 'Inachambua maendeleo yako…', stopSession: 'Maliza kipindi?',
-    yes: 'Ndiyo', noWordsYet: 'Bado hakuna maneno — AI itaunda kadi zako za kwanza.',
-    aiGenerating: 'AI inatengeneza…', aiFailed: 'Utengenezaji wa AI umeshindwa.',
-    firstWordsReady: 'Maneno yako ya kwanza yako tayari ✓',
-    travelGenerating: '✈️ Safari — AI inaunda misemo ya safari…',
-    travelReady: 'Misemo ya safari iko tayari ✓',
-    streetGenerating: 'Barabarani — AI inaunda misemo ya kwanza…',
-    homeGenerating: 'Nyumbani — AI inaunda misemo ya kwanza…',
-    phrasesReady: 'Misemo ya kwanza iko tayari ✓',
-    nothingYet: 'Bado hakuna kitu hapa — lakini itabadilika.',
-    sessionsDone: 'Vipindi', sessionsToday: 'Vipindi leo',
-    masteredLabel: 'Imejua ✓', activeCards: 'Kadi zinazofanya kazi',
-    totalLearned: 'Jumla ya kujifunza', bestStreak: 'Msururu bora 🏆',
-    learningDays: 'Jumla ya siku za kujifunza',
-    thisWeek: 'Wiki hii', thisMonth: 'Mwezi huu',
-    deleteConfirm: 'Futa seti kweli kweli?', cardAdded: 'Kadi imeongezwa ✓',
-    errorSaving: 'Hitilafu ya kuhifadhi. Tafadhali jaribu tena.',
-    cardsImported: 'Kadi zimeingizwa ✓', importFailed: 'Kuingiza kumeshindwa',
-    setShared: 'Seti imeshirikiwa ✓', shareFailed: 'Kushiriki kumeshindwa',
-    noMasteredYet: 'Bado hakuna kadi zilizojua.', giftSent: 'Imetolewa zawadi ✓',
-    giftError: 'Hitilafu ya kutuma', search: 'Tafuta…',
-    edit: 'Hariri', delete: 'Futa', save: 'Hifadhi', close: 'Funga',
-    loading: 'Inapakia…', error: 'Hitilafu',
   }
-}
-
-const loadLocale = async (lang) => {
-  try {
-    const r = await fetch('/locales/' + (lang || 'de').toLowerCase() + '.json')
-    return r.json()
-  } catch { return {} }
-}
-
-// Check Firestore sharedCards pool before individual KI generation
-const fetchSharedCards = async (fromLang, toLang) => {
-  try {
-    const weekStr = getISOWeekStr()
-    const langPair = `${fromLang}_${toLang}`
-    const snap = await getDoc(doc(db, 'sharedCards', `${langPair}_${weekStr}`))
-    if (!snap.exists()) return null
-    const cards = snap.data()?.cards
-    return Array.isArray(cards) && cards.length > 0 ? cards : null
-  } catch { return null }
-}
-
-// Load base pool (grundlagen level 1) cards for a language pair
-const fetchGrundlagenPool = async (fromLang, toLang, level = 1) => {
-  const cacheKey = `grundlagen_${fromLang}_${toLang}_${level}`
-  const cached = getCards(cacheKey)
-  if (cached) return cached
-  try {
-    const snap = await getDoc(doc(db, 'sharedCards', `${fromLang}_${toLang}_grundlagen_${level}`))
-    if (!snap.exists()) return null
-    const cards = snap.data()?.cards
-    if (Array.isArray(cards) && cards.length > 0) { setCards(cacheKey, cards); return cards }
-    return null
-  } catch { return null }
 }
 
 const WEEK_AREAS = [
@@ -1961,7 +1394,6 @@ const WEEK_AREAS = [
   { key: 'home', labelDe: 'Zuhause', labelEn: 'Home', tipDe: 'Zu Hause – diese Woche noch nicht geübt', tipEn: 'At Home – not practiced this week' },
   { key: 'satztraining', labelDe: 'Training', labelEn: 'Training', tipDe: 'Satztraining – diese Woche noch nicht geübt', tipEn: 'Sentence Training – not practiced this week' },
   { key: 'basics', labelDe: 'Grundlagen', labelEn: 'Basics', tipDe: 'Grundlagen – noch nicht geübt', tipEn: 'Basics – not practiced yet' },
-  { key: 'urlaub', labelDe: 'Im Urlaub', labelEn: 'Travel', tipDe: 'Im Urlaub – noch nicht geübt', tipEn: 'Travel – not practiced yet' },
 ]
 
 // ── ONBOARDING SCREEN ─────────────────────────────────────────
@@ -2016,17 +1448,11 @@ function OnboardingScreen({ lang, theme, onDone }) {
   const [index, setIndex] = useState(0)
   const [showCities, setShowCities] = useState(false)
   const [showRelType, setShowRelType] = useState(false)
-  const [showSocialRegister, setShowSocialRegister] = useState(false)
-  const [showMusic, setShowMusic] = useState(false)
   const [homeCity, setHomeCity] = useState('')
   const [partnerCity, setPartnerCity] = useState('')
   const [pendingCityData, setPendingCityData] = useState({})
   const isLast = index === slides.length - 1
   const slide = slides[index]
-  // Total onboarding steps: slides + cities + relType + socialRegister + music = slides.length + 4
-  const totalSteps = slides.length + 4
-  const currentStep = showMusic ? totalSteps : showSocialRegister ? totalSteps - 1 : showRelType ? totalSteps - 2 : showCities ? totalSteps - 3 : index + 1
-  const stepLabel = lang === 'de' ? `Schritt ${currentStep} von ${totalSteps}` : `Step ${currentStep} of ${totalSteps}`
 
   const inputStyle = { width: '100%', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '10px', padding: '12px 14px', color: '#fff', fontSize: '1rem', outline: 'none', boxSizing: 'border-box', marginBottom: '12px' }
   const relBtnStyle = (active) => ({
@@ -2039,68 +1465,6 @@ function OnboardingScreen({ lang, theme, onDone }) {
     backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
   })
 
-  if (showMusic) {
-    return (
-      <div style={{ minHeight: '100vh', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: th.bg }} className="vocara-screen">
-        <div style={{ textAlign: 'center', padding: '32px 24px', width: '100%', maxWidth: '420px', animation: 'vocaraFadeIn 0.3s ease both' }}>
-          <p style={{ color: th.sub, fontSize: '0.72rem', margin: '0 0 20px', letterSpacing: '0.5px' }}>{stepLabel}</p>
-          <p style={{ fontSize: '3.5rem', margin: '0 0 16px 0' }}>🎵</p>
-          <h2 style={{ color: th.gold, fontSize: '1.5rem', fontWeight: 'bold', margin: '0 0 10px 0' }}>
-            {lang === 'de' ? 'Hintergrundmusik?' : 'Background music?'}
-          </h2>
-          <p style={{ color: th.sub, fontSize: '0.9rem', lineHeight: '1.6', margin: '0 0 28px 0' }}>
-            {lang === 'de' ? 'Sanfte Musik beim Lernen kann die Konzentration fördern.' : 'Soft music while learning can improve focus.'}
-          </p>
-          <button style={{ ...relBtnStyle(false), justifyContent: 'center' }}
-            onClick={() => onDone({ ...pendingCityData, musicEnabled: true })}>
-            <span style={{ fontWeight: '600' }}>{lang === 'de' ? 'An — ich lerne mit Musik' : 'On — I learn with music'}</span>
-          </button>
-          <button style={{ ...relBtnStyle(false), justifyContent: 'center' }}
-            onClick={() => onDone({ ...pendingCityData, musicEnabled: false })}>
-            <span style={{ fontWeight: '600' }}>{lang === 'de' ? 'Aus — ich bevorzuge Stille' : 'Off — I prefer silence'}</span>
-          </button>
-          <button style={{ background: 'transparent', color: th.sub, border: 'none', padding: '8px', fontSize: '0.85rem', cursor: 'pointer', width: '100%', marginTop: '4px' }}
-            onClick={() => onDone(pendingCityData)}>
-            {lang === 'de' ? 'Überspringen' : 'Skip'}
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  if (showSocialRegister) {
-    const REG_OPTIONS = [
-      { key: 'friends',    de: 'Kumpel',      en: 'Friends'   },
-      { key: 'couple',     de: 'Große Liebe',  en: 'Partner'   },
-      { key: 'colleagues', de: 'Kollege',      en: 'Colleague' },
-      { key: 'family',     de: 'Familie',      en: 'Family'    },
-    ]
-    return (
-      <div style={{ minHeight: '100vh', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: th.bg }} className="vocara-screen">
-        <div style={{ textAlign: 'center', padding: '32px 24px', width: '100%', maxWidth: '420px', animation: 'vocaraFadeIn 0.3s ease both' }}>
-          <p style={{ color: th.sub, fontSize: '0.72rem', margin: '0 0 20px', letterSpacing: '0.5px' }}>{stepLabel}</p>
-          <p style={{ fontSize: '3.5rem', margin: '0 0 16px 0' }}>💬</p>
-          <h2 style={{ color: th.gold, fontSize: '1.5rem', fontWeight: 'bold', margin: '0 0 10px 0' }}>
-            {lang === 'de' ? 'Wie möchtest du lernen?' : 'How do you want to learn?'}
-          </h2>
-          <p style={{ color: th.sub, fontSize: '0.9rem', lineHeight: '1.6', margin: '0 0 24px 0' }}>
-            {lang === 'de' ? 'Das beeinflusst den Ton der KI-Gespräche und Karten.' : 'This affects the tone of AI conversations and cards.'}
-          </p>
-          {REG_OPTIONS.map(opt => (
-            <button key={opt.key} style={{ ...relBtnStyle(false), justifyContent: 'center' }}
-              onClick={() => { setPendingCityData(d => ({ ...d, socialRegister: opt.key })); setShowMusic(true) }}>
-              <span style={{ fontWeight: '600' }}>{lang === 'de' ? opt.de : opt.en}</span>
-            </button>
-          ))}
-          <button style={{ background: 'transparent', color: th.sub, border: 'none', padding: '8px', fontSize: '0.85rem', cursor: 'pointer', width: '100%', marginTop: '4px' }}
-            onClick={() => setShowMusic(true)}>
-            {lang === 'de' ? 'Überspringen' : 'Skip'}
-          </button>
-        </div>
-      </div>
-    )
-  }
-
   if (showRelType) {
     const REL_OPTIONS = [
       { key: 'couple',     emoji: '💑', de: 'Romantisches Paar',  en: 'Romantic couple'     },
@@ -2111,7 +1475,6 @@ function OnboardingScreen({ lang, theme, onDone }) {
     return (
       <div style={{ minHeight: '100vh', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: th.bg }} className="vocara-screen">
         <div style={{ textAlign: 'center', padding: '32px 24px', width: '100%', maxWidth: '420px', animation: 'vocaraFadeIn 0.3s ease both' }}>
-          <p style={{ color: th.sub, fontSize: '0.72rem', margin: '0 0 20px', letterSpacing: '0.5px' }}>{stepLabel}</p>
           <p style={{ fontSize: '3.5rem', margin: '0 0 16px 0' }}>🤝</p>
           <h2 style={{ color: th.gold, fontSize: '1.5rem', fontWeight: 'bold', margin: '0 0 10px 0' }}>
             {lang === 'de' ? 'Was verbindet euch?' : 'What connects you?'}
@@ -2121,13 +1484,13 @@ function OnboardingScreen({ lang, theme, onDone }) {
           </p>
           {REL_OPTIONS.map(opt => (
             <button key={opt.key} style={relBtnStyle(false)}
-              onClick={() => { setPendingCityData(d => ({ ...d, relationshipType: opt.key })); setShowSocialRegister(true) }}>
+              onClick={() => onDone({ ...pendingCityData, relationshipType: opt.key })}>
               <span style={{ fontSize: '1.5rem' }}>{opt.emoji}</span>
               <span>{lang === 'de' ? opt.de : opt.en}</span>
             </button>
           ))}
           <button style={{ background: 'transparent', color: th.sub, border: 'none', padding: '8px', fontSize: '0.85rem', cursor: 'pointer', width: '100%', marginTop: '4px' }}
-            onClick={() => setShowSocialRegister(true)}>
+            onClick={() => onDone(pendingCityData)}>
             {lang === 'de' ? 'Überspringen' : 'Skip'}
           </button>
         </div>
@@ -2139,7 +1502,6 @@ function OnboardingScreen({ lang, theme, onDone }) {
     return (
       <div style={{ minHeight: '100vh', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: th.bg }} className="vocara-screen">
         <div style={{ textAlign: 'center', padding: '32px 24px', width: '100%', maxWidth: '420px', animation: 'vocaraFadeIn 0.3s ease both' }}>
-          <p style={{ color: th.sub, fontSize: '0.72rem', margin: '0 0 20px', letterSpacing: '0.5px' }}>{stepLabel}</p>
           <p style={{ fontSize: '3.5rem', margin: '0 0 16px 0' }}>🏙️</p>
           <h2 style={{ color: th.gold, fontSize: '1.5rem', fontWeight: 'bold', margin: '0 0 10px 0' }}>
             {lang === 'de' ? 'Eure Städte' : 'Your cities'}
@@ -2185,9 +1547,8 @@ function OnboardingScreen({ lang, theme, onDone }) {
   return (
     <div style={{ minHeight: '100vh', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: th.bg }} className="vocara-screen">
       <div style={{ textAlign: 'center', padding: '32px 24px', width: '100%', maxWidth: '420px' }}>
-        <p style={{ color: th.sub, fontSize: '0.72rem', margin: '0 0 16px', letterSpacing: '0.5px' }}>{stepLabel}</p>
         {/* Dots */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '32px' }}>
           {slides.map((_, i) => (
             <div key={i} style={{ width: i === index ? '24px' : '8px', height: '8px', borderRadius: '4px', background: i === index ? th.accent : th.border, transition: 'all 0.3s ease' }} />
           ))}
@@ -2289,448 +1650,18 @@ function ThaiColorPronunciation({ text }) {
   )
 }
 
-function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userName, userToLang = 'en', onSatzComplete, t: tProp }) {
-  const th = THEMES[theme]; const s = makeStyles(th); const t = tProp || T[lang] || T.en
-  const LANG_NAMES_FULL = { en: 'English', de: 'German', sw: 'Swahili', th: 'Thai', es: 'Spanish', fr: 'French', ar: 'Arabic', tr: 'Turkish', pt: 'Portuguese' }
-  const ttsLangCode = userToLang.toLowerCase()
-  const targetLang = LANG_NAMES_FULL[ttsLangCode] || ttsLangCode
-  const fromLang = LANG_NAMES_FULL[lang] || lang
-
-  const knownVocab = allCards.filter(c =>
-    c.category === 'vocabulary' && !/_r(_\d+)?$/.test(c.id) && (cardProgress[c.id]?.interval || 0) >= 2
-  )
-
-  const [exercises, setExercises] = useState([])
-  const [index, setIndex] = useState(0)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
-  const [userInput, setUserInput] = useState('')
-  const [chipBank, setChipBank] = useState([])
-  const [chipOrder, setChipOrder] = useState([])
-  const [revealed, setRevealed] = useState(false)
-  const [selfRating, setSelfRating] = useState(null)
-  const [correct, setCorrect] = useState(0)
-  const [done, setDone] = useState(false)
-  const [semanticResult, setSemanticResult] = useState(null)
-  const [difficultyScore, setDifficultyScore] = useState(0)
-  const [difficulty, setDifficulty] = useState('leicht') // null (selector) | 'leicht' | 'mittel' | 'schwer'
-  const [autoEasy, setAutoEasy] = useState(false)
-  const exerciseStartRef = useRef(Date.now())
-
-  const ex = exercises[index]
-
-  useEffect(() => { generateExercises('leicht') }, [])
-  useEffect(() => { if (done && onSatzComplete) onSatzComplete(correct, exercises.length) }, [done])
-
-  const levenshtein = (a, b) => {
-    const m = a.length, n = b.length
-    const dp = Array.from({ length: m + 1 }, (_, i) => Array.from({ length: n + 1 }, (_, j) => i === 0 ? j : j === 0 ? i : 0))
-    for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++)
-      dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j-1], dp[i-1][j], dp[i][j-1])
-    return dp[m][n]
-  }
-
-  const generateExercises = async (chosenDifficulty) => {
-    setLoading(true); setError(null); setIndex(0); setDone(false)
-    setCorrect(0); setRevealed(false); setSelfRating(null); setUserInput(''); setSemanticResult(null); setAutoEasy(false)
-
-    const diffLabel = { leicht: 'beginner (A1-A2)', mittel: 'intermediate (B1)', schwer: 'advanced (B2-C1)' }[chosenDifficulty || 'mittel'] || 'intermediate (B1)'
-    const diffKey = chosenDifficulty || 'mittel'
-    const langPair = `${lang}_${userToLang}`
-
-    // Try sharedExercises pool first (difficulty-specific, pre-generated)
-    try {
-      const cacheKey = `satz_${langPair}_${diffKey}`
-      let rawExercises = getCards(cacheKey)
-      if (!rawExercises) {
-        const poolSnap = await getDoc(doc(db, 'sharedExercises', `${langPair}_satz_${diffKey}`))
-        if (poolSnap.exists()) {
-          rawExercises = poolSnap.data().exercises || []
-          if (rawExercises.length >= 8) setCards(cacheKey, rawExercises)
-        }
-      }
-      if (rawExercises && rawExercises.length >= 8) {
-        const pool = rawExercises.map(ex => ({
-          ...ex,
-          chips: ex.chips && ex.chips.length > 0 ? ex.chips : (ex.type === 'order' ? ex.answer.split(' ') : undefined),
-        }))
-        const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, 8)
-        setExercises(shuffled)
-        exerciseStartRef.current = Date.now()
-        if (shuffled[0]?.type === 'order') initChips(shuffled[0])
-        setLoading(false)
-        return
-      }
-    } catch (e) { console.warn('[Vocara] sharedExercises pool load failed, falling back to KI:', e.message) }
-
-    const wordList = knownVocab.map(c => c.back).slice(0, 30).join(', ')
-    const prompt = `Create 8 varied grammar exercises for a ${targetLang} learner at ${diffLabel} level. Native language: ${fromLang}.
-Use these known words where possible: ${wordList}
-IMPORTANT: ALL hints, explanations, and question labels must be written in ${fromLang}, not ${targetLang}.
-Mix exercise types: gap, order, tense, conjugation, translation. Return ONLY valid JSON array, no markdown:
-[{"type":"gap","question":"She [___] to school every day.","answer":"goes","hint":"3. Person Singular Präsens","explanation":"Im Präsens wird bei der 3. Person Singular -s/-es angehängt."},
-{"type":"order","question":"Arrange the words:","chips":["goes","she","school","to","every","day"],"answer":"She goes to school every day.","explanation":"Englische Wortstellung: Subjekt + Verb + Objekt."},
-{"type":"tense","question":"She goes to school. (Vergangenheit →)","answer":"She went to school.","hint":"unregelmäßiges Verb","explanation":"go → went (unregelmäßig)."},
-{"type":"conjugation","question":"sein + wir →","answer":"sind","hint":"unregelmäßig","explanation":"wir sind (unregelmäßige Konjugation)."},
-{"type":"translation","question":"Übersetze: 'Ich möchte nach Hause gehen.'","answer":"I want to go home.","hint":"möchten = want to","explanation":"möchten wird mit want to übersetzt."}]`
-    try {
-      const res = await fetch('/api/chat', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 2200, messages: [{ role: 'user', content: prompt }] })
-      })
-      const data = await res.json()
-      const text = data.content?.[0]?.text || ''
-      const parsed = JSON.parse(text.replace(/```json|```/g, '').trim())
-      const shuffled = [...parsed].sort(() => Math.random() - 0.5)
-      setExercises(shuffled)
-      exerciseStartRef.current = Date.now()
-      if (shuffled[0]?.type === 'order') initChips(shuffled[0])
-    } catch (e) { setError('api') }
-    setLoading(false)
-  }
-
-  const initChips = (exercise) => {
-    const chips = [...(exercise.chips || exercise.answer.split(' '))]
-      .sort(() => Math.random() - 0.5)
-      .map((w, i) => ({ word: w, id: i }))
-    setChipBank(chips); setChipOrder([])
-  }
-
-  const needsSemanticEval = (type) => type === 'tense' || type === 'translation'
-
-  const handleCheck = async () => {
-    const hasInput = ex.type === 'order' ? chipOrder.length > 0 : userInput.trim()
-    if (!hasInput) return
-    if (Date.now() - exerciseStartRef.current < 4000) setAutoEasy(true)
-    speak(ex.answer, ttsLangCode)
-    setRevealed(true)
-    if (needsSemanticEval(ex.type)) {
-      setSemanticResult('loading')
-      try {
-        const evalPrompt = ex.type === 'translation'
-          ? `Exercise: "${ex.question}"\nExpected: "${ex.answer}"\nUser wrote: "${userInput.trim()}"\nIs the meaning the same (minor grammar differences OK)? Reply ONLY JSON: {"ok":true/false,"feedback":"1 short ${fromLang} sentence"}`
-          : `Exercise: "${ex.question}"\nExpected: "${ex.answer}"\nUser wrote: "${userInput.trim()}"\nIs the tense conversion correct? Reply ONLY JSON: {"ok":true/false,"feedback":"1 short grammar tip in ${fromLang}"}`
-        const evalRes = await fetch('/api/chat', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 100, messages: [{ role: 'user', content: evalPrompt }] })
-        })
-        const evalData = await evalRes.json()
-        const evalText = (evalData.content?.[0]?.text || '').trim()
-        setSemanticResult(JSON.parse(evalText.replace(/```json|```/g, '').trim()))
-      } catch { setSemanticResult({ ok: false, feedback: '' }) }
-    }
-  }
-
-  const handleRate = (rating) => {
-    setSelfRating(rating)
-    if (rating === 'right' || rating === 'easy') { setCorrect(c => c + 1); setDifficultyScore(d => Math.min(10, d + 1)) }
-    else setDifficultyScore(d => Math.max(0, d - 1))
-  }
-
-  const handleNext = () => {
-    const next = index + 1
-    if (next >= exercises.length) { setDone(true); return }
-    setIndex(next); setUserInput(''); setRevealed(false); setSelfRating(null); setSemanticResult(null); setAutoEasy(false)
-    exerciseStartRef.current = Date.now()
-    const nextEx = exercises[next]
-    if (nextEx?.type === 'order') initChips(nextEx)
-    else { setChipBank([]); setChipOrder([]) }
-  }
-
-  const addChip = (chip) => { if (revealed) return; setChipOrder(o => [...o, chip]); setChipBank(b => b.filter(c => c.id !== chip.id)) }
-  const removeChip = (chip) => { if (revealed) return; setChipBank(b => [...b, chip]); setChipOrder(o => o.filter(c => c.id !== chip.id)) }
-
-  const isAnswerCorrect = () => {
-    if (ex.type === 'order') return chipOrder.map(c => c.word).join(' ').toLowerCase() === ex.answer.toLowerCase()
-    if (needsSemanticEval(ex.type)) return semanticResult && semanticResult !== 'loading' ? semanticResult.ok : null
-    const norm = str => str.trim().toLowerCase().replace(/[.,!?]/g, '')
-    const u = norm(userInput), a = norm(ex.answer)
-    if (ex.type === 'conjugation') return u === a || levenshtein(u, a) <= 1
-    return u === a
-  }
-
-  const typeLabel = (type) => ({
-    gap: lang === 'de' ? '✏️ Lückentext' : '✏️ Fill the gap',
-    order: lang === 'de' ? '🔀 Wortstellung' : '🔀 Word order',
-    tense: lang === 'de' ? '⏰ Zeitformen' : '⏰ Tense',
-    conjugation: lang === 'de' ? '🔤 Konjugation' : '🔤 Conjugation',
-    translation: lang === 'de' ? '🌐 Übersetzung' : '🌐 Translation',
-  })[type] || type
-
-  // ── DIFFICULTY SELECTOR (shown before starting) ──
-  if (!difficulty && exercises.length === 0 && !loading) {
-    const isDE = lang === 'de'
-    const levels = [
-      { key: 'leicht', label: t.diffLeicht, sub: t.diffLeichtSub },
-      { key: 'mittel', label: t.diffMittel, sub: t.diffMittelSub },
-      { key: 'schwer', label: t.diffSchwer, sub: t.diffSchwerSub },
-    ]
-    return (
-      <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
-        <button style={s.backBtn} onClick={onBack}>←</button>
-        <p style={{ color: th.accent, fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', margin: '0 0 6px' }}>Satztraining</p>
-        <p style={{ color: th.text, fontSize: '1.1rem', fontWeight: '700', margin: '0 0 4px' }}>{t.chooseDifficulty}</p>
-        <p style={{ color: th.sub, fontSize: '0.82rem', margin: '0 0 20px' }}>{isDE ? `Übungen auf ${targetLang}` : `Exercises in ${targetLang}`}</p>
-        {levels.map(lv => (
-          <button key={lv.key} onClick={() => { setDifficulty(lv.key); generateExercises(lv.key) }}
-            style={{ ...s.button, marginBottom: '10px', textAlign: 'left', display: 'flex', flexDirection: 'column', padding: '14px 18px' }}>
-            <span style={{ fontWeight: '700', fontSize: '0.95rem' }}>{lv.label}</span>
-            <span style={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.75rem', marginTop: '2px' }}>{lv.sub}</span>
-          </button>
-        ))}
-      </div></div>
-    )
-  }
-
-  if (knownVocab.length < 5) return (
-    <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
-      <button style={s.backBtn} onClick={onBack}>←</button>
-      <p style={{ color: th.accent, fontSize: '2rem', marginBottom: '12px' }}>📚</p>
-      <p style={{ color: th.text, fontSize: '1rem', marginBottom: '8px', fontWeight: '600' }}>{t.satzNotEnough}</p>
-      <p style={{ color: th.sub, fontSize: '0.88rem', marginBottom: '20px', lineHeight: 1.5 }}>{t.satzNotEnoughDesc}</p>
-      <button style={s.logoutBtn} onClick={onBack}>{t.back}</button>
-    </div></div>
-  )
-
-  if (loading) return (
-    <div style={s.container} className="vocara-screen">
-      <div style={{ textAlign: 'center' }}>
-        <p style={{ color: th.accent, fontSize: '1.4rem', marginBottom: '12px' }}>✦</p>
-        <p style={{ color: th.sub, fontSize: '0.9rem' }}>{t.generating}</p>
-      </div>
-    </div>
-  )
-
-  if (error) return (
-    <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
-      <button style={s.backBtn} onClick={onBack}>←</button>
-      <p style={{ color: th.text, marginBottom: '16px' }}>{t.connectionError}</p>
-      <button style={s.button} onClick={generateExercises}>{t.retry}</button>
-      <button style={s.logoutBtn} onClick={onBack}>{t.back}</button>
-    </div></div>
-  )
-
-  if (done) return (
-    <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
-      <h1 style={s.title}>{t.satzDone}</h1>
-      <div style={{ ...s.card, textAlign: 'center', padding: '24px' }}>
-        <p style={{ color: th.gold, fontSize: '3rem', fontWeight: 'bold', margin: 0 }}>{correct}/{exercises.length}</p>
-        <p style={{ color: th.sub, fontSize: '0.9rem', marginTop: '8px' }}>
-          {correct === exercises.length ? '🏆 Perfekt!' : correct >= exercises.length * 0.7 ? '💪 Sehr gut!' : '📚 Weiter üben!'}
-        </p>
-        {difficultyScore >= 6 && <p style={{ color: th.accent, fontSize: '0.78rem', marginTop: '8px' }}>⬆️ {lang === 'de' ? 'Schwierigkeitsgrad steigt' : 'Difficulty increasing'}</p>}
-      </div>
-      <button style={s.button} onClick={() => { setDifficulty(null); setDone(false); setExercises([]); setIndex(0); setCorrect(0) }}>{t.newExercises}</button>
-      <button style={s.logoutBtn} onClick={onBack}>{t.back}</button>
-    </div></div>
-  )
-
-  if (!ex) return null
-  const correct_bool = revealed && semanticResult !== 'loading' ? isAnswerCorrect() : null
-
-  return (
-    <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
-      <div style={s.cardHeader}>
-        <p style={s.greeting}>{index + 1} / {exercises.length}</p>
-        <button style={s.stopBtn} onClick={onBack}>✕</button>
-      </div>
-      <div style={s.progressBar}><div style={{ ...s.progressFill, width: `${(index / exercises.length) * 100}%` }} /></div>
-
-      <p style={{ color: th.sub, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '1px', margin: '14px 0 10px' }}>
-        {typeLabel(ex.type)}
-        {difficultyScore >= 4 && <span style={{ marginLeft: '6px', color: th.gold }}>{'★'.repeat(Math.min(3, Math.floor(difficultyScore / 3)))}</span>}
-      </p>
-
-      {/* QUESTION CARD */}
-      <div style={{ ...s.bigCard, minHeight: '80px', marginBottom: '14px' }}>
-        <p style={{ ...s.cardFront, marginBottom: ex.hint ? '6px' : 0 }}>{ex.question}</p>
-        {ex.hint && <p style={{ color: th.sub, fontSize: '0.72rem', fontStyle: 'italic', margin: 0 }}>💡 {ex.hint}</p>}
-      </div>
-
-      {/* INPUT AREA — gap / tense / conjugation / translation */}
-      {(ex.type === 'gap' || ex.type === 'tense' || ex.type === 'conjugation' || ex.type === 'translation') && (
-        <div style={{ marginBottom: '14px' }}>
-          <input
-            value={userInput}
-            onChange={e => !revealed && setUserInput(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter' && !revealed && userInput.trim()) handleCheck() }}
-            placeholder={ex.type === 'translation' ? (lang === 'de' ? 'Übersetzung eingeben…' : 'Enter translation…') : t.yourAnswer}
-            disabled={revealed}
-            style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: `1px solid ${revealed ? (correct_bool === null ? th.border : correct_bool ? '#4CAF50' : '#f44336') : th.border}`, background: th.card, color: th.text, fontSize: '1rem', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
-            autoFocus
-          />
-        </div>
-      )}
-
-      {/* CHIP AREA — order type */}
-      {ex.type === 'order' && (
-        <>
-          <div style={{ ...s.bigCard, minHeight: '60px', flexWrap: 'wrap', gap: '8px', padding: '12px', justifyContent: 'flex-start', alignItems: 'flex-start', marginBottom: '8px' }}>
-            {chipOrder.length === 0
-              ? <p style={{ color: th.sub, fontSize: '0.85rem', margin: 'auto' }}>{t.tapWords}</p>
-              : chipOrder.map(chip => (
-                <button key={chip.id} onClick={() => removeChip(chip)}
-                  style={{ background: th.accent + '33', color: th.text, border: `1px solid ${th.accent}`, borderRadius: '8px', padding: '6px 12px', fontSize: '0.95rem', cursor: revealed ? 'default' : 'pointer' }}>
-                  {chip.word}
-                </button>
-              ))
-            }
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center', marginBottom: '14px' }}>
-            {chipBank.map(chip => (
-              <button key={chip.id} onClick={() => addChip(chip)}
-                style={{ background: th.card, color: th.text, border: `1px solid ${th.border}`, borderRadius: '8px', padding: '6px 12px', fontSize: '0.95rem', cursor: revealed ? 'default' : 'pointer' }}>
-                {chip.word}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* SEMANTIC EVAL LOADING */}
-      {revealed && semanticResult === 'loading' && (
-        <p style={{ color: th.sub, fontSize: '0.78rem', textAlign: 'center', marginBottom: '10px' }}>✦ {lang === 'de' ? 'KI bewertet…' : 'AI evaluating…'}</p>
-      )}
-
-      {/* REVEAL RESULT */}
-      {revealed && semanticResult !== 'loading' && (
-        <div style={{ marginBottom: '14px', animation: 'vocaraFadeIn 0.3s ease both' }}>
-          <p style={{ color: correct_bool ? '#4CAF50' : '#f44336', fontWeight: 'bold', fontSize: '1rem', marginBottom: '8px' }}>
-            {correct_bool ? `✓ ${ex.answer}` : `✗ ${lang === 'de' ? 'Lösung' : 'Answer'}: ${ex.answer}`}
-          </p>
-          {semanticResult?.feedback && (
-            <div style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${th.border}`, borderRadius: '10px', padding: '8px 12px', marginBottom: '6px' }}>
-              <p style={{ color: correct_bool ? '#81c784' : '#FFB74D', fontSize: '0.78rem', margin: 0, lineHeight: 1.5 }}>💬 {semanticResult.feedback}</p>
-            </div>
-          )}
-          <div style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${th.border}`, borderRadius: '10px', padding: '10px 14px' }}>
-            <p style={{ color: th.sub, fontSize: '0.78rem', margin: 0, lineHeight: 1.6 }}>📖 {ex.explanation}</p>
-          </div>
-        </div>
-      )}
-
-      {/* CHECK BUTTON */}
-      {!revealed && (
-        <button
-          style={{ ...s.button, opacity: (ex.type === 'order' ? chipOrder.length > 0 : userInput.trim().length > 0) ? 1 : 0.4 }}
-          onClick={handleCheck}
-          disabled={ex.type === 'order' ? chipOrder.length === 0 : !userInput.trim()}
-        >
-          {t.checkBtn}
-        </button>
-      )}
-
-      {/* SELF RATING AFTER REVEAL */}
-      {revealed && semanticResult !== 'loading' && !selfRating && (
-        <div style={{ marginTop: '8px' }}>
-          {autoEasy && <p style={{ color: '#FFD700', fontSize: '0.7rem', fontWeight: '700', textAlign: 'center', margin: '0 0 6px', letterSpacing: '0.3px' }}>⚡ {lang === 'de' ? 'Schnelle Antwort!' : 'Quick answer!'}</p>}
-          <div style={{ ...s.answerRow }}>
-            <button style={s.wrongBtn} onClick={() => handleRate('wrong')}>❌ {lang === 'de' ? 'Falsch' : 'Wrong'}</button>
-            <button style={s.fastBtn} onClick={() => handleRate('fast')}>😕 {lang === 'de' ? 'Fast' : 'Almost'}</button>
-            <button style={{ ...s.rightBtn }} onClick={() => handleRate(autoEasy ? 'easy' : 'right')}>
-              {autoEasy ? '⚡' : '✅'} {lang === 'de' ? 'Richtig' : 'Correct'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* NEXT BUTTON after rating */}
-      {revealed && semanticResult !== 'loading' && selfRating && (
-        <button style={s.button} onClick={handleNext}>
-          {index + 1 < exercises.length ? t.nextBtn : t.finishBtn}
-        </button>
-      )}
-    </div></div>
-  )
-}
-
-function PlacementTest({ lang, theme, user, onBack, onSaveCefr, toLangCode }) {
+function PlacementTest({ lang, theme, user, onBack, onSaveCefr }) {
   const th = THEMES[theme]; const s = makeStyles(th); const t = T[lang]
-  const [questions, setQuestions] = useState(null)
-  const [seenIds, setSeenIds] = useState(new Set())
-  const [seenTexts, setSeenTexts] = useState([])
-  const [testCount, setTestCount] = useState(1)
+  const questions = lang === 'de' ? PLACEMENT_EN : PLACEMENT_DE
   const [index, setIndex] = useState(0)
   const [selected, setSelected] = useState(null)
   const [revealed, setRevealed] = useState(false)
   const [wrongStreak, setWrongStreak] = useState(0)
   const [scores, setScores] = useState({})
+  const [done, setDone] = useState(false)
+  const [finalLevel, setFinalLevel] = useState(null)
   const [stopped, setStopped] = useState(false)
-  const answerChoicesRef = useRef([])
-  const usedAIRef = useRef(false)
-  const [patternWarning, setPatternWarning] = useState(null)
-
-  useEffect(() => {
-    const init = async () => {
-      let seen = new Set(); let prevSeenTexts = []; let count = 0
-      if (user) {
-        try {
-          const snap = await getDoc(doc(db, 'users', user.uid, 'testHistory', 'placement'))
-          if (snap.exists()) {
-            seen = new Set(snap.data()?.seenIds || [])
-            prevSeenTexts = snap.data()?.seenTexts || []
-            count = snap.data()?.testCount || 0
-          }
-        } catch {}
-      }
-      setSeenIds(seen); setSeenTexts(prevSeenTexts); setTestCount(count + 1)
-      const sh = arr => [...arr].sort(() => Math.random() - 0.5)
-
-      // Always generate fresh questions via AI (Haiku)
-      const LN = { en: 'English', de: 'German', sw: 'Swahili', th: 'Thai', es: 'Spanish', fr: 'French' }
-      const fromCode = lang || 'de'
-      const toCode = toLangCode || (lang === 'de' ? 'en' : 'de')
-      const fromLangName = LN[fromCode] || fromCode
-      const toLangName = LN[toCode] || toCode
-      const instrLang = LN[fromCode] || 'English'
-      let picked = null
-      try {
-        const exclusionHint = prevSeenTexts.length > 0
-          ? `\nDo NOT repeat or closely paraphrase these previously shown questions: ${prevSeenTexts.slice(-20).join(' | ')}`
-          : ''
-        const res = await fetch('/api/chat', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: 'claude-haiku-4-5-20251001', max_tokens: 1500,
-            messages: [{ role: 'user', content: `Generate exactly 10 unique CEFR placement test questions for a ${fromLangName} speaker learning ${toLangName}. Test vocabulary, grammar, and comprehension. Include 2-3 questions per level covering A1, A2, B1, B2. Write questions and answer options in ${instrLang}.${exclusionHint}\nReturn ONLY a valid JSON array (no markdown, no explanation):\n[{"question":"...","options":["...","...","...","..."],"correct":0,"level":"A1"}]` }]
-          })
-        })
-        const d = await res.json()
-        const raw = (d.content?.[0]?.text || '').trim()
-        const match = raw.match(/\[[\s\S]*\]/)
-        if (match) {
-          const parsed = JSON.parse(match[0])
-          if (Array.isArray(parsed) && parsed.length >= 5) {
-            picked = parsed.slice(0, 10).map((q, i) => ({ ...q, id: `ai_${Date.now()}_${i}` }))
-            usedAIRef.current = true
-          }
-        }
-      } catch {}
-
-      if (!picked) {
-        // Minimal emergency fallback — AI unavailable
-        const base = lang === 'de' ? PLACEMENT_EN : PLACEMENT_DE
-        const byLevel = {}
-        for (const q of base) { if (!byLevel[q.level]) byLevel[q.level] = []; byLevel[q.level].push(q) }
-        picked = []
-        for (const lvl of ['A1','A2','B1','B2']) {
-          const pool = byLevel[lvl] || []
-          const unseen = pool.filter(q => !seen.has(q.id))
-          picked.push(...sh(unseen.length >= 2 ? unseen : pool).slice(0, 3))
-        }
-      }
-
-      const shuffled = picked.map(q => {
-        const opts = q.options.map((opt, i) => ({ opt, isCorrect: i === q.correct }))
-        const shOpts = sh(opts)
-        return { ...q, options: shOpts.map(x => x.opt), correct: shOpts.findIndex(x => x.isCorrect) }
-      })
-      setQuestions(shuffled)
-    }
-    init()
-  }, []) // eslint-disable-line
-
-  const q = questions?.[index]
+  const q = questions[index]
   const calcLevel = (sc) => {
     for (let i = CEFR_LEVELS.length - 1; i >= 0; i--) {
       const lvl = CEFR_LEVELS[i]; const data = sc[lvl]
@@ -2738,81 +1669,64 @@ function PlacementTest({ lang, theme, user, onBack, onSaveCefr, toLangCode }) {
     }
     return 'A1'
   }
-
-  const checkAnswerPattern = (choices) => {
-    if (choices.length < 5) return
-    const last5 = choices.slice(-5)
-    const allSame = last5.every(c => c === last5[0])
-    if (allSame) {
-      const optLetter = String.fromCharCode(65 + last5[0])
-      setPatternWarning(lang === 'de'
-        ? `Tipp: Du wählst oft Option ${optLetter} — überprüfe dein Wissen sorgfältig!`
-        : `Hint: You often pick option ${optLetter} — review carefully!`)
-      setTimeout(() => setPatternWarning(null), 4000)
-    }
-  }
-
   const handleSelect = (optIdx) => {
-    if (revealed || !q || !questions) return
-    const newChoices = [...answerChoicesRef.current, optIdx]
-    answerChoicesRef.current = newChoices
-    checkAnswerPattern(newChoices)
+    if (revealed) return
     setSelected(optIdx); setRevealed(true)
     const isCorrect = optIdx === q.correct
     const lvl = q.level; const prev = scores[lvl] || { correct: 0, total: 0 }
     const newScores = { ...scores, [lvl]: { correct: prev.correct + (isCorrect ? 1 : 0), total: prev.total + 1 } }
     setScores(newScores)
     const newStreak = isCorrect ? 0 : wrongStreak + 1
-    if (newStreak >= 3) setStopped(true)
     setTimeout(() => {
       if (newStreak >= 3 || index + 1 >= questions.length) {
         try {
           const level = calcLevel(newScores)
-          if (user) {
-            if (usedAIRef.current) {
-              const shownTexts = questions.slice(0, index + 1).map(q => q.question)
-              const allTexts = [...seenTexts, ...shownTexts]
-              const finalTexts = allTexts.length > 50 ? allTexts.slice(-50) : allTexts
-              setDoc(doc(db, 'users', user.uid, 'testHistory', 'placement'), { seenTexts: finalTexts, lastTest: todayStr(), testCount }, { merge: true }).catch(() => {})
-            } else {
-              const base = lang === 'de' ? PLACEMENT_EN : PLACEMENT_DE
-              const shownIds = questions.slice(0, index + 1).map(q => q.id)
-              const allSeen = [...seenIds, ...shownIds]
-              const finalSeen = allSeen.length > base.length * 0.75 ? [] : [...new Set(allSeen)]
-              setDoc(doc(db, 'users', user.uid, 'testHistory', 'placement'), { seenIds: finalSeen, lastTest: todayStr(), testCount }, { merge: true }).catch(() => {})
-            }
-          }
           try { onSaveCefr(level) } catch(e) { console.warn('[Vocara] onSaveCefr error:', e) }
           window.location.reload()
-        } catch(completionErr) { console.error('[Vocara] test completion crashed:', completionErr); window.location.reload() }
+        } catch(completionErr) {
+          console.error('[Vocara] test completion crashed:', completionErr)
+          window.location.reload()
+        }
       } else { setWrongStreak(newStreak); setIndex(i => i + 1); setSelected(null); setRevealed(false) }
     }, 1200)
   }
-
-  if (!questions) return (
-    <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
-      <p style={{ color: th.sub, textAlign: 'center', padding: '40px', fontSize: '1.1rem', animation: 'vocaraPulse 1.2s infinite' }}>…</p>
-    </div></div>
-  )
+  if (done) {
+    const totalCorrect = Object.values(scores).reduce((a, b) => a + b.correct, 0)
+    const totalQ = Object.values(scores).reduce((a, b) => a + b.total, 0)
+    return (
+      <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
+        <button style={s.backBtn} onClick={onBack}>← {t.back}</button>
+        <h2 style={{ color: th.gold, fontSize: '1.3rem', marginBottom: '8px' }}>{t.testDone}</h2>
+        <div style={{ background: CEFR_COLORS[finalLevel] + '22', border: `2px solid ${CEFR_COLORS[finalLevel]}`, borderRadius: '16px', padding: '24px', marginBottom: '16px' }}>
+          <p style={{ color: CEFR_COLORS[finalLevel], fontSize: '3rem', fontWeight: 'bold', margin: 0 }}>{finalLevel}</p>
+          <p style={{ color: th.text, margin: '8px 0 0 0', fontSize: '1.1rem' }}>{CEFR_DESC[lang][finalLevel]}</p>
+        </div>
+        {stopped && <p style={{ color: th.sub, fontSize: '0.85rem', marginBottom: '12px' }}>{t.testStop3}</p>}
+        <div style={s.card}>
+          {CEFR_LEVELS.map(lvl => scores[lvl] ? (
+            <div key={lvl} style={{ ...s.langRow, marginBottom: '8px' }}>
+              <span style={{ color: CEFR_COLORS[lvl], fontWeight: 'bold', fontSize: '0.9rem' }}>{lvl}</span>
+              <span style={s.langPct}>{scores[lvl].correct}/{scores[lvl].total}</span>
+            </div>
+          ) : null)}
+          <div style={{ ...s.langRow, marginTop: '8px', paddingTop: '8px', borderTop: `1px solid ${th.border}` }}>
+            <span style={s.lang}>{t.testScore}</span><span style={s.langPct}>{totalCorrect}/{totalQ}</span>
+          </div>
+        </div>
+        <button style={s.button} onClick={onBack}>← Zurück zur Startseite</button>
+      </div></div>
+    )
+  }
   const pct = (index / questions.length) * 100
   return (
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
       <div style={s.cardHeader}>
         <div>
-          <p style={{ color: th.sub, fontSize: '0.65rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', margin: '0 0 2px' }}>Test #{testCount}</p>
           <p style={s.greeting}>{t.testQuestion} {index + 1} {t.testOf} {questions.length}</p>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <span style={{ color: CEFR_COLORS[q.level], fontSize: '0.75rem', fontWeight: 'bold' }}>{q.level}</span>
-            <span style={{ color: th.sub, fontSize: '0.65rem', opacity: 0.7 }}>Test #{testCount}</span>
-          </div>
+          <span style={{ color: CEFR_COLORS[q.level], fontSize: '0.75rem', fontWeight: 'bold' }}>{q.level}</span>
         </div>
         <button style={s.stopBtn} onClick={onBack}>{t.stop}</button>
       </div>
-      {patternWarning && (
-        <div style={{ background: 'rgba(255,165,0,0.12)', border: '1px solid rgba(255,165,0,0.35)', borderRadius: '10px', padding: '8px 12px', marginBottom: '8px', animation: 'vocaraFadeIn 0.3s ease both' }}>
-          <p style={{ color: '#FFA500', fontSize: '0.75rem', margin: 0 }}>💡 {patternWarning}</p>
-        </div>
-      )}
       <div style={s.progressBar}><div style={{ ...s.progressFill, width: `${pct}%`, background: CEFR_COLORS[q.level] }} /></div>
       <div style={{ ...s.bigCard, marginTop: '12px', minHeight: '100px' }}>
         <p style={{ ...s.cardFront, marginBottom: 0 }}>{q.question}</p>
@@ -2822,7 +1736,6 @@ function PlacementTest({ lang, theme, user, onBack, onSaveCefr, toLangCode }) {
           {String.fromCharCode(65 + i)}. {opt ?? '—'}
         </button>
       ))}
-      {stopped && <p style={{ color: th.sub, fontSize: '0.78rem', textAlign: 'center', marginTop: '8px' }}>{t.testStop3}</p>}
     </div></div>
   )
 }
@@ -2863,7 +1776,7 @@ function LoginScreen({ theme }) {
   return (
     <div style={s.container} className="vocara-screen">
       <div style={{ textAlign: 'center', padding: '24px', maxWidth: '380px', width: '100%' }}>
-        <p style={{ fontFamily: 'Georgia, serif', fontSize: '42px', fontWeight: '700', color: '#FFD700', margin: '0 0 8px', letterSpacing: '3px', lineHeight: 1 }}>Vocara</p>
+        <h1 style={s.logoTitle}>Vocara</h1>
         <p style={s.slogan}>Die Stimme ist die Brücke.<br /><span style={{ fontSize: '0.85rem' }}>The voice is the bridge.</span></p>
         <button style={s.button} onClick={handleLogin}>Mit Google anmelden / Sign in with Google</button>
         {error && <p style={s.error}>{error}</p>}
@@ -2885,7 +1798,7 @@ function LangSetupScreen({ user, lang, theme, onDone }) {
   }
   return (
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
-      <p style={{ fontFamily: 'Georgia, serif', fontSize: '42px', fontWeight: '700', color: '#FFD700', margin: '0 0 8px', letterSpacing: '3px', lineHeight: 1, textAlign: 'center' }}>Vocara</p>
+      <h1 style={{ ...s.logoTitle, marginBottom: '8px' }}>Vocara</h1>
       <p style={{ color: th.text, fontWeight: 'bold', marginBottom: '4px' }}>{t.langSetupTitle}</p>
       <p style={{ color: th.sub, fontSize: '0.85rem', marginBottom: '16px' }}>{t.langSetupSub}</p>
       <div style={s.card}>
@@ -2906,99 +1819,51 @@ function PartnerScreen({ user, myData, lang, theme, onBack, onPartnerUpdate }) {
   const [codeInput, setCodeInput] = useState('')
   const [copied, setCopied] = useState(false)
   const [status, setStatus] = useState('')
+  const [pendingData, setPendingData] = useState(null)
   const inviteLink = `${window.location.origin}?invite=${user.uid}`
   const myInviteCode = user.uid.slice(0, 8).toUpperCase()
   const hasPartner = !!myData?.partnerUID
-
-  // Send a partner request to a UID
-  const sendRequest = async (partnerUID) => {
-    setStatus(lang === 'de' ? 'Sende Anfrage…' : 'Sending request…')
-    try {
-      await setDoc(doc(db, 'users', partnerUID, 'partnerRequests', user.uid), {
-        fromUid: user.uid,
-        fromName: user.displayName || (user.uid === MARK_UID ? 'Mark' : 'Partner'),
-        sentAt: Date.now(),
-        status: 'pending',
-      })
-      setStatus(lang === 'de' ? 'Anfrage gesendet — warte auf Bestätigung' : 'Request sent — waiting for confirmation')
-    } catch (e) {
-      console.error('[Vocara] sendRequest failed:', e.message)
-      setStatus(lang === 'de' ? 'Fehler beim Senden.' : 'Could not send request.')
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const inviteUID = params.get('invite')
+    if (inviteUID && inviteUID !== user.uid && !hasPartner) {
+      getDoc(doc(db, 'users', inviteUID)).then(snap => { if (snap.exists()) setPendingData({ uid: inviteUID, ...snap.data() }) })
     }
-  }
-
-  // Accept: write partnerUID to both profiles, update publicStats, delete request
-  const acceptRequest = async (req) => {
-    const { fromUid, fromName } = req
-    try { localStorage.removeItem('vocara_manually_disconnected') } catch {}
-    try {
-      const connectedAt = Date.now()
-      await updateDoc(doc(db, 'users', user.uid), { partnerUID: fromUid, partnerName: fromName, partnerConnectedAt: connectedAt })
-      try { await updateDoc(doc(db, 'users', fromUid), { partnerUID: user.uid, partnerName: user.displayName, partnerConnectedAt: connectedAt }) } catch (_) {}
-      // Update own publicStats
-      setDoc(doc(db, 'users', user.uid, 'publicStats', 'data'), { partnerUID: fromUid, partnerName: fromName }, { merge: true }).catch(() => {})
-      // Update partner's publicStats
-      setDoc(doc(db, 'users', fromUid, 'publicStats', 'data'), { partnerUID: user.uid, partnerName: user.displayName }, { merge: true }).catch(() => {})
-      // Delete request doc
-      deleteDoc(doc(db, 'users', user.uid, 'partnerRequests', fromUid)).catch(() => {})
-      onPartnerUpdate(fromUid)
-    } catch (e) { setStatus(lang === 'de' ? 'Fehler beim Verbinden.' : 'Connection failed.') }
-  }
-
-  // Decline: just delete the request
-  const declineRequest = async (fromUid) => {
-    deleteDoc(doc(db, 'users', user.uid, 'partnerRequests', fromUid)).catch(() => {})
-    setStatus('')
-  }
-
-  // Connect by entering partner's invite code (UID prefix) — sends request instead of direct connect
+  }, [])
+  const copyLink = () => { navigator.clipboard.writeText(inviteLink); setCopied(true); setTimeout(() => setCopied(false), 2000) }
   const connectByCode = async () => {
     const code = codeInput.trim().toUpperCase()
-    if (code.length < 6) return
-    setStatus(lang === 'de' ? 'Suche…' : 'Looking up…')
+    if (code.length < 6) return; setStatus('Suche...')
     try {
-      // Search users where uid starts with code (first 8 chars)
-      // Fall back: try reading invite URL param uid directly if code looks like full uid
-      let partnerUID = null
-      // Try treating code as uid prefix — check common known users first
-      if (MARK_UID.toUpperCase().startsWith(code)) partnerUID = MARK_UID
-      else if (ELOSY_UID.toUpperCase().startsWith(code)) partnerUID = ELOSY_UID
-      else {
-        // Try to find in users collection by checking if myData has a stored invite UID
-        const params = new URLSearchParams(window.location.search)
-        const inviteUID = params.get('invite')
-        if (inviteUID && inviteUID.slice(0, 8).toUpperCase() === code) partnerUID = inviteUID
-      }
-      if (!partnerUID) { setStatus(lang === 'de' ? 'Code nicht gefunden.' : 'Code not found.'); return }
-      if (partnerUID === user.uid) { setStatus(lang === 'de' ? 'Das bist du.' : 'That is you.'); return }
-      try { localStorage.removeItem('vocara_manually_disconnected') } catch {}
-      await sendRequest(partnerUID)
-    } catch { setStatus(lang === 'de' ? 'Fehler.' : 'Error.') }
+      const snap = await getDoc(doc(db, 'inviteCodes', code))
+      if (!snap.exists()) { setStatus('Code nicht gefunden.'); return }
+      await acceptConnection(snap.data().uid)
+    } catch { setStatus('Fehler.') }
   }
-
-  // Disconnect: only remove from own profile, set flag so auto-reconnect is skipped
+  const acceptConnection = async (partnerUID) => {
+    const partnerSnap = await getDoc(doc(db, 'users', partnerUID))
+    const partnerName = partnerSnap.exists() ? partnerSnap.data().name : 'Partner'
+    await updateDoc(doc(db, 'users', user.uid), { partnerUID, partnerName })
+    await updateDoc(doc(db, 'users', partnerUID), { partnerUID: user.uid, partnerName: user.displayName })
+    onPartnerUpdate(partnerUID); setPendingData(null); window.history.replaceState({}, '', window.location.pathname)
+  }
   const disconnect = async () => {
-    if (!window.confirm(lang === 'de' ? 'Partner wirklich trennen?' : 'Really disconnect?')) return
-    try { localStorage.setItem('vocara_manually_disconnected', 'true') } catch {}
+    if (!window.confirm('Partner wirklich trennen?')) return
+    const partnerUID = myData.partnerUID
     await updateDoc(doc(db, 'users', user.uid), { partnerUID: null, partnerName: null })
+    if (partnerUID) { try { await updateDoc(doc(db, 'users', partnerUID), { partnerUID: null, partnerName: null }) } catch {} }
     onPartnerUpdate(null)
   }
-
-  const pendingReq = myData?._pendingPartnerRequest
-
   return (
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
       <button style={s.backBtn} onClick={onBack}>← {t.back}</button>
       <h2 style={{ color: th.gold, fontSize: '1.3rem', marginBottom: '20px' }}>{t.partnerTitle}</h2>
-      {/* Incoming partner request banner */}
-      {pendingReq && (
-        <div style={{ ...s.infoBox, marginBottom: '16px', border: `1px solid ${th.gold}44` }}>
-          <p style={{ margin: '0 0 10px 0', fontWeight: 'bold', color: th.text }}>
-            {pendingReq.fromName} {lang === 'de' ? 'möchte sich mit dir verbinden' : 'wants to connect with you'}
-          </p>
+      {pendingData && (
+        <div style={s.infoBox}>
+          <p style={{ margin: '0 0 10px 0', fontWeight: 'bold' }}>{pendingData.name} möchte sich verbinden</p>
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button style={{ ...s.rightBtn, flex: 1, padding: '10px' }} onClick={() => acceptRequest(pendingReq)}>✓ {t.partnerAccept}</button>
-            <button style={{ ...s.wrongBtn, flex: 1, padding: '10px' }} onClick={() => declineRequest(pendingReq.fromUid)}>✗ {t.partnerDecline}</button>
+            <button style={{ ...s.rightBtn, flex: 1, padding: '10px' }} onClick={() => acceptConnection(pendingData.uid)}>{t.partnerAccept}</button>
+            <button style={{ ...s.wrongBtn, flex: 1, padding: '10px' }} onClick={() => { setPendingData(null); window.history.replaceState({}, '', window.location.pathname) }}>{t.partnerDecline}</button>
           </div>
         </div>
       )}
@@ -3007,12 +1872,17 @@ function PartnerScreen({ user, myData, lang, theme, onBack, onPartnerUpdate }) {
           <p style={s.cardLabel}>{t.partnerConnected}</p>
           <p style={{ color: th.text, margin: '0 0 12px 0', fontWeight: 'bold' }}>{myData.partnerName || 'Partner'}</p>
           <button style={{ ...s.logoutBtn, color: '#f44336', borderColor: '#f44336' }} onClick={disconnect}>{t.partnerDisconnect}</button>
+          {/* Mehrere Partner — Premium/Pro */}
           <div style={{ marginTop: '12px', padding: '10px 12px', background: `${th.gold}08`, border: `1px solid ${th.gold}22`, borderRadius: '10px' }}>
             <p style={{ color: th.sub, fontSize: '0.78rem', margin: '0 0 6px' }}>{lang === 'de' ? '👥 Mehrere Partner:' : '👥 Multiple partners:'}</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', opacity: 0.45 }}>
                 <span style={{ color: th.sub, fontSize: '0.75rem' }}>＋ {lang === 'de' ? 'Weiteren verbinden' : 'Connect another'}</span>
                 <span style={{ background: `${th.gold}18`, color: th.gold, border: `1px solid ${th.gold}44`, borderRadius: '8px', padding: '1px 7px', fontSize: '0.65rem', fontWeight: '700' }}>Premium</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', opacity: 0.3 }}>
+                <span style={{ color: th.sub, fontSize: '0.75rem' }}>＋＋ {lang === 'de' ? 'Bis zu 5 Partner' : 'Up to 5 partners'}</span>
+                <span style={{ background: 'rgba(200,200,255,0.1)', color: '#aaa', border: '1px solid rgba(200,200,255,0.2)', borderRadius: '8px', padding: '1px 7px', fontSize: '0.65rem', fontWeight: '700' }}>Pro</span>
               </div>
             </div>
           </div>
@@ -3022,8 +1892,8 @@ function PartnerScreen({ user, myData, lang, theme, onBack, onPartnerUpdate }) {
           <div style={s.card}>
             <p style={s.cardLabel}>{t.partnerInvite}</p>
             <p style={{ color: th.sub, fontSize: '0.75rem', wordBreak: 'break-all', marginBottom: '8px' }}>{inviteLink}</p>
-            <button style={s.button} onClick={() => { navigator.clipboard.writeText(inviteLink); setCopied(true); setTimeout(() => setCopied(false), 2000) }}>{copied ? t.partnerCopied : t.partnerCopy}</button>
-            <p style={{ color: th.sub, fontSize: '0.8rem', marginTop: '8px' }}>{lang === 'de' ? 'Dein Code:' : 'Your code:'} <strong style={{ color: th.gold }}>{myInviteCode}</strong></p>
+            <button style={s.button} onClick={copyLink}>{copied ? t.partnerCopied : t.partnerCopy}</button>
+            <p style={{ color: th.sub, fontSize: '0.8rem', marginTop: '8px' }}>Dein Code: <strong style={{ color: th.gold }}>{myInviteCode}</strong></p>
           </div>
           <div style={s.card}>
             <p style={s.cardLabel}>{t.partnerCode}</p>
@@ -3037,125 +1907,7 @@ function PartnerScreen({ user, myData, lang, theme, onBack, onPartnerUpdate }) {
   )
 }
 
-// ── KONTEXTWECHSEL SCREEN ──────────────────────────────────────
-function KontextwechselScreen({ card, lang, theme, userToLang = 'en', user, onBack, onSaveCard, t: tProp }) {
-  const th = THEMES[theme]; const s = makeStyles(th); const t = tProp || T[lang] || T.en
-  const [variants, setVariants] = useState(null) // [{type, prompt, answer}]
-  const [loading, setLoading] = useState(true)
-  const [saved, setSaved] = useState(new Set()) // set of saved variant types
-
-  const VARIANT_DEFS = [
-    { type: 'formal',   icon: '👔', labelDe: 'Formell',   labelEn: 'Formal',   promptDe: `Wie sagst du "${card?.front}" in einer formellen E-Mail oder einem Meeting?`, promptEn: `How would you use "${card?.front}" in a formal email or meeting?` },
-    { type: 'informal', icon: '😄', labelDe: 'Informell',  labelEn: 'Informal', promptDe: `Wie sagst du "${card?.front}" zu einem guten Freund?`, promptEn: `How would you say "${card?.front}" to a close friend?` },
-    { type: 'romantic', icon: '💑', labelDe: 'Romantisch', labelEn: 'Romantic', promptDe: `Wie verwendest du "${card?.front}" mit deinem Partner?`, promptEn: `How would you use "${card?.front}" with your partner?` },
-  ]
-
-  useEffect(() => {
-    if (!card) { setLoading(false); return }
-    const toLangName = { en: 'English', de: 'German', sw: 'Swahili', fr: 'French', es: 'Spanish', th: 'Thai' }[userToLang] || userToLang
-    fetch('/api/chat', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001', max_tokens: 300,
-        system: 'You are a language teacher. Generate context variants for vocabulary. Return ONLY valid JSON. Never add markdown or explanation.',
-        messages: [{
-          role: 'user',
-          content: `For "${card.front}" (translation: "${card.back}"), give 3 context variants in ${toLangName}. MAX 1 SHORT SENTENCE each. Include the translation in brackets.
-Return ONLY JSON array:
-[
-  {"type":"formal","sentence":"ONE short formal sentence [translation]"},
-  {"type":"informal","sentence":"ONE short casual sentence [translation]"},
-  {"type":"romantic","sentence":"ONE short romantic sentence [translation]"}
-]`
-        }]
-      })
-    }).then(r => r.json()).then(data => {
-      const raw = (data.content?.[0]?.text || '').trim()
-      const match = raw.match(/\[[\s\S]*\]/)
-      if (match) {
-        try {
-          const parsed = JSON.parse(match[0])
-          setVariants(parsed)
-        } catch(e) { setVariants(null) }
-      }
-      setLoading(false)
-    }).catch(() => { setVariants(null); setLoading(false) })
-  }, []) // eslint-disable-line
-
-  const handleSave = async (variant) => {
-    if (!user || !card || saved.has(variant.type)) return
-    const newCard = {
-      id: `kontext_${card.id}_${variant.type}_${Date.now()}`,
-      front: card.front,
-      back: variant.sentence,
-      category: card.category || 'vocabulary',
-      langA: card.langA, langB: card.langB || userToLang,
-      source: 'kontext', createdAt: Date.now(),
-      kontextType: variant.type,
-    }
-    await onSaveCard(newCard)
-    setSaved(prev => new Set([...prev, variant.type]))
-  }
-
-  return (
-    <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
-      <button style={s.backBtn} onClick={onBack}>← {t.back}</button>
-      <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-        <p style={{ color: '#00BFA5', fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', margin: '0 0 6px' }}>🔄 {t.kontextTitle}</p>
-        <p style={{ color: th.text, fontSize: '1.1rem', fontWeight: '700', margin: '0 0 4px' }}>{card?.front}</p>
-        <p style={{ color: th.sub, fontSize: '0.85rem', margin: 0, fontStyle: 'italic' }}>{card?.back}</p>
-      </div>
-      {loading ? (
-        <div style={{ ...s.card, textAlign: 'center', padding: '32px' }}>
-          <p style={{ color: th.sub, fontSize: '0.88rem', animation: 'vocaraPulse 1.2s infinite' }}>🔄 {t.kontextGenerating}</p>
-        </div>
-      ) : !variants ? (
-        <div style={{ ...s.card, textAlign: 'center' }}>
-          <p style={{ color: th.sub, fontSize: '0.88rem' }}>{t.kontextUnavail}</p>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <p style={{ color: th.sub, fontSize: '0.78rem', textAlign: 'center', margin: '0 0 4px' }}>{t.kontextChoose}</p>
-          {VARIANT_DEFS.map(def => {
-            const v = variants.find(x => x.type === def.type)
-            if (!v) return null
-            const isSaved = saved.has(def.type)
-            return (
-              <div key={def.type} style={{ ...s.card, border: isSaved ? '1px solid #00BFA5' : `1px solid ${th.border}`, background: isSaved ? 'rgba(0,191,165,0.1)' : th.card, position: 'relative', paddingTop: '28px' }}>
-                {/* Variant type badge top-left */}
-                <div style={{ position: 'absolute', top: '8px', left: '10px', background: def.type === 'formal' ? 'rgba(60,140,200,0.16)' : def.type === 'romantic' ? 'rgba(220,80,180,0.16)' : 'rgba(180,120,30,0.16)', color: def.type === 'formal' ? '#70b0d8' : def.type === 'romantic' ? '#e080c0' : '#C8922A', border: `1px solid ${def.type === 'formal' ? 'rgba(60,140,200,0.30)' : def.type === 'romantic' ? 'rgba(220,80,180,0.30)' : 'rgba(180,120,30,0.30)'}`, borderRadius: '6px', padding: '2px 7px', fontSize: '9px', fontWeight: '700', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                  {def.icon} {lang === 'de' ? def.labelDe : def.labelEn}
-                </div>
-                {/* Hochsprache/Slang register badge top-right */}
-                <div style={{ position: 'absolute', top: '8px', right: '10px', background: def.type === 'informal' || def.type === 'romantic' ? 'rgba(180,120,30,0.14)' : 'rgba(140,140,155,0.14)', color: def.type === 'informal' || def.type === 'romantic' ? '#C8922A' : '#8A8A9A', border: `1px solid ${def.type === 'informal' || def.type === 'romantic' ? 'rgba(180,120,30,0.28)' : 'rgba(140,140,155,0.22)'}`, borderRadius: '6px', padding: '2px 7px', fontSize: '9px', fontWeight: '600', letterSpacing: '0.4px', textTransform: 'uppercase' }}>
-                  {def.type === 'informal' || def.type === 'romantic' ? 'Slang' : 'Hochsprache'}
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ color: th.text, fontSize: '0.9rem', fontWeight: '500', margin: '0 0 4px', lineHeight: 1.4 }}>{v.sentence}</p>
-                    {v.note && <p style={{ color: th.sub, fontSize: '0.75rem', margin: 0, fontStyle: 'italic' }}>{v.note}</p>}
-                  </div>
-                  <button onClick={() => handleSave(v)} disabled={isSaved}
-                    style={{ background: isSaved ? 'rgba(0,191,165,0.2)' : `${th.accent}22`, border: `1px solid ${isSaved ? '#00BFA5' : th.accent}55`, color: isSaved ? '#00BFA5' : th.accent, borderRadius: '10px', padding: '6px 12px', fontSize: '0.75rem', fontWeight: '700', cursor: isSaved ? 'default' : 'pointer', flexShrink: 0, WebkitTapHighlightColor: 'transparent' }}>
-                    {isSaved ? '✓' : t.learn}
-                  </button>
-                </div>
-              </div>
-            )
-          })}
-          {saved.size > 0 && (
-            <div style={{ textAlign: 'center', animation: 'vocaraFadeIn 0.3s ease both', marginTop: '8px' }}>
-              <p style={{ color: '#00BFA5', fontSize: '0.85rem', fontWeight: '600', margin: '0 0 12px' }}>✓ {t.variantSaved}</p>
-              <button style={{ ...s.button }} onClick={onBack}>{t.finishDone}</button>
-            </div>
-          )}
-        </div>
-      )}
-    </div></div>
-  )
-}
-
-function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, onSaveState, onSaveSessionProgress, onStop, onSaveExample, mode = 'all', startIndex = 0, startProgress = null, userToLang = 'en', socialRegister = 'friends', onNeverLearn, onKontext }) {
+function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveState, onSaveSessionProgress, onStop, onSaveExample, mode = 'all', startIndex = 0, startProgress = null, userToLang = 'en' }) {
   const [index, setIndex] = useState(startIndex)
   const [queue, setQueue] = useState(session)
   const [revealed, setRevealed] = useState(false)
@@ -3168,19 +1920,12 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
   const [micResult, setMicResult] = useState(null) // { score, total, words: [{word, correct}] }
   const [phoneticCache, setPhoneticCache] = useState({})
   const [cardAnim, setCardAnim] = useState(null) // null | 'flyRight' | 'flyUp' | 'shake'
-  const [cardSlideIn, setCardSlideIn] = useState(false) // slide-in for next card
-  const [burstParticles, setBurstParticles] = useState([]) // [{id,x,y,color,dx,dy}]
   const [flipPhase, setFlipPhase] = useState(false) // true = mid-flip (card turned sideways)
   const [patternTip, setPatternTip] = useState(null) // null | 'loading' | string
   const wrongCardsRef = useRef([]) // accumulates wrong cards for pattern analysis
-  const reactionTimesRef = useRef({}) // cardId → ms
   const [kiExplanation, setKiExplanation] = useState(null) // null | 'loading' | string
   const [noteOpen, setNoteOpen] = useState(false)
   const [noteText, setNoteText] = useState('')
-  const [reportedCards, setReportedCards] = useState(new Set())
-  const [reportModal, setReportModal] = useState(false)
-  const [reportComment, setReportComment] = useState('')
-  const [reportSent, setReportSent] = useState(false)
   const [kontextVariation, setKontextVariation] = useState(null) // null | 'loading' | {formal,informal,romantic}
   const [kontextOpen, setKontextOpen] = useState(false)
   const animLock = useRef(false)
@@ -3189,12 +1934,6 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
   const easyCountRef = useRef(0)
   const fastCountRef = useRef(0)
   const cardStatsRef = useRef({})
-  const longPressTimer = useRef(null)
-  const handleCardPressStart = () => {
-    if (!onNeverLearn) return
-    longPressTimer.current = setTimeout(() => { if (onNeverLearn) onNeverLearn(item) }, 700)
-  }
-  const handleCardPressEnd = () => { clearTimeout(longPressTimer.current) }
 
   useEffect(() => {
     if (!window.DeviceOrientationEvent) return
@@ -3213,28 +1952,6 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
   const fromLang = item.langA
   const toLang = item.langB
   const showPronunciation = item.pronunciation
-
-  const selectVoiceForLang = useCallback((langCode) => {
-    const voices = window.speechSynthesis.getVoices()
-    const key = (langCode || 'en').toUpperCase()
-    const preferred = VOICE_MAP[key] || ['en-GB']
-    let voice = voices.find(v => preferred.some(p => v.lang === p))
-    if (!voice) voice = voices.find(v => preferred.some(p => v.lang.startsWith(p.split('-')[0])))
-    return voice || voices[0]
-  }, [])
-
-  const speakTargetLanguageOnly = useCallback((text, langCode) => {
-    if (!text || !langCode) return
-    const key = (langCode || 'en').toUpperCase()
-    const utterance = new SpeechSynthesisUtterance(text)
-    const voice = selectVoiceForLang(key)
-    utterance.voice = voice
-    utterance.lang = VOICE_MAP[key]?.[0] || 'en-GB'
-    utterance.rate = 0.85
-    window.speechSynthesis.cancel()
-    window.speechSynthesis.speak(utterance)
-  }, [selectVoiceForLang])
-
   // Always speak the TARGET language side of the card, never native language
   const speakBack = (mode = ttsMode) => {
     const result = getToLangText(item, userToLang)
@@ -3252,11 +1969,7 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
     const rec = new SR()
     const toLangResult = getToLangText(item, userToLang) || { text: item.back, langCode: userToLang }
     const { text: toLangText, langCode: toLangCode } = toLangResult
-    // Fix: detect question language so mic uses the answer language, not the question language
-    const questionLang = item.langA || toLangCode
-    const questionIsInToLang = questionLang === userToLang
-    const fromLangForMic = lang || 'de' // user's native language
-    rec.lang = questionIsInToLang ? (SPEECH_LANGS[fromLangForMic] || 'de-DE') : (SPEECH_LANGS[toLangCode] || 'en-GB')
+    rec.lang = SPEECH_LANGS[toLangCode] || 'en-GB'
     rec.interimResults = false; rec.maxAlternatives = 3
     const timeout = setTimeout(() => { try { rec.stop() } catch(e) {} }, 5000)
     rec.onresult = (e) => {
@@ -3275,11 +1988,6 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
       const pct = Math.round((words.filter(w => w.correct).length / Math.max(words.length, 1)) * 100)
       setMicResult({ score: pct, words, transcript })
       setMicState('done')
-      // track pronunciation score history per card for coaching
-      setNewProgress(prev => {
-        const hist = prev[item.id]?._pronunciationHistory || []
-        return { ...prev, [item.id]: { ...prev[item.id], _pronunciationHistory: [...hist, pct].slice(-10) } }
-      })
     }
     rec.onerror = () => { clearTimeout(timeout); setMicState('idle') }
     rec.onend = () => { clearTimeout(timeout); setMicState(s => s === 'listening' ? 'idle' : s) }
@@ -3304,40 +2012,32 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
     }).catch(() => {})
   }, [revealed, index])
 
-  // Load note for current card (newProgress takes priority — written in this session)
+  // Load note for current card
   useEffect(() => {
-    setNoteText(newProgress[item.id]?._note || cardProgress[item.id]?._note || '')
+    setNoteText(cardProgress[item.id]?._note || '')
     setNoteOpen(false)
     setKiExplanation(null)
     setKontextVariation(null); setKontextOpen(false)
     setMicState('idle'); setMicResult(null)
   }, [index])
 
-  // ── FEHLER-MUSTER ANALYSE (Sonnet after 10 wrong) ────────────
+  // ── FEHLER-MUSTER ANALYSE (#33) ──────────────────────────────
   useEffect(() => {
     if (wrong < 10 || patternTip !== null) return
     setPatternTip('loading')
     const cards = wrongCardsRef.current.slice(0, 10)
-    const cardList = cards.map(c => `"${c.front}" → "${c.back}" (reacted in ${c.reactionMs ? Math.round(c.reactionMs/1000)+'s' : '?'})`).join('; ')
+    const cardList = cards.map(c => `"${c.front}" → "${c.back}"`).join('; ')
     const tipLang = lang === 'de' ? 'German' : 'English'
-    const regCtx = socialRegisterContext(socialRegister)
     fetch('/api/chat', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 120,
-        messages: [{ role: 'user', content: `A language learner (social context: ${regCtx}) answered these ${cards.length} cards incorrectly: ${cardList}. In exactly 1 sentence in ${tipLang}, name the specific grammar pattern or memory trick that connects these mistakes. Consider reaction times — slow reactions signal active recall failure, not just gaps. Suggest an appropriate tense focus (present/past/future). Be concrete, practical, not generic.` }]
+      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 100,
+        messages: [{ role: 'user', content: `A language learner answered these ${cards.length} cards incorrectly: ${cardList}. In exactly 1 sentence in ${tipLang}, name one specific grammar pattern or memory tip connecting these mistakes. Be concrete and brief, not generic.` }]
       })
-    }).then(r => r.json()).then(async d => {
+    }).then(r => r.json()).then(d => {
       const tip = d.content?.[0]?.text?.trim()
       setPatternTip(tip || null)
-      // Save to Firestore errorPatterns
-      if (user && tip) {
-        const entry = { tip, date: todayStr(), wrongCards: cards.slice(0, 5).map(c => c.front), register: socialRegister }
-        updateDoc(doc(db, 'users', user.uid), { errorPatterns: [entry] }).catch(() => {
-          setDoc(doc(db, 'users', user.uid, 'analysis', 'errorPatterns'), { patterns: [entry] }, { merge: true }).catch(() => {})
-        })
-      }
     }).catch(() => setPatternTip(null))
-  }, [wrong]) // eslint-disable-line
+  }, [wrong])
 
   // Example sentence for vocabulary cards
   const [exampleSentence, setExampleSentence] = useState(null)
@@ -3367,31 +2067,11 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
     }).catch(() => {})
   }, [revealed, index])
 
-  const triggerBurst = (isEasy) => {
-    const count = isEasy ? 14 : 9
-    const colors = isEasy
-      ? ['#FFD700','#FFD700','#FFF700','#FF9900','#FFFFFF']
-      : ['#00E676','#69F0AE','#FFFFFF','#B9F6CA']
-    const particles = Array.from({ length: count }, (_, i) => {
-      const angle = (i / count) * 2 * Math.PI
-      const dist = 55 + Math.random() * 45
-      return { id: i, color: colors[i % colors.length], dx: Math.cos(angle) * dist, dy: Math.sin(angle) * dist }
-    })
-    setBurstParticles(particles)
-    setTimeout(() => setBurstParticles([]), 600)
-  }
-
   const triggerAnim = (anim, delay, cb) => {
     if (animLock.current) return
     animLock.current = true
     setCardAnim(anim)
-    setTimeout(() => {
-      setCardAnim(null)
-      animLock.current = false
-      setCardSlideIn(true)
-      setTimeout(() => setCardSlideIn(false), 350)
-      cb()
-    }, delay)
+    setTimeout(() => { setCardAnim(null); animLock.current = false; cb() }, delay)
   }
 
   const handleReveal = () => {
@@ -3406,7 +2086,7 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
   const handleStop = () => {
     onSaveState?.(queue, index, newProgress)
     if (onStop) {
-      onStop(newProgress, answeredIds.current.size, correct, wrong)
+      onStop(newProgress, answeredIds.current.size)
     } else {
       if (answeredIds.current.size > 0) {
         onSaveSessionProgress?.(Array.from(answeredIds.current), mode)
@@ -3475,24 +2155,22 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
   }
   const handleAnswer = (isCorrect) => {
     const elapsed = (Date.now() - startTime.current) / 1000
-    const elapsedMs = elapsed * 1000
     const cardId = item.id
     answeredIds.current.add(cardId)
-    reactionTimesRef.current[cardId] = elapsedMs
     const st = cardStatsRef.current[cardId] || { wrongs: 0, fastestMs: Infinity }
     if (!isCorrect) {
       cardStatsRef.current[cardId] = { ...st, wrongs: st.wrongs + 1 }
       const prev = newProgress[cardId] || { interval: 0, consecutiveRight: 0, wrongSessions: 0 }
-      const updatedProgress = { ...prev, interval: 0, consecutiveRight: 0, wrongSessions: 3, nextReview: todayStr(), wrongCount: (prev.wrongCount || 0) + 1, _lastReactionMs: Math.round(elapsedMs) }
+      const updatedProgress = { ...prev, interval: 0, consecutiveRight: 0, wrongSessions: 3, nextReview: todayStr(), wrongCount: (prev.wrongCount || 0) + 1 }
       const finalNewProgress = { ...newProgress, [cardId]: updatedProgress }
       const newQueue = [...queue]
       newQueue.splice(index, 1)
       newQueue.splice(Math.min(index + 5, newQueue.length), 0, { ...item })
-      wrongCardsRef.current.push({ front: item.front, back: item.back, reactionMs: Math.round(elapsedMs) })
+      wrongCardsRef.current.push({ front: item.front, back: item.back })
       setQueue(newQueue); setNewProgress(finalNewProgress); setWrong(w => w + 1); setRevealed(false)
       onSaveState?.(newQueue, index, finalNewProgress)
     } else {
-      cardStatsRef.current[cardId] = { ...st, fastestMs: Math.min(st.fastestMs, elapsedMs) }
+      cardStatsRef.current[cardId] = { ...st, fastestMs: Math.min(st.fastestMs, elapsed * 1000) }
       const prev = newProgress[cardId] || { interval: 0, consecutiveRight: 0, wrongSessions: 0 }
       const newCR = (prev.consecutiveRight || 0) + 1
       const baseInterval = Math.max(2, (prev.interval || 0) + 1)
@@ -3500,11 +2178,8 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
       if (newCR >= 5) interval = Math.max(4, (prev.interval || 0) + 3)
       else if (newCR >= 3) interval = Math.max(3, (prev.interval || 0) + 2)
       else interval = baseInterval
-      // Reaction time modifier: fast <3s = boost, slow >10s = slight reduce
-      if (elapsed < 3 && interval > 1) interval = Math.min(interval + 1, interval + 1)
-      else if (elapsed > 10) interval = Math.max(1, interval - 1)
       const isGolden = interval >= 14
-      const updatedProgress = { ...prev, interval, consecutiveRight: newCR, wrongSessions: Math.max(0, (prev.wrongSessions || 0) - 1), nextReview: getNextReview(interval), rightCount: (prev.rightCount || 0) + 1, isGolden, _lastReactionMs: Math.round(elapsedMs) }
+      const updatedProgress = { ...prev, interval, consecutiveRight: newCR, wrongSessions: Math.max(0, (prev.wrongSessions || 0) - 1), nextReview: getNextReview(interval), rightCount: (prev.rightCount || 0) + 1, isGolden }
       const finalProgress = { ...newProgress, [cardId]: updatedProgress }
       setNewProgress(finalProgress)
       const newCorrect = correct + 1; setCorrect(newCorrect)
@@ -3522,25 +2197,21 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
       haptic(50)
     } else {
       haptic([100, 100, 100])
-      // Fetch KI explanation for wrong answer — always in fromLang
+      // Fetch KI explanation
       setKiExplanation('loading')
-      const fromLangName = fromLang === 'de' ? 'German' : fromLang === 'en' ? 'English' : fromLang === 'sw' ? 'Swahili' : 'German'
-      const toLangName = toLang === 'de' ? 'German' : toLang === 'en' ? 'English' : toLang === 'sw' ? 'Swahili' : 'English'
       fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 90,
-          messages: [{ role: 'user', content: `You MUST respond ONLY in ${fromLangName}. Never use ${toLangName}.\nIn ${fromLangName} only: Why is "${item.back}" the correct ${toLangName} for "${item.front}"? Max 2 sentences. Be specific about grammar or meaning. No intro.` }]
+        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 100,
+          messages: [{ role: 'user', content: `The user got this card wrong. Front: "${item.front}" Back: "${item.back}". In 1-2 short sentences in ${fromLang === 'de' ? 'German' : 'English'}, explain the grammar rule or memory trick that helps remember this. Be brief and encouraging.` }]
         })
       }).then(r => r.json()).then(d => setKiExplanation(d.content?.[0]?.text?.trim() || null)).catch(() => setKiExplanation(null))
     }
     const anim = isCorrect ? 'flyRight' : 'shake'
     const delay = isCorrect ? 350 : 480
-    if (isCorrect) triggerBurst(false)
     triggerAnim(anim, delay, () => handleAnswer(isCorrect))
   }
   const handleEasyAnimated = () => {
     haptic([30, 40, 30, 40, 30])
-    triggerBurst(true)
     triggerAnim('flyUp', 320, () => handleEasy())
   }
   const handleFastAnimated = () => {
@@ -3567,56 +2238,29 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
           </p>
         )
       })()}
-      {/* ── PARTICLE BURST (#47) ── */}
-      {burstParticles.length > 0 && (
-        <div style={{ position: 'fixed', top: '38%', left: '50%', pointerEvents: 'none', zIndex: 999 }}>
-          {burstParticles.map(p => (
-            <div key={p.id} style={{
-              position: 'absolute', width: '8px', height: '8px', borderRadius: '50%', background: p.color,
-              '--px': `${p.dx}px`, '--py': `${p.dy}px`,
-              animation: 'particleBurst 0.55s ease-out forwards',
-            }} />
-          ))}
-          <div style={{ position: 'absolute', width: '44px', height: '44px', borderRadius: '50%', border: '2px solid rgba(255,215,0,0.6)', top: '-22px', left: '-22px', animation: 'sparkleRing 0.5s ease-out forwards' }} />
-        </div>
-      )}
-      {/* ── KONTEXT BUTTON ABOVE CARD ── */}
-      {onKontext && (
-        <button onClick={() => onKontext(item)} style={{ width: '100%', marginBottom: '10px', padding: '8px 16px', background: 'rgba(0,191,165,0.10)', border: '1.5px solid rgba(0,191,165,0.45)', borderRadius: '12px', color: '#00BFA5', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer', animation: 'vocaraKontextGlow 2s ease-in-out infinite', WebkitTapHighlightColor: 'transparent', letterSpacing: '0.3px' }}>
-          🔄 {lang === 'de' ? `Kontext: "${item.front}"` : `Context: "${item.front}"`}
-        </button>
-      )}
       {/* ── FLIP CARD ── */}
       <div style={{ width: '100%', marginBottom: '16px', perspective: '900px',
-        animation: cardAnim
-          ? `vocara${cardAnim.charAt(0).toUpperCase() + cardAnim.slice(1)} ${cardAnim === 'shake' ? '0.48s' : '0.35s'} ease forwards`
-          : cardSlideIn ? 'vocaraSlideIn 0.32s ease-out forwards' : undefined,
+        animation: cardAnim ? `vocara${cardAnim.charAt(0).toUpperCase() + cardAnim.slice(1)} ${cardAnim === 'shake' ? '0.48s' : '0.35s'} ease forwards` : undefined,
       }}>
-        <div className="vocara-big-card"
-          onTouchStart={handleCardPressStart} onTouchEnd={handleCardPressEnd} onTouchMove={handleCardPressEnd}
-          onMouseDown={handleCardPressStart} onMouseUp={handleCardPressEnd} onMouseLeave={handleCardPressEnd}
-          style={(() => {
-            const isGoldenCard = newProgress[item.id]?.isGolden || cardProgress[item.id]?.isGolden
-            const rarity = item.rarity || (!item.level ? null : Number(item.level) <= 6 ? 'silver' : 'gold')
-            const border = isGoldenCard ? '1px solid rgba(255,215,0,0.60)'
-              : rarity === 'gold' ? '1px solid rgba(255,165,0,0.45)'
-              : rarity === 'silver' ? '1px solid rgba(192,192,210,0.40)'
-              : revealed ? `1px solid ${s.progressFill.background}` : `1px solid ${s.progressBar.background}`
-            return {
-              ...s.bigCard,
-              border,
-              boxShadow: isGoldenCard ? undefined
-                : item.important ? `0 0 18px rgba(255,200,50,0.18), ${s.bigCard.boxShadow || ''}` : s.bigCard.boxShadow,
-              animation: isGoldenCard && !flipPhase ? 'goldShimmer 2.4s ease-in-out infinite' : undefined,
-              transition: flipPhase ? 'transform 0.23s ease-in, border-color 0.3s ease' : 'transform 0.23s ease-out, border-color 0.3s ease',
-              minHeight: '220px',
-              transform: flipPhase
-                ? `rotateX(${-cardTilt.x * 0.5}deg) rotateY(90deg)`
-                : `rotateX(${-cardTilt.x * 1.5}deg) rotateY(${cardTilt.y * 1.5}deg)`,
-              transformStyle: 'preserve-3d',
-              willChange: 'transform',
-            }
-          })()}>
+        <div className="vocara-big-card" style={{
+          ...s.bigCard,
+          border: (newProgress[item.id]?.isGolden || cardProgress[item.id]?.isGolden)
+            ? '1px solid rgba(255,215,0,0.60)'
+            : revealed ? `1px solid ${s.progressFill.background}` : `1px solid ${s.progressBar.background}`,
+          boxShadow: (newProgress[item.id]?.isGolden || cardProgress[item.id]?.isGolden)
+            ? undefined
+            : s.bigCard.boxShadow,
+          animation: (newProgress[item.id]?.isGolden || cardProgress[item.id]?.isGolden) && !flipPhase
+            ? 'goldShimmer 2.4s ease-in-out infinite'
+            : undefined,
+          transition: flipPhase ? 'transform 0.23s ease-in, border-color 0.3s ease' : 'transform 0.23s ease-out, border-color 0.3s ease',
+          minHeight: '220px',
+          transform: flipPhase
+            ? `rotateX(${-cardTilt.x * 0.5}deg) rotateY(90deg)`
+            : `rotateX(${-cardTilt.x * 1.5}deg) rotateY(${cardTilt.y * 1.5}deg)`,
+          transformStyle: 'preserve-3d',
+          willChange: 'transform',
+        }}>
           {/* specular highlight — moves opposite to tilt, simulates light reflection */}
           <div style={{
             position: 'absolute', inset: 0, borderRadius: 'inherit', pointerEvents: 'none',
@@ -3645,33 +2289,9 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
               🎁 {item.sharedBy}
             </div>
           )}
-          {/* Rarity badge — bottom-right (silver ⬡ / gold 🥇) */}
-          {!!(item.rarity || item.level) && !(newProgress[item.id]?.isGolden || cardProgress[item.id]?.isGolden) && (() => {
-            const r = item.rarity || (Number(item.level) <= 6 ? 'silver' : 'gold')
-            if (r === 'gold') return <div style={{ position: 'absolute', bottom: '8px', right: '10px', background: 'rgba(255,165,0,0.13)', color: '#FFA040', border: '1px solid rgba(255,165,0,0.35)', borderRadius: '6px', padding: '2px 7px', fontSize: '9px', fontWeight: '600', letterSpacing: '0.3px', pointerEvents: 'none' }}>🥇 Rare</div>
-            return <div style={{ position: 'absolute', bottom: '8px', right: '10px', background: 'rgba(192,192,210,0.10)', color: '#A0A0C0', border: '1px solid rgba(192,192,210,0.28)', borderRadius: '6px', padding: '2px 7px', fontSize: '9px', fontWeight: '600', letterSpacing: '0.3px', pointerEvents: 'none' }}>⬡ Silver</div>
-          })()}
-          {/* Tense tag — bottom-left of card (only when not present tense) */}
-          {item.tense && item.tense !== 'present' && TENSE_LABELS[item.tense] && (
-            <div style={{ position: 'absolute', bottom: '8px', left: '10px', background: 'rgba(100,80,200,0.15)', border: '1px solid rgba(100,80,200,0.28)', borderRadius: '6px', padding: '2px 7px', fontSize: '9px', fontWeight: '600', letterSpacing: '0.4px', color: '#9c7bf0', pointerEvents: 'none' }}>
-              {TENSE_LABELS[item.tense].emoji} {lang === 'de' ? TENSE_LABELS[item.tense].de : TENSE_LABELS[item.tense].en}
-            </div>
-          )}
-          {/* WordType tag — top-right, only when no gold/gift badge */}
-          {item.wordType && !(newProgress[item.id]?.isGolden || cardProgress[item.id]?.isGolden) && !item.sharedBy && (
-            <div style={{ position: 'absolute', top: '8px', right: '10px', background: 'rgba(60,140,200,0.14)', color: '#70b0d8', border: '1px solid rgba(60,140,200,0.28)', borderRadius: '6px', padding: '2px 7px', fontSize: '9px', fontWeight: '600', letterSpacing: '0.4px', pointerEvents: 'none' }}>
-              {item.article ? `${item.article} · ` : ''}{item.wordType}
-            </div>
-          )}
           {/* Note icon — bottom-right of card */}
-          <button onClick={() => setNoteOpen(o => !o)} style={{ position: 'absolute', bottom: '8px', right: '32px', background: noteText ? 'rgba(255,255,255,0.10)' : 'transparent', border: noteText ? '1px solid rgba(255,255,255,0.18)' : 'none', borderRadius: '8px', padding: '3px 7px', color: noteText ? '#e0c060' : '#8A8A9A', fontSize: '0.75rem', cursor: 'pointer', opacity: 0.85, lineHeight: 1, zIndex: 2 }}>
+          <button onClick={() => setNoteOpen(o => !o)} style={{ position: 'absolute', bottom: '8px', right: '10px', background: noteText ? 'rgba(255,255,255,0.10)' : 'transparent', border: noteText ? '1px solid rgba(255,255,255,0.18)' : 'none', borderRadius: '8px', padding: '3px 7px', color: noteText ? '#e0c060' : '#8A8A9A', fontSize: '0.75rem', cursor: 'pointer', opacity: 0.85, lineHeight: 1, zIndex: 2 }}>
             📝
-          </button>
-          {/* Report translation button — bottom-right */}
-          <button onClick={() => { if (!reportedCards.has(item.id)) setReportModal(true) }}
-            style={{ position: 'absolute', bottom: '8px', right: '10px', background: 'transparent', border: 'none', borderRadius: '8px', padding: '3px 5px', color: reportedCards.has(item.id) ? '#e57373' : '#8A8A9A', fontSize: '0.7rem', cursor: reportedCards.has(item.id) ? 'default' : 'pointer', opacity: reportedCards.has(item.id) ? 1 : 0.6, lineHeight: 1, zIndex: 2 }}
-            title={lang === 'de' ? 'Übersetzung melden' : 'Report translation'}>
-            🚩
           </button>
           <p style={s.dirLabel}>{LANG_FLAGS[fromLang]} → {LANG_FLAGS[toLang]}</p>
           <p style={s.cardFront}>{question}</p>
@@ -3794,8 +2414,6 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
                 <button onClick={async () => {
                   const updated = { ...newProgress, [item.id]: { ...(newProgress[item.id] || {}), _note: noteText } }
                   setNewProgress(updated); setNoteOpen(false)
-                  // Immediate Firestore write so note persists even if session is abandoned
-                  if (user) updateDoc(doc(db, 'users', user.uid), { [`cardProgress.${item.id}._note`]: noteText }).catch(() => {})
                   await onSaveState?.(queue, index, updated)
                 }} style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '10px', padding: '7px 16px', color: '#e0e0e0', fontSize: '0.82rem', cursor: 'pointer', fontWeight: '600' }}>
                   ✓ {lang === 'de' ? 'Speichern' : 'Save'}
@@ -3805,52 +2423,12 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
           </div>
         </div>
       )}
-      {reportModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 8900, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: '0 16px 40px', background: 'rgba(0,0,0,0.6)' }}
-          onClick={() => { setReportModal(false); setReportComment(''); setReportSent(false) }}>
-          <div style={{ width: '100%', maxWidth: '440px', background: 'rgba(20,20,28,0.97)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '20px', padding: '18px 16px', animation: 'vocaraFadeIn 0.2s ease both' }}
-            onClick={e => e.stopPropagation()}>
-            <p style={{ color: '#e57373', fontSize: '0.82rem', fontWeight: '700', marginBottom: '10px', letterSpacing: '0.3px' }}>🚩 {lang === 'de' ? 'Übersetzung melden' : 'Report translation'}</p>
-            <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: '10px', padding: '8px 12px', marginBottom: '10px', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <p style={{ color: '#ccc', fontSize: '0.8rem', margin: '0 0 3px' }}>{item.front}</p>
-              <p style={{ color: '#888', fontSize: '0.78rem', margin: 0, fontStyle: 'italic' }}>{item.back}</p>
-            </div>
-            {reportSent ? (
-              <p style={{ color: '#4CAF50', fontSize: '0.88rem', textAlign: 'center', padding: '10px 0', fontWeight: '600' }}>✓ {lang === 'de' ? 'Danke für dein Feedback!' : 'Thank you for your feedback!'}</p>
-            ) : (
-              <>
-                <textarea value={reportComment} onChange={e => setReportComment(e.target.value)} maxLength={200} rows={2}
-                  placeholder={lang === 'de' ? 'Was ist falsch? (optional)' : 'What is wrong? (optional)'}
-                  style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '10px', padding: '8px 12px', color: '#ccc', fontSize: '0.82rem', resize: 'none', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: '10px' }} />
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button onClick={() => { setReportModal(false); setReportComment(''); }}
-                    style={{ flex: 1, background: 'transparent', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '10px', padding: '9px', color: '#888', fontSize: '0.82rem', cursor: 'pointer' }}>
-                    {lang === 'de' ? 'Abbrechen' : 'Cancel'}
-                  </button>
-                  <button onClick={async () => {
-                    setReportedCards(prev => new Set([...prev, item.id]))
-                    try { await setDoc(doc(db, 'reports', `${item.id}_${Date.now()}`), { cardId: item.id, front: item.front, back: item.back, reportedBy: user?.uid || '', comment: reportComment.trim(), timestamp: Date.now() }) } catch(_) {}
-                    setReportSent(true)
-                    setTimeout(() => { setReportModal(false); setReportComment(''); setReportSent(false) }, 1800)
-                  }} style={{ flex: 1, background: 'rgba(229,57,53,0.18)', border: '1px solid rgba(229,57,53,0.45)', borderRadius: '10px', padding: '9px', color: '#e57373', fontSize: '0.82rem', cursor: 'pointer', fontWeight: '700' }}>
-                    🚩 {lang === 'de' ? 'Melden' : 'Report'}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
       {kiExplanation && (
-        <div style={{ width: '100%', marginBottom: '8px', background: 'rgba(229,57,53,0.07)', border: '1px solid rgba(229,57,53,0.22)', borderRadius: '12px', padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: '8px', animation: 'vocaraFadeIn 0.3s ease both' }}>
+        <div style={{ width: '100%', marginBottom: '8px', background: 'rgba(76,175,80,0.08)', border: '1px solid rgba(76,175,80,0.22)', borderRadius: '12px', padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
           <div style={{ flex: 1 }}>
             {kiExplanation === 'loading'
-              ? <p style={{ color: '#8A8A9A', fontSize: '0.78rem', margin: 0, animation: 'vocaraPulse 1.2s infinite' }}>💡 {lang === 'de' ? 'KI erklärt…' : 'AI explaining…'}</p>
-              : <>
-                  <p style={{ color: '#81c784', fontSize: '0.88rem', fontWeight: '700', margin: '0 0 6px', letterSpacing: '0.2px' }}>{item.back}</p>
-                  <p style={{ color: '#e57373', fontSize: '0.65rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 4px' }}>💡 {lang === 'de' ? 'KI erklärt:' : 'AI explains:'}</p>
-                  <p style={{ color: '#ffcdd2', fontSize: '0.78rem', margin: 0, lineHeight: 1.55 }}>{kiExplanation}</p>
-                </>
+              ? <p style={{ color: '#8A8A9A', fontSize: '0.78rem', margin: 0 }}>💡 {lang === 'de' ? 'KI erklärt…' : 'AI explaining…'}</p>
+              : <p style={{ color: '#81c784', fontSize: '0.78rem', margin: 0, lineHeight: 1.5 }}>💡 {kiExplanation}</p>
             }
           </div>
           {kiExplanation !== 'loading' && (
@@ -3916,9 +2494,9 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
       )}
       {revealed && (
         <div style={s.answerRow}>
-          <button style={s.wrongBtn} onClick={() => handleAnswerAnimated(false)}>{t.wrong}</button>
-          <button style={s.fastBtn} onClick={handleFastAnimated}>{t.fast}</button>
-          <button style={s.rightBtn} onClick={() => handleAnswerAnimated(true)}>{t.correct}</button>
+          <button style={s.wrongBtn} onClick={() => handleAnswerAnimated(false)}>❌ {t.wrong}</button>
+          <button style={s.fastBtn} onClick={handleFastAnimated}>😕 {t.fast}</button>
+          <button style={s.rightBtn} onClick={() => handleAnswerAnimated(true)}>✅ {t.correct}</button>
           <button style={s.easyBtn} onClick={handleEasyAnimated}>{t.easy}</button>
         </div>
       )}
@@ -3926,20 +2504,12 @@ function CardScreen({ user, session, onBack, onFinish, lang, cardProgress, s, on
   )
 }
 
-function ResultScreen({ correct, wrong, fast, easy, weakestCard, strongestCard, masteryUnlocked, t, lang, onBack, onReplay, onRhythmus, onKontext, showRhythmus, urlaubNote, onUnlockUrlaub, kontextCard, s, th }) {
+function ResultScreen({ correct, wrong, fast, easy, weakestCard, strongestCard, masteryUnlocked, t, lang, onBack, onReplay, s, th }) {
+  const isMarkLang = lang === 'de'
   return (
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
       <h1 style={s.title}>{t.done} 🎉</h1>
       {masteryUnlocked && <div style={{ ...s.card, borderLeft: '3px solid #4CAF50' }}><p style={{ color: '#4CAF50', margin: 0, fontSize: '0.85rem' }}>{t.masteryMsg}</p></div>}
-      {kontextCard && onKontext && (
-        <button
-          style={{ ...s.button, background: 'rgba(0,191,165,0.12)', color: '#00BFA5', marginBottom: '8px',
-            border: '1.5px solid #00BFA5', boxShadow: '0 0 12px rgba(0,191,165,0.35), 0 0 0 2px rgba(0,191,165,0.08)',
-            animation: 'vocaraKontextGlow 2s ease-in-out infinite' }}
-          onClick={onKontext}>
-          🔄 {lang === 'de' ? `Kontext: "${kontextCard.front}"` : `Context: "${kontextCard.front}"`}
-        </button>
-      )}
       <div style={s.card}>
         <div style={s.langRow}><span style={s.lang}>❌ {t.wrong}</span><span style={{ ...s.langPct, color: '#e06c75' }}>{wrong}</span></div>
         {fast > 0 && <div style={s.langRow}><span style={s.lang}>😕 {t.fast}</span><span style={{ ...s.langPct, color: '#FFA500' }}>{fast}</span></div>}
@@ -3950,41 +2520,41 @@ function ResultScreen({ correct, wrong, fast, easy, weakestCard, strongestCard, 
         <div style={s.card}>
           {weakestCard && (
             <div style={{ marginBottom: strongestCard ? '14px' : 0 }}>
-              <p style={{ ...s.cardLabel, marginBottom: '5px', color: '#e06c75' }}>⚠️ {t.weakestCard}</p>
+              <p style={{ ...s.cardLabel, marginBottom: '5px', color: '#e06c75' }}>⚠️ {isMarkLang ? 'Schwächste Karte' : 'Weakest card'}</p>
               <p style={{ color: th?.text || '#fff', fontSize: '0.9rem', margin: 0, fontWeight: '500' }}>{weakestCard.front}</p>
               <p style={{ color: th?.sub || '#888', fontSize: '0.8rem', margin: '2px 0 0' }}>{weakestCard.back}</p>
             </div>
           )}
           {strongestCard && (
             <div>
-              <p style={{ ...s.cardLabel, marginBottom: '5px', color: '#4CAF50' }}>⚡ {t.strongestCard}</p>
+              <p style={{ ...s.cardLabel, marginBottom: '5px', color: '#4CAF50' }}>⚡ {isMarkLang ? 'Stärkste Karte' : 'Strongest card'}</p>
               <p style={{ color: th?.text || '#fff', fontSize: '0.9rem', margin: 0, fontWeight: '500' }}>{strongestCard.front}</p>
               <p style={{ color: th?.sub || '#888', fontSize: '0.8rem', margin: '2px 0 0' }}>{strongestCard.back}</p>
             </div>
           )}
         </div>
       )}
-      {urlaubNote && (
-        <div style={{ ...s.card, borderLeft: `3px solid ${th?.accent || '#FFD700'}`, marginBottom: '8px' }}>
-          <p style={{ color: th?.text || '#fff', fontWeight: '600', fontSize: '0.85rem', margin: '0 0 6px' }}>✈️ {t.urlaubLocked}</p>
-          <p style={{ color: th?.sub || '#888', fontSize: '0.78rem', margin: '0 0 10px' }}>{t.urlaubPremiumNote}</p>
-          {onUnlockUrlaub && <button onClick={onUnlockUrlaub} style={{ background: `${th?.accent || '#FFD700'}22`, border: `1px solid ${th?.accent || '#FFD700'}55`, color: th?.accent || '#FFD700', borderRadius: '10px', padding: '6px 16px', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>✨ Premium</button>}
-        </div>
-      )}
-      {showRhythmus && onRhythmus && (
-        <button style={{ ...s.button, background: `rgba(103,58,183,0.15)`, border: '1px solid rgba(103,58,183,0.4)', color: '#9c7bf0', marginBottom: '8px' }} onClick={onRhythmus}>
-          🎵 {t.rhythmusBtn}
-        </button>
-      )}
       {onReplay && (
         <button style={{ ...s.button, marginBottom: '8px' }} onClick={onReplay}>
-          🔁 {t.again}
+          🔁 {isMarkLang ? 'Nochmal' : 'Again'}
         </button>
       )}
       <button style={{ background: 'transparent', color: th?.sub || '#888', border: `1px solid ${th?.border || '#333'}`, padding: '12px 28px', borderRadius: '50px', fontSize: '0.95rem', cursor: 'pointer', fontWeight: '600', width: '100%' }} onClick={onBack}>
-        {t.finishDone}
+        {isMarkLang ? 'Fertig' : 'Done'}
       </button>
     </div></div>
+  )
+}
+function StatRow({ label, mastered, active, total, s }) {
+  const pct = active > 0 ? Math.round((mastered / active) * 100) : 0
+  return (
+    <div style={{ marginBottom: '10px' }}>
+      <div style={s.langRow}>
+        <span style={{ ...s.lang, fontSize: '0.9rem' }}>{label}</span>
+        <span style={{ ...s.langPct, fontSize: '0.8rem' }}>{mastered}/{active} ✓ · {active}/{total}</span>
+      </div>
+      <div style={s.progressBar}><div style={{ ...s.progressFill, width: `${pct}%` }} /></div>
+    </div>
   )
 }
 
@@ -3996,7 +2566,9 @@ function VocaraLogoSVG({ withSlogans = false, animate = false, isDE = true }) {
           DIE STIMME IST DIE BRÜCKE
         </p>
       )}
-      <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '2.8rem', fontWeight: '700', color: '#FFD700', margin: 0, letterSpacing: '4px', lineHeight: 1 }}>Vocara</p>
+      <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '2.8rem', fontWeight: '700', color: '#FFD700', margin: 0, letterSpacing: '4px', lineHeight: 1 }}>
+        Vocara
+      </p>
       {withSlogans && (
         <>
           <p style={{ color: 'rgba(245,200,66,0.40)', fontSize: '9px', fontWeight: '600', letterSpacing: '2px', textTransform: 'uppercase', margin: '10px 0 2px', fontFamily: "'Inter', system-ui, sans-serif" }}>
@@ -4011,33 +2583,24 @@ function VocaraLogoSVG({ withSlogans = false, animate = false, isDE = true }) {
   )
 }
 
-function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSaveProgress, theme, onThemeChange, onLightModeChange, onCardSizeChange, onPartnerUpdate, onSaveCefr, musicEnabled, musicVolume, onMusicToggle, onMusicVolume, onRefreshPartner, onBack }) {
+function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSaveProgress, theme, onThemeChange, onLightModeChange, onCardSizeChange, onPartnerUpdate, onSaveCefr, onBack }) {
   const [screen, setScreen] = useState('menu')
   const [session, setSession] = useState(null)
   const [result, setResult] = useState(null)
   const [masteryUnlocked, setMasteryUnlocked] = useState(false)
   const [aiNotification, setAiNotification] = useState(null)
   const [stopToast, setStopToast] = useState(null)
-  const [surpriseCard] = useState(null) // legacy — removed, kept for JSX ref safety
+  const [surpriseCard, setSurpriseCard] = useState(null) // {front, back, sharedBy, ...}
   const [pendingSession, setPendingSession] = useState(null)
   const [resumeStartIndex, setResumeStartIndex] = useState(0)
   const [resumeStartProgress, setResumeStartProgress] = useState(null)
   const [emptyCategoryMsg, setEmptyCategoryMsg] = useState(null)
   const [resumeDialog, setResumeDialog] = useState(null)
   const [currentSessionMode, setCurrentSessionMode] = useState('all')
-  const [activeToLang, setActiveToLang] = useState(() => {
-    try {
-      const tls = myData?.toLangs
-      if (tls && tls.length > 0 && tls[0]?.lang) return tls[0].lang.toLowerCase()
-      const t = myData?.toLang
-      return Array.isArray(t) ? (t[0] || 'en').toLowerCase() : (t || 'en').toLowerCase()
-    } catch { return 'en' }
-  })
   const [satzLoading, setSatzLoading] = useState(false)
   const [weekGoalCelebration, setWeekGoalCelebration] = useState(false)
   const [monthlyUnlockNotification, setMonthlyUnlockNotification] = useState(false)
   const [gimmickPopup, setGimmickPopup] = useState(false)
-  const [gimmickStreakDays, setGimmickStreakDays] = useState(null) // null = monthly trigger; number = streak milestone
   const [weeklyGoals, setWeeklyGoals] = useState(() => {
     const currentWeek = getISOWeekStr()
     const stored = myData?.weeklyGoals
@@ -4048,7 +2611,6 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const [miniTask, setMiniTask] = useState(null)
   const [miniTaskInput, setMiniTaskInput] = useState('')
   const [miniTaskLoading, setMiniTaskLoading] = useState(false)
-  const [incomingCardQueue, setIncomingCardQueue] = useState([]) // [{...card, _docId}]
   const [reactionPrompt, setReactionPrompt] = useState(null) // {name, count}
   const [floatingReaction, setFloatingReaction] = useState(null) // emoji string
   const [replyInput, setReplyInput] = useState('')
@@ -4056,21 +2618,15 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const [floatingMessage, setFloatingMessage] = useState(null) // incoming whisper text
   const [wordOfDayBanner, setWordOfDayBanner] = useState(null) // {front, back}
   const [freezeAvailable, setFreezeAvailable] = useState(true)
-const [dotTooltip, setDotTooltip] = useState(null) // area key
-  const [pendingGift] = useState(null) // legacy — removed
+  const [karteMenu, setKarteMenu] = useState(false)
+  const [dotTooltip, setDotTooltip] = useState(null) // area key
+  const [pendingGift, setPendingGift] = useState(null) // gift object
   const [coachMsg, setCoachMsg] = useState(null)
   const [tutorCollapsed, setTutorCollapsed] = useState(() => !!(myData?.tutorCollapsed))
   const [tutorRecommendedArea, setTutorRecommendedArea] = useState(null)
   const [sessionCompleteCount, setSessionCompleteCount] = useState(0)
   const [basicsLoading, setBasicsLoading] = useState(false)
-  const [kontextCard, setKontextCard] = useState(null)
-  const [kontextPrevScreen, setKontextPrevScreen] = useState('result')
-  const [tenseUnlockCelebration, setTenseUnlockCelebration] = useState(null) // 'past' | 'future' | null
-  const [neverLearnModal, setNeverLearnModal] = useState(null) // card object | null
-  const [categoryLevels, setCategoryLevels] = useState({ grundlagen: 1, vocab: 1, street: 1, home: 1, urlaub: 1, satz: 1 })
-  const [unlockCelebration, setUnlockCelebration] = useState(null) // { cat, catLabel, newLevel }
-  const pendingProgressRef = useRef(null)
-  const VALID_SCREENS = new Set(['menu','cards','result','settings','partner','test','impressum','stats','ki','satz','diary','meinekarten','geschenkkarte','karteerstellen','admin','rhythmus','kontext'])
+  const VALID_SCREENS = new Set(['menu','cards','result','settings','partner','test','impressum','stats','ki','satz','diary','meinekarten','geschenkkarte','karteerstellen','admin'])
   if (!VALID_SCREENS.has(screen)) { setScreen('menu'); return null }
 
   // ── KI-TUTOR BANNER ──────────────────────────────────────────
@@ -4084,11 +2640,11 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
     const fromLangName = isDE ? 'German' : 'English'
     const toLangName = isDE ? 'English' : 'German'
     const CATS = [
-      { key: 'vocabulary', label: t.areaVocab },
+      { key: 'vocabulary', label: isDE ? 'Wörter' : 'Words' },
       { key: 'street', label: 'Slang' },
-      { key: 'home', label: t.areaHome },
-      { key: 'sentence', label: t.areaSentences },
-      { key: 'basics', label: t.areaBasics },
+      { key: 'home', label: isDE ? 'Zuhause' : 'Home' },
+      { key: 'sentence', label: isDE ? 'Sätze' : 'Sentences' },
+      { key: 'basics', label: isDE ? 'Grundlagen' : 'Basics' },
     ]
     const todayD = todayStr()
     const catStats = CATS.map(({ key, label }) => {
@@ -4101,18 +2657,6 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
     const sessionsStr = lastSessions.length > 0 ? lastSessions.map(s => `${s.correct}/${s.total}`).join(',') : 'none'
     const phoneticCards = Object.values(cardProg).filter(p => p?._phonetic).length
     const phoneticStr = phoneticCards > 0 ? ` ${phoneticCards} cards have pronunciation guides.` : ''
-    const noteCards = Object.entries(cardProg).filter(([, p]) => p?._note).slice(0, 3)
-    const notesStr = noteCards.length > 0 ? ` User notes on ${noteCards.length} card(s): ${noteCards.map(([id, p]) => `"${p._note}"`).join(', ')}.` : ''
-    const weakPronunciationCards = Object.entries(cardProg)
-      .filter(([, p]) => (p?.interval || 0) >= 7 && Array.isArray(p?._pronunciationHistory) && p._pronunciationHistory.length >= 2)
-      .map(([id, p]) => {
-        const avg = Math.round(p._pronunciationHistory.reduce((a, b) => a + b, 0) / p._pronunciationHistory.length)
-        const card = (allCards || []).find(c => c.id === id)
-        return { avg, front: card?.front }
-      }).filter(x => x.avg < 65 && x.front).slice(0, 3)
-    const pronunciationNote = weakPronunciationCards.length > 0
-      ? ` Pronunciation weak on mastered words: ${weakPronunciationCards.map(x => `"${x.front}" (${x.avg}%)`).join(', ')}.`
-      : ''
     const AREA_KEYS = ['vocabulary','street','home','sentence','basics']
     let bestArea = 'vocabulary'; let bestDue = -1
     AREA_KEYS.forEach(key => {
@@ -4124,7 +2668,7 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
     fetch('/api/chat', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 45,
-        messages: [{ role: 'user', content: `You are a personal language tutor for a ${fromLangName} speaker learning ${toLangName}. Stats: ${catStats}. Last sessions: ${sessionsStr}. Streak: ${streak} days. Level: ${level}.${phoneticStr}${notesStr}${pronunciationNote} Give ONE specific coaching tip (max 20 words) in ${fromLangName} about what to focus on NOW to speak ${toLangName} faster. If user has pronunciation weaknesses, prioritize that. Bridgelab tone: warm, no fluff. Return ONLY the tip, no quotes or markdown. ${kiRespondIn(lang)}` }]
+        messages: [{ role: 'user', content: `You are a personal language tutor for a ${fromLangName} speaker learning ${toLangName}. Stats: ${catStats}. Last sessions: ${sessionsStr}. Streak: ${streak} days. Level: ${level}.${phoneticStr} Give ONE specific coaching tip (max 20 words) in ${fromLangName} about what to focus on NOW to speak ${toLangName} faster. Be practical and direct. Bridgelab tone: warm, no fluff. Return ONLY the tip, no quotes or markdown.` }]
       })
     }).then(r => r.json()).then(d => {
       const msg = d.content?.[0]?.text?.trim()
@@ -4142,7 +2686,13 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
     } catch(e) { console.warn('Failed to save example:', e) }
   }
 
-  // surpriseCard removed — handled by incomingCardQueue
+  // Check for surprise card from partner on mount
+  useEffect(() => {
+    const sc = myData?.surpriseCard
+    if (!sc) return
+    const seenToday = myData?.surpriseSeenDate === todayStr()
+    if (!seenToday) setSurpriseCard(sc)
+  }, [])
 
   // ── STREAK FREEZE ─────────────────────────────────────────
   useEffect(() => {
@@ -4151,22 +2701,12 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
     setFreezeAvailable(freeze.lastReset !== month ? true : (freeze.available ?? true))
   }, [myData?.streakFreeze])
 
-  // pendingGift removed — handled by incomingCardQueue
-
-  // ── CATEGORY LEVELS ───────────────────────────────────────
+  // ── PENDING GIFT CHECK ────────────────────────────────────
   useEffect(() => {
-    if (!user?.uid) return
-    getDoc(doc(db, 'users', user.uid, 'settings', 'categoryLevels'))
-      .then(snap => { if (snap.exists()) setCategoryLevels(prev => ({ ...prev, ...snap.data() })) })
-      .catch(() => {})
-  }, [user?.uid]) // eslint-disable-line
-
-  // ── SYNC activeToLang when myData.toLang changes (e.g. from Settings) ──────
-  useEffect(() => {
-    const tls = myData?.toLangs
-    const tl = tls?.length > 0 ? tls[0].lang : (Array.isArray(myData?.toLang) ? myData.toLang[0] : myData?.toLang)
-    if (tl) setActiveToLang(tl.toLowerCase())
-  }, [myData?.toLang, myData?.toLangs]) // eslint-disable-line
+    const gift = myData?.pendingGift
+    if (!gift || myData?.pendingGiftSeenDate === todayStr()) return
+    setPendingGift(gift)
+  }, [])
 
   // ── DAILY CARD ────────────────────────────────────────────
   useEffect(() => {
@@ -4211,13 +2751,11 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
         const toLangCode = isMarkLang ? 'en' : 'de'
         const fromLangCode = isMarkLang ? 'de' : 'en'
         const recentFronts = (myData?.recentDailyFronts || []).slice(-30).join(', ')
-        const relType = myData?.relationshipType || 'couple'
-        const relContext = { couple: 'romantic couple', friends: 'close friends', family: 'family members', colleagues: 'colleagues' }[relType] || 'couple'
         const res = await fetch('/api/chat', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             model: 'claude-haiku-4-5-20251001', max_tokens: 150,
-            messages: [{ role: 'user', content: `Today is ${todayD}. Generate ONE unique daily phrase card for a ${fromLangFull} speaker learning ${toLangFull} at level: ${level}. Category: ${category}. Context: two ${relContext} learning together. Front MUST be in ${toLangFull}, back in ${fromLangFull}. Avoid these recent fronts: ${recentFronts || 'none'}. Make the phrase emotionally resonant for ${relContext}. Return ONLY JSON (no markdown): {"front":"...","back":"...","context":"...","category":"${category}","relType":"${relType}"}` }]
+            messages: [{ role: 'user', content: `Today is ${todayD}. Generate ONE unique daily phrase card for a ${fromLangFull} speaker learning ${toLangFull} at level: ${level}. Category: ${category}. Front MUST be in ${toLangFull}, back in ${fromLangFull}. Avoid these recent fronts: ${recentFronts || 'none'}. Be creative, practical, and culturally rich. Return ONLY JSON (no markdown): {"front":"...","back":"...","context":"...","category":"${category}"}` }]
           })
         })
         const data = await res.json()
@@ -4244,7 +2782,7 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
     if (stored?.date === todayD) { setMiniTask(stored); return }
     // Pick only cards where front is in the target language (not native/SW)
     const targetLangA = lang === 'de' ? 'en' : 'de'
-    const masteredCards = (allCards || []).filter(c =>
+    const masteredCards = allCards.filter(c =>
       !/_r(_\d+)?$/.test(c.id) &&
       (cardProgress[c.id]?.interval || 0) >= 7 &&
       c.langA === targetLangA
@@ -4329,69 +2867,21 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
   )
 
   const { lightMode, cardSize } = React.useContext(AppPrefsContext)
-  const [t, setT] = useState(() => T[lang] || T.en)
-  const th = resolveTheme(theme, lightMode); const s = makeStyles(th)
-  useEffect(() => { loadLocale(lang).then(loaded => setT({ ...(T[lang] || T.en), ...loaded })).catch(() => {}) }, [lang])
+  const t = T[lang]; const th = resolveTheme(theme, lightMode); const s = makeStyles(th)
   const firstName = user.displayName?.split(' ')[0] || user.displayName
   const cardProgress = myData?.cardProgress || {}
   const isMarkLang = lang === 'de'
   const cefr = myData?.cefr
   const sessionHistory = myData?.sessionHistory || []
   const partnerName = myData?.partnerName || partnerData?.name?.split(' ')[0] || 'Partner'
-  // Free/Premium plan — Mark and Elosy always premium
-  const userPlan = (user.uid === MARK_UID || user.uid === ELOSY_UID) ? 'premium' : (myData?.plan || 'free')
-  const isPremium = userPlan !== 'free'
-  const [softPaywall, setSoftPaywall] = useState(null) // null | {area, used, limit}
-
-  // Free usage: count unique cards with any progress per category (derived from existing data)
-  const freeUsed = (category) => {
-    if (isPremium) return 0
-    return (allCards || []).filter(c => c.category === category && (cardProgress[c.id]?.interval || 0) > 0).length
-  }
-  const FREE_LIMITS = { street: 5, home: 5, urlaub: 3 }
-
-  const checkFreeLimit = (category) => {
-    if (isPremium) return true
-    const limit = FREE_LIMITS[category]
-    if (!limit) return true
-    const used = freeUsed(category)
-    if (used >= limit) {
-      setSoftPaywall({ area: category, used, limit })
-      // Also write to Firestore usage subcollection
-      setDoc(doc(db, 'users', user.uid, 'usage', category), { used, limit, updatedAt: Date.now() }, { merge: true }).catch(() => {})
-      return false
-    }
-    return true
-  }
-  useEffect(() => {
-    if (!user) return
-    const settingsRef = doc(db, 'users', user.uid, 'settings', 'preferences')
-    getDoc(settingsRef).then(snap => {
-      if (snap.exists() && snap.data().activeToLang) setActiveToLang(snap.data().activeToLang)
-    }).catch(() => {})
-  }, [user?.uid])
-
-  const handleChangeActiveToLang = async (newLang) => {
-    setActiveToLang(newLang)
-    if (user) {
-      const settingsRef = doc(db, 'users', user.uid, 'settings', 'preferences')
-      await setDoc(settingsRef, { activeToLang: newLang }, { merge: true }).catch(() => {})
-    }
-  }
-
   const today = todayStr()
   const yd = new Date(); yd.setDate(yd.getDate() - 1)
   const yesterday = `${yd.getFullYear()}-${String(yd.getMonth() + 1).padStart(2, '0')}-${String(yd.getDate()).padStart(2, '0')}`
-  const tomD = new Date(); tomD.setDate(tomD.getDate() + 1)
-  const tomorrow = `${tomD.getFullYear()}-${String(tomD.getMonth() + 1).padStart(2, '0')}-${String(tomD.getDate()).padStart(2, '0')}`
   const pausedLanguages = myData?.pausedLanguages || []
-  const excludedCardIds = new Set(Object.keys(myData?.excludedCards || {}))
-  const safeCards = allCards || []
-  const uniqueTargetLangs = [...new Set(safeCards.map(c => c.targetLang).filter(Boolean))]
-  const activeCards = safeCards
-    .filter(c => !excludedCardIds.has(c.id))
-    .filter(c => pausedLanguages.length === 0 || !pausedLanguages.includes(c.targetLang))
-  const tomorrowDueCards = activeCards.filter(c => (cardProgress[c.id]?.nextReview || '') === tomorrow)
+  const uniqueTargetLangs = [...new Set(allCards.map(c => c.targetLang).filter(Boolean))]
+  const activeCards = pausedLanguages.length > 0
+    ? allCards.filter(c => !pausedLanguages.includes(c.targetLang))
+    : allCards
 
   // ── WORT DES TAGES ────────────────────────────────────────
   const wordOfDay = (() => {
@@ -4429,21 +2919,6 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
 
   // ── CEFR PROGRESS ─────────────────────────────────────────
   const myMasteredCount = Object.values(cardProgress).filter(p => (p?.interval || 0) >= 7).length
-
-  // ── TENSE UNLOCK CELEBRATION (fires once per threshold) ───
-  useEffect(() => {
-    if (!user || !myData || myMasteredCount === 0) return
-    const seen = myData?.tenseUnlockSeen || {}
-    if (myMasteredCount >= TENSE_THRESHOLDS.future && !seen.future) {
-      setTenseUnlockCelebration('future')
-      updateDoc(doc(db, 'users', user.uid), { 'tenseUnlockSeen.future': true }).catch(() => {})
-      setMyData(d => ({ ...d, tenseUnlockSeen: { ...(d?.tenseUnlockSeen || {}), future: true } }))
-    } else if (myMasteredCount >= TENSE_THRESHOLDS.past && !seen.past) {
-      setTenseUnlockCelebration('past')
-      updateDoc(doc(db, 'users', user.uid), { 'tenseUnlockSeen.past': true }).catch(() => {})
-      setMyData(d => ({ ...d, tenseUnlockSeen: { ...(d?.tenseUnlockSeen || {}), past: true } }))
-    }
-  }, [myMasteredCount]) // eslint-disable-line
   const cefrIdx = cefr ? CEFR_LEVELS.indexOf(cefr) : -1
   const nextCefr = cefrIdx >= 0 && cefrIdx < CEFR_LEVELS.length - 1 ? CEFR_LEVELS[cefrIdx + 1] : null
   const cefrFrom = cefr ? (CEFR_MASTERY_REQ[cefr] || 0) : 0
@@ -4459,7 +2934,7 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
 
   const sessionPreview = (() => {
     let due = 0, newC = 0
-    ;(allCards || []).forEach(card => {
+    allCards.forEach(card => {
       const p = cardProgress[card.id]
       if (!p) newC++
       else if (p.wrongSessions > 0 || p.nextReview <= today) due++
@@ -4469,32 +2944,14 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
 
   useEffect(() => {
     if (screen !== 'menu') return
-    const checkPending = () => {
+    const checkPending = async () => {
       try {
-        const raw = localStorage.getItem('vocara_session_' + user.uid)
-        setPendingSession(raw ? JSON.parse(raw) : null)
+        const snap = await getDoc(doc(db, 'users', user.uid, 'session', 'current'))
+        setPendingSession(snap.exists() ? snap.data() : null)
       } catch (e) { console.warn('Could not check pending session:', e) }
     }
     checkPending()
   }, [screen])
-
-  useEffect(() => {
-    const handler = () => {
-      const prog = pendingProgressRef.current
-      if (!prog || !user?.uid) return
-      const batch = writeBatch(db)
-      batch.update(doc(db, 'users', user.uid), { cardProgress: prog })
-      batch.commit().catch(() => {})
-    }
-    window.addEventListener('beforeunload', handler)
-    return () => window.removeEventListener('beforeunload', handler)
-  }, [user])
-
-  useEffect(() => {
-    const handler = (e) => { if (e.target.closest('.vocara-cat-btn') && navigator.vibrate) navigator.vibrate(20) }
-    document.addEventListener('click', handler)
-    return () => document.removeEventListener('click', handler)
-  }, [])
 
   const startSession = () => {
     const sess = buildSession(activeCards, cardProgress)
@@ -4505,7 +2962,7 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
   // ── VOCAB WORD GENERATOR: generates 10 single words, saves, starts session ─
   // Called when vocab cards < 5 (empty state) AND at 85% mastery
   const generateVocabWords = async (existingVocabCards = []) => {
-    setEmptyCategoryMsg(t.noWordsYet)
+    setEmptyCategoryMsg(isMarkLang ? 'Noch keine Wörter hier — die KI erstellt gleich deine ersten Karten.' : 'No words yet — AI is creating your first cards…')
 
     // Fetch fresh Firestore state
     const freshSnap = await getDoc(doc(db, 'users', user.uid))
@@ -4513,7 +2970,7 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
 
     // Exclusion list: ALL existing card fronts (for the AI), but full list for dedup
     const allFronts = [
-      ...(allCards || []).map(c => c.front),
+      ...allCards.map(c => c.front),
       ...(freshData.aiCards || []).map(c => c.front),
     ]
     const exclusionList = [...new Set(allFronts.map(f => (f || '').toLowerCase().trim()))]
@@ -4522,55 +2979,20 @@ const [dotTooltip, setDotTooltip] = useState(null) // area key
     const langA = isMarkLang ? 'en' : 'de'
     const langB = isMarkLang ? 'de' : 'en'
 
-    // Check weekly shared pool before calling AI
-    const poolVocab = await fetchSharedCards(langA, langB)
-    if (poolVocab?.length > 0) {
-      const existingFrontsSet = new Set(allFronts.map(f => (f || '').toLowerCase().trim()))
-      const ts = Date.now()
-      const newCards = poolVocab
-        .filter(c => c.front?.trim() && c.back?.trim())
-        .filter(c => { const w = c.front.trim().split(' ').filter(Boolean); return w.length === 1 || (w.length === 2 && w[0].toLowerCase() === 'to') })
-        .filter(c => { const k = c.front.trim().toLowerCase(); if (existingFrontsSet.has(k)) return false; existingFrontsSet.add(k); return true })
-        .slice(0, 10)
-        .map((c, i) => ({ id: `vocab_pool_${ts}_${i}`, front: c.front.trim(), back: c.back.trim(), category: 'vocabulary', tense: c.tense || 'present', langA, langB, source: 'weekly-pool', createdAt: ts }))
-      if (newCards.length > 0) {
-        const snap2 = await getDoc(doc(db, 'users', user.uid))
-        const data2 = snap2.exists() ? snap2.data() : {}
-        const updatedAiCards = [...(data2.aiCards || []), ...newCards]
-        const updatedProgress = { ...(data2.cardProgress || {}) }
-        newCards.forEach(c => { updatedProgress[c.id] = { interval: 0, consecutiveFast: 0, wrongSessions: 0, nextReview: todayStr() } })
-        await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress })
-        setMyData(d => ({ ...d, aiCards: updatedAiCards, cardProgress: updatedProgress }))
-        setEmptyCategoryMsg(t.firstWordsReady || 'Deine ersten Wörter sind bereit ✓')
-        setTimeout(() => setEmptyCategoryMsg(null), 2000)
-        const allVocabForSession = [...existingVocabCards, ...newCards.flatMap(buildCardPair)]
-        const sess = [...allVocabForSession].sort(() => Math.random() - 0.5).slice(0, SESSION_SIZE)
-        setCurrentSessionMode('vocabulary')
-        setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
-        return
-      }
-    }
-
-    const tenseUnlocks = getTenseUnlocks(myMasteredCount)
-    const tenseNote = !tenseUnlocks.past ? 'Use present tense only (infinitive/base forms).' : !tenseUnlocks.future ? 'May use present or past tense forms.' : 'May use present, past, or future tense forms.'
     const prompt = isMarkLang
       ? `Generate 10 useful single English words for a German speaker learning English.
 NOT phrases, NOT sentences — only single words or simple infinitives like 'to run'.
 Avoid these already known words: ${exclusionList}
-${tenseNote}
-For each word: wordType = one of Noun/Verb/Adjective/Adverb/Phrase. For Nouns: article = "the" or "a". Others: article = "".
-Return ONLY JSON: [{"front":"English word","back":"Deutsche Übersetzung","category":"vocabulary","tense":"present","wordType":"Noun","article":"the"}]`
+Return ONLY JSON: [{"front": "English word", "back": "Deutsche Übersetzung", "category": "vocabulary"}]`
       : `Generate 10 useful single German words for an English speaker learning German.
-NOT phrases, NOT sentences — only single words or simple infinitives like 'laufen'.
+NOT phrases, NOT sentences — only single words or simple infinitives like 'to run'.
 Avoid these already known words: ${exclusionList}
-${tenseNote}
-For each word: wordType = one of Nomen/Verb/Adjektiv/Adverb/Phrase. For Nomen: article = "der"|"die"|"das". Others: article = "".
-Return ONLY JSON: [{"front":"German word","back":"English translation","category":"vocabulary","tense":"present","wordType":"Nomen","article":"der"}]`
+Return ONLY JSON: [{"front": "German word", "back": "English translation", "category": "vocabulary"}]`
 
     try {
       const res = await fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 500, system: CARD_GEN_SYSTEM, messages: [{ role: 'user', content: prompt }] })
+        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 500, messages: [{ role: 'user', content: prompt }] })
       })
       const raw = ((await res.json()).content?.[0]?.text || '[]').trim()
       const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim())
@@ -4603,16 +3025,13 @@ Return ONLY JSON: [{"front":"German word","back":"English translation","category
           front: c.front.trim(),
           back: c.back.trim(),
           category: 'vocabulary',
-          tense: c.tense || 'present',
-          wordType: c.wordType || null,
-          article: c.article || null,
           langA, langB,
           source: 'ai-vocab',
           createdAt: ts,
         }))
 
       if (newCards.length === 0) {
-        setEmptyCategoryMsg(t.aiFailed)
+        setEmptyCategoryMsg(isMarkLang ? 'Keine neuen Wörter generiert — versuche es später.' : 'No new words generated — try again later.')
         setTimeout(() => setEmptyCategoryMsg(null), 3500)
         return
       }
@@ -4630,7 +3049,7 @@ Return ONLY JSON: [{"front":"German word","back":"English translation","category
       setMyData(d => ({ ...d, aiCards: updatedAiCards, cardProgress: updatedProgress }))
 
       // Brief success message, then start session
-      setEmptyCategoryMsg(t.firstWordsReady)
+      setEmptyCategoryMsg(isMarkLang ? 'Deine ersten Wörter sind bereit ✓' : 'Your first words are ready ✓')
       setTimeout(() => setEmptyCategoryMsg(null), 2000)
 
       // Session = existing vocab cards + new ones
@@ -4641,189 +3060,45 @@ Return ONLY JSON: [{"front":"German word","back":"English translation","category
       setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
     } catch (e) {
       console.error('[vocabWords] Generation failed:', e)
-      setEmptyCategoryMsg(t.aiFailed)
+      setEmptyCategoryMsg(isMarkLang ? 'KI-Generierung fehlgeschlagen — versuche es erneut.' : 'AI generation failed — try again.')
       setTimeout(() => setEmptyCategoryMsg(null), 3500)
     }
   }
 
   const generateCategoryCards = async (category) => {
     const isStreet = category === 'street'
-    const isHome = category === 'home'
     const langA = isMarkLang ? 'de' : 'en'
-    const langB = activeToLang || (isMarkLang ? 'en' : 'de')
-    const _LNF = { en: 'English', de: 'German', sw: 'Swahili', th: 'Thai', es: 'Spanish', fr: 'French' }
-    const fromLangName = _LNF[langA] || langA
-    const toLangName = _LNF[langB] || langB
-    if (import.meta.env.DEV) console.log(`[generateCategoryCards] category=${category} langA=${langA} langB=${langB}`)
-
-    // Home category: level-aware content generation (10 levels)
-    const HOME_LEVEL_DESCS = [
-      'absolute basics: greetings like "Guten Morgen", "Wie geht\'s?", "Danke schön", simple yes/no phrases',
-      'basic household phrases: asking for help, naming rooms, simple requests at home',
-      'daily family conversation: talking about meals, plans for the day, describing family members',
-      'household activities: cooking instructions, chores, shopping lists, describing your home',
-      'feelings and relationships at home: expressing emotions, talking about relationships, conflicts',
-      'leisure at home: hobbies, watching TV, music, reading — natural everyday small talk',
-      'deeper domestic conversations: discussing living arrangements, home improvements, routines in detail',
-      'nuanced household language: subtle expressions, indirect requests, polite disagreements at home',
-      'cultural home expressions: idioms and phrases about family life, customs, traditions',
-      'near-native home vocabulary: complex family dynamics, formal and informal registers mixed',
-    ]
-    let homeLevelNote = ''
-    if (isHome) {
-      const homeMastered = (activeCards || []).filter(c => c.category === 'home' && (cardProgress[c.id]?.interval || 0) >= 7).length
-      const homeLevel = getCatLevel(homeMastered)
-      homeLevelNote = ` Current learner level ${homeLevel + 1}/10. Generate content for: ${HOME_LEVEL_DESCS[Math.min(homeLevel, HOME_LEVEL_DESCS.length - 1)]}.`
-    }
+    const langB = isMarkLang ? 'en' : 'de'
+    const fromLangName = isMarkLang ? 'German' : 'English'
+    const toLangName = isMarkLang ? 'English' : 'German'
     const typeDesc = isStreet
       ? 'slang, street language, informal expressions, youth language'
-      : `home, family, everyday domestic expressions.${homeLevelNote}`
+      : 'home, family, romantic, everyday domestic expressions'
     const label = isStreet
-      ? (t.streetGenerating)
-      : (t.homeGenerating)
+      ? (isMarkLang ? 'Auf der Straße — KI erstellt erste Phrasen…' : 'On the Street — AI creating first phrases…')
+      : (isMarkLang ? 'Und zu Hause — KI erstellt erste Phrasen…' : 'At Home — AI creating first phrases…')
     setEmptyCategoryMsg(label)
-
-    // HOME_FALLBACK — used if both pool and KI fail
-    const HOME_FALLBACK = {
-      'de_en': [
-        { front: 'Guten Morgen!', back: 'Good morning!', context: 'greeting' },
-        { front: 'Wie geht\'s dir?', back: 'How are you?', context: 'daily conversation' },
-        { front: 'Das Abendessen ist fertig.', back: 'Dinner is ready.', context: 'home routine' },
-        { front: 'Kannst du mir helfen?', back: 'Can you help me?', context: 'request' },
-        { front: 'Ich bin müde.', back: 'I am tired.', context: 'feelings' },
-      ],
-      'en_de': [
-        { front: 'Good morning!', back: 'Guten Morgen!', context: 'greeting' },
-        { front: 'How are you?', back: 'Wie geht\'s dir?', context: 'daily conversation' },
-        { front: 'Dinner is ready.', back: 'Das Abendessen ist fertig.', context: 'home routine' },
-        { front: 'Can you help me?', back: 'Kannst du mir helfen?', context: 'request' },
-        { front: 'I am tired.', back: 'Ich bin müde.', context: 'feelings' },
-      ],
-      'de_sw': [
-        { front: 'Habari ya asubuhi?', back: 'Guten Morgen!', context: 'greeting' },
-        { front: 'Uko hali gani?', back: 'Wie geht\'s dir?', context: 'daily conversation' },
-        { front: 'Chakula kiko tayari.', back: 'Das Essen ist fertig.', context: 'home routine' },
-        { front: 'Nisaidie tafadhali.', back: 'Hilf mir bitte.', context: 'request' },
-        { front: 'Nimechoka.', back: 'Ich bin müde.', context: 'feelings' },
-      ],
-    }
-
-    const startHomeWithFallback = async (rawCards) => {
-      const ts = Date.now()
-      const newCards = rawCards.map((c, i) => ({
-        ...c, id: `home_fallback_${ts}_${i}`, langA, langB, category: 'home', source: 'fallback', createdAt: ts,
-      }))
-      const updatedAiCards = [...(myData?.aiCards || []), ...newCards]
-      const updatedProgress = { ...(myData?.cardProgress || {}) }
-      newCards.forEach(c => { updatedProgress[c.id] = { interval: 0, consecutiveRight: 0, wrongSessions: 0, nextReview: todayStr() } })
-      await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress })
-      setMyData(d => ({ ...d, aiCards: updatedAiCards, cardProgress: updatedProgress }))
-      setEmptyCategoryMsg(t.phrasesReady)
-      setTimeout(() => setEmptyCategoryMsg(null), 2000)
-      const sessionCards = newCards.flatMap(buildCardPair)
-      const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
-      const sess = shuffle(sessionCards).slice(0, SESSION_SIZE)
-      setCurrentSessionMode(category)
-      setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
-    }
-
-    // 1. Try static shared pool (Admin-generated: sharedCards/{pair}_home_level{N})
-    if (isHome) {
-      try {
-        const homeLevel = categoryLevels.home || 1
-        const staticPath = `${langA}_${langB}_home_level${homeLevel}`
-        if (import.meta.env.DEV) console.log(`[generateCategoryCards] trying static pool: sharedCards/${staticPath}`)
-        const snap = await getDoc(doc(db, 'sharedCards', staticPath))
-        if (snap.exists()) {
-          const poolCards = snap.data()?.cards
-          if (import.meta.env.DEV) console.log(`[generateCategoryCards] static pool cards:`, poolCards?.length)
-          if (Array.isArray(poolCards) && poolCards.length > 0) {
-            // Rotation: skip cards whose front text is already mastered (interval >= 5)
-            const masteredFronts = new Set(
-              (activeCards || [])
-                .filter(c => c.category === 'home' && (cardProgress[c.id]?.interval ?? 0) >= 5)
-                .map(c => c.front?.toLowerCase().trim())
-            )
-            const freshCards = poolCards.filter(c => !masteredFronts.has(c.front?.toLowerCase().trim()))
-            const cardsToUse = freshCards.length > 0 ? freshCards : poolCards
-            if (import.meta.env.DEV) console.log(`[generateCategoryCards] pool fresh: ${freshCards.length}/${poolCards.length}`)
-            const ts = Date.now()
-            const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
-            const newCards = shuffle(cardsToUse).slice(0, 10).map((c, i) => ({
-              ...c, id: `home_pool_${ts}_${i}`, langA, langB, source: 'static-pool', createdAt: ts,
-              category: 'home', tense: c.tense || 'present',
-            }))
-            const updatedAiCards = [...(myData?.aiCards || []), ...newCards]
-            const updatedProgress = { ...(myData?.cardProgress || {}) }
-            newCards.forEach(c => { updatedProgress[c.id] = { interval: 0, consecutiveRight: 0, wrongSessions: 0, nextReview: todayStr() } })
-            await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress })
-            setMyData(d => ({ ...d, aiCards: updatedAiCards, cardProgress: updatedProgress }))
-            setEmptyCategoryMsg(t.phrasesReady)
-            setTimeout(() => setEmptyCategoryMsg(null), 2000)
-            const sess = [...newCards.flatMap(buildCardPair)].sort(() => Math.random() - 0.5).slice(0, SESSION_SIZE)
-            setCurrentSessionMode(category)
-            setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
-            return
-          }
-        } else {
-          if (import.meta.env.DEV) console.log(`[generateCategoryCards] static pool not found`)
-        }
-      } catch(e) {
-        if (import.meta.env.DEV) console.warn(`[generateCategoryCards] static pool error:`, e.message)
-      }
-    }
-
-    // 2. Try weekly shared pool (fallback path for street / also tried for home)
-    const poolCat = await fetchSharedCards(langA, langB)
-    if (import.meta.env.DEV) console.log(`[generateCategoryCards] weekly pool cards:`, poolCat?.length ?? 0)
-    const poolCatFiltered = poolCat?.filter(c => c.category === category || !c.category)
-    if (import.meta.env.DEV) console.log(`[generateCategoryCards] weekly pool filtered for ${category}:`, poolCatFiltered?.length ?? 0)
-    if (poolCatFiltered?.length > 0) {
-      const ts = Date.now()
-      const newCards = poolCatFiltered.slice(0, 5).map((c, i) => ({
-        ...c, id: `${category}_pool_${ts}_${i}`, langA, langB, source: `weekly-pool`, createdAt: ts,
-        category, tense: c.tense || 'present',
-      }))
-      const updatedAiCards = [...(myData?.aiCards || []), ...newCards]
-      const updatedProgress = { ...(myData?.cardProgress || {}) }
-      newCards.forEach(c => { updatedProgress[c.id] = { interval: 0, consecutiveRight: 0, wrongSessions: 0, nextReview: todayStr() } })
-      await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress })
-      setMyData(d => ({ ...d, aiCards: updatedAiCards, cardProgress: updatedProgress }))
-      setEmptyCategoryMsg(t.phrasesReady || 'Erste Phrasen bereit ✓')
-      setTimeout(() => setEmptyCategoryMsg(null), 2000)
-      const sess = [...newCards.flatMap(buildCardPair)].sort(() => Math.random() - 0.5).slice(0, SESSION_SIZE)
-      setCurrentSessionMode(category)
-      setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
-      return
-    }
-
-    // 3. KI API fallback
-    if (import.meta.env.DEV) console.log(`[generateCategoryCards] calling KI API`)
-    const catTenseUnlocks = getTenseUnlocks(myMasteredCount)
-    const catTenseNote = !catTenseUnlocks.past ? 'Use present tense only.' : !catTenseUnlocks.future ? 'May use present or past tense.' : 'May use present, past, or future tense.'
     const prompt = `Generate exactly 5 natural ${typeDesc} flashcards for a ${toLangName} learner whose native language is ${fromLangName}.
 Front language: ${fromLangName}. Back language: ${toLangName}. Category: ${category}.
 For street/slang: use real informal expressions. For home: use family/romantic/daily household phrases.
-${catTenseNote}
-Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","tense":"present|past|future","context":"usage note in 1 sentence"}]`
+Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","context":"usage note in 1 sentence"}]`
     try {
       const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, system: CARD_GEN_SYSTEM, messages: [{ role: 'user', content: prompt }] }) })
+        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 600, messages: [{ role: 'user', content: prompt }] }) })
       const data = await res.json()
       const text = data.content?.[0]?.text || ''
-      if (import.meta.env.DEV) console.log(`[generateCategoryCards] KI response:`, text.slice(0, 200))
       const parsed = JSON.parse(text.replace(/```json|```/g, '').trim())
       const ts = Date.now()
       const newCards = parsed.map((c, i) => ({
         ...c, id: `${category}_ai_${ts}_${i}`, langA, langB, source: `ai-${category}`, createdAt: ts,
-        targetLang: langB, tense: c.tense || 'present',
+        targetLang: langB
       }))
       const updatedAiCards = [...(myData?.aiCards || []), ...newCards]
       const updatedProgress = { ...(myData?.cardProgress || {}) }
       newCards.forEach(c => { updatedProgress[c.id] = { interval: 0, consecutiveRight: 0, wrongSessions: 0, nextReview: todayStr() } })
       await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress })
       setMyData(d => ({ ...d, aiCards: updatedAiCards, cardProgress: updatedProgress }))
-      setEmptyCategoryMsg(t.phrasesReady)
+      setEmptyCategoryMsg(isMarkLang ? 'Erste Phrasen bereit ✓' : 'First phrases ready ✓')
       setTimeout(() => setEmptyCategoryMsg(null), 2000)
       const sessionCards = newCards.flatMap(buildCardPair)
       const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
@@ -4831,146 +3106,12 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
       setCurrentSessionMode(category)
       setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
     } catch(e) {
-      console.error(`[generateCategoryCards] KI failed for ${category}:`, e.message)
-      // 4. Absolute fallback for home — always starts a session
-      if (isHome) {
-        const fallbackKey = `${langA}_${langB}`
-        const fallbackRaw = HOME_FALLBACK[fallbackKey] || HOME_FALLBACK['de_en']
-        await startHomeWithFallback(fallbackRaw)
-        return
-      }
-      setEmptyCategoryMsg(t.aiFailed)
+      setEmptyCategoryMsg(isMarkLang ? 'KI-Generierung fehlgeschlagen.' : 'AI generation failed.')
       setTimeout(() => setEmptyCategoryMsg(null), 3000)
     }
   }
 
-  const generateUrlaubCards = async () => {
-    const langA = activeToLang || 'en'
-    const fromLangCode = lang
-    const _LNF = { en: 'English', de: 'German', sw: 'Swahili', th: 'Thai', es: 'Spanish', fr: 'French' }
-    const toLangFull = _LNF[langA] || langA
-    const fromLangFull = _LNF[fromLangCode] || fromLangCode
-    setEmptyCategoryMsg(t.travelGenerating)
-
-    // Check weekly shared pool before calling AI (exact category match only)
-    const poolUrlaub = await fetchSharedCards(fromLangCode, langA)
-    const poolUrlaubFiltered = poolUrlaub?.filter(c => c.category === 'urlaub')
-    if (poolUrlaubFiltered?.length > 0) {
-      const ts = Date.now()
-      const newCards = poolUrlaubFiltered.filter(c => c.front && c.back).slice(0, 10).map((c, i) => ({
-        ...c, id: `urlaub_pool_${ts}_${i}`, langA: fromLangCode, langB: langA, category: 'urlaub', source: 'weekly-pool', createdAt: ts,
-      }))
-      if (newCards.length > 0) {
-        const updatedAiCards = [...(myData?.aiCards || []), ...newCards]
-        const updatedProgress = { ...(myData?.cardProgress || {}) }
-        newCards.forEach(c => { updatedProgress[c.id] = { interval: 0, consecutiveRight: 0, wrongSessions: 0, nextReview: todayStr() } })
-        await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress })
-        setMyData(d => ({ ...d, aiCards: updatedAiCards, cardProgress: updatedProgress }))
-        setEmptyCategoryMsg(t.travelReady || 'Reisephrasen bereit ✓')
-        setTimeout(() => setEmptyCategoryMsg(null), 2000)
-        const sessionCards = isPremium ? newCards : newCards.slice(0, 3)
-        const sess = [...sessionCards.flatMap(buildCardPair)].sort(() => Math.random() - 0.5).slice(0, SESSION_SIZE)
-        setCurrentSessionMode('urlaub')
-        setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
-        return
-      }
-    }
-
-    // Fallback: read vocab pool filtered for travel cards
-    try {
-      const vocabSnap = await getDoc(doc(db, 'sharedCards', `${fromLangCode}_${langA}_vocab`))
-      if (vocabSnap.exists()) {
-        const travelCards = (vocabSnap.data()?.cards || []).filter(c =>
-          c.vocabCategory === 'travel' || c.category === 'urlaub' || c.topic === 'travel'
-        )
-        if (travelCards.length >= 4) {
-          const ts = Date.now()
-          const newCards = travelCards.filter(c => c.front && c.back).slice(0, 10).map((c, i) => ({
-            ...c, id: `urlaub_vocab_${ts}_${i}`, langA: fromLangCode, langB: langA, category: 'urlaub', source: 'vocab-pool', createdAt: ts,
-          }))
-          if (newCards.length > 0) {
-            const updatedAiCards = [...(myData?.aiCards || []), ...newCards]
-            const updatedProgress = { ...(myData?.cardProgress || {}) }
-            newCards.forEach(c => { updatedProgress[c.id] = { interval: 0, consecutiveRight: 0, wrongSessions: 0, nextReview: todayStr() } })
-            await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress })
-            setMyData(d => ({ ...d, aiCards: updatedAiCards, cardProgress: updatedProgress }))
-            setEmptyCategoryMsg(t.travelReady || 'Reisephrasen bereit ✓')
-            setTimeout(() => setEmptyCategoryMsg(null), 2000)
-            const sessionCards = isPremium ? newCards : newCards.slice(0, 3)
-            const sess = [...sessionCards.flatMap(buildCardPair)].sort(() => Math.random() - 0.5).slice(0, SESSION_SIZE)
-            setCurrentSessionMode('urlaub')
-            setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
-            return
-          }
-        }
-      }
-    } catch (_) {}
-
-    // KI fallback
-    const startUrlaubWithCards = (newCards) => {
-      const updatedAiCards = [...(myData?.aiCards || []), ...newCards]
-      const updatedProgress = { ...(myData?.cardProgress || {}) }
-      newCards.forEach(c => { updatedProgress[c.id] = { interval: 0, consecutiveRight: 0, wrongSessions: 0, nextReview: todayStr() } })
-      updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress }).catch(() => {})
-      setMyData(d => ({ ...d, aiCards: updatedAiCards, cardProgress: updatedProgress }))
-      setEmptyCategoryMsg(t.travelReady)
-      setTimeout(() => setEmptyCategoryMsg(null), 2000)
-      const sessionCards = isPremium ? newCards : newCards.slice(0, 3)
-      const sess = [...sessionCards.flatMap(buildCardPair)].sort(() => Math.random() - 0.5).slice(0, SESSION_SIZE)
-      setCurrentSessionMode('urlaub')
-      setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
-    }
-    try {
-      const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 900, system: CARD_GEN_SYSTEM,
-          messages: [{ role: 'user', content: `Generate 10 essential travel phrases for a ${fromLangFull} speaker in a ${toLangFull}-speaking country. Cover: hotel check-in, ordering food, asking directions, emergencies, transport, shopping, banking. Natural, practical, not textbook. Front language: ${fromLangFull}. Back language: ${toLangFull}. Return ONLY a valid JSON array: [{"front":"...","back":"...","pronunciation":"...","category":"urlaub","tense":"present","register":"formal"}]` }]
-        })
-      })
-      const data = await res.json()
-      const text = data.content?.[0]?.text || ''
-      const parsed = JSON.parse(text.replace(/```json|```/g, '').trim())
-      const ts = Date.now()
-      const newCards = parsed.filter(c => c.front && c.back).map((c, i) => ({
-        ...c, id: `urlaub_ai_${ts}_${i}`, langA: fromLangCode, langB: langA, category: 'urlaub', source: 'ai-urlaub', createdAt: ts
-      }))
-      if (newCards.length > 0) { startUrlaubWithCards(newCards); return }
-    } catch(_) {}
-
-    // Absolute fallback: hardcoded starter cards so session always starts
-    const URLAUB_FALLBACK = {
-      'de_en': [
-        { front: 'Ich möchte einchecken.', back: 'I would like to check in.' },
-        { front: 'Wo ist die nächste Apotheke?', back: 'Where is the nearest pharmacy?' },
-        { front: 'Die Rechnung, bitte.', back: 'The bill, please.' },
-        { front: 'Haben Sie ein freies Zimmer?', back: 'Do you have a free room?' },
-        { front: 'Wo ist der Bahnhof?', back: 'Where is the train station?' },
-      ],
-      'de_sw': [
-        { front: 'Nataka kulipa.', back: 'Ich möchte bezahlen.' },
-        { front: 'Wapi hospitali?', back: 'Wo ist das Krankenhaus?' },
-        { front: 'Ninahitaji msaada.', back: 'Ich brauche Hilfe.' },
-        { front: 'Bei gani?', back: 'Wie viel kostet das?' },
-        { front: 'Asante sana.', back: 'Vielen Dank.' },
-      ],
-      'en_de': [
-        { front: 'I would like to check in.', back: 'Ich möchte einchecken.' },
-        { front: 'Where is the nearest pharmacy?', back: 'Wo ist die nächste Apotheke?' },
-        { front: 'The bill, please.', back: 'Die Rechnung, bitte.' },
-        { front: 'Do you have a free room?', back: 'Haben Sie ein freies Zimmer?' },
-        { front: 'Where is the train station?', back: 'Wo ist der Bahnhof?' },
-      ],
-    }
-    const fallbackKey = `${fromLangCode}_${langA}`
-    const fallbackRaw = URLAUB_FALLBACK[fallbackKey] || URLAUB_FALLBACK['de_en']
-    const ts2 = Date.now()
-    const fallbackCards = fallbackRaw.map((c, i) => ({
-      ...c, id: `urlaub_fallback_${ts2}_${i}`, langA: fromLangCode, langB: langA,
-      category: 'urlaub', source: 'fallback', createdAt: ts2, pronunciation: '',
-    }))
-    startUrlaubWithCards(fallbackCards)
-  }
-
-  const startCategorySession = async (category) => {
+  const startCategorySession = (category) => {
     console.log('[Vocara] startCategorySession:', category)
     // ── MEINE WORTE HARD FILTER ─────────────────────────────────
     // Only single-word or max 2-word fronts are allowed in vocabulary.
@@ -4983,26 +3124,17 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
         c.category === 'vocabulary' && c.front?.trim().split(' ').length <= 2
       )
     }
-    const CAT_LEVEL_KEY = { vocabulary: 'vocab', street: 'street', home: 'home', urlaub: 'urlaub', sentence: 'satz', satztraining: 'satz', basics: 'grundlagen' }
-    const catLevelKey = CAT_LEVEL_KEY[category]
-    const maxLevel = catLevelKey ? (categoryLevels[catLevelKey] || 1) : 99
-    const levelFilter = (c) => !c.level || Number(c.level) <= maxLevel
-    const allCategoryLevelFilter = (c) => {
-      const key = CAT_LEVEL_KEY[c.category]
-      const catMax = key ? (categoryLevels[key] || 1) : 1
-      return !c.level || Number(c.level) <= catMax
-    }
     const cards = category === 'all'
-      ? activeCards.filter(allCategoryLevelFilter)
+      ? activeCards
       : category === 'vocabulary'
         ? activeCards.filter(c => {
-            const pass = vocabGuard(c) && levelFilter(c)
+            const pass = vocabGuard(c)
             if (!pass && c.category === 'vocabulary') {
               console.log(`[Meine Worte GUARD] silently rejected: "${c.front}" (${c.front?.trim().split(' ').length} words)`)
             }
             return pass
           })
-        : activeCards.filter(c => c.category === category && levelFilter(c))
+        : activeCards.filter(c => c.category === category)
     if (category !== 'all') {
       const excluded = activeCards.filter(c => c.category !== category)
       console.log('[Vocara] cards in category:', cards.length, '| excluded:', excluded.length, '| total:', activeCards.length)
@@ -5014,11 +3146,16 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
       generateVocabWords(cards) // pass existing cards so they're included in the session
       return
     }
-    if (category === 'urlaub' && cards.length < 10) { generateUrlaubCards(); return }
     if (cards.length === 0) {
-      if (category === 'street') { generateCategoryCards('street'); return }
-      if (category === 'home') { generateCategoryCards('home'); return }
-      setEmptyCategoryMsg(t.nothingYet)
+      if (category === 'street') {
+        generateCategoryCards('street')
+        return
+      }
+      if (category === 'home') {
+        generateCategoryCards('home')
+        return
+      }
+      setEmptyCategoryMsg(isMarkLang ? 'Hier wartet noch nichts — aber das ändert sich.' : 'Nothing here yet — but that changes now.')
       setTimeout(() => setEmptyCategoryMsg(null), 3500)
       return
     }
@@ -5027,67 +3164,20 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
       setResumeDialog({ category, cards })
       return
     }
-    const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
-    // Percentage-based mixing: target languages (toLangs) and source languages (fromLangs)
-    const toLangsConfig = myData?.toLangs
-    const fromLangsConfig = myData?.fromLangs
-    let sess
-    if (fromLangsConfig && fromLangsConfig.length > 1) {
-      // Source-language weighted mixing: cards by langA
-      const mixed = []
-      for (const { lang: lc, percent } of fromLangsConfig) {
-        const langCards = cards.filter(c => (c.langA || '').toLowerCase() === lc)
-        if (langCards.length === 0) continue
-        const count = Math.max(1, Math.round(percent / 100 * SESSION_SIZE))
-        const built = buildSession(langCards, cardProgress)
-        mixed.push(...(built.length > 0 ? built.slice(0, count) : shuffle(langCards).slice(0, count)))
-      }
-      sess = mixed.length > 0 ? shuffle(mixed).slice(0, SESSION_SIZE) : buildSession(cards, cardProgress)
-    } else if (toLangsConfig && toLangsConfig.length > 1) {
-      const mixed = []
-      for (const { lang: lc, percent } of toLangsConfig) {
-        const langCards = cards.filter(c => (c.langB || c.targetLang || '').toLowerCase() === lc || (c.langA || '').toLowerCase() === lc)
-        const count = Math.max(1, Math.round(percent / 100 * SESSION_SIZE))
-        const built = buildSession(langCards, cardProgress)
-        mixed.push(...(built.length > 0 ? built.slice(0, count) : shuffle(langCards).slice(0, count)))
-      }
-      sess = shuffle(mixed).slice(0, SESSION_SIZE)
-    } else {
-      sess = buildSession(cards, cardProgress)
-    }
+    let sess = buildSession(cards, cardProgress)
     console.log('[Vocara] buildSession result:', sess.length)
-    // Fallback: if nothing is due (all reviewed, none overdue)
+    // Fallback: if nothing is due (all reviewed, none overdue), practice all category cards
     if (sess.length === 0) {
-      if (category === 'home' || category === 'street') {
-        // If all cards have been seen (interval>=3), generate fresh batch instead of looping
-        const allProgressed = cards.every(c => (cardProgress[c.id]?.interval || 0) >= 3)
-        if (allProgressed) { generateCategoryCards(category); return }
-        // Otherwise rotate non-mastered cards (interval<5) first; fall back to all if none
-        const notMastered = cards.filter(c => (cardProgress[c.id]?.interval || 0) < 5)
-        sess = shuffle(notMastered.length > 0 ? notMastered : cards).slice(0, SESSION_SIZE)
-      } else {
-        sess = shuffle(cards).slice(0, SESSION_SIZE)
-      }
-      console.log('[Vocara] fallback session:', category, sess.length)
+      const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
+      sess = shuffle(cards).slice(0, SESSION_SIZE)
+      console.log('[Vocara] fallback session (all cards):', sess.length)
     }
     if (sess.length === 0) return
     setCurrentSessionMode(category)
     // Show Wort des Tages banner for 2s before starting any session
-    const startSession = async () => {
-      let finalSess = sess
-      if (getTenseUnlocks(myMasteredCount).past) {
-        const masteredForTense = cards.filter(c => !/_r(_\d+)?$/.test(c.id) && (cardProgress[c.id]?.interval || 0) >= 7).slice(0, 3)
-        if (masteredForTense.length > 0) {
-          const lA = isMarkLang ? 'de' : 'en'
-          const lB = activeToLang || (isMarkLang ? 'en' : 'de')
-          try {
-            const variants = await addTenseVariants(masteredForTense, lB, lA, lA, lB)
-            if (variants.length) finalSess = [...sess, ...variants].sort(() => Math.random() - 0.5)
-          } catch (_) {}
-        }
-      }
-      setSession(finalSess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
-      if (['vocabulary', 'street', 'home', 'basics', 'urlaub'].includes(category)) markAreaDone(category)
+    const startSession = () => {
+      setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+      if (['vocabulary', 'street', 'home', 'basics'].includes(category)) markAreaDone(category)
     }
     if (wordOfDay) {
       setWordOfDayBanner(wordOfDay)
@@ -5097,165 +3187,92 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","t
     }
   }
   const startBasicsSession = async () => {
-    // Layer 2: use categoryLevels.grundlagen (new system) falling back to myData.basicsPoolLevel (legacy)
-    const currentBasicsLevel = categoryLevels.grundlagen || myData?.basicsPoolLevel || 1
-    const maxBasicsLevel = currentBasicsLevel
-    const existingBasics = activeCards.filter(c => c.category === 'basics' && (!c.level || Number(c.level) <= maxBasicsLevel))
+    const existingBasics = activeCards.filter(c => c.category === 'basics')
     if (existingBasics.length > 0) {
       const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
-      let sess = buildSession(existingBasics, cardProgress)
-      const toLangsBasics = myData?.toLangs
-      if (toLangsBasics && toLangsBasics.length > 1) {
-        const mixed = []
-        for (const { lang: lc, percent } of toLangsBasics) {
-          const langCards = existingBasics.filter(c => (c.langB || '').toLowerCase() === lc || (c.langA || '').toLowerCase() === lc)
-          if (langCards.length === 0) continue
-          const count = Math.max(1, Math.round(percent / 100 * SESSION_SIZE))
-          const built = buildSession(langCards, cardProgress)
-          mixed.push(...(built.length > 0 ? built.slice(0, count) : shuffle(langCards).slice(0, count)))
-        }
-        if (mixed.length > 0) sess = shuffle(mixed).slice(0, SESSION_SIZE)
-      }
-      if (sess.length > 0) {
-        setCurrentSessionMode('basics'); setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
-        markAreaDone('basics'); return
-      }
-      // All cards at interval >= 3 — no due cards. Prefer non-mastered (interval < 5) first.
-      const notMastered = existingBasics.filter(c => (cardProgress[c.id]?.interval || 0) < 5)
-      if (notMastered.length > 0) {
-        const finalSess = shuffle(notMastered).slice(0, SESSION_SIZE)
-        setCurrentSessionMode('basics'); setSession(finalSess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
-        markAreaDone('basics'); return
-      }
-      // All basics fully mastered (interval >= 5) — try fetching next pool level
-      setBasicsLoading(true)
-      const lA = isMarkLang ? 'de' : 'en'
-      const lB = activeToLang || (isMarkLang ? 'en' : 'de')
-      const nextLevel = currentBasicsLevel + 1
-      const poolNext = await fetchGrundlagenPool(lA, lB, nextLevel)
-      if (poolNext?.length > 0) {
-        const ts = Date.now()
-        const existingFronts = new Set(existingBasics.map(c => (c.front || '').toLowerCase()))
-        const newCards = poolNext.filter(c => c.front && c.back && !existingFronts.has(c.front.toLowerCase()))
-          .slice(0, 20).map((c, i) => ({ ...c, id: `basics_pool_${ts}_${i}`, langA: lA, langB: lB, category: 'basics', source: 'base-pool', createdAt: ts }))
-        if (newCards.length > 0) {
-          const updatedAiCards = [...(myData?.aiCards || []), ...newCards]
-          const updatedProgress = { ...(myData?.cardProgress || {}) }
-          newCards.forEach(c => { updatedProgress[c.id] = { interval: 0, consecutiveRight: 0, wrongSessions: 0, nextReview: todayStr() } })
-          try { await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress, basicsPoolLevel: nextLevel }) } catch (e) { console.warn('[Vocara] basics level save failed:', e?.message) }
-          setMyData(d => ({ ...d, aiCards: updatedAiCards, cardProgress: updatedProgress, basicsPoolLevel: nextLevel }))
-          const finalSess = [...newCards.flatMap(buildCardPair)].sort(() => Math.random() - 0.5).slice(0, SESSION_SIZE)
-          setCurrentSessionMode('basics'); setSession(finalSess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
-          markAreaDone('basics'); setBasicsLoading(false); return
-        }
-      }
-      setBasicsLoading(false)
-      // No new level available — rotate all basics
-      const finalSess = shuffle(existingBasics).slice(0, SESSION_SIZE)
+      const sess = buildSession(existingBasics, cardProgress)
+      const finalSess = sess.length > 0 ? sess : shuffle(existingBasics).slice(0, SESSION_SIZE)
       setCurrentSessionMode('basics'); setSession(finalSess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
       markAreaDone('basics'); return
     }
     setBasicsLoading(true)
-    const langA = isMarkLang ? 'de' : 'en'
-    const langB = activeToLang || (isMarkLang ? 'en' : 'de')
-    const BASICS_LANG_NAMES = { en: 'English', de: 'German', sw: 'Swahili' }
-    const toLangName = BASICS_LANG_NAMES[langB] || 'English'
-    const fromLangName = BASICS_LANG_NAMES[langA] || 'German'
-    // Try base pool first (api/generate-base-pool.js pre-populated Firestore)
-    const poolBasics = await fetchGrundlagenPool(langA, langB, 1)
-    if (poolBasics?.length > 0) {
-      const ts = Date.now()
-      const newCards = poolBasics.filter(c => c.front && c.back).slice(0, 20).map((c, i) => ({
-        ...c, id: `basics_pool_${ts}_${i}`, langA, langB, category: 'basics', source: 'base-pool', createdAt: ts
-      }))
-      const updatedAiCards = [...(myData?.aiCards || []), ...newCards]
-      const updatedProgress = { ...(myData?.cardProgress || {}) }
-      newCards.forEach(c => { updatedProgress[c.id] = { interval: 0, consecutiveRight: 0, wrongSessions: 0, nextReview: todayStr() } })
-      try { await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress }) } catch (e) { console.warn('[Vocara] basics pool save failed:', e?.message) }
-      setMyData(d => ({ ...d, aiCards: updatedAiCards, cardProgress: updatedProgress }))
-      const sess = [...newCards.flatMap(buildCardPair)].sort(() => Math.random() - 0.5).slice(0, SESSION_SIZE)
-      setCurrentSessionMode('basics'); setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
-      markAreaDone('basics'); setBasicsLoading(false); return
-    }
+    const isMarkLang = lang === 'de'
+    const toLangName = isMarkLang ? 'English' : 'German'
+    const fromLangName = isMarkLang ? 'German' : 'English'
     const prompt = `Generate exactly 12 basic vocabulary flashcards covering: colors (rot/red, blau/blue, grün/green, gelb/yellow), numbers (1-5), shapes (Kreis/circle, Quadrat/square), and basic greetings (Hallo, Danke, Bitte).
 Front language: ${fromLangName}. Back language: ${toLangName}. Category: basics.
 Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","context":"..."}]`
     try {
       const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 800, system: CARD_GEN_SYSTEM, messages: [{ role: 'user', content: prompt }] }) })
+        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 800, messages: [{ role: 'user', content: prompt }] }) })
       const data = await res.json()
       const text = data.content?.[0]?.text || ''
       const parsed = JSON.parse(text.replace(/```json|```/g, '').trim())
       const ts = Date.now()
-      const newCards = parsed.map((c, i) => ({ ...c, id: `basics_${ts}_${i}`, langA, langB, source: 'ai-basics', createdAt: ts }))
+      const newCards = parsed.map((c, i) => ({ ...c, id: `basics_${ts}_${i}`, langA: isMarkLang ? 'de' : 'en', langB: isMarkLang ? 'en' : 'de', source: 'ai-basics', createdAt: ts }))
       const updatedAiCards = [...(myData?.aiCards || []), ...newCards]
-      try { await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards }) } catch (e) { console.warn('[Vocara] basics KI save failed:', e?.message) }
+      await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards })
       setMyData(d => ({ ...d, aiCards: updatedAiCards }))
-      const sess2 = [...newCards.flatMap(buildCardPair)].sort(() => Math.random() - 0.5).slice(0, SESSION_SIZE)
-      setCurrentSessionMode('basics'); setSession(sess2); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
-      markAreaDone('basics'); setBasicsLoading(false); return
-    } catch(e) { console.warn('[Vocara] basics KI failed:', e) }
-    // Hardcoded fallback — guarantees a session always starts
-    const BASICS_FALLBACK = {
-      'de_en': [
-        { front: 'rot', back: 'red', context: 'Farbe' }, { front: 'blau', back: 'blue', context: 'Farbe' },
-        { front: 'grün', back: 'green', context: 'Farbe' }, { front: 'Hallo', back: 'Hello', context: 'Begrüßung' },
-        { front: 'Danke', back: 'Thank you', context: 'Höflichkeit' }, { front: 'Bitte', back: 'Please', context: 'Höflichkeit' },
-        { front: 'ja', back: 'yes', context: 'Grundwort' }, { front: 'nein', back: 'no', context: 'Grundwort' },
-        { front: 'eins', back: 'one', context: 'Zahl' }, { front: 'zwei', back: 'two', context: 'Zahl' },
-      ],
-      'de_sw': [
-        { front: 'Hallo', back: 'Habari', context: 'Begrüßung' }, { front: 'Danke', back: 'Asante', context: 'Höflichkeit' },
-        { front: 'Bitte', back: 'Tafadhali', context: 'Höflichkeit' }, { front: 'ja', back: 'ndiyo', context: 'Grundwort' },
-        { front: 'nein', back: 'hapana', context: 'Grundwort' }, { front: 'eins', back: 'moja', context: 'Zahl' },
-        { front: 'zwei', back: 'mbili', context: 'Zahl' }, { front: 'Wasser', back: 'maji', context: 'Grundwort' },
-        { front: 'gut', back: 'nzuri', context: 'Eigenschaft' }, { front: 'Mensch', back: 'mtu', context: 'Grundwort' },
-      ],
-      'en_de': [
-        { front: 'red', back: 'rot', context: 'colour' }, { front: 'blue', back: 'blau', context: 'colour' },
-        { front: 'green', back: 'grün', context: 'colour' }, { front: 'hello', back: 'Hallo', context: 'greeting' },
-        { front: 'thank you', back: 'Danke', context: 'courtesy' }, { front: 'please', back: 'Bitte', context: 'courtesy' },
-        { front: 'yes', back: 'ja', context: 'basic' }, { front: 'no', back: 'nein', context: 'basic' },
-        { front: 'one', back: 'eins', context: 'number' }, { front: 'two', back: 'zwei', context: 'number' },
-      ],
-    }
-    const fallbackKey = `${langA}_${langB}`
-    const fallbackRaw = BASICS_FALLBACK[fallbackKey] || BASICS_FALLBACK['de_en']
-    const ts3 = Date.now()
-    const fallbackCards = fallbackRaw.map((c, i) => ({ ...c, id: `basics_fallback_${ts3}_${i}`, langA, langB, category: 'basics', source: 'fallback', createdAt: ts3 }))
-    setCurrentSessionMode('basics'); setSession(fallbackCards.flatMap(buildCardPair)); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
-    markAreaDone('basics')
+      const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
+      const sess = shuffle(newCards).slice(0, SESSION_SIZE)
+      setCurrentSessionMode('basics'); setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+      markAreaDone('basics')
+    } catch(e) { console.warn('Failed to generate basics:', e) }
     setBasicsLoading(false)
   }
 
   const startSatzSession = async () => {
-    if (!isPremium) {
-      const nowMonth = new Date().toISOString().slice(0, 7)
-      const used = myData?.satzMonthStr === nowMonth ? (myData?.satzMonthCount || 0) : 0
-      if (used >= 5) {
-        setSoftPaywall({ area: 'satz', used, limit: 5 })
-        setDoc(doc(db, 'users', user.uid, 'usage', 'satz'), { used, limit: 5, month: nowMonth }, { merge: true }).catch(() => {})
-        return
-      }
-      const newCount = used + 1
-      updateDoc(doc(db, 'users', user.uid), { satzMonthCount: newCount, satzMonthStr: nowMonth }).catch(() => {})
-      setMyData(d => ({ ...d, satzMonthCount: newCount, satzMonthStr: nowMonth }))
-    }
+    const LANG_NAMES = { en: 'English', de: 'German', sw: 'Swahili' }
+    // Only cards with mastery >= 2 (answered correctly at least twice = interval >= 2)
     const knownVocabCards = activeCards.filter(c =>
-      c.category === 'vocabulary' && !/_r(_\d+)?$/.test(c.id) && (cardProgress[c.id]?.interval || 0) >= 2
+      c.category === 'vocabulary' &&
+      !/_r(_\d+)?$/.test(c.id) &&
+      (cardProgress[c.id]?.interval || 0) >= 2
     )
     if (knownVocabCards.length < 5) {
       setEmptyCategoryMsg(isMarkLang
-        ? `Lerne zuerst mehr Wörter — du brauchst 5 gefestigte Wörter (du hast ${knownVocabCards.length}).`
-        : `Learn more words first — need 5 solid words (you have ${knownVocabCards.length}).`)
+        ? 'Übe zuerst mehr Wörter in Meine Worte — du brauchst mindestens 5 gefestigte Wörter!'
+        : 'Practice more words in My Words first — you need at least 5 solid words!')
       setTimeout(() => setEmptyCategoryMsg(null), 3500)
       return
     }
     setSatzLoading(true)
-    const toLangCode = isMarkLang ? 'de' : 'en'
-    const fromLangCode = isMarkLang ? 'en' : 'de'
-    const satzLevel = categoryLevels?.satz || 1
-    const launchSatzCards = (sessionCards) => {
+    try {
+      // Use the toLang text (back) — the target language words the user has actually learned
+      const wordList = knownVocabCards.map(c => c.back).slice(0, 60).join(', ')
+      const toLangCode = isMarkLang ? 'de' : 'en'
+      const fromLangCode = isMarkLang ? 'en' : 'de'
+      const toLangName = LANG_NAMES[toLangCode]
+      const fromLangName = LANG_NAMES[fromLangCode]
+      const prompt = `You are a language learning assistant. The user knows these words and phrases in ${toLangName}: ${wordList}
+
+Build exactly 5 short, natural, everyday sentences in ${toLangName} using vocabulary from that list plus only basic grammar words (articles, prepositions, conjunctions, common verbs). Max 8 words per sentence.
+
+For each sentence also write the ${fromLangName} translation.
+
+Return ONLY a valid JSON array with no markdown or explanation:
+[{"front":"<sentence in ${fromLangName}>","back":"<sentence in ${toLangName}>","context":"<1 sentence explaining when you'd say this>"}]`
+
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 800, messages: [{ role: 'user', content: prompt }] }),
+      })
+      const data = await res.json()
+      const raw = data.content?.[0]?.text || ''
+      const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim())
+      const ts = Date.now()
+      const sessionCards = parsed.slice(0, 5).map((card, i) => ({
+        id: `satz_temp_${ts}_${i}`,
+        front: card.front,
+        back: card.back,
+        context: card.context || '',
+        category: 'sentence',
+        langA: fromLangCode,
+        langB: toLangCode,
+        targetLang: toLangCode,
+        source: 'satz-session',
+      }))
       setCurrentSessionMode('sentence')
       if (wordOfDay) {
         setWordOfDayBanner(wordOfDay)
@@ -5268,55 +3285,14 @@ Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","
         setSession(sessionCards); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
         markAreaDone('sentence')
       }
-    }
-    // Try shared sentence pool first (level-aware)
-    try {
-      const poolKey = `${fromLangCode}_${toLangCode}`
-      const poolDoc = await getDoc(doc(db, 'sharedCards', `${poolKey}_sentence`))
-      if (poolDoc.exists()) {
-        const poolCards = (poolDoc.data().cards || []).filter(c => !c.level || Number(c.level) <= satzLevel)
-        if (poolCards.length >= 5) {
-          const ts = Date.now()
-          const sessionCards = [...poolCards].sort(() => Math.random() - 0.5).slice(0, 5).map((card, i) => ({
-            id: `satz_pool_${ts}_${i}`, front: card.front, back: card.back,
-            context: card.context || '', category: 'sentence',
-            langA: fromLangCode, langB: toLangCode, targetLang: toLangCode, source: 'satz-pool',
-          }))
-          launchSatzCards(sessionCards)
-          setSatzLoading(false)
-          return
-        }
-      }
-    } catch (_) {}
-    try {
-      const wordList = knownVocabCards.map(c => c.back).slice(0, 60).join(', ')
-      const LANG_NAMES2 = { en: 'English', de: 'German', sw: 'Swahili' }
-      const toLangName = LANG_NAMES2[toLangCode]
-      const fromLangName = LANG_NAMES2[fromLangCode]
-      const prompt = `You are a language learning assistant. The user knows these words and phrases in ${toLangName}: ${wordList}\n\nBuild exactly 5 short, natural, everyday sentences in ${toLangName} using vocabulary from that list plus only basic grammar words (articles, prepositions, conjunctions, common verbs). Max 8 words per sentence.\n\nFor each sentence also write the ${fromLangName} translation.\n\nReturn ONLY a valid JSON array with no markdown or explanation:\n[{"front":"<sentence in ${fromLangName}>","back":"<sentence in ${toLangName}>","context":"<1 sentence explaining when you'd say this>"}]`
-      const res = await fetch('/api/chat', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 800, system: CARD_GEN_SYSTEM, messages: [{ role: 'user', content: prompt }] }),
-      })
-      const data = await res.json()
-      const raw = data.content?.[0]?.text || ''
-      const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim())
-      const ts = Date.now()
-      const sessionCards = parsed.slice(0, 5).map((card, i) => ({
-        id: `satz_temp_${ts}_${i}`, front: card.front, back: card.back,
-        context: card.context || '', category: 'sentence',
-        langA: fromLangCode, langB: toLangCode, targetLang: toLangCode, source: 'satz-session',
-      }))
-      launchSatzCards(sessionCards)
     } catch (e) {
       console.warn('Satz session generation failed:', e)
-      setEmptyCategoryMsg(t.connectionError)
+      setEmptyCategoryMsg(isMarkLang ? 'Fehler beim Generieren der Sätze.' : 'Failed to generate sentences.')
       setTimeout(() => setEmptyCategoryMsg(null), 3500)
     } finally {
       setSatzLoading(false)
     }
   }
-
   const continueSession = async () => {
     const { category, cards } = resumeDialog
     const answeredSet = new Set(myData?.sessionProgress?.cardIds || [])
@@ -5344,64 +3320,15 @@ Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","
     setResumeStartProgress(pendingSession.newProgress || null); setPendingSession(null); setScreen('cards')
   }
   const discardSession = async () => { await clearSessionState(user.uid); setPendingSession(null) }
-  const handleSatzComplete = async (correct, total) => {
-    if (!correct || correct <= 0) return
-    try {
-      const prev = myData?.masteredPerCategory?.satztraining || 0
-      const next = prev + correct
-      await updateDoc(doc(db, 'users', user.uid), { 'masteredPerCategory.satztraining': next })
-      setMyData(d => ({ ...d, masteredPerCategory: { ...(d?.masteredPerCategory || {}), satztraining: next } }))
-    } catch (e) { console.warn('[Vocara] satz progress save failed:', e?.message) }
-  }
-  const handleSessionStop = async (finalProgress, answeredCount, correctCount = 0, wrongCount = 0) => {
-    setScreen('menu'); setSession(null); pendingProgressRef.current = null
+  const handleSessionStop = async (finalProgress, answeredCount) => {
+    setScreen('menu'); setSession(null)
     if (answeredCount > 0) {
       try {
-        // strict category match, forward cards only, ?? avoids treating interval=0 as unset
-        const masteredPerCategory = { satztraining: myData?.masteredPerCategory?.satztraining ?? 0 }
-        ;['vocabulary', 'sentence', 'street', 'home', 'basics', 'urlaub'].forEach(cat => {
-          masteredPerCategory[cat] = (allCards || []).filter(c => {
-            const baseId = c.id.replace(/_r(_\d+)?$/, '')
-            return c.category === cat && !/_r(_\d+)?$/.test(c.id) && (finalProgress[baseId]?.interval ?? finalProgress[c.id]?.interval ?? 0) >= 3
-          }).length
-        })
-        const entry = { date: todayStr(), correct: correctCount, total: correctCount + wrongCount, ts: Date.now(), area: currentSessionMode || null }
-        const updatedHistory = [entry, ...(sessionHistory || [])].slice(0, 60)
-        const stopPubStats = { lastActive: Date.now(), uid: user.uid, displayName: user.displayName || '', name: user.displayName?.split(' ')[0] || 'Partner' }
-        // ── Batch 1: user document only ──────────────────────────────
-        try {
-          const batch = writeBatch(db)
-          batch.update(doc(db, 'users', user.uid), { cardProgress: finalProgress, masteredPerCategory, sessionHistory: updatedHistory })
-          await batch.commit()
-          console.log('[SessionStop] user doc batch OK', user.uid)
-        } catch (batchErr) {
-          console.error('[SessionStop] user doc batch FAILED', { uid: user.uid, code: batchErr.code, msg: batchErr.message })
-        }
-        // ── publicStats: separate write so it succeeds independently ─
-        const psPath = `users/${user.uid}/publicStats/data`
-        const publicStatsRef = doc(db, 'users', user.uid, 'publicStats', 'data')
-        console.log('[publicStats] WRITING DATA:', JSON.stringify(stopPubStats))
-        try {
-          await setDoc(publicStatsRef, stopPubStats, { merge: true })
-          console.log('[SessionStop] publicStats OK', user.uid)
-        } catch (psErr) {
-          console.error('[publicStats] FULL ERROR:', JSON.stringify({ code: psErr.code, message: psErr.message, stack: psErr.stack?.slice(0, 200) }))
-          if (psErr.code === 'permission-denied') {
-            await new Promise(r => setTimeout(r, 1000))
-            try {
-              await setDoc(publicStatsRef, stopPubStats, { merge: true })
-              console.log('[SessionStop] publicStats OK (retry)', user.uid)
-            } catch (psErr2) {
-              console.error('[publicStats] FULL ERROR (retry):', JSON.stringify({ code: psErr2.code, message: psErr2.message, stack: psErr2.stack?.slice(0, 200) }))
-            }
-          }
-        }
-        setMyData(d => ({ ...d, cardProgress: { ...finalProgress }, masteredPerCategory: { ...masteredPerCategory }, sessionHistory: updatedHistory }))
-        if (myData?.partnerUID) onRefreshPartner?.(myData.partnerUID)
+        await onSaveProgress(finalProgress)
         const msg = `${answeredCount} Karte${answeredCount !== 1 ? 'n' : ''} gespeichert ✓`
         setStopToast(msg)
         setTimeout(() => setStopToast(null), 3000)
-      } catch(e) { console.error('[SessionStop] outer catch', { code: e.code, msg: e.message }) }
+      } catch(e) { console.warn('handleSessionStop save failed:', e) }
     }
   }
   const markAreaDone = (area) => {
@@ -5425,21 +3352,11 @@ Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","
           const gimmickEntry = { theme, date: todayStr() }
           const gimmickHistory = [...(myData?.gimmickHistory || []), gimmickEntry]
           updateDoc(doc(db, 'users', user.uid), { monthlyGoal: newMonthly, unlockedGimmicks: newGimmicks, weeklyGoals: updated, gimmickHistory }).catch(() => {})
-          // Firestore guard: only fire gimmick once per month
-          setDoc(doc(db, 'monthlyGimmick', user.uid, 'history', currentMonth), { theme, unlockedAt: new Date().toISOString() }).catch(() => {})
           setMyData(d => ({ ...d, monthlyGoal: newMonthly, unlockedGimmicks: newGimmicks, weeklyGoals: updated, gimmickHistory }))
           setMonthlyUnlockNotification(true)
           setTimeout(() => setMonthlyUnlockNotification(false), 5000)
-          setGimmickStreakDays(null)
           setGimmickPopup(true)
           setTimeout(() => setGimmickPopup(false), 6000)
-          // Theme-specific gimmick sound (fail silently)
-          try {
-            const soundFile = { hamburg: 'gimmick-hamburg', nairobi: 'gimmick-nairobi', welt: 'gimmick-welt' }[theme] || 'gimmick-welt'
-            const audio = new Audio(`/sounds/${soundFile}.mp3`)
-            audio.volume = 0.6
-            audio.play().catch(() => {})
-          } catch (e) {}
         } else {
           const newMonthly = { completedWeeks: newWeekCount, lastUnlock: storedMonthly.lastUnlock || null }
           updateDoc(doc(db, 'users', user.uid), { monthlyGoal: newMonthly, weeklyGoals: updated }).catch(() => {})
@@ -5482,10 +3399,7 @@ Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","
     } catch (e) { console.warn('Streak freeze failed:', e) }
   }
 
-  const handleSaveState = async (queue, index, newProgress) => {
-    pendingProgressRef.current = newProgress
-    await saveSessionState(user.uid, queue, index, newProgress)
-  }
+  const handleSaveState = async (queue, index, newProgress) => { await saveSessionState(user.uid, queue, index, newProgress) }
   const saveSessionProgress = async (cardIds, mode) => {
     const sp = { cardIds, mode, timestamp: Date.now() }
     try { await updateDoc(doc(db, 'users', user.uid), { sessionProgress: sp }); setMyData(d => ({ ...d, sessionProgress: sp })) } catch (e) { console.warn('Session progress save failed:', e) }
@@ -5494,7 +3408,7 @@ Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","
     const homeCity = myData?.homeCity || (isMarkLang ? 'Hamburg' : 'Nairobi')
     const partnerCity = myData?.partnerCity || (isMarkLang ? 'Nairobi' : 'Hamburg')
     const existingAI = myData?.aiCards || []
-    const knownFrontsSet = new Set((allCards || []).map(c => c.front.toLowerCase().trim()))
+    const knownFrontsSet = new Set(allCards.map(c => c.front.toLowerCase().trim()))
 
     // Enforce 80/20 ratio: at most 1 SW card per 5 generated
     const totalAIAfter = existingAI.length + 5
@@ -5564,7 +3478,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         const res = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, system: CARD_GEN_SYSTEM, messages: [{ role: 'user', content: prompt }] }),
+          body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 600, messages: [{ role: 'user', content: prompt }] }),
         })
         const data = await res.json()
         const raw = data.content?.[0]?.text || ''
@@ -5699,6 +3613,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
       const newBatch = getNextNewCards(allCards, finalProgress, NEW_CARDS_BATCH)
       if (newBatch.length > 0) {
         newBatch.forEach(card => {
+          // New cards available immediately
           finalProgress[card.id] = { interval: 0, consecutiveFast: 0, wrongSessions: 0, nextReview: todayStr() }
         })
         unlocked = true
@@ -5706,7 +3621,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
       generateAICards()
     }
     setMasteryUnlocked(unlocked)
-    pendingProgressRef.current = null
+    await onSaveProgress(finalProgress)
     // ── Learning time tracking ─────────────────────────────
     const sessionMinutes = Math.max(1, Math.round((correct + wrong) * 30 / 60))
     const nowMonth = new Date().toISOString().slice(0, 7)
@@ -5717,150 +3632,39 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     const newWeeklyMinutes = prevWeekly + sessionMinutes
     const newTotalMinutes = (myData?.totalMinutes || 0) + sessionMinutes
     const timeUpdate = { monthlyMinutes: newMonthlyMinutes, weeklyMinutes: newWeeklyMinutes, totalMinutes: newTotalMinutes, learningMonth: nowMonth, learningWeek: nowWeek }
-    // ── Inline session history entry ───────────────────────
-    const histEntry = { date: todayStr(), correct, total: correct + wrong, ts: Date.now(), area: currentSessionMode }
-    const updatedHistory = [histEntry, ...(sessionHistory || [])].slice(0, 60)
-    const myMasteredNow = Object.values(finalProgress).filter(p => (p?.interval || 0) >= 7).length
-    const myStreakNow = calcStreak([...(sessionHistory || []), { date: todayStr(), correct, total: correct + wrong }])
-    // ── Per-category mastered counts (strict category match, forward cards only) ──
-    const masteredPerCategory = { satztraining: myData?.masteredPerCategory?.satztraining ?? 0 }
-    ;['vocabulary', 'sentence', 'street', 'home', 'basics', 'urlaub'].forEach(cat => {
-      masteredPerCategory[cat] = (allCards || []).filter(c => {
-        const baseId = c.id.replace(/_r(_\d+)?$/, '')
-        return c.category === cat && !/_r(_\d+)?$/.test(c.id) && (finalProgress[baseId]?.interval ?? finalProgress[c.id]?.interval ?? 0) >= 3
-      }).length
-    })
-    // ── Streak milestone gimmick ──
-    const STREAK_MILESTONES = [7, 14, 30, 60]
-    const firedMilestones = myData?.firedStreakGimmicks || []
-    const hitMilestone = STREAK_MILESTONES.find(m => myStreakNow >= m && !firedMilestones.includes(m))
-    const updatedMilestones = hitMilestone ? [...firedMilestones, hitMilestone] : firedMilestones
-    const pubStats = { weeklyMinutes: newWeeklyMinutes, monthlyMinutes: newMonthlyMinutes, totalMinutes: newTotalMinutes, learningWeek: nowWeek, learningMonth: nowMonth, totalCards: allCards.filter(c => !/_r(_\d+)?$/.test(c.id)).length, masteredCards: myMasteredNow, streak: myStreakNow, lastActive: Date.now(), displayName: user.displayName || '', name: user.displayName?.split(' ')[0] || 'Partner', uid: user.uid }
-    // ── Batch: user document only ─────────────────────────────────────
-    try {
-      const batch = writeBatch(db)
-      batch.update(doc(db, 'users', user.uid), {
-        cardProgress: finalProgress,
-        sessionHistory: updatedHistory,
-        masteredPerCategory,
-        ...timeUpdate,
-        ...(hitMilestone ? { firedStreakGimmicks: updatedMilestones } : {}),
-      })
-      await batch.commit()
-      console.log('[handleFinish] user doc batch OK', user.uid)
-    } catch (batchErr) {
-      console.error('[handleFinish] user doc batch FAILED', { uid: user.uid, code: batchErr.code, msg: batchErr.message })
-    }
-    // ── publicStats: separate write so it always runs independently ──
-    const psPath = `users/${user.uid}/publicStats/data`
-    const publicStatsRef = doc(db, 'users', user.uid, 'publicStats', 'data')
-    console.log('[publicStats] WRITING DATA:', JSON.stringify(pubStats))
-    try {
-      await setDoc(publicStatsRef, pubStats, { merge: true })
-      console.log('[handleFinish] publicStats OK', user.uid)
-    } catch (psErr) {
-      console.error('[publicStats] FULL ERROR:', JSON.stringify({ code: psErr.code, message: psErr.message, stack: psErr.stack?.slice(0, 200) }))
-      if (psErr.code === 'permission-denied') {
-        await new Promise(r => setTimeout(r, 1000))
-        try {
-          await setDoc(publicStatsRef, pubStats, { merge: true })
-          console.log('[handleFinish] publicStats OK (retry)', user.uid)
-        } catch (psErr2) {
-          console.error('[publicStats] FULL ERROR (retry):', JSON.stringify({ code: psErr2.code, message: psErr2.message, stack: psErr2.stack?.slice(0, 200) }))
-        }
-      }
-    }
-    // Layer 3: refresh partner data from server after own session ends
-    if (myData?.partnerUID) onRefreshPartner?.(myData.partnerUID)
-    setMyData(d => ({ ...d, cardProgress: { ...finalProgress }, sessionHistory: updatedHistory, masteredPerCategory: { ...masteredPerCategory }, ...timeUpdate, ...(hitMilestone ? { firedStreakGimmicks: updatedMilestones } : {}) }))
-    // ── Level unlock detection ──────────────────────────────────
-    const SESSION_TO_CAT = { vocabulary: 'vocabulary', street: 'street', home: 'home', urlaub: 'urlaub', sentence: 'sentence', satztraining: 'sentence', basics: 'basics' }
-    const CAT_TO_KEY = { vocabulary: 'vocab', street: 'street', home: 'home', urlaub: 'urlaub', sentence: 'satz', basics: 'grundlagen' }
-    const CAT_MAX_LEVELS = {
-      vocab: POOL_STRUCTURE.vocab.totalLevels,
-      satz: POOL_STRUCTURE.satztraining.totalLevels,
-      street: POOL_STRUCTURE.street.totalLevels,
-      home: POOL_STRUCTURE.home.totalLevels,
-      grundlagen: POOL_STRUCTURE.grundlagen.totalLevels,
-      urlaub: POOL_STRUCTURE.urlaub.totalLevels,
-    }
-    const sessionCat = SESSION_TO_CAT[currentSessionMode]
-    const unlockCatKey = sessionCat ? CAT_TO_KEY[sessionCat] : null
-    if (unlockCatKey) {
-      const curLvl = categoryLevels[unlockCatKey] || 1
-      const maxLvl = CAT_MAX_LEVELS[unlockCatKey] || 12
-      if (curLvl < maxLvl) {
-        const cardsAtLevel = (allCards || []).filter(c => c.category === sessionCat && c.level && Number(c.level) === curLvl)
-        if (cardsAtLevel.length >= 5) {
-          const masteredAtLevel = cardsAtLevel.filter(c => (finalProgress[c.id]?.interval || 0) >= 3)
-          if (masteredAtLevel.length / cardsAtLevel.length >= 0.85) {
-            const newLvl = curLvl + 1
-            const newCatLevels = { ...categoryLevels, [unlockCatKey]: newLvl }
-            setCategoryLevels(newCatLevels)
-            setDoc(doc(db, 'users', user.uid, 'settings', 'categoryLevels'), newCatLevels).catch(() => {})
-            if (unlockCatKey === 'grundlagen') setMyData(d => ({ ...d, basicsPoolLevel: newLvl }))
-            const LABEL = { vocab: 'Wortschatz', satz: 'Satztraining', street: 'Straße', home: 'Zuhause', grundlagen: 'Grundlagen', urlaub: 'Urlaub' }
-            setUnlockCelebration({ cat: unlockCatKey, catLabel: LABEL[unlockCatKey] || unlockCatKey, newLevel: newLvl })
-          }
-        }
-      }
-    }
-    // ── Streak gimmick UI + side effects (fire-and-forget) ──
-    if (hitMilestone) {
-      setDoc(doc(db, 'streakGimmick', user.uid, 'milestones', String(hitMilestone)), { theme, firedAt: new Date().toISOString(), streak: myStreakNow }).catch(() => {})
-      setGimmickStreakDays(hitMilestone)
-      setGimmickPopup(true)
-      setTimeout(() => { setGimmickPopup(false); setGimmickStreakDays(null) }, 6000)
-      try {
-        const soundFile = { hamburg: 'gimmick-hamburg', nairobi: 'gimmick-nairobi', welt: 'gimmick-welt' }[theme] || 'gimmick-welt'
-        const audio = new Audio(`/sounds/${soundFile}.mp3`)
-        audio.volume = 0.6
-        audio.play().catch(() => {})
-      } catch (e) {}
-    }
-    // ── Partner notification (different user's collection, fire-and-forget) ──
-    if (myData?.partnerUID) {
-      const notifId = `session_${user.uid}_${Date.now()}`
-      setDoc(doc(db, 'users', myData.partnerUID, 'publicStats', 'pendingNotifs_' + notifId), {
-        type: 'partner_session', fromName: user.displayName?.split(' ')[0] || 'Partner',
-        cards: correct + wrong, ts: Date.now()
-      }).catch(() => {})
-    }
-    clearSessionState(user.uid)
+    const updatedHistory = await saveSessionHistory(user.uid, correct, correct + wrong, sessionHistory, timeUpdate)
+    setMyData(d => ({ ...d, sessionHistory: updatedHistory, ...timeUpdate }))
+    await clearSessionState(user.uid)
     const statsEntries = Object.entries(cardStats || {})
     const weakestEntry = statsEntries.filter(([, v]) => v.wrongs > 0).sort((a, b) => b[1].wrongs - a[1].wrongs)[0]
     const strongestEntry = statsEntries.filter(([, v]) => v.wrongs === 0 && v.fastestMs < Infinity).sort((a, b) => a[1].fastestMs - b[1].fastestMs)[0]
     const weakestCard = weakestEntry ? session?.find(c => c.id === weakestEntry[0]) : null
     const strongestCard = strongestEntry ? session?.find(c => c.id === strongestEntry[0]) : null
-    // ── Kontext: find a card mastered in this session (interval >= 3)
-    const masteredInSession = session?.filter(c => !/_r(_\d+)?$/.test(c.id) && (finalProgress[c.id]?.interval || 0) >= 3) || []
-    const kontextCard = masteredInSession.length > 0 ? masteredInSession[Math.floor(Math.random() * masteredInSession.length)] : null
-    setResult({
-      correct, wrong, easy: easy || 0, fast: fast || 0, weakestCard, strongestCard, originalSession: session,
-      showRhythmus: currentSessionMode === 'sentence',
-      urlaubNote: currentSessionMode === 'urlaub' && !isPremium,
-      kontextCard,
-    })
+    setResult({ correct, wrong, easy: easy || 0, fast: fast || 0, weakestCard, strongestCard, originalSession: session })
     // Refresh tutor with fresh progress & history so due counts are accurate post-session
     fetchTutorMsg(finalProgress, updatedHistory)
     setSessionCompleteCount(n => n + 1)
-    setScreen('result')
+    // #31 After sentence session, offer rhythm training before result
+    if (currentSessionMode === 'sentence') {
+      setScreen('rhythmus')
+    } else {
+      setScreen('result')
+    }
   }
 
-  if (screen === 'cards' && session) return <CardScreen user={user} session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} onSaveSessionProgress={saveSessionProgress} onStop={handleSessionStop} onSaveExample={handleSaveExample} mode={currentSessionMode} startIndex={resumeStartIndex} startProgress={resumeStartProgress} userToLang={activeToLang} socialRegister={myData?.socialRegister || 'friends'} onNeverLearn={(card) => setNeverLearnModal(card)} onKontext={(card) => { setKontextCard(card); setKontextPrevScreen('cards'); setScreen('kontext') }} />
-  if (screen === 'rhythmus') return <>{homeFloat}<RhythmusScreen lang={lang} theme={theme} onBack={() => { setScreen('result') }} allCards={allCards} cardProgress={cardProgress} userToLang={activeToLang} t={t} th={th} s={s} /></>
-  if (screen === 'kontext' && kontextCard) return <>{homeFloat}<KontextwechselScreen card={kontextCard} lang={lang} theme={theme} userToLang={activeToLang} user={user} onBack={() => setScreen(kontextPrevScreen)} onSaveCard={async (newCard) => { const updated = [...(myData?.aiCards || []), newCard]; await updateDoc(doc(db, 'users', user.uid), { aiCards: updated }).catch(() => {}); setMyData(d => ({ ...d, aiCards: updated })) }} t={t} /></>
-  if (screen === 'result' && result) return <>{homeFloat}<ResultScreen correct={result.correct} wrong={result.wrong} fast={result.fast} easy={result.easy} weakestCard={result.weakestCard} strongestCard={result.strongestCard} masteryUnlocked={masteryUnlocked} showRhythmus={result.showRhythmus} urlaubNote={result.urlaubNote} kontextCard={result.kontextCard} onUnlockUrlaub={() => setSoftPaywall({ area: 'urlaub', used: 3, limit: 10 })} onRhythmus={() => setScreen('rhythmus')} onKontext={result.kontextCard ? () => { setKontextCard(result.kontextCard); setKontextPrevScreen('result'); setScreen('kontext') } : null} t={t} lang={lang} onBack={() => { setScreen('menu'); setSession(null) }} onReplay={result.originalSession ? () => { setSession(result.originalSession); setResumeStartIndex(0); setResumeStartProgress(null); setScreen('cards') } : null} s={s} th={th} /></>
-  if (screen === 'settings') return <>{homeFloat}<SettingsScreen t={t} s={s} theme={theme} onThemeChange={onThemeChange} onBack={() => setScreen('menu')} user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} onPartner={() => setScreen('partner')} onLightModeChange={onLightModeChange} onCardSizeChange={onCardSizeChange} musicEnabled={musicEnabled} musicVolume={musicVolume} onMusicToggle={onMusicToggle} onMusicVolume={onMusicVolume} onToLangChange={(newLang) => setActiveToLang(newLang)} categoryLevels={categoryLevels} setCategoryLevels={setCategoryLevels} lightMode={lightMode} cardSize={cardSize} appVersion={APP_VERSION} /></>
+  if (screen === 'cards' && session) return <>{homeFloat}<CardScreen session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} onSaveSessionProgress={saveSessionProgress} onStop={handleSessionStop} onSaveExample={handleSaveExample} mode={currentSessionMode} startIndex={resumeStartIndex} startProgress={resumeStartProgress} userToLang={(myData?.toLang || '').toLowerCase() || (lang === 'de' ? 'en' : 'de')} /></>
+  if (screen === 'rhythmus') return <>{homeFloat}<RhythmusScreen lang={lang} theme={theme} onBack={() => { setScreen('result') }} allCards={allCards} cardProgress={cardProgress} userToLang={(myData?.toLang || '').toLowerCase() || (lang === 'de' ? 'en' : 'de')} /></>
+  if (screen === 'result') return <>{homeFloat}<ResultScreen correct={result.correct} wrong={result.wrong} fast={result.fast} easy={result.easy} weakestCard={result.weakestCard} strongestCard={result.strongestCard} masteryUnlocked={masteryUnlocked} t={t} lang={lang} onBack={() => { setScreen('menu'); setSession(null) }} onReplay={result.originalSession ? () => { setSession(result.originalSession); setResumeStartIndex(0); setResumeStartProgress(null); setScreen('cards') } : null} s={s} th={th} /></>
+  if (screen === 'settings') return <>{homeFloat}<SettingsScreen t={t} s={s} theme={theme} onThemeChange={onThemeChange} onBack={() => setScreen('menu')} user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} onPartner={() => setScreen('partner')} onLightModeChange={onLightModeChange} onCardSizeChange={onCardSizeChange} /></>
   if (screen === 'meinekarten') return <>{homeFloat}<MeineKartenScreen user={user} myData={myData} setMyData={setMyData} allCards={allCards} cardProgress={cardProgress} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
   if (screen === 'geschenkkarte') return <>{homeFloat}<GeschenkkarteScreen user={user} myData={myData} lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} /></>
-  if (screen === 'karteerstellen') return <>{homeFloat}<KarteErstellenScreen user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} theme={theme} onBack={() => setScreen('menu')} socialRegister={myData?.socialRegister || 'friends'} t={t} /></>
+  if (screen === 'karteerstellen') return <>{homeFloat}<KarteErstellenScreen user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
   if (screen === 'partner') return <>{homeFloat}<PartnerScreen user={user} myData={myData} lang={lang} theme={theme} onBack={() => setScreen('menu')} onPartnerUpdate={(uid) => { onPartnerUpdate(uid); setScreen('menu') }} /></>
-  if (screen === 'test') return <>{homeFloat}<PlacementTest lang={lang} theme={theme} user={user} onBack={() => setScreen('menu')} onSaveCefr={onSaveCefr} toLangCode={activeToLang} /></>
+  if (screen === 'test') return <>{homeFloat}<PlacementTest lang={lang} theme={theme} user={user} onBack={() => setScreen('menu')} onSaveCefr={onSaveCefr} /></>
   if (screen === 'impressum') return <>{homeFloat}<ImpressumScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
-  if (screen === 'stats') return <>{homeFloat}<StatsScreen user={user} myData={myData} partnerData={partnerData} allCards={allCards} lang={lang} theme={theme} onBack={() => setScreen('menu')} cardProgress={cardProgress} t={t} onRefreshPartner={onRefreshPartner} th={th} s={s} /></>
-  if (screen === 'ki') return <>{homeFloat}<KiGespraechScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={activeToLang} socialRegister={myData?.socialRegister || 'friends'} myData={myData} partnerData={partnerData} user={user} t={t} th={th} s={s} /></>
-  if (screen === 'satz') return <>{homeFloat}<SatzTrainingScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={activeToLang} onSatzComplete={handleSatzComplete} t={t} /></>
+  if (screen === 'stats') return <>{homeFloat}<StatsScreen user={user} myData={myData} partnerData={partnerData} allCards={allCards} lang={lang} theme={theme} onBack={() => setScreen('menu')} cardProgress={cardProgress} /></>
+  if (screen === 'ki') return <>{homeFloat}<KiGespraechScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={(myData?.toLang || '').toLowerCase() || (lang === 'de' ? 'en' : 'de')} /></>
+  if (screen === 'satz') return <>{homeFloat}<SatzTrainingScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={(myData?.toLang || '').toLowerCase() || (lang === 'de' ? 'en' : 'de')} /></>
   if (screen === 'diary') return <>{homeFloat}<DiaryScreen user={user} myData={myData} setMyData={setMyData} partnerData={partnerData} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
   if (screen === 'admin' && user.uid === MARK_UID) return <>{homeFloat}<AdminScreen user={user} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
 
@@ -5868,17 +3672,8 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     <div style={s.container} className="vocara-screen vocara-home-outer"><div style={{ ...s.homeBox, paddingTop: '12px' }} className="vocara-home-box">
 
       {/* ── LOGO ── */}
-      <div className="vocara-logo-section" style={{ textAlign: 'center', paddingTop: '16px', paddingBottom: '10px', position: 'relative' }}>
-        {onMusicToggle && (
-          <button
-            onClick={() => onMusicToggle(!musicEnabled)}
-            title={musicEnabled ? (t.musicOffLabel) : (t.musicOnLabel)}
-            style={{ position: 'absolute', top: 0, right: 0, background: musicEnabled ? `${th.accent}22` : 'transparent', border: `1px solid ${musicEnabled ? th.accent : th.border}`, borderRadius: '10px', padding: '5px 9px', color: musicEnabled ? th.accent : th.sub, fontSize: '1rem', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', lineHeight: 1 }}>
-            {musicEnabled ? '🎵' : '🔇'}
-          </button>
-        )}
-        <p className="vocara-logo-text" style={{ fontFamily: 'Georgia, serif', fontSize: '42px', fontWeight: '700', margin: '0 auto', letterSpacing: '3px', lineHeight: 1 }}>Vocara</p>
-        <p style={{ color: th.sub, fontSize: '0.55rem', opacity: 0.3, margin: '2px 0 0', letterSpacing: '1px', textAlign: 'center' }}>{APP_VERSION}</p>
+      <div className="vocara-logo-section" style={{ textAlign: 'center', paddingTop: '16px', paddingBottom: '10px' }}>
+        <VocaraLogoSVG withSlogans={false} animate={false} isDE={isMarkLang} />
         <p className="vocara-logo-greeting" style={{ ...s.greeting, marginTop: '8px', marginBottom: uniqueTargetLangs.length > 0 ? '6px' : 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px' }}>
           {t.hello}, {firstName}
           {partnerActivityStatus && (
@@ -5887,13 +3682,29 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
             </span>
           )}
         </p>
+        {(() => {
+          const fromFlag = LANG_FLAGS[lang] || ''
+          const toLangCode = myData?.toLang || (lang === 'de' ? 'en' : 'de')
+          const toFlag = LANG_FLAGS[toLangCode] || ''
+          if (!fromFlag && !toFlag) return null
+          return (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px' }}>
+              <span style={{ fontSize: '0.95rem' }}>{fromFlag}</span>
+              <span style={{ color: th.sub, fontSize: '0.7rem', opacity: 0.6 }}>→</span>
+              <span style={{ fontSize: '0.95rem' }}>{toFlag}</span>
+            </div>
+          )
+        })()}
       </div>
 
       {/* ── MONTHLY TEST BANNER ── */}
       {testDue && (
-        <button onClick={() => setScreen('test')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: `${th.card}88`, border: `1px solid ${th.border}`, borderRadius: '10px', padding: '8px 12px', marginBottom: '10px', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
-          <span style={{ color: th.sub, fontSize: '0.75rem' }}>🎯 {t.levelCheckAvailable}</span>
-          <span style={{ color: th.sub, fontSize: '0.72rem', opacity: 0.6 }}>→</span>
+        <button style={{ ...s.menuBtnWarning, marginBottom: '12px' }} onClick={() => setScreen('test')}>
+          <span style={{ flex: 1 }}>
+            <span style={{ display: 'block', fontWeight: 'bold', color: '#f44336' }}>{t.monthlyTestBanner}</span>
+            <span style={{ fontSize: '0.75rem', color: th.sub }}>{t.monthlyTestSub}</span>
+          </span>
+          <span style={{ color: '#f44336' }}>→</span>
         </button>
       )}
 
@@ -5901,9 +3712,9 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
       {coachMsg !== null && (
         <div style={{ background: `${th.card}bb`, border: `1px solid ${th.gold}33`, borderRadius: '14px', padding: '11px 15px', marginBottom: '12px', animation: 'vocaraFadeIn 0.4s ease both' }}>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: tutorCollapsed ? 0 : '5px' }}>
-            <span style={{ color: th.gold, fontSize: '0.62rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px' }}>🎓 {t.aiTutorLabel}{tutorCollapsed ? ' ▸' : ''}</span>
+            <span style={{ color: th.gold, fontSize: '0.62rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px' }}>🎓 {isMarkLang ? 'KI-Tutor' : 'AI Tutor'}{tutorCollapsed ? ' ▸' : ''}</span>
             {!tutorCollapsed && calcStreak(sessionHistory) > 0 && (
-              <span style={{ color: th.sub, fontSize: '0.62rem', marginLeft: 'auto', opacity: 0.55 }}>🔥 {calcStreak(sessionHistory)} {t.daysLabel}</span>
+              <span style={{ color: th.sub, fontSize: '0.62rem', marginLeft: 'auto', opacity: 0.55 }}>🔥 {calcStreak(sessionHistory)} {isMarkLang ? 'Tage' : 'days'}</span>
             )}
             <button onClick={async () => {
               const next = !tutorCollapsed
@@ -5916,24 +3727,24 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           {!tutorCollapsed && (
             <>
               {coachMsg
-                ? <p style={{ color: th.text, fontSize: '0.84rem', fontStyle: 'italic', margin: 0, lineHeight: 1.55, opacity: 0.88 }}>{coachMsg.split(/(?<=[.!?])\s+/).slice(0, 2).join(' ')}</p>
+                ? <p style={{ color: th.text, fontSize: '0.84rem', fontStyle: 'italic', margin: 0, lineHeight: 1.55, opacity: 0.88 }}>{coachMsg}</p>
                 : <p style={{ color: th.sub, fontSize: '0.8rem', margin: 0, opacity: 0.5 }}>…</p>
               }
               {coachMsg && tutorRecommendedArea && (
                 <button onClick={() => {
-                  if (tutorRecommendedArea === 'sentence') { setScreen('satz') }
+                  if (tutorRecommendedArea === 'sentence') { startSatzSession() }
                   else if (tutorRecommendedArea === 'ki') { setScreen('ki') }
                   else if (tutorRecommendedArea === 'diary') { setScreen('diary') }
                   else { startCategorySession(tutorRecommendedArea) }
                 }} style={{ marginTop: '8px', background: `${th.gold}18`, border: `1px solid ${th.gold}44`, color: th.gold, borderRadius: '20px', padding: '4px 12px', fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
-                  ▶ {t.startBtn}
+                  ▶ {isMarkLang ? 'Starten' : 'Start'}
                 </button>
               )}
               {(() => {
                 const todayDiaryDone = !!(myData?.diaryEntries?.find(e => e.date === todayStr()))
                 if (!todayDiaryDone) return (
-                  <button onClick={() => setScreen('diary')} style={{ marginTop: '8px', display: 'inline-flex', alignItems: 'center', gap: '5px', background: `${th.gold}14`, border: `1px solid ${th.gold}30`, borderRadius: '20px', color: th.gold, fontSize: '0.72rem', fontWeight: '600', cursor: 'pointer', padding: '4px 12px', WebkitTapHighlightColor: 'transparent', opacity: 0.85 }}>
-                    📔 {t.writeDiaryBtn}
+                  <button onClick={() => setScreen('diary')} style={{ marginTop: '6px', display: 'block', background: 'transparent', border: 'none', color: th.sub, fontSize: '0.7rem', cursor: 'pointer', padding: 0, opacity: 0.65, WebkitTapHighlightColor: 'transparent' }}>
+                    📔 {isMarkLang ? 'Tagebuch heute noch offen' : 'Diary not written today'}
                   </button>
                 )
                 return null
@@ -5948,10 +3759,10 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         <div style={{ background: 'rgba(255,165,0,0.10)', border: '1px solid rgba(255,165,0,0.45)', borderRadius: '14px', padding: '12px 14px', marginBottom: '12px', animation: 'vocaraFadeIn 0.4s ease both' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
             <span style={{ fontSize: '1.1rem' }}>⚠️</span>
-            <span style={{ color: '#FFA500', fontWeight: '700', fontSize: '0.9rem', flex: 1 }}>{t.connectionNeedsYou}</span>
+            <span style={{ color: '#FFA500', fontWeight: '700', fontSize: '0.9rem', flex: 1 }}>{isMarkLang ? 'Die Verbindung braucht dich heute.' : 'Your streak needs you today.'}</span>
             {freezeAvailable && (
               <button
-                onClick={() => { if (window.confirm(t.streakFreezeConfirm)) handleStreakFreeze() }}
+                onClick={() => { if (window.confirm(isMarkLang ? 'Streak Freeze jetzt verwenden? (1x/Monat)' : 'Use Streak Freeze now? (1x/month)')) handleStreakFreeze() }}
                 style={{ background: 'rgba(100,200,255,0.12)', border: '1px solid rgba(100,200,255,0.35)', color: '#7ec8e3', borderRadius: '20px', padding: '5px 10px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700', whiteSpace: 'nowrap', flexShrink: 0 }}
               >🧊</button>
             )}
@@ -5965,13 +3776,13 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
             }}
             style={{ background: 'linear-gradient(135deg, rgba(255,165,0,0.25), rgba(255,165,0,0.12))', border: '1px solid rgba(255,165,0,0.5)', color: '#FFA500', borderRadius: '20px', padding: '8px 16px', cursor: 'pointer', fontSize: '0.88rem', fontWeight: '700', width: '100%', fontFamily: 'inherit' }}
           >
-            ⚡ {t.learnNow} (5 {t.cards})
+            ⚡ {isMarkLang ? 'Jetzt lernen →' : 'Learn now →'} (5 {isMarkLang ? 'Karten' : 'cards'})
           </button>
         </div>
       )}
       {streakStatus === 'lost' && (
         <div style={{ background: 'rgba(136,136,136,0.1)', border: `1px solid ${th.border}`, borderRadius: '12px', padding: '10px 14px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ color: th.sub, fontWeight: '600', fontSize: '0.88rem' }}>{t.streakLost}</span>
+          <span style={{ color: th.sub, fontWeight: '600', fontSize: '0.88rem' }}>{isMarkLang ? 'Streak verloren — neu starten! 💪' : 'Streak lost — start fresh! 💪'}</span>
         </div>
       )}
 
@@ -5983,29 +3794,13 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           <div style={{ background: `${th.gold}0D`, border: `1px solid ${th.gold}2E`, borderRadius: '16px', padding: '13px 15px', marginBottom: '12px', animation: 'vocaraFadeIn 0.4s ease both', position: 'relative' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '7px' }}>
               <span style={{ color: th.gold, fontSize: '0.68rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-                {relEmoji} {t.cardOfDayLabel}
+                {relEmoji} {isMarkLang ? 'Karte des Tages' : 'Card of the day'}
               </span>
               <button onClick={() => setDailyCardDismissed(true)} style={{ background: 'transparent', border: 'none', color: th.sub, cursor: 'pointer', fontSize: '0.9rem', padding: '0 2px', lineHeight: 1 }}>✕</button>
             </div>
-            {(() => {
-              // Always show DE on top, EN below for Mark; for others show front/back as-is
-              const deSide = dailyCard.langA === 'de' ? dailyCard.front : dailyCard.langB === 'de' ? dailyCard.back : dailyCard.front
-              const enSide = dailyCard.langA === 'en' ? dailyCard.front : dailyCard.langB === 'en' ? dailyCard.back : dailyCard.back
-              const topText = isMarkLang ? deSide : dailyCard.front
-              const botText = isMarkLang ? enSide : dailyCard.back
-              // Truncate context to max 2 sentences, skip if UI is DE (context tends to be in EN)
-              const rawCtx = dailyCard.context || ''
-              const ctxSentences = rawCtx.split(/(?<=[.!?])\s+/).filter(Boolean)
-              const ctxTrimmed = ctxSentences.slice(0, 2).join(' ')
-              const showCtx = !isMarkLang && ctxTrimmed
-              return (
-                <>
-                  <p style={{ color: th.text, fontWeight: '700', margin: '0 0 3px', fontSize: '0.92rem' }}>{topText}</p>
-                  <p style={{ color: th.accent, fontWeight: '600', margin: showCtx ? '0 0 3px' : 0, fontSize: '1rem' }}>{botText}</p>
-                  {showCtx && <p style={{ color: th.sub, fontSize: '0.75rem', fontStyle: 'italic', margin: 0, lineHeight: 1.4 }}>„{ctxTrimmed}"</p>}
-                </>
-              )
-            })()}
+            <p style={{ color: th.text, fontWeight: '700', margin: '0 0 3px', fontSize: '0.92rem' }}>{dailyCard.front}</p>
+            <p style={{ color: th.accent, fontWeight: '600', margin: '0 0 3px', fontSize: '1rem' }}>{dailyCard.back}</p>
+            {dailyCard.context && <p style={{ color: th.sub, fontSize: '0.75rem', fontStyle: 'italic', margin: 0, lineHeight: 1.4 }}>„{dailyCard.context}"</p>}
           </div>
         )
       })()}
@@ -6039,207 +3834,56 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         </div>
       )}
 
-      {/* ── CARD CONTEXT MENU (long-press) ── */}
-      {neverLearnModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={() => setNeverLearnModal(null)}>
-          <div style={{ ...s.card, maxWidth: '340px', width: '100%', padding: '20px', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
-            <p style={{ color: th.sub, fontSize: '0.78rem', marginBottom: '4px', opacity: 0.7 }}>
-              „{neverLearnModal.front}"
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '14px' }}>
-              {/* Favorit */}
-              <button style={{ ...s.button, marginBottom: 0, padding: '11px', background: 'rgba(255,215,0,0.12)', color: th.gold, border: `1px solid rgba(255,215,0,0.35)`, textAlign: 'left', display: 'flex', alignItems: 'center', gap: '10px' }} onClick={async () => {
-                const cardId = neverLearnModal.id
-                const isFav = !!(myData?.favoriteCards?.[cardId])
-                const updated = { ...(myData?.favoriteCards || {}) }
-                if (isFav) delete updated[cardId]; else updated[cardId] = true
-                try {
-                  await updateDoc(doc(db, 'users', user.uid), { favoriteCards: updated })
-                  setMyData(d => ({ ...d, favoriteCards: updated }))
-                } catch(e) {}
-                setNeverLearnModal(null)
-              }}>
-                <span>⭐</span>
-                <span>{myData?.favoriteCards?.[neverLearnModal.id] ? (t.removeFav) : (t.markFav)}</span>
-              </button>
-              {/* Nie wieder lernen */}
-              <button style={{ ...s.button, marginBottom: 0, padding: '11px', background: 'rgba(244,67,54,0.10)', color: '#f44336', border: '1px solid rgba(244,67,54,0.35)', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '10px' }} onClick={async () => {
-                const cardId = neverLearnModal.id
-                try {
-                  const excl = { ...(myData?.excludedCards || {}), [cardId]: true }
-                  await updateDoc(doc(db, 'users', user.uid), { excludedCards: excl })
-                  setMyData(d => ({ ...d, excludedCards: excl }))
-                } catch (e) { console.warn('excludeCard failed:', e) }
-                setNeverLearnModal(null)
-              }}>
-                <span>🚫</span>
-                <span>{t.neverLearnAgain}</span>
-              </button>
-              {/* Abbrechen */}
-              <button style={{ ...s.logoutBtn, marginTop: 0, padding: '10px', textAlign: 'center' }} onClick={() => setNeverLearnModal(null)}>{t.cancel}</button>
-            </div>
-          </div>
+      {/* ── 5-BUTTON GRID ── */}
+      <div className="vocara-cat-grid" style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '12px' }}>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '0s' }} onClick={() => startCategorySession('vocabulary')}>
+            {t.menuWorte.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
+          </button>
+          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '1.8s', opacity: satzLoading ? 0.6 : 1 }} onClick={startSatzSession} disabled={satzLoading}>
+            {satzLoading ? '...' : t.menuSaetze.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
+          </button>
+        </div>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '3.5s' }} onClick={() => startCategorySession('street')}>
+            {t.menuStraße.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
+          </button>
+          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '5.2s' }} onClick={() => startCategorySession('home')}>
+            {t.menuHause.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
+          </button>
+        </div>
+        <button className="vocara-alle-btn" style={{ ...s.button, padding: '13px 28px', fontSize: '0.9rem', letterSpacing: '0.2px', marginBottom: 0, '--gleam-delay': '2.5s' }} onClick={() => startCategorySession('all')}>
+          {t.menuAlle}
+        </button>
+        <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '6.8s', width: '100%', opacity: basicsLoading ? 0.6 : 1 }} onClick={startBasicsSession} disabled={basicsLoading}>
+          {basicsLoading ? '...' : (t.menuGrundlagen || 'Die\nGrundlagen').split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
+        </button>
+      </div>
+
+      {/* ── KARTE BUTTON ── */}
+      <button style={{ ...s.navBtn, marginBottom: karteMenu ? '2px' : '12px', fontSize: '0.9rem', fontWeight: '600', textAlign: 'center' }}
+        onClick={() => setKarteMenu(m => !m)}>
+        🃏 {isMarkLang ? 'Karte' : 'Card'} {karteMenu ? '▲' : '▼'}
+      </button>
+      {karteMenu && (
+        <div style={{ background: th.card, border: `1px solid ${th.border}`, borderRadius: '14px', padding: '4px', marginBottom: '12px', animation: 'vocaraFadeIn 0.2s ease both' }}>
+          <button style={{ ...s.navBtn, marginBottom: '2px', textAlign: 'left', paddingLeft: '16px' }} onClick={() => { setKarteMenu(false); setScreen('meinekarten') }}>
+            📋 {isMarkLang ? 'Meine Karten' : 'My Cards'}
+          </button>
+          <button style={{ ...s.navBtn, marginBottom: '2px', textAlign: 'left', paddingLeft: '16px' }} onClick={() => { setKarteMenu(false); setScreen('karteerstellen') }}>
+            ✏️ {isMarkLang ? 'Karte erstellen' : 'Create card'}
+          </button>
+          <button style={{ ...s.navBtn, marginBottom: 0, textAlign: 'left', paddingLeft: '16px', opacity: myData?.partnerUID ? 1 : 0.4 }}
+            onClick={() => { if (!myData?.partnerUID) return; setKarteMenu(false); setScreen('geschenkkarte') }}>
+            🎁 {isMarkLang ? 'Geschenkkarte senden' : 'Send gift card'}
+          </button>
         </div>
       )}
-
-      {/* ── PARTNER REQUEST BANNER ── */}
-      {myData?._pendingPartnerRequest && (() => {
-        const req = myData._pendingPartnerRequest
-        const acceptPartnerReq = async () => {
-          try { localStorage.removeItem('vocara_manually_disconnected') } catch {}
-          const connectedAt = Date.now()
-          try {
-            await updateDoc(doc(db, 'users', user.uid), { partnerUID: req.fromUid, partnerName: req.fromName, partnerConnectedAt: connectedAt })
-            try { await updateDoc(doc(db, 'users', req.fromUid), { partnerUID: user.uid, partnerName: user.displayName, partnerConnectedAt: connectedAt }) } catch (_) {}
-            setDoc(doc(db, 'users', user.uid, 'publicStats', 'data'), { partnerUID: req.fromUid, partnerName: req.fromName }, { merge: true }).catch(() => {})
-            setDoc(doc(db, 'users', req.fromUid, 'publicStats', 'data'), { partnerUID: user.uid, partnerName: user.displayName }, { merge: true }).catch(() => {})
-            deleteDoc(doc(db, 'users', user.uid, 'partnerRequests', req.fromUid)).catch(() => {})
-            setMyData(d => ({ ...d, partnerUID: req.fromUid, partnerName: req.fromName, _pendingPartnerRequest: null }))
-            onPartnerUpdate(req.fromUid)
-          } catch (e) { console.error('[Vocara] acceptRequest failed:', e.message) }
-        }
-        const declinePartnerReq = async () => {
-          deleteDoc(doc(db, 'users', user.uid, 'partnerRequests', req.fromUid)).catch(() => {})
-          setMyData(d => ({ ...d, _pendingPartnerRequest: null }))
-        }
-        return (
-          <div style={{ background: `${th.gold}12`, border: `1px solid ${th.gold}44`, borderRadius: '14px', padding: '12px 14px', marginBottom: '12px', animation: 'vocaraFadeIn 0.4s ease both' }}>
-            <p style={{ color: th.text, fontWeight: '700', margin: '0 0 8px', fontSize: '0.9rem' }}>
-              🤝 {req.fromName} {t.wantsToConnect}
-            </p>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button style={{ ...s.button, flex: 1, marginBottom: 0, padding: '9px' }} onClick={acceptPartnerReq}>✓ {t.partnerAccept}</button>
-              <button style={{ ...s.logoutBtn, flex: 1, marginTop: 0, padding: '9px', textAlign: 'center' }} onClick={declinePartnerReq}>✗ {t.partnerDecline}</button>
-            </div>
-          </div>
-        )
-      })()}
-
-      {/* ── 6-BUTTON GRID ── */}
-      {(() => {
-        // Soft hint badge for free users near limit
-        const freeBadge = (category) => {
-          if (isPremium) return null
-          const limit = FREE_LIMITS[category]
-          if (!limit) return null
-          const used = freeUsed(category)
-          if (used === 0) return null
-          return (
-            <div style={{ position: 'absolute', top: '5px', right: '6px', background: used >= limit ? `${th.gold}22` : 'rgba(0,0,0,0.35)', borderRadius: '8px', padding: '1px 5px', pointerEvents: 'none' }}>
-              <span style={{ color: used >= limit ? th.gold : 'rgba(255,255,255,0.55)', fontSize: '0.58rem', fontWeight: '700' }}>{used}/{limit}</span>
-            </div>
-          )
-        }
-        // Stufen badge: reads from categoryLevels, shows progress toward 85% mastery at current level
-        const levelBadge = (category) => {
-          const CAT_KEY_MAP = { vocabulary: 'vocab', sentence: 'satz', street: 'street', home: 'home', urlaub: 'urlaub', basics: 'grundlagen' }
-          const CAT_MAX = { vocab: 12, satz: 12, street: 12, home: 10, urlaub: 10, grundlagen: 10 }
-          const catKey = CAT_KEY_MAP[category]
-          if (!catKey) return null
-          const currentLevel = categoryLevels[catKey] || 1
-          const maxLevel = CAT_MAX[catKey] || 12
-          const cardsAtLevel = safeCards.filter(c => c.category === category && !/_r(_\d+)?$/.test(c.id) && c.level && Number(c.level) === currentLevel)
-          const masteredAtLevel = cardsAtLevel.filter(c => {
-            const baseId = c.id.replace(/_r(_\d+)?$/, '')
-            return (cardProgress[baseId]?.interval ?? cardProgress[c.id]?.interval ?? 0) >= 3
-          })
-          const progress = cardsAtLevel.length > 0 ? Math.min(1, masteredAtLevel.length / (cardsAtLevel.length * 0.85)) : 0
-          const col = CAT_LEVEL_COLORS[Math.min(currentLevel - 1, CAT_LEVEL_COLORS.length - 1)] || '#00BFA5'
-          return (
-            <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '6px', pointerEvents: 'none' }}>
-              <span style={{ color: col, fontSize: '10px', fontWeight: '700', letterSpacing: '0.4px', fontFamily: "'Inter', system-ui, sans-serif", opacity: 0.9, whiteSpace: 'nowrap' }}>
-                {currentLevel >= maxLevel ? `Lvl ${currentLevel} ✓` : `Lvl ${currentLevel}`}
-              </span>
-              {currentLevel < maxLevel && (
-                <div style={{ width: '60px', height: '3px', background: 'rgba(255,255,255,0.15)', borderRadius: '2px', overflow: 'hidden', flexShrink: 0 }}>
-                  <div style={{ width: `${progress * 100}%`, height: '100%', background: col, borderRadius: '2px' }} />
-                </div>
-              )}
-            </div>
-          )
-        }
-        return (
-          <div className="vocara-cat-grid" style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '12px' }}>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '0s', position: 'relative' }} onClick={() => startCategorySession('vocabulary')}>
-                <div>{t.menuWorte.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</div>
-                {levelBadge('vocabulary')}
-              </button>
-              <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '1.8s', opacity: satzLoading ? 0.6 : 1, position: 'relative' }} onClick={startSatzSession} disabled={satzLoading}>
-                <div>{satzLoading ? '...' : t.menuSaetze.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</div>
-                {!satzLoading && levelBadge('sentence')}
-              </button>
-            </div>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '10.5s', position: 'relative', width: '100%', justifyContent: 'center' }} onClick={() => setScreen('satz')}>
-                <div>Satz{'\n'}training</div>
-                {levelBadge('satztraining')}
-              </button>
-            </div>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '3.5s', position: 'relative' }}
-                onClick={() => checkFreeLimit('street') && startCategorySession('street')}>
-                <div>{t.menuStraße.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</div>
-                {levelBadge('street')}{freeBadge('street')}
-              </button>
-              <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '5.2s', position: 'relative' }}
-                onClick={() => checkFreeLimit('home') && startCategorySession('home')}>
-                <div>{t.menuHause.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</div>
-                {levelBadge('home')}{freeBadge('home')}
-              </button>
-            </div>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '6.8s', opacity: basicsLoading ? 0.6 : 1, position: 'relative' }}
-                onClick={startBasicsSession} disabled={basicsLoading}>
-                <div>{basicsLoading ? '...' : (t.menuGrundlagen || 'Die\nGrundlagen').split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</div>
-                {!basicsLoading && levelBadge('basics')}
-              </button>
-              <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '8.2s', position: 'relative' }}
-                onClick={() => checkFreeLimit('urlaub') && startCategorySession('urlaub')}>
-                <div>{(t.menuUrlaub || 'Im\nUrlaub').split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</div>
-                {levelBadge('urlaub')}{freeBadge('urlaub')}
-              </button>
-            </div>
-            {/* ── MEINE THEMEN BUTTON ── */}
-            {(() => {
-              const unlockedTopics = myData?.unlockedTopics || []
-              const anyLvl2 = ['vocabulary','street','home','sentence','basics'].some(cat => {
-                const n = safeCards.filter(c => c.category === cat && !/_r(_\d+)?$/.test(c.id) && (cardProgress[c.id?.replace(/_r(_\d+)?$/,'')]?.interval || cardProgress[c.id]?.interval || 0) >= 3).length
-                return getCatLevel(n) >= 2
-              })
-              const topicsUnlocked = isPremium || anyLvl2
-              // Only include cards from topics the user has explicitly unlocked in settings
-              const topicCards = safeCards.filter(c => c.topic && unlockedTopics.includes(c.topic) && !excludedCardIds.has(c.id))
-              if (!topicsUnlocked) return null
-              return (
-                <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '9.5s', position: 'relative', width: '100%', justifyContent: 'center' }}
-                  onClick={() => {
-                    if (unlockedTopics.length === 0) {
-                      setEmptyCategoryMsg(t.topicsHint)
-                      setTimeout(() => setEmptyCategoryMsg(null), 4000)
-                      return
-                    }
-                    if (topicCards.length === 0) { setScreen('settings'); return }
-                    const sess = [...topicCards.flatMap(buildCardPair)].sort(() => Math.random() - 0.5).slice(0, SESSION_SIZE)
-                    setCurrentSessionMode('topics'); setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
-                  }}>
-                  <span>Meine{'\n'}Themen</span>
-                  {topicCards.length > 0 && <div style={{ position: 'absolute', top: '5px', left: '6px', background: 'rgba(0,0,0,0.45)', borderRadius: '6px', padding: '2px 6px' }}><span style={{ color: th.accent, fontSize: '0.54rem', fontWeight: '700' }}>{topicCards.length}</span></div>}
-                </button>
-              )
-            })()}
-            <button className="vocara-alle-btn" style={{ ...s.catBtn, padding: '13px 28px', fontSize: '0.9rem', letterSpacing: '0.2px', marginBottom: 0, '--gleam-delay': '2.5s', flex: 'none', width: '100%', minHeight: '48px', justifyContent: 'center', flexDirection: 'row' }} onClick={() => startCategorySession('all')}>
-              {t.menuAlle}
-            </button>
-          </div>
-        )
-      })()}
-
 
       {/* ── TÄGLICHES LERNZIEL ── */}
       <div style={{ marginBottom: '14px', padding: '0 2px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
-          <span style={{ color: th.sub, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t.dailyGoalShort}</span>
+          <span style={{ color: th.sub, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{isMarkLang ? 'Tagesziel' : 'Daily goal'}</span>
           <span style={{ color: todayCorrect >= dailyGoal ? th.accent : th.sub, fontSize: '0.7rem', fontWeight: todayCorrect >= dailyGoal ? '700' : '400' }}>
             {todayCorrect >= dailyGoal ? '✓ ' : ''}{todayCorrect} / {dailyGoal}
           </span>
@@ -6254,7 +3898,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         <div style={{ background: th.card, border: `1px solid ${th.border}`, borderRadius: '14px', padding: '11px 13px', marginBottom: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '6px' }}>
             <span style={{ fontSize: '0.68rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', color: miniTask.done ? '#4CAF50' : th.gold }}>
-              {miniTask.done ? '✅' : '⚡'} {t.taskOfDayLabel}
+              {miniTask.done ? '✅' : '⚡'} {isMarkLang ? 'Aufgabe des Tages' : 'Task of the day'}
             </span>
           </div>
           {!miniTask.done ? (
@@ -6265,7 +3909,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
               <div style={{ display: 'flex', gap: '6px' }}>
                 <input
                   style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: `1px solid ${th.border}`, borderRadius: '10px', padding: '8px 12px', color: th.text, fontSize: '0.83rem', outline: 'none', fontFamily: "'Inter', system-ui, sans-serif" }}
-                  placeholder={lang === 'de' ? 'Schreib deinen Satz…' : 'Write your sentence…'}
+                  placeholder={isMarkLang ? 'Schreib deinen Satz…' : 'Write your sentence…'}
                   value={miniTaskInput}
                   onChange={e => setMiniTaskInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && submitMiniTask()}
@@ -6312,7 +3956,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
               </span>
               {active && (
                 <span style={{ fontSize: '7.5px', color: done ? '#4CAF50' : th.sub, textAlign: 'center', maxWidth: '60px', lineHeight: 1.3, padding: '3px 6px', background: th.card, border: `1px solid ${th.border}`, borderRadius: '6px', marginTop: '2px', animation: 'vocaraFadeIn 0.2s ease both' }}>
-                  {done ? (t.practicedThisWeek) : (lang === 'de' ? area.tipDe : area.tipEn)}
+                  {done ? (isMarkLang ? '✓ Diese Woche geübt' : '✓ Practiced this week') : (lang === 'de' ? area.tipDe : area.tipEn)}
                 </span>
               )}
             </div>
@@ -6333,56 +3977,12 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         )
       })()}
 
-      {/* ── KI-TANK ENERGIE-BALKEN ── */}
-      {(() => {
-        const nowWeek = getISOWeekStr()
-        const usedKi = myData?.kiWeekStr === nowWeek ? (myData?.kiWeekCount || 0) : 0
-        const kiLimit = 3
-        const pct = isPremium ? 100 : Math.max(0, Math.round(((kiLimit - usedKi) / kiLimit) * 100))
-        const barColor = usedKi >= kiLimit ? '#555' : '#00BFA5'
-        return (
-          <div style={{ marginBottom: '14px', padding: '10px 14px', background: th.card, border: `1px solid ${th.border}`, borderRadius: '14px', cursor: 'pointer' }}
-            onClick={() => { if (!isPremium && usedKi >= kiLimit) setSoftPaywall({ area: 'ki', used: usedKi, limit: kiLimit, weekly: true }) }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-              <span style={{ color: th.text, fontSize: '0.78rem', fontWeight: '600' }}>⚡ KI-Tank</span>
-              <span style={{ color: isPremium ? '#00BFA5' : usedKi >= kiLimit ? '#666' : '#00BFA5', fontSize: '0.75rem', fontWeight: '600' }}>
-                {isPremium ? (t.unlimited) : `${kiLimit - usedKi}/${kiLimit} ${t.thisWeekLabel}`}
-              </span>
-            </div>
-            <div style={{ height: '4px', background: th.border, borderRadius: '4px', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${pct}%`, background: barColor, borderRadius: '4px', transition: 'width 0.5s ease' }} />
-            </div>
-          </div>
-        )
-      })()}
-
-
-      {/* ── MORGEN FÄLLIG BUTTON ── */}
-      {tomorrowDueCards.length > 0 && (
-        <button onClick={() => {
-          const batch = [...tomorrowDueCards].sort(() => Math.random() - 0.5).slice(0, 5)
-          setCurrentSessionMode('vocabulary'); setSession(batch); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
-        }} style={{ ...s.navBtn, background: `${th.accent}15`, border: `1px solid ${th.accent}44`, color: th.accent, textAlign: 'center', marginBottom: '10px', fontWeight: '700' }}>
-          ⏰ {isMarkLang ? `Morgen fällig: ${tomorrowDueCards.length} Karte${tomorrowDueCards.length !== 1 ? 'n' : ''}` : `Due tomorrow: ${tomorrowDueCards.length} card${tomorrowDueCards.length !== 1 ? 's' : ''}`}
-        </button>
-      )}
-
       {/* ── SECONDARY NAVIGATION ── */}
       <div className="vocara-nav-section" style={{ marginTop: '4px', marginBottom: '10px' }}>
-        <button className="vocara-nav-btn" style={s.navBtn} onClick={() => {
-          if (!isPremium) {
-            const nowWeek = getISOWeekStr()
-            const usedThisWeek = myData?.kiWeekStr === nowWeek ? (myData?.kiWeekCount || 0) : 0
-            if (usedThisWeek >= 3) {
-              setSoftPaywall({ area: 'ki', used: usedThisWeek, limit: 3, weekly: true })
-              return
-            }
-            const newCount = usedThisWeek + 1
-            updateDoc(doc(db, 'users', user.uid), { kiWeekCount: newCount, kiWeekStr: nowWeek }).catch(() => {})
-            setMyData(d => ({ ...d, kiWeekCount: newCount, kiWeekStr: nowWeek }))
-          }
-          setScreen('ki')
-        }}>{t.menuKi}{!isPremium && (() => { const w = getISOWeekStr(); const n = myData?.kiWeekStr === w ? (myData?.kiWeekCount || 0) : 0; return n > 0 ? ` (${n}/3)` : '' })()}</button>
+        <button className="vocara-nav-btn" style={{ ...s.navBtn, opacity: satzLoading ? 0.6 : 1 }} onClick={startSatzSession} disabled={satzLoading}>
+          ✍️ {satzLoading ? '…' : t.menuSatz}
+        </button>
+        <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('ki')}>{t.menuKi}</button>
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('stats')}>
           {t.progressBtn}
           <span style={{ marginLeft: '6px', fontSize: '0.76rem', color: th.gold }}>
@@ -6395,14 +3995,12 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           )}
         </button>
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('diary')}>
-          📖 {t.diaryTitle}
+          📖 {isMarkLang ? 'Unser Tagebuch' : 'Our Diary'}
         </button>
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('partner')}>
           {myData?.partnerUID ? `${t.menuPartnerLabel}: ${partnerName}` : t.menuPartnerConnect}
         </button>
-        <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('karteerstellen')}>＋ {t.createCardBtn}</button>
-        <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('meinekarten')}>📋 {t.myCardsLabel}</button>
-        {myData?.partnerUID && <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('geschenkkarte')}>🎁 {t.sendGiftCardBtn}</button>}
+        <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('karteerstellen')}>＋ {isMarkLang ? 'Karte kreieren' : 'Create card'}</button>
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('settings')}>{t.menuSettings}</button>
         <button className="vocara-nav-btn" style={{ ...s.navBtn, marginBottom: 0 }} onClick={() => signOut(auth)}>{t.menuSignOut}</button>
       </div>
@@ -6446,120 +4044,17 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         </div>
       )}
 
-      {/* ── TENSE UNLOCK CELEBRATION ── */}
-      {tenseUnlockCelebration && (() => {
-        const tl = TENSE_LABELS[tenseUnlockCelebration]
-        return (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', animation: 'vocaraFadeIn 0.3s ease both' }}
-            onClick={() => setTenseUnlockCelebration(null)}>
-            <div style={{ background: th.card, border: `1px solid ${th.accent}66`, borderRadius: '24px', padding: '36px 28px', maxWidth: '340px', width: '100%', textAlign: 'center', animation: 'vocaraFadeIn 0.4s ease both' }}
-              onClick={e => e.stopPropagation()}>
-              <p style={{ fontSize: '3rem', margin: '0 0 12px', lineHeight: 1 }}>{tl.emoji}</p>
-              <p style={{ color: th.accent, fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 8px' }}>
-                {t.tenseUnlocked}
-              </p>
-              <p style={{ color: th.text, fontSize: '1.4rem', fontWeight: '800', margin: '0 0 8px', fontFamily: "'Playfair Display', Georgia, serif" }}>
-                {lang === 'de' ? tl.de : tl.en}
-              </p>
-              <p style={{ color: th.sub, fontSize: '0.85rem', lineHeight: 1.5, margin: '0 0 24px' }}>
-                {lang === 'de'
-                  ? tenseUnlockCelebration === 'past'
-                    ? `Du hast ${TENSE_THRESHOLDS.past} Karten gemeistert. Ab jetzt erscheinen auch Vergangenheits-Formen in deinen Karten.`
-                    : `Du hast ${TENSE_THRESHOLDS.future} Karten gemeistert. Alle drei Zeitformen sind jetzt aktiv.`
-                  : tenseUnlockCelebration === 'past'
-                    ? `You've mastered ${TENSE_THRESHOLDS.past} cards. Past tense will now appear in your cards.`
-                    : `You've mastered ${TENSE_THRESHOLDS.future} cards. All three tenses are now active.`
-                }
-              </p>
-              <button onClick={() => setTenseUnlockCelebration(null)} style={{ ...s.button, marginBottom: 0 }}>
-                {t.gotIt}
-              </button>
-            </div>
-          </div>
-        )
-      })()}
-
-      {/* ── LEVEL UNLOCK CELEBRATION ── */}
-      {unlockCelebration && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 9100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(10px)', animation: 'vocaraFadeIn 0.3s ease both' }}
-          onClick={() => setUnlockCelebration(null)}>
-          <div style={{ background: th.card, border: `2px solid ${th.gold}88`, borderRadius: '24px', padding: '36px 32px', maxWidth: '380px', width: '90%', textAlign: 'center', animation: 'vocaraSlideIn 0.35s ease both', boxShadow: `0 0 60px ${th.gold}44` }}
-            onClick={e => e.stopPropagation()}>
-            <p style={{ fontSize: '3.5rem', margin: '0 0 12px', lineHeight: 1 }}>🏆</p>
-            <p style={{ color: th.gold, fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1.5px', margin: '0 0 10px' }}>
-              {lang === 'de' ? 'Neues Level freigeschaltet!' : 'New Level Unlocked!'}
-            </p>
-            <p style={{ color: th.text, fontSize: '1.5rem', fontWeight: '800', margin: '0 0 8px', fontFamily: "'Playfair Display', Georgia, serif" }}>
-              {unlockCelebration.catLabel} — Level {unlockCelebration.newLevel}
-            </p>
-            <p style={{ color: th.sub, fontSize: '0.88rem', lineHeight: 1.5, margin: '0 0 24px' }}>
-              {lang === 'de'
-                ? `Du hast Level ${unlockCelebration.newLevel - 1} gemeistert. Schwierigere Karten warten auf dich!`
-                : `You mastered Level ${unlockCelebration.newLevel - 1}. Harder cards await you!`}
-            </p>
-            <button onClick={() => setUnlockCelebration(null)} style={{ ...s.button, marginBottom: 0, background: th.gold, color: '#000', fontWeight: '800' }}>
-              {lang === 'de' ? 'Los geht\'s!' : 'Let\'s go!'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── SOFT PAYWALL MODAL ── */}
-      {softPaywall && (() => {
-        const areaLabels = { street: t.areaStreet, home: t.areaHome, urlaub: t.areaUrlaub, ki: t.areaKi, satz: t.areaSatz }
-        const areaLabel = areaLabels[softPaywall.area] || softPaywall.area
-        const isWeekly = softPaywall.weekly
-        const limitText = isWeekly
-          ? (isMarkLang ? `Du hast ${softPaywall.limit}/${softPaywall.limit} KI-Gespräche diese Woche genutzt` : `You've used ${softPaywall.limit}/${softPaywall.limit} AI chats this week`)
-          : (isMarkLang ? `Du hast ${softPaywall.used} von ${softPaywall.limit} kostenlosen ${areaLabel}-Karten genutzt` : `You've used ${softPaywall.used} of ${softPaywall.limit} free ${areaLabel} cards`)
-        const cta = t.premiumCta
-        return (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 9000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: '0 0 24px', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', animation: 'vocaraFadeIn 0.25s ease both' }}
-            onClick={() => setSoftPaywall(null)}>
-            <div style={{ background: th.card, border: `1px solid ${th.accent}55`, borderRadius: '24px 24px 20px 20px', padding: '28px 24px 20px', maxWidth: '420px', width: '100%', animation: 'vocaraSlideIn 0.3s ease both', boxShadow: `0 -8px 40px ${th.glowColor}44` }}
-              onClick={e => e.stopPropagation()}>
-              <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-                <span style={{ fontSize: '2.2rem' }}>✨</span>
-                <h3 style={{ color: th.text, fontSize: '1.1rem', fontWeight: '700', margin: '8px 0 6px', fontFamily: "'Playfair Display', Georgia, serif" }}>
-                  {t.unlockPremiumBtn}
-                </h3>
-                <p style={{ color: th.sub, fontSize: '0.88rem', margin: 0, lineHeight: 1.5 }}>{limitText}</p>
-              </div>
-              <div style={{ background: `${th.accent}11`, border: `1px solid ${th.accent}33`, borderRadius: '14px', padding: '14px 16px', marginBottom: '16px' }}>
-                <p style={{ color: th.text, fontSize: '0.85rem', margin: 0, lineHeight: 1.6, fontWeight: '500' }}>
-                  {cta}
-                </p>
-                <ul style={{ color: th.sub, fontSize: '0.78rem', margin: '8px 0 0', paddingLeft: '18px', lineHeight: 1.7 }}>
-                  <li>{t.allAreasUnlimited}</li>
-                  <li>{t.unlimitedKI}</li>
-                  <li>{t.unlimitedSatz}</li>
-                </ul>
-              </div>
-              <button style={{ width: '100%', background: `linear-gradient(135deg, ${th.accent}, ${th.gold})`, color: '#111', border: 'none', borderRadius: '14px', padding: '13px', fontSize: '0.95rem', fontWeight: '700', cursor: 'pointer', marginBottom: '8px', fontFamily: "'Inter', system-ui, sans-serif" }}
-                onClick={() => { setSoftPaywall(null); setScreen('settings') }}>
-                {t.tryPremium}
-              </button>
-              <button style={{ width: '100%', background: 'transparent', color: th.sub, border: 'none', borderRadius: '12px', padding: '10px', fontSize: '0.83rem', cursor: 'pointer', fontFamily: "'Inter', system-ui, sans-serif" }}
-                onClick={() => setSoftPaywall(null)}>
-                {t.maybeLater}
-              </button>
-            </div>
-          </div>
-        )
-      })()}
-
       {/* ── GIMMICK FREISCHALTUNG POPUP ── */}
       {gimmickPopup && (() => {
         const gimmickContent = {
-          hamburg: { emoji: '⚓', title: t.harborGimmick, desc: t.harborDesc, bg: 'linear-gradient(135deg, #0a1a2e, #1a3a5e)', border: '#4ECDC4' },
-          nairobi: { emoji: '🌅', title: t.savannaGimmick, desc: t.savannaDesc, bg: 'linear-gradient(135deg, #2d1a00, #5a3800)', border: '#FFB347' },
-          welt: { emoji: '🌌', title: t.auroraGimmick, desc: t.auroraDesc, bg: 'linear-gradient(135deg, #0a001a, #1a003a)', border: '#B088F9' },
+          hamburg: { emoji: '⚓', title: isMarkLang ? 'Hafen-Gimmick freigeschaltet!' : 'Harbor gimmick unlocked!', desc: isMarkLang ? 'Die Elbe rauscht. Du hast 5 Wochen durchgehalten.' : 'The harbor is yours. 5 weeks completed.', bg: 'linear-gradient(135deg, #0a1a2e, #1a3a5e)', border: '#4ECDC4' },
+          nairobi: { emoji: '🌅', title: isMarkLang ? 'Savanna-Gimmick freigeschaltet!' : 'Savanna gimmick unlocked!', desc: isMarkLang ? 'Die Sonne über Nairobi. Deine Stimme trägt weiter.' : 'The savanna glows. Your voice carries further.', bg: 'linear-gradient(135deg, #2d1a00, #5a3800)', border: '#FFB347' },
+          welt: { emoji: '🌌', title: isMarkLang ? 'Aurora-Gimmick freigeschaltet!' : 'Aurora gimmick unlocked!', desc: isMarkLang ? 'Ein Nordlicht für deine Sprache. 5 Wochen.' : 'Northern lights for your language. 5 weeks.', bg: 'linear-gradient(135deg, #0a001a, #1a003a)', border: '#B088F9' },
+          lyon: { emoji: '🍷', title: isMarkLang ? 'Lyon-Gimmick freigeschaltet!' : 'Lyon gimmick unlocked!', desc: isMarkLang ? 'Burgunder und Gold. La langue s\'ouvre.' : 'Burgundy and gold. La langue s\'ouvre.', bg: 'linear-gradient(135deg, #1a0008, #3a0015)', border: '#D4A017' },
+          sevilla: { emoji: '💃', title: isMarkLang ? 'Flamenco-Gimmick freigeschaltet!' : 'Flamenco gimmick unlocked!', desc: isMarkLang ? 'Der Rhythmus Sevillas. 5 Wochen tanzen.' : 'The rhythm of Sevilla. 5 weeks dancing.', bg: 'linear-gradient(135deg, #1a0500, #3a1000)', border: '#F39C12' },
+          chiangmai: { emoji: '🪷', title: isMarkLang ? 'Chiang-Mai-Gimmick freigeschaltet!' : 'Chiang Mai gimmick unlocked!', desc: isMarkLang ? 'Lotus blüht. Die Stimme findet ihren Weg.' : 'Lotus blooms. The voice finds its way.', bg: 'linear-gradient(135deg, #0d0017, #200030)', border: '#CE93D8' },
         }
-        const g = { ...(gimmickContent[theme] || gimmickContent.welt) }
-        if (gimmickStreakDays !== null) {
-          g.title = isMarkLang ? `${gimmickStreakDays} Tage in Folge!` : `${gimmickStreakDays}-day streak!`
-          g.desc = isMarkLang ? `Du lernst seit ${gimmickStreakDays} Tagen ohne Unterbrechung. Weiter so!` : `You've been learning for ${gimmickStreakDays} days in a row. Keep it up!`
-        }
+        const g = gimmickContent[theme] || gimmickContent.welt
         const themeAnim = {
           hamburg: (
             [1,2,3].map(i => (
@@ -6586,10 +4081,10 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
             </div>
             <div style={{ position: 'relative', zIndex: 1, background: g.bg, border: `2px solid ${g.border}`, borderRadius: '24px', padding: '32px 28px', maxWidth: '340px', width: '100%', textAlign: 'center', boxShadow: `0 0 60px ${g.border}55, 0 0 120px ${g.border}22`, animation: 'vocaraFadeIn 0.4s ease 0.15s both' }}>
               <div style={{ fontSize: '3.5rem', marginBottom: '12px', animation: 'vocaraCelebrate 1s ease both' }}>{g.emoji}</div>
-              <p style={{ color: g.border, fontSize: '0.65rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1.5px', margin: '0 0 8px' }}>🎉 {t.gimmickUnlockedLabel}</p>
+              <p style={{ color: g.border, fontSize: '0.65rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1.5px', margin: '0 0 8px' }}>🎉 {isMarkLang ? 'Gimmick freigeschaltet' : 'Gimmick unlocked'}</p>
               <p style={{ color: '#fff', fontSize: '1.1rem', fontWeight: '700', margin: '0 0 10px', lineHeight: 1.3 }}>{g.title}</p>
               <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.85rem', fontStyle: 'italic', margin: '0 0 16px', lineHeight: 1.5 }}>{g.desc}</p>
-              <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.68rem', margin: 0 }}>{t.tapToClose}</p>
+              <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.68rem', margin: 0 }}>{isMarkLang ? 'Tippen zum Schließen' : 'Tap to close'}</p>
             </div>
           </div>
         )
@@ -6610,7 +4105,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
             {!showReplyInput ? (
               <button onClick={() => setShowReplyInput(true)}
                 style={{ marginTop: '8px', background: 'transparent', border: 'none', color: th.gold, fontSize: '0.82rem', fontWeight: '600', cursor: 'pointer', padding: 0, WebkitTapHighlightColor: 'transparent' }}>
-                ✨ {t.replyBtn}
+                ✨ {isMarkLang ? 'Antworten' : 'Reply'}
               </button>
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', marginTop: '10px', borderBottom: `1px solid ${th.gold}66`, paddingBottom: '4px' }}>
@@ -6650,57 +4145,51 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
       {wordOfDayBanner && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 8800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', animation: 'vocaraFadeIn 0.4s ease both' }}>
           <div style={{ background: th.card, border: `1px solid ${th.gold}44`, borderRadius: '22px', padding: '28px 24px', maxWidth: '340px', width: '100%', textAlign: 'center', boxShadow: `0 0 40px ${th.glowColor}33` }}>
-            <p style={{ color: th.gold, fontSize: '0.72rem', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 12px' }}>{t.todaysWordLabel}</p>
+            <p style={{ color: th.gold, fontSize: '0.72rem', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 12px' }}>{isMarkLang ? "Heute's Wort" : "Word of the day"}</p>
             <p style={{ color: th.text, fontSize: '1.4rem', fontWeight: '700', margin: '0 0 6px' }}>{wordOfDayBanner.front}</p>
             <p style={{ color: th.accent, fontSize: '1rem', margin: '0 0 14px' }}>{wordOfDayBanner.back}</p>
             <p style={{ color: th.sub, fontSize: '0.78rem', margin: 0, lineHeight: 1.5, fontStyle: 'italic' }}>
-              {t.appearsEverywhere}
+              {isMarkLang ? '— heute begegnet es dir überall.' : '— it will appear in every area today.'}
             </p>
           </div>
         </div>
       )}
 
-      {/* ── INCOMING CARDS BANNER + MODAL ── */}
-      {incomingCardQueue.length > 0 && (() => {
-        const card = incomingCardQueue[0]
-        const fromName = card.fromName || myData?.partnerName || 'Partner'
-        const remaining = incomingCardQueue.length
-        const dismissCard = async (accept) => {
-          if (accept) {
-            const giftCard = { id: `gift_${Date.now()}`, front: card.front, back: card.back, category: card.category || 'vocabulary', langA: card.langA || 'de', langB: card.langB || 'en', source: 'gift', _gift: true, sharedBy: fromName }
-            const updated = [...(myData?.aiCards || []), giftCard]
-            await updateDoc(doc(db, 'users', user.uid), { aiCards: updated }).catch(() => {})
-            setMyData(d => ({ ...d, aiCards: updated }))
-          }
-          deleteDoc(doc(db, 'users', user.uid, 'incomingCards', card._docId)).catch(() => {})
-          setIncomingCardQueue(q => q.slice(1))
-        }
-        return (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', backdropFilter: 'blur(6px)' }}>
-            <div style={{ background: th.card, border: `2px solid ${th.gold}66`, borderRadius: '24px', padding: '28px 24px', maxWidth: '360px', width: '100%', textAlign: 'center', boxShadow: `0 0 40px ${th.glowColor}44`, animation: 'vocaraFadeIn 0.4s ease both' }}>
-              <p style={{ color: th.gold, fontSize: '0.68rem', fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase', margin: '0 0 6px' }}>
-                {isMarkLang
-                  ? `${remaining} neue Karte${remaining > 1 ? 'n' : ''} von ${fromName} 🎁`
-                  : `${remaining} new card${remaining > 1 ? 's' : ''} from ${fromName} 🎁`}
-              </p>
-              <div style={{ background: th.bg, borderRadius: '14px', padding: '16px', margin: '10px 0', border: `1px solid ${th.border}` }}>
-                <p style={{ color: th.text, fontWeight: 'bold', fontSize: '1.1rem', margin: '0 0 8px' }}>{card.front}</p>
-                <div style={{ height: '1px', background: th.border, margin: '8px 0' }} />
-                <p style={{ color: th.accent, fontWeight: 'bold', fontSize: '1.3rem', margin: 0 }}>{card.back}</p>
-              </div>
-              {remaining > 1 && <p style={{ color: th.sub, fontSize: '0.72rem', margin: '0 0 10px' }}>{isMarkLang ? `Noch ${remaining - 1} weitere` : `${remaining - 1} more`}</p>}
-              <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
-                <button onClick={() => dismissCard(true)}
-                  style={{ flex: 1, background: `${th.accent}25`, color: th.text, border: `1px solid ${th.accent}55`, borderRadius: '14px', padding: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '0.9rem' }}>
-                  ➕ {t.addToDeck}
-                </button>
-                <button onClick={() => dismissCard(false)}
-                  style={{ flex: '0 0 auto', background: 'rgba(255,255,255,0.06)', color: th.sub, border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', padding: '12px 16px', cursor: 'pointer', fontSize: '0.9rem' }}>✕</button>
-              </div>
+      {/* ── GESCHENKKARTE POPUP ── */}
+      {pendingGift && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', backdropFilter: 'blur(6px)' }}>
+          <div style={{ background: th.card, border: `2px solid ${th.gold}66`, borderRadius: '24px', padding: '28px 24px', maxWidth: '360px', width: '100%', textAlign: 'center', boxShadow: `0 0 40px ${th.glowColor}44`, animation: 'vocaraFadeIn 0.4s ease both' }}>
+            <p style={{ fontSize: '2.5rem', margin: '0 0 8px' }}>🎁</p>
+            <p style={{ color: th.gold, fontWeight: 'bold', fontSize: '1.1rem', marginBottom: '6px' }}>{isMarkLang ? `Geschenk von ${pendingGift.fromName}!` : `Gift from ${pendingGift.fromName}!`}</p>
+            {pendingGift.message && <p style={{ color: th.sub, fontSize: '0.85rem', marginBottom: '10px', fontStyle: 'italic' }}>„{pendingGift.message}"</p>}
+            <div style={{ background: th.bg, borderRadius: '14px', padding: '16px', margin: '10px 0', border: `1px solid ${th.border}` }}>
+              <p style={{ color: th.text, fontWeight: 'bold', fontSize: '1.1rem', margin: '0 0 8px' }}>{pendingGift.front}</p>
+              <div style={{ height: '1px', background: th.border, margin: '8px 0' }} />
+              <p style={{ color: th.accent, fontWeight: 'bold', fontSize: '1.3rem', margin: 0 }}>{pendingGift.back}</p>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+              <button
+                onClick={async () => {
+                  const giftCard = { id: `gift_${Date.now()}`, front: pendingGift.front, back: pendingGift.back, category: pendingGift.category || 'vocabulary', langA: pendingGift.langA || 'de', langB: pendingGift.langB || 'en', source: 'gift', sharedBy: pendingGift.fromName }
+                  const updated = [...(myData?.aiCards || []), giftCard]
+                  await updateDoc(doc(db, 'users', user.uid), { aiCards: updated, pendingGift: null, pendingGiftSeenDate: todayStr() }).catch(() => {})
+                  setMyData(d => ({ ...d, aiCards: updated, pendingGift: null, pendingGiftSeenDate: todayStr() }))
+                  setPendingGift(null)
+                }}
+                style={{ flex: 1, background: `${th.accent}25`, color: th.text, border: `1px solid ${th.accent}55`, borderRadius: '14px', padding: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '0.9rem' }}>
+                ➕ {isMarkLang ? 'Zum Deck' : 'Add to deck'}
+              </button>
+              <button
+                onClick={async () => {
+                  await updateDoc(doc(db, 'users', user.uid), { pendingGift: null, pendingGiftSeenDate: todayStr() }).catch(() => {})
+                  setMyData(d => ({ ...d, pendingGift: null, pendingGiftSeenDate: todayStr() }))
+                  setPendingGift(null)
+                }}
+                style={{ flex: '0 0 auto', background: 'rgba(255,255,255,0.06)', color: th.sub, border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', padding: '12px 16px', cursor: 'pointer', fontSize: '0.9rem' }}>✕</button>
             </div>
           </div>
-        )
-      })()}
+        </div>
+      )}
 
       {/* ── ÜBERRASCHUNGSKARTE POPUP ── */}
       {surpriseCard && (
@@ -6731,18 +4220,9 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
 function AdminScreen({ user, lang, theme, onBack }) {
   const th = THEMES[theme]; const s = makeStyles(th)
   const isDE = lang === 'de'
-  const t = T[lang] || T.en
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [toggling, setToggling] = useState(null)
-  const [reports, setReports] = useState([])
-  const [reportActing, setReportActing] = useState(null)
-  const [poolLog, setPoolLog] = useState([])
-  const [poolRunning, setPoolRunning] = useState(false)
-  const [resetSelectedUid, setResetSelectedUid] = useState(MARK_UID)
-  const [resetRunning, setResetRunning] = useState(false)
-  const [resetToast, setResetToast] = useState(null)
-  const [poolStatus, setPoolStatus] = useState({})
 
   const load = async () => {
     setLoading(true)
@@ -6752,37 +4232,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
         .sort((a, b) => (b.lastActive || '').localeCompare(a.lastActive || ''))
       setUsers(data)
     } catch (e) { console.warn('Admin load failed:', e) }
-    try {
-      const rSnap = await getDocs(collection(db, 'reports'))
-      setReports(rSnap.docs.map(d => ({ _id: d.id, ...d.data() })).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)))
-    } catch (_) {}
     setLoading(false)
-    loadPoolStatus()
-  }
-
-  const loadPoolStatus = async () => {
-    try {
-      const [cardSnap, exSnap] = await Promise.all([
-        getDocs(collection(db, 'sharedCards')),
-        getDocs(collection(db, 'sharedExercises')),
-      ])
-      const cardMap = {}
-      for (const d of cardSnap.docs) { cardMap[d.id] = d.data().count ? Number(d.data().count) : (d.data().cards?.length || 0) }
-      const exMap = {}
-      for (const d of exSnap.docs) { exMap[d.id] = d.data().count ? Number(d.data().count) : (d.data().exercises?.length || 0) }
-      const status = {}
-      for (const cfg of ADMIN_POOL_CONFIGS) {
-        const totalLevels = POOL_STRUCTURE[cfg.catKey].totalLevels
-        const threshold = POOL_STRUCTURE[cfg.catKey].cardsPerLevel
-        const map = cfg.coll === 'sharedCards' ? cardMap : exMap
-        for (let l = 1; l <= totalLevels; l++) {
-          const key = `${cfg.label}_${l}`
-          const counts = LANGUAGE_PAIRS.map(p => map[cfg.docFn(p, l)] || 0)
-          status[key] = counts.every(c => c === 0) ? 'empty' : counts.every(c => c >= threshold) ? 'full' : 'partial'
-        }
-      }
-      setPoolStatus(status)
-    } catch (e) { console.warn('loadPoolStatus failed:', e) }
   }
 
   useEffect(() => { load() }, [])
@@ -6827,131 +4277,6 @@ function AdminScreen({ user, lang, theme, onBack }) {
     return streak
   }
 
-  const dismissReport = async (reportId) => {
-    setReportActing(reportId)
-    try {
-      await deleteDoc(doc(db, 'reports', reportId))
-      setReports(prev => prev.filter(r => r._id !== reportId))
-    } catch (e) { console.warn('dismiss report failed:', e) }
-    setReportActing(null)
-  }
-
-  const markReportFixed = async (reportId) => {
-    setReportActing(reportId)
-    try {
-      await updateDoc(doc(db, 'reports', reportId), { status: 'fixed', fixedAt: Date.now() })
-      setReports(prev => prev.map(r => r._id === reportId ? { ...r, status: 'fixed' } : r))
-    } catch (e) { console.warn('mark fixed failed:', e) }
-    setReportActing(null)
-  }
-
-  const triggerPool = async (endpoint, body, label) => {
-    setPoolRunning(true)
-    setPoolLog(prev => [...prev, `▶ ${label}…`])
-    try {
-      const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-      const data = await res.json()
-      const summary = data.results
-        ? data.results.map(r => `${r.langPair||r.pair||''} ${r.level||r.type||''}: ${r.count ?? r.error ?? '?'}`).join(' | ')
-        : data.generated
-          ? data.generated.map(r => `${r.pair}: ${r.count ?? r.error ?? '?'}`).join(' | ')
-          : JSON.stringify(data).slice(0, 120)
-      setPoolLog(prev => [...prev, `✓ ${label}: ${summary}`])
-    } catch (e) {
-      setPoolLog(prev => [...prev, `✕ ${label}: ${e.message}`])
-    }
-    setPoolRunning(false)
-    loadPoolStatus()
-  }
-
-  const triggerAllPools = async () => {
-    setPoolRunning(true)
-    setPoolLog([`▶ Alle Pools generieren…`])
-    const delay = ms => new Promise(r => setTimeout(r, ms))
-    const jobs = [
-      { endpoint: '/api/generate-base-pool', body: { level: 1 }, label: 'Base Lvl 1' },
-      { endpoint: '/api/generate-base-pool', body: { level: 2 }, label: 'Base Lvl 2' },
-      { endpoint: '/api/generate-base-pool', body: { level: 3 }, label: 'Base Lvl 3' },
-      { endpoint: '/api/generate-vocab-pool', body: { level: 1 }, label: 'Vocab Lvl 1' },
-      { endpoint: '/api/generate-street-pool', body: { level: 1 }, label: 'Street Lvl 1' },
-      { endpoint: '/api/generate-home-pool', body: { level: 1 }, label: 'Home Lvl 1' },
-      { endpoint: '/api/generate-sentence-pool', body: { type: 'flashcards', level: 1 }, label: 'Satz FC Lvl 1' },
-      { endpoint: '/api/generate-sentence-training-pool', body: { level: 1 }, label: 'Satz Train Lvl 1' },
-    ]
-    for (const { endpoint, body, label } of jobs) {
-      setPoolLog(prev => [...prev, `▶ ${label}…`])
-      try {
-        const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-        const data = await res.json()
-        const summary = data.results
-          ? data.results.map(r => `${r.langPair||r.pair||''} ${r.level||r.type||''}: ${r.count ?? r.error ?? '?'}`).join(' | ')
-          : data.generated
-            ? data.generated.map(r => `${r.pair}: ${r.count ?? r.error ?? '?'}`).join(' | ')
-            : JSON.stringify(data).slice(0, 100)
-        setPoolLog(prev => [...prev, `✓ ${label}: ${summary}`])
-      } catch (e) {
-        setPoolLog(prev => [...prev, `✕ ${label}: ${e.message}`])
-      }
-      await delay(2000)
-    }
-    setPoolLog(prev => [...prev, `✓ Fertig.`])
-    setPoolRunning(false)
-  }
-
-  const deleteSharedCards = async () => {
-    if (!window.confirm('Delete ALL sharedCards documents? This cannot be undone.')) return
-    setPoolRunning(true)
-    setPoolLog([`▶ Deleting all sharedCards…`])
-    try {
-      const res = await fetch('/api/delete-shared-cards', { method: 'POST' })
-      const data = await res.json()
-      setPoolLog(prev => [...prev, `✓ Deleted: ${data.deleted}/${data.total} docs`])
-    } catch (e) {
-      setPoolLog(prev => [...prev, `✕ Delete failed: ${e.message}`])
-    }
-    setPoolRunning(false)
-  }
-
-  const handleUserReset = async () => {
-    const userName = resetSelectedUid === MARK_UID ? 'Mark' : 'Elosy'
-    if (!window.confirm(`⚠️ Vollständig zurücksetzen für ${userName}?\n\nGelöscht wird:\n• categoryLevels → alle auf 1\n• cardProgress (alle Dokumente + Map-Feld)\n• masteredPerCategory → alle auf 0\n• publicStats/data\n\nNICHT berührt: Streaks, Profil, Partner-Verbindung, eigene Karten.\n\nFortfahren?`)) return
-    setResetRunning(true)
-    setResetToast(null)
-    const uid = resetSelectedUid
-    try {
-      // 1. Reset categoryLevels
-      await setDoc(doc(db, 'users', uid, 'settings', 'categoryLevels'), {
-        grundlagen: 1, vocab: 1, street: 1, home: 1, urlaub: 1, satz: 1,
-      })
-      // 2. Delete all cardProgress documents (paginated in batches of 500)
-      let totalDeleted = 0
-      const cpRef = collection(db, 'users', uid, 'cardProgress')
-      let snap
-      do {
-        snap = await getDocs(cpRef)
-        if (snap.empty) break
-        const batch = writeBatch(db)
-        snap.docs.forEach(d => batch.delete(d.ref))
-        await batch.commit()
-        totalDeleted += snap.size
-      } while (snap.size === 500)
-      // 3. Clear cardProgress map field + masteredPerCategory on user document
-      await updateDoc(doc(db, 'users', uid), {
-        cardProgress: {},
-        masteredPerCategory: { vocabulary: 0, sentence: 0, street: 0, home: 0, basics: 0, urlaub: 0, satztraining: 0 },
-      })
-      // 4. Delete publicStats/data (removes cached masteredCards/goldenCards for partner view)
-      const psRef = doc(db, 'users', uid, 'publicStats', 'data')
-      const psSnap = await getDoc(psRef)
-      if (psSnap.exists()) await deleteDoc(psRef)
-      setResetToast({ ok: true, msg: `✅ ${userName} zurückgesetzt (${totalDeleted} cardProgress-Docs + map-Feld gelöscht)` })
-    } catch (e) {
-      setResetToast({ ok: false, msg: `❌ Fehler: ${e.message}` })
-    }
-    setResetRunning(false)
-    setTimeout(() => setResetToast(null), 5000)
-  }
-
   const thisWeek = getISOWeekStr()
   const activeThisWeek = users.filter(u => (u.sessionHistory || []).some(h => {
     try { return getISOWeekStr(new Date(...h.date.split('-').map((v,i)=>i===1?v-1:+v))) === thisWeek } catch { return false }
@@ -6960,7 +4285,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
 
   return (
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
-      <button style={s.backBtn} onClick={onBack}>← {t.back}</button>
+      <button style={s.backBtn} onClick={onBack}>← {isDE ? 'Zurück' : 'Back'}</button>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
         <h2 style={{ color: th.text, fontSize: '1.2rem', margin: 0 }}>⚙ Admin</h2>
         <div style={{ display: 'flex', gap: '8px' }}>
@@ -6971,10 +4296,9 @@ function AdminScreen({ user, lang, theme, onBack }) {
       {/* Quick stats */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
         {[
-          [users.length, t.adminUsers],
-          [activeThisWeek, t.adminActiveWeek],
+          [users.length, isDE ? 'Nutzer' : 'Users'],
+          [activeThisWeek, isDE ? 'Aktiv Woche' : 'Active week'],
           [premiumCount, 'Premium/Pro'],
-          [reports.filter(r => r.status !== 'fixed').length, '🚩 ' + (t.adminReports)],
         ].map(([val, label]) => (
           <div key={label} style={{ flex: 1, background: th.card, border: `1px solid ${th.border}`, borderRadius: '12px', padding: '10px 6px', textAlign: 'center' }}>
             <p style={{ color: th.gold, fontSize: '1.4rem', fontWeight: '700', margin: '0 0 2px' }}>{val}</p>
@@ -6982,93 +4306,6 @@ function AdminScreen({ user, lang, theme, onBack }) {
           </div>
         ))}
       </div>
-      {/* User reset section */}
-      <div style={{ marginBottom: '12px', background: 'rgba(229,115,115,0.06)', border: '1px solid rgba(229,115,115,0.25)', borderRadius: '12px', padding: '10px 12px' }}>
-        <p style={{ color: '#e57373', fontSize: '0.68rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.6px', margin: '0 0 8px' }}>👤 Nutzer zurücksetzen</p>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <select value={resetSelectedUid} onChange={e => setResetSelectedUid(e.target.value)}
-            style={{ background: th.card, border: `1px solid ${th.border}`, color: th.text, borderRadius: '8px', padding: '6px 10px', fontSize: '0.8rem', cursor: 'pointer', flex: '1' }}>
-            <option value={MARK_UID}>Mark</option>
-            <option value={ELOSY_UID}>Elosy</option>
-          </select>
-          <button onClick={handleUserReset} disabled={resetRunning}
-            style={{ background: resetRunning ? 'transparent' : 'rgba(229,115,115,0.15)', border: `1px solid ${resetRunning ? th.border : '#e57373'}`, color: resetRunning ? th.sub : '#e57373', borderRadius: '8px', padding: '6px 14px', fontSize: '0.78rem', fontWeight: '700', cursor: resetRunning ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
-            {resetRunning ? '⏳ Läuft…' : 'Vollständig zurücksetzen'}
-          </button>
-        </div>
-        {resetToast && (
-          <p style={{ color: resetToast.ok ? '#81c784' : '#e57373', fontSize: '0.72rem', margin: '6px 0 0', fontWeight: '600' }}>{resetToast.msg}</p>
-        )}
-      </div>
-      {/* Pool generation */}
-      <div style={{ marginBottom: '12px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-          <p style={{ color: th.sub, fontSize: '0.7rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', margin: 0 }}>🗃 Pool generieren</p>
-          <button onClick={triggerAllPools} disabled={poolRunning}
-            style={{ background: poolRunning ? 'transparent' : `${th.accent}22`, border: `1px solid ${poolRunning ? th.border : th.accent}`, color: poolRunning ? th.sub : th.accent, borderRadius: '8px', padding: '5px 12px', fontSize: '0.72rem', fontWeight: '700', cursor: poolRunning ? 'not-allowed' : 'pointer', transition: 'all 0.2s' }}>
-            {poolRunning ? '⏳ Läuft…' : '🔄 Alles generieren'}
-          </button>
-        </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
-          {ADMIN_POOL_CONFIGS.flatMap(cfg =>
-            Array.from({ length: POOL_STRUCTURE[cfg.catKey].totalLevels }, (_, i) => i + 1).map(l => {
-              const key = `${cfg.label}_${l}`
-              const st = poolStatus[key]
-              const btnColor = st === 'full' ? '#66bb6a' : st === 'partial' ? '#ffa726' : '#42a5f5'
-              const label = `${cfg.label} L${l}`
-              return (
-                <button key={key} onClick={() => triggerPool(cfg.endpoint, cfg.bodyFn(l), label)} disabled={poolRunning}
-                  style={{ background: `${btnColor}15`, border: `1px solid ${btnColor}44`, color: btnColor, borderRadius: '8px', padding: '4px 10px', fontSize: '0.68rem', fontWeight: '700', cursor: poolRunning ? 'not-allowed' : 'pointer', opacity: poolRunning ? 0.6 : 1 }}>
-                  {label}
-                </button>
-              )
-            })
-          )}
-        </div>
-        <button onClick={deleteSharedCards} disabled={poolRunning}
-          style={{ background: 'rgba(229,115,115,0.12)', border: '1px solid rgba(229,115,115,0.4)', color: '#e57373', borderRadius: '8px', padding: '5px 14px', fontSize: '0.72rem', fontWeight: '700', cursor: poolRunning ? 'not-allowed' : 'pointer', marginBottom: '8px' }}>
-          🗑 Delete All sharedCards
-        </button>
-        {poolLog.length > 0 && (
-          <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: '8px', padding: '8px', maxHeight: '100px', overflowY: 'auto' }}>
-            {poolLog.map((line, i) => (
-              <p key={i} style={{ color: line.startsWith('✓') ? '#81c784' : line.startsWith('✕') ? '#e57373' : th.sub, fontSize: '0.62rem', margin: '1px 0', fontFamily: 'monospace' }}>{line}</p>
-            ))}
-          </div>
-        )}
-      </div>
-      {reports.length > 0 && (
-        <div style={{ marginBottom: '12px' }}>
-          <p style={{ color: '#e57373', fontSize: '0.78rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>🚩 {t.reportedCards} ({reports.filter(r => r.status !== 'fixed').length} {t.openIssues})</p>
-          <div style={s.card}>
-            {reports.slice(0, 30).map((r, i) => (
-              <div key={r._id} style={{ paddingBottom: '10px', marginBottom: '10px', borderBottom: i < Math.min(reports.length, 30) - 1 ? `1px solid ${th.border}` : 'none', opacity: r.status === 'fixed' ? 0.5 : 1 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-                  <div style={{ flex: 1 }}>
-                    <span style={{ color: th.text, fontSize: '0.82rem', fontWeight: '600' }}>{r.front} → {r.back}</span>
-                    {r.status === 'fixed' && <span style={{ marginLeft: '6px', color: '#81c784', fontSize: '0.65rem', fontWeight: '700' }}>✓ {t.fixedStatus}</span>}
-                  </div>
-                  <span style={{ color: th.sub, fontSize: '0.65rem', flexShrink: 0, marginLeft: '8px' }}>{r.timestamp ? new Date(r.timestamp).toLocaleDateString() : '—'}</span>
-                </div>
-                {r.comment && <p style={{ color: th.sub, fontSize: '0.72rem', margin: '0 0 6px', fontStyle: 'italic' }}>„{r.comment}"</p>}
-                {r.reportedBy && <p style={{ color: th.sub, fontSize: '0.65rem', margin: '0 0 6px' }}>by {r.reportedBy.slice(0, 8)}</p>}
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  {r.status !== 'fixed' && (
-                    <button onClick={() => markReportFixed(r._id)} disabled={reportActing === r._id}
-                      style={{ padding: '3px 8px', borderRadius: '8px', fontSize: '0.65rem', cursor: 'pointer', background: 'rgba(129,199,132,0.15)', color: '#81c784', border: '1px solid rgba(129,199,132,0.4)', fontWeight: '600', opacity: reportActing === r._id ? 0.5 : 1 }}>
-                      ✓ {t.markFixed}
-                    </button>
-                  )}
-                  <button onClick={() => dismissReport(r._id)} disabled={reportActing === r._id}
-                    style={{ padding: '3px 8px', borderRadius: '8px', fontSize: '0.65rem', cursor: 'pointer', background: 'rgba(229,115,115,0.12)', color: '#e57373', border: '1px solid rgba(229,115,115,0.3)', fontWeight: '600', opacity: reportActing === r._id ? 0.5 : 1 }}>
-                    ✕ {t.dismiss}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
       {loading ? (
         <p style={{ color: th.sub, textAlign: 'center' }}>…</p>
       ) : (
@@ -7105,7 +4342,6 @@ function AdminScreen({ user, lang, theme, onBack }) {
 function DiaryScreen({ user, myData, setMyData, partnerData, lang, theme, onBack }) {
   const th = THEMES[theme]; const s = makeStyles(th)
   const isDE = lang === 'de'
-  const t = T[lang] || T.en
   const [myEntry, setMyEntry] = useState('')
   const [feedback, setFeedback] = useState(null)
   const [feedbackLoading, setFeedbackLoading] = useState(false)
@@ -7113,7 +4349,7 @@ function DiaryScreen({ user, myData, setMyData, partnerData, lang, theme, onBack
   const today = todayStr()
   // Target language for diary: Mark=EN, Elosy=DE
   const targetLang = lang === 'de' ? 'en' : 'de'
-  const targetLangLabel = targetLang === 'en' ? (t.langNameEn) : (t.langNameDe)
+  const targetLangLabel = targetLang === 'en' ? (isDE ? 'Englisch' : 'English') : (isDE ? 'Deutsch' : 'German')
   const DE_WORDS = ['ich','du','er','sie','es','wir','ihr','und','oder','aber','nicht','ist','sind','war','haben','sein','mit','von','auf','bei','für','das','die','der','ein','eine','einen','einen','zu','in','an','im','am','dem','den','diese','diese','mein','dein']
   const EN_WORDS = ['i','you','he','she','it','we','they','and','or','but','not','is','are','was','have','be','with','from','on','at','for','the','a','an','to','in','this','my','your','that']
   const detectWrongLang = (text) => {
@@ -7161,19 +4397,19 @@ function DiaryScreen({ user, myData, setMyData, partnerData, lang, theme, onBack
   return (
     <div style={s.container} className="vocara-screen">
       <div style={{ ...s.homeBox, paddingTop: '16px' }}>
-        <button style={s.backBtn} onClick={onBack}>← {t.back}</button>
+        <button style={s.backBtn} onClick={onBack}>← {isDE ? 'Zurück' : 'Back'}</button>
         <div style={{ textAlign: 'left', marginBottom: '18px' }}>
           <h2 style={{ color: th.text, fontFamily: "'Playfair Display', Georgia, serif", fontSize: '1.3rem', fontWeight: '700', margin: '0 0 4px' }}>
-            📔 {t.diaryTitle}
+            📔 {isDE ? 'Gemeinsames Tagebuch' : 'Shared Diary'}
           </h2>
           <p style={{ color: th.sub, fontSize: '0.8rem', margin: 0 }}>
-            {t.diaryDesc}
+            {isDE ? 'Ein Satz pro Tag in eurer Zielsprache.' : 'One sentence per day in your target language.'}
           </p>
         </div>
 
         {/* Today's entry */}
         <div style={{ ...s.card, marginBottom: '14px' }}>
-          <p style={{ ...s.cardLabel, marginBottom: '10px' }}>{t.today} — {today}</p>
+          <p style={{ ...s.cardLabel, marginBottom: '10px' }}>{isDE ? 'Heute' : 'Today'} — {today}</p>
           {todayMyEntry ? (
             <p style={{ color: th.accent, fontWeight: '600', fontSize: '0.92rem', margin: 0, fontStyle: 'italic' }}>„{todayMyEntry.text}"</p>
           ) : (
@@ -7193,7 +4429,7 @@ function DiaryScreen({ user, myData, setMyData, partnerData, lang, theme, onBack
                   ⚠️ {isDE ? `Bitte auf ${targetLangLabel} schreiben` : `Please write in ${targetLangLabel}`}
                 </p>
               )}
-              <button style={{ ...s.button, marginBottom: 0 }} onClick={saveEntry}>{t.saveEntry}</button>
+              <button style={{ ...s.button, marginBottom: 0 }} onClick={saveEntry}>{isDE ? 'Eintragen' : 'Save'}</button>
             </>
           )}
           {feedbackLoading && <p style={{ color: th.sub, fontSize: '0.75rem', margin: '8px 0 0' }}>💡 …</p>}
@@ -7237,7 +4473,7 @@ function DiaryScreen({ user, myData, setMyData, partnerData, lang, theme, onBack
         {allDates.length === 0 && (
           <div style={{ ...s.card, textAlign: 'center', padding: '36px 20px' }}>
             <span style={{ fontSize: '2rem', display: 'block', marginBottom: '10px' }}>📔</span>
-            <p style={{ color: th.sub, fontSize: '0.88rem', margin: 0 }}>{t.noEntries}</p>
+            <p style={{ color: th.sub, fontSize: '0.88rem', margin: 0 }}>{isDE ? 'Noch keine Einträge — schreib den ersten!' : 'No entries yet — write the first one!'}</p>
           </div>
         )}
       </div>
@@ -7248,7 +4484,6 @@ function DiaryScreen({ user, myData, setMyData, partnerData, lang, theme, onBack
 function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, lang, theme, onBack }) {
   const th = THEMES[theme]; const s = makeStyles(th)
   const isDE = lang === 'de'
-  const t = T[lang] || T.en
   const [search, setSearch] = useState('')
   const [filterCat, setFilterCat] = useState('all')
   const [editCard, setEditCard] = useState(null)
@@ -7287,7 +4522,7 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
       await updateDoc(doc(db, 'users', user.uid), { aiCards: updated })
       setMyData(d => ({ ...d, aiCards: updated }))
       setEditCard(null)
-      setSaveStatus(t.savedStatus)
+      setSaveStatus(isDE ? 'Gespeichert ✓' : 'Saved ✓')
       setTimeout(() => setSaveStatus(null), 2000)
     } catch (e) { console.warn(e) }
   }
@@ -7295,10 +4530,10 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
   const shareWithPartner = async (card) => {
     if (!myPartnerUID) return
     const myFirstName = user.displayName?.split(' ')[0] || 'Partner'
-    const gift = { front: card.front, back: card.back, category: card.category || 'vocabulary', langA: card.langA, langB: card.langB, fromName: myFirstName, fromUid: user.uid, sentAt: Date.now() }
+    const gift = { front: card.front, back: card.back, category: card.category || 'vocabulary', langA: card.langA, langB: card.langB, fromName: myFirstName, message: '' }
     try {
-      await setDoc(doc(db, 'users', myPartnerUID, 'incomingCards', `gift_${Date.now()}`), gift)
-      setSaveStatus(t.sharedStatus)
+      await updateDoc(doc(db, 'users', myPartnerUID), { pendingGift: gift })
+      setSaveStatus(isDE ? 'Geteilt ✓' : 'Shared ✓')
       setTimeout(() => setSaveStatus(null), 2000)
     } catch (e) { console.warn(e) }
   }
@@ -7315,13 +4550,13 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
 
   return (
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
-      <button style={s.backBtn} onClick={onBack}>← {t.back}</button>
+      <button style={s.backBtn} onClick={onBack}>← {isDE ? 'Zurück' : 'Back'}</button>
       <h2 style={{ color: th.text, marginBottom: '16px', fontSize: '1.2rem', fontFamily: "'Playfair Display', Georgia, serif" }}>
         📋 {isDE ? `Meine Karten (${userCards.length})` : `My Cards (${userCards.length})`}
       </h2>
-      <input style={{ ...s.input, marginBottom: '8px' }} placeholder={t.search} value={search} onChange={e => setSearch(e.target.value)} />
+      <input style={{ ...s.input, marginBottom: '8px' }} placeholder={isDE ? 'Suchen…' : 'Search…'} value={search} onChange={e => setSearch(e.target.value)} />
       <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap' }}>
-        {[['all', t.filterAll], ['vocabulary', 'Hochsprache'], ['street', 'Slang'], ['sentence', t.areaSentences], ['home', t.areaHome]].map(([key, label]) => (
+        {[['all', isDE ? 'Alle' : 'All'], ['vocabulary', 'Hochsprache'], ['street', 'Slang'], ['sentence', isDE ? 'Sätze' : 'Sentences'], ['home', isDE ? 'Zuhause' : 'Home']].map(([key, label]) => (
           <button key={key} onClick={() => setFilterCat(key)}
             style={{ padding: '4px 11px', borderRadius: '20px', fontSize: '0.75rem', cursor: 'pointer', fontWeight: filterCat === key ? '700' : '400', background: filterCat === key ? th.accent : 'transparent', color: filterCat === key ? (th.btnTextColor || '#111') : th.sub, border: `1px solid ${filterCat === key ? th.accent : th.border}` }}>
             {label}
@@ -7330,22 +4565,22 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
       </div>
       {editCard && (
         <div style={{ ...s.card, border: `1px solid ${th.accent}55`, marginBottom: '12px', animation: 'vocaraFadeIn 0.2s ease both' }}>
-          <p style={{ ...s.cardLabel, marginBottom: '12px' }}>{t.editCardTitle}</p>
-          <input style={{ ...s.input, marginBottom: '8px' }} value={editFront} onChange={e => setEditFront(e.target.value)} placeholder={t.front} />
-          <input style={{ ...s.input, marginBottom: '8px' }} value={editBack} onChange={e => setEditBack(e.target.value)} placeholder={t.backLabel} />
-          <input style={{ ...s.input, marginBottom: '12px', fontSize: '0.82rem', fontStyle: 'italic' }} value={editPronunciation} onChange={e => setEditPronunciation(e.target.value)} placeholder={lang === 'de' ? 'Aussprache (z.B. WE-dser) — optional' : 'Pronunciation (e.g. WE-dser) — optional'} />
+          <p style={{ ...s.cardLabel, marginBottom: '12px' }}>{isDE ? 'Karte bearbeiten' : 'Edit card'}</p>
+          <input style={{ ...s.input, marginBottom: '8px' }} value={editFront} onChange={e => setEditFront(e.target.value)} placeholder={isDE ? 'Vorderseite' : 'Front'} />
+          <input style={{ ...s.input, marginBottom: '8px' }} value={editBack} onChange={e => setEditBack(e.target.value)} placeholder={isDE ? 'Rückseite' : 'Back'} />
+          <input style={{ ...s.input, marginBottom: '12px', fontSize: '0.82rem', fontStyle: 'italic' }} value={editPronunciation} onChange={e => setEditPronunciation(e.target.value)} placeholder={isDE ? 'Aussprache (z.B. WE-dser) — optional' : 'Pronunciation (e.g. WE-dser) — optional'} />
           <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
             <button onClick={() => setEditCat('vocabulary')} style={{ flex: 1, padding: '7px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '0.78rem', background: editCat !== 'street' ? 'rgba(140,140,155,0.25)' : 'transparent', color: editCat !== 'street' ? '#A0A0B8' : th.sub, border: `1px solid ${editCat !== 'street' ? 'rgba(140,140,155,0.45)' : th.border}` }}>Hochsprache</button>
             <button onClick={() => setEditCat('street')} style={{ flex: 1, padding: '7px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '0.78rem', background: editCat === 'street' ? 'rgba(180,120,30,0.2)' : 'transparent', color: editCat === 'street' ? '#C8922A' : th.sub, border: `1px solid ${editCat === 'street' ? 'rgba(180,120,30,0.4)' : th.border}` }}>Slang</button>
           </div>
           <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-            <button style={{ flex: 1, background: th.accent, color: th.btnTextColor || '#111', border: 'none', padding: '9px', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '0.88rem' }} onClick={saveEdit}>{t.save}</button>
-            <button style={{ flex: '0 0 auto', background: '#f4433618', color: '#e06c75', border: '1px solid rgba(224,108,117,0.5)', padding: '9px 14px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.82rem' }} onClick={() => deleteCard(editCard)}>{t.delete}</button>
+            <button style={{ flex: 1, background: th.accent, color: th.btnTextColor || '#111', border: 'none', padding: '9px', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '0.88rem' }} onClick={saveEdit}>{isDE ? 'Speichern' : 'Save'}</button>
+            <button style={{ flex: '0 0 auto', background: '#f4433618', color: '#e06c75', border: '1px solid rgba(224,108,117,0.5)', padding: '9px 14px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.82rem' }} onClick={() => deleteCard(editCard)}>{isDE ? 'Löschen' : 'Delete'}</button>
             <button style={{ flex: '0 0 auto', background: 'transparent', color: th.sub, border: `1px solid ${th.border}`, padding: '9px 12px', borderRadius: '10px', cursor: 'pointer', fontSize: '0.85rem' }} onClick={() => setEditCard(null)}>✕</button>
           </div>
           {myPartnerUID && (
             <button style={{ width: '100%', background: 'transparent', color: th.gold, border: `1px solid ${th.gold}44`, padding: '8px', borderRadius: '10px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600' }} onClick={() => shareWithPartner(editCard)}>
-              🎁 {t.shareWithPartner}
+              🎁 {isDE ? 'Mit Partner teilen' : 'Share with partner'}
             </button>
           )}
           {saveStatus && <p style={{ color: th.accent, fontSize: '0.8rem', marginTop: '8px', textAlign: 'center' }}>{saveStatus}</p>}
@@ -7354,7 +4589,7 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
       {filtered.length === 0 ? (
         <div style={{ ...s.card, textAlign: 'center', padding: '32px 20px' }}>
           <span style={{ fontSize: '2rem', display: 'block', marginBottom: '8px' }}>📋</span>
-          <p style={{ color: th.sub, fontSize: '0.88rem', margin: 0 }}>{t.noCardsFound}</p>
+          <p style={{ color: th.sub, fontSize: '0.88rem', margin: 0 }}>{isDE ? 'Keine Karten gefunden.' : 'No cards found.'}</p>
         </div>
       ) : (
         <div style={s.card}>
@@ -7389,396 +4624,187 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
   )
 }
 
-function KarteErstellenScreen({ user, myData, setMyData, allCards, lang, theme, onBack, socialRegister = 'friends', t: tProp }) {
-  const th = THEMES[theme]; const s = makeStyles(th); const t = tProp || T[lang] || T.en; const isDE = lang === 'de'
-
-  const LANG_NAMES = { en: 'Englisch', de: 'Deutsch', sw: 'Swahili', fr: 'Französisch', es: 'Spanisch', th: 'Thai' }
-  const LANG_NAMES_EN = { en: 'English', de: 'German', sw: 'Swahili', fr: 'French', es: 'Spanish', th: 'Thai' }
-  const LANG_LIST = [
-    { code: 'de', label: 'Deutsch', flag: '🇩🇪' },
-    { code: 'en', label: 'English', flag: '🇬🇧' },
-    { code: 'sw', label: 'Swahili', flag: '🇰🇪' },
-    { code: 'es', label: 'Español', flag: '🇪🇸' },
-    { code: 'fr', label: 'Français', flag: '🇫🇷' },
-    { code: 'th', label: 'ภาษาไทย', flag: '🇹🇭' },
-  ]
-
+function KarteErstellenScreen({ user, myData, setMyData, allCards, lang, theme, onBack }) {
+  const th = THEMES[theme]; const s = makeStyles(th)
+  const isDE = lang === 'de'
+  const [forPartner, setForPartner] = useState(false)
+  const [front, setFront] = useState('')
+  const [back, setBack] = useState('')
+  const [backLoading, setBackLoading] = useState(false)
+  const [kiPartnerLoading, setKiPartnerLoading] = useState(false)
+  const [cat, setCat] = useState('vocabulary')
+  const [status, setStatus] = useState(null)
+  const translateTimerRef = useRef(null)
+  const lastTranslatedFront = useRef('')
   const myPartnerUID = myData?.partnerUID || (user.uid === MARK_UID ? ELOSY_UID : user.uid === ELOSY_UID ? MARK_UID : null)
   const partnerName = myData?.partnerName || (user.uid === MARK_UID ? 'Elosy' : user.uid === ELOSY_UID ? 'Mark' : null)
 
-  // ── STEP 1: Language preferences ─────────────────────────
-  const initSrcLangs = () => {
-    if (myData?.fromLangs?.length > 0) return myData.fromLangs
-    return [{ lang: lang === 'de' ? 'de' : 'en', percent: 100 }]
-  }
-  const initTgtLang = () => {
-    const activeTo = Array.isArray(myData?.activeToLang) ? myData.activeToLang[0] : myData?.activeToLang
-    return activeTo || myData?.cardTgtLang || (lang === 'de' ? 'en' : lang === 'en' ? 'de' : 'en')
-  }
+  // Determine language pair: for Mark (de), front=EN, back=DE
+  const baseCard = (allCards || []).find(c => !/_r(_\d+)?$/.test(c.id))
+  const langA = baseCard?.langA || (lang === 'de' ? 'en' : 'de')
+  const langB = baseCard?.langB || lang
+  const LANG_NAMES = { en: 'Englisch', de: 'Deutsch', sw: 'Swahili', fr: 'Französisch', es: 'Spanisch', th: 'Thai' }
+  const LANG_NAMES_EN = { en: 'English', de: 'German', sw: 'Swahili', fr: 'French', es: 'Spanish', th: 'Thai' }
+  const fromLangName = LANG_NAMES_EN[langA] || langA
+  const toLangName = LANG_NAMES_EN[langB] || langB
 
-  const [srcLangs, setSrcLangs] = useState(initSrcLangs)
-  const [tgtLang, setTgtLang] = useState(initTgtLang)
-  const [langWeightsDirty, setLangWeightsDirty] = useState(false)
-  const [langWeightsSaved, setLangWeightsSaved] = useState(false)
-
-  const saveLangPrefs = async (newSrc, newTgt) => {
+  const autoTranslate = async (text) => {
+    if (!text.trim() || text === lastTranslatedFront.current) return
+    setBackLoading(true)
     try {
-      await setDoc(doc(db, 'users', user.uid, 'settings', 'langWeights'), { fromLangs: newSrc, tgtLang: newTgt }, { merge: true }).catch(() => {})
-      await updateDoc(doc(db, 'users', user.uid), { fromLangs: newSrc, cardTgtLang: newTgt }).catch(() => {})
-      setMyData(d => ({ ...d, fromLangs: newSrc, cardTgtLang: newTgt }))
-      setLangWeightsDirty(false); setLangWeightsSaved(true)
-      setTimeout(() => setLangWeightsSaved(false), 2000)
-    } catch(e) {}
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 60,
+          messages: [{ role: 'user', content: `Translate "${text}" from ${fromLangName} to ${toLangName} as a natural short phrase or word. Return ONLY the translation, nothing else, no quotes, no explanation.` }]
+        })
+      })
+      const data = await res.json()
+      const translation = (data.content?.[0]?.text || '').trim()
+      if (translation) {
+        setBack(translation)
+        lastTranslatedFront.current = text
+      }
+    } catch (e) {
+      console.warn('Auto-translate failed:', e)
+    }
+    setBackLoading(false)
   }
 
-  const addSrcLang = (code) => {
-    if (srcLangs.find(l => l.lang === code) || srcLangs.length >= 4) return
-    const pct = 30
-    const adj = srcLangs.map(l => ({ ...l, percent: Math.round(l.percent * (100 - pct) / 100) }))
-    const next = [...adj, { lang: code, percent: pct }]
-    const diff = 100 - next.reduce((a, b) => a + b.percent, 0)
-    next[0].percent += diff
-    setSrcLangs(next); setLangWeightsDirty(true)
-  }
-
-  const removeSrcLang = (code) => {
-    if (srcLangs.length <= 1) return
-    const rest = srcLangs.filter(l => l.lang !== code)
-    const total = rest.reduce((a, b) => a + b.percent, 0)
-    const next = rest.map(l => ({ ...l, percent: Math.round(l.percent * 100 / total) }))
-    const diff = 100 - next.reduce((a, b) => a + b.percent, 0)
-    if (next.length > 0) next[0].percent += diff
-    setSrcLangs(next); setLangWeightsDirty(true)
-    if (activeSrcLang === code) setActiveSrcLang(next[0]?.lang || 'de')
-  }
-
-  const updateSrcPercent = (code, raw) => {
-    const pct = Math.max(10, Math.min(80, raw))
-    const others = srcLangs.filter(l => l.lang !== code)
-    const rest = 100 - pct
-    const otherTotal = others.reduce((a, b) => a + b.percent, 0)
-    const adj = otherTotal === 0
-      ? others.map(l => ({ ...l, percent: Math.round(rest / others.length) }))
-      : others.map(l => ({ ...l, percent: Math.round(l.percent * rest / otherTotal) }))
-    const diff = 100 - pct - adj.reduce((a, b) => a + b.percent, 0)
-    if (adj.length > 0) adj[adj.length - 1].percent += diff
-    const next = srcLangs.map(l => l.lang === code ? { ...l, percent: pct } : (adj.find(a => a.lang === l.lang) || l))
-    setSrcLangs(next); setLangWeightsDirty(true)
-  }
-
-  const setTgtAndSave = (code) => { setTgtLang(code); saveLangPrefs(srcLangs, code) }
-
-  // ── STEP 2: Card input ────────────────────────────────────
-  const [inputSide, setInputSide] = useState('source') // 'source' | 'target'
-  const [activeSrcLang, setActiveSrcLang] = useState(() => srcLangs[0]?.lang || (lang === 'de' ? 'de' : 'en'))
-  const [frontText, setFrontText] = useState('')
-  const [backText, setBackText] = useState('')
-  const [pronunciation, setPronunciation] = useState('')
-  const [detectedCat, setDetectedCat] = useState(null)
-  const [kiLoading, setKiLoading] = useState(false)
-  const [kiDone, setKiDone] = useState(false)
-
-  // ── STEP 3: Category + destination ────────────────────────
-  const [cat, setCat] = useState('vocabulary')
-  const [destination, setDestination] = useState('me') // 'me' | 'partner' | 'both'
-
-  // ── Save ─────────────────────────────────────────────────
-  const [status, setStatus] = useState(null)
-  const [saving, setSaving] = useState(false)
-
-  const entryLang = inputSide === 'source' ? activeSrcLang : tgtLang
-  const otherLang = inputSide === 'source' ? tgtLang : activeSrcLang
-
-  const kiFill = async () => {
-    if (!frontText.trim() || kiLoading) return
-    setKiLoading(true)
+  const kiFillPartnerCard = async () => {
+    if (!front.trim()) return
+    setKiPartnerLoading(true)
     try {
-      const fromName = LANG_NAMES_EN[entryLang] || entryLang
-      const toName = LANG_NAMES_EN[otherLang] || otherLang
       const res = await fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001', max_tokens: 150, system: CARD_GEN_SYSTEM,
-          messages: [{ role: 'user', content: `Translate "${frontText.trim()}" from ${fromName} to ${toName}. Context: ${socialRegisterContext(socialRegister)}. Return ONLY a JSON: {"front":"${frontText.trim()}","back":"[translation]","pronunciation":"[German-style phonetic syllables e.g. WI-der-SE-hen, or empty string if not needed]","category":"vocabulary|sentence|slang|formal"}. 100% accurate, natural, tone-appropriate, never literal.` }]
+          model: 'claude-haiku-4-5-20251001', max_tokens: 100,
+          messages: [{ role: 'user', content: `For a language learning card with front: "${front}" (${fromLangName}), provide: 1) translation to ${toLangName}, 2) category (vocabulary or street). Reply as JSON: {"back":"...","category":"vocabulary|street"}. No explanation.` }]
         })
       })
       const data = await res.json()
       const raw = (data.content?.[0]?.text || '').trim()
       const match = raw.match(/\{[\s\S]*\}/)
       if (match) {
-        const p = JSON.parse(match[0])
-        if (p.back) setBackText(p.back)
-        if (p.pronunciation) setPronunciation(p.pronunciation)
-        const validCats = ['vocabulary','sentence','slang','formal']
-        if (p.category && validCats.includes(p.category)) { setDetectedCat(p.category); setCat(p.category === 'slang' ? 'street' : p.category) }
-        setKiDone(true)
+        const parsed = JSON.parse(match[0])
+        if (parsed.back) setBack(parsed.back)
+        if (parsed.category === 'street') setCat('street')
+        else setCat('vocabulary')
+        lastTranslatedFront.current = front
       }
-    } catch(e) { console.warn('KI fill failed:', e) }
-    setKiLoading(false)
+    } catch (e) { console.warn('KI fill failed:', e) }
+    setKiPartnerLoading(false)
+  }
+
+  const handleFrontChange = (val) => {
+    setFront(val)
+    if (translateTimerRef.current) clearTimeout(translateTimerRef.current)
+    if (val.trim().length >= 2) {
+      translateTimerRef.current = setTimeout(() => autoTranslate(val.trim()), 500)
+    }
+  }
+
+  const handleFrontBlur = () => {
+    if (front.trim().length >= 2) {
+      if (translateTimerRef.current) clearTimeout(translateTimerRef.current)
+      autoTranslate(front.trim())
+    }
   }
 
   const save = async () => {
-    if (!frontText.trim() || !backText.trim() || saving) return
-    setSaving(true)
-    const isEntrySource = inputSide === 'source'
-    const card = {
-      id: `custom_${Date.now()}`,
-      front: isEntrySource ? frontText.trim() : backText.trim(),
-      back: isEntrySource ? backText.trim() : frontText.trim(),
-      ...(pronunciation.trim() ? { pronunciation: pronunciation.trim() } : {}),
-      category: cat === 'slang' ? 'street' : cat,
-      langA: isEntrySource ? entryLang : otherLang,
-      langB: isEntrySource ? otherLang : entryLang,
-      level: 1,
-      source: 'custom', createdAt: Date.now()
-    }
+    if (!front.trim() || !back.trim()) return
+    const card = { id: `custom_${Date.now()}`, front: front.trim(), back: back.trim(), category: cat, langA, langB, source: 'custom', createdAt: Date.now() }
     try {
-      const senderName = user.displayName?.split(' ')[0] || 'Partner'
-      if ((destination === 'partner' || destination === 'both') && myPartnerUID) {
-        const giftId = `gift_${Date.now()}`
-        await setDoc(doc(db, 'users', myPartnerUID, 'incomingCards', giftId), {
-          ...card, fromUid: user.uid, fromName: senderName, sentAt: Date.now()
+      if (forPartner && myPartnerUID) {
+        const senderName = user.displayName?.split(' ')[0] || 'Partner'
+        // Write as daily surprise card — partner will see animated popup
+        await updateDoc(doc(db, 'users', myPartnerUID), {
+          surpriseCard: { ...card, sharedBy: senderName, sharedAt: Date.now() },
+          surpriseSeenDate: null // reset so partner sees it today
         })
-      }
-      if (destination === 'me' || destination === 'both') {
+        setStatus(isDE ? `🎁 Überraschungskarte an ${partnerName} gesendet ✓` : `🎁 Surprise card sent to ${partnerName} ✓`)
+      } else {
         const updated = [...(myData?.aiCards || []), card]
         await updateDoc(doc(db, 'users', user.uid), { aiCards: updated })
         setMyData(d => ({ ...d, aiCards: updated }))
+        setStatus(isDE ? 'Karte gespeichert ✓' : 'Card saved ✓')
       }
-      setStatus(
-        destination === 'partner' ? (isDE ? `🎁 An ${partnerName} gesendet ✓` : `🎁 Sent to ${partnerName} ✓`) :
-        destination === 'both' ? (t.cardSavedForBoth) :
-        (t.cardSaved)
-      )
-      setFrontText(''); setBackText(''); setPronunciation(''); setKiDone(false); setDetectedCat(null)
+      setFront(''); setBack(''); setCat('vocabulary'); lastTranslatedFront.current = ''
       setTimeout(() => setStatus(null), 2500)
-    } catch(e) { console.warn(e); setStatus(t.error) }
-    setSaving(false)
+    } catch (e) { console.warn(e); setStatus(isDE ? 'Fehler' : 'Error') }
   }
 
-  const stepBadge = (n) => (
-    <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: th.accent, color: th.btnTextColor || '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.68rem', fontWeight: '800', flexShrink: 0 }}>{n}</div>
-  )
-  const sectionHead = (n, title) => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-      {stepBadge(n)}
-      <p style={{ ...s.cardLabel, margin: 0 }}>{title}</p>
-    </div>
-  )
-
   return (
-    <div style={s.container} className="vocara-screen">
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, background: th.bg, borderBottom: `1px solid ${th.border}`, display: 'flex', alignItems: 'center', padding: '0 16px', minHeight: '52px' }}>
-        <button onClick={onBack} style={{ background: 'none', border: 'none', color: th.accent, cursor: 'pointer', fontSize: '1.1rem', fontWeight: '700', padding: '12px 8px 12px 0', WebkitTapHighlightColor: 'transparent' }}>←</button>
-        <span style={{ color: th.text, fontWeight: '700', fontSize: '1rem', fontFamily: "'Playfair Display', Georgia, serif" }}>✏️ {t.newCardTitle}</span>
-      </div>
-      <div style={{ ...s.homeBox, paddingTop: '68px' }}>
-
-      {/* ── SECTION 1: SPRACHEN ── */}
-      <div style={{ ...s.card, marginBottom: '12px' }}>
-        {sectionHead('1', t.languagesSection)}
-
-        <p style={{ color: th.sub, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
-          {t.sourceLanguages}
-        </p>
-        {srcLangs.map(({ lang: lc, percent }) => {
-          const info = LANG_LIST.find(l => l.code === lc)
-          return (
-            <div key={lc} style={{ marginBottom: '10px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: srcLangs.length > 1 ? '4px' : '0' }}>
-                <span style={{ fontSize: '1.1rem' }}>{info?.flag || ''}</span>
-                <span style={{ color: th.text, fontSize: '0.88rem', fontWeight: '600', flex: 1 }}>{info?.label || lc}</span>
-                {srcLangs.length > 1 && <span style={{ color: th.accent, fontWeight: '700', fontSize: '0.85rem', minWidth: '34px', textAlign: 'right' }}>{percent}%</span>}
-                {srcLangs.length > 1 && (
-                  <button onClick={() => removeSrcLang(lc)} style={{ background: 'transparent', border: 'none', color: th.sub, cursor: 'pointer', fontSize: '0.75rem', padding: '2px 6px', WebkitTapHighlightColor: 'transparent' }}>✕</button>
-                )}
-              </div>
-              {srcLangs.length > 1 && (
-                <input type="range" min={10} max={80} value={percent} onChange={e => updateSrcPercent(lc, parseInt(e.target.value))}
-                  style={{ width: '100%', accentColor: th.accent, cursor: 'pointer' }} />
-              )}
-            </div>
-          )
-        })}
-        {srcLangs.length < 4 && (
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px', marginBottom: '14px' }}>
-            {LANG_LIST.filter(l => !srcLangs.find(s2 => s2.lang === l.code) && l.code !== tgtLang).map(l => (
-              <button key={l.code} onClick={() => addSrcLang(l.code)}
-                style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '0.75rem', cursor: 'pointer', background: 'transparent', color: th.sub, border: `1px solid ${th.border}`, WebkitTapHighlightColor: 'transparent' }}>
-                + {l.flag} {l.label}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {langWeightsDirty && (
-          <button onClick={() => saveLangPrefs(srcLangs, tgtLang)}
-            style={{ width: '100%', padding: '10px', borderRadius: '10px', border: `1px solid ${th.accent}`, background: `${th.accent}22`, color: th.accent, fontWeight: '700', fontSize: '0.88rem', cursor: 'pointer', marginBottom: '14px', WebkitTapHighlightColor: 'transparent' }}>
-            💾 {t.saveLangSplit}
+    <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
+      <button style={s.backBtn} onClick={onBack}>← {isDE ? 'Zurück' : 'Back'}</button>
+      <h2 style={{ color: th.text, marginBottom: '16px', fontSize: '1.2rem', fontFamily: "'Playfair Display', Georgia, serif" }}>
+        ✏️ {isDE ? 'Neue Karte' : 'New Card'}
+      </h2>
+      <div style={{ ...s.card, marginBottom: '10px', ...(forPartner ? { border: `1px solid`, borderImage: `linear-gradient(135deg, ${th.gold}, #4ECDC4) 1`, borderRadius: '14px', animation: 'goldShimmer 2.5s ease-in-out infinite' } : {}) }}>
+        <p style={{ ...s.cardLabel, marginBottom: '10px' }}>{isDE ? 'Für wen?' : 'For whom?'}</p>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={() => setForPartner(false)}
+            style={{ flex: 1, padding: '9px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.85rem', background: !forPartner ? th.accent : 'transparent', color: !forPartner ? (th.btnTextColor || '#111') : th.sub, border: `1px solid ${!forPartner ? th.accent : th.border}` }}>
+            {isDE ? 'Für mich' : 'For me'}
           </button>
-        )}
-        {langWeightsSaved && (
-          <p style={{ color: '#4CAF50', fontSize: '0.8rem', textAlign: 'center', marginBottom: '10px' }}>✓ {t.savedExclaim}</p>
-        )}
-
-        <p style={{ color: th.sub, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
-          {t.targetLangHeader}
-        </p>
-        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-          {LANG_LIST.filter(l => !srcLangs.find(s2 => s2.lang === l.code)).map(l => (
-            <button key={l.code} onClick={() => setTgtAndSave(l.code)}
-              style={{ padding: '6px 12px', borderRadius: '20px', fontSize: '0.82rem', cursor: 'pointer', fontWeight: tgtLang === l.code ? '700' : '400', background: tgtLang === l.code ? th.accent : 'transparent', color: tgtLang === l.code ? (th.btnTextColor || '#111') : th.sub, border: `1px solid ${tgtLang === l.code ? th.accent : th.border}`, WebkitTapHighlightColor: 'transparent' }}>
-              {l.flag} {l.label}
+          {myPartnerUID && (
+            <button onClick={() => setForPartner(true)}
+              style={{ flex: 1, padding: '9px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.85rem', background: forPartner ? `linear-gradient(135deg, ${th.gold}30, #4ECDC420)` : 'transparent', color: forPartner ? th.gold : th.sub, border: `1px solid ${forPartner ? th.gold : th.border}` }}>
+              🎁 {isDE ? `Für ${partnerName}` : `For ${partnerName}`}
             </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ── SECTION 2: KARTE EINGEBEN ── */}
-      <div style={{ ...s.card, marginBottom: '12px' }}>
-        {sectionHead('2', t.enterCardSection)}
-
-        {/* Side toggle */}
-        <div style={{ display: 'flex', gap: '4px', background: `${th.border}55`, borderRadius: '10px', padding: '3px', marginBottom: '12px' }}>
-          {['source', 'target'].map(side => {
-            const lc = side === 'source' ? activeSrcLang : tgtLang
-            const info = LANG_LIST.find(l => l.code === lc)
-            const active = inputSide === side
-            return (
-              <button key={side} onClick={() => setInputSide(side)}
-                style={{ flex: 1, padding: '7px 6px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: active ? '700' : '400', background: active ? th.accent : 'transparent', color: active ? (th.btnTextColor || '#111') : th.sub, fontSize: '0.78rem', transition: 'all 0.18s', WebkitTapHighlightColor: 'transparent' }}>
-                {t.iType}: {info?.flag} {info?.label || lc}
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Active source lang picker when multiple */}
-        {srcLangs.length > 1 && inputSide === 'source' && (
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' }}>
-            {srcLangs.map(({ lang: lc }) => {
-              const info = LANG_LIST.find(l => l.code === lc)
-              return (
-                <button key={lc} onClick={() => setActiveSrcLang(lc)}
-                  style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '0.78rem', cursor: 'pointer', fontWeight: activeSrcLang === lc ? '700' : '400', background: activeSrcLang === lc ? `${th.accent}30` : 'transparent', color: activeSrcLang === lc ? th.accent : th.sub, border: `1px solid ${activeSrcLang === lc ? th.accent : th.border}`, WebkitTapHighlightColor: 'transparent' }}>
-                  {info?.flag} {info?.label || lc}
-                </button>
-              )
-            })}
-          </div>
-        )}
-
-        {/* Input field */}
-        <p style={{ color: th.sub, fontSize: '0.72rem', marginBottom: '4px' }}>
-          {LANG_LIST.find(l => l.code === entryLang)?.flag} {LANG_NAMES[entryLang] || entryLang}
-        </p>
-        <textarea
-          style={{ ...s.input, minHeight: '68px', resize: 'vertical', fontFamily: 'inherit', lineHeight: '1.5', marginBottom: '10px' }}
-          placeholder={t.enterWordOrSentence}
-          value={frontText}
-          onChange={e => { setFrontText(e.target.value); setKiDone(false) }}
-        />
-
-        {/* KI button */}
-        <button onClick={kiFill} disabled={!frontText.trim() || kiLoading}
-          style={{ width: '100%', padding: '11px', borderRadius: '10px', border: `1px solid ${th.gold}55`, background: kiDone ? `${th.accent}18` : `${th.gold}12`, color: kiDone ? th.accent : th.gold, fontWeight: '700', fontSize: '0.88rem', cursor: frontText.trim() ? 'pointer' : 'not-allowed', opacity: (!frontText.trim() || kiLoading) ? 0.5 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px', WebkitTapHighlightColor: 'transparent' }}>
-          {kiLoading
-            ? <><div style={{ width: '14px', height: '14px', border: `2px solid ${th.gold}44`, borderTopColor: th.gold, borderRadius: '50%', animation: 'spin 0.7s linear infinite', flexShrink: 0 }} />{t.aiTranslating}</>
-            : kiDone ? `✓ ${t.aiFillRedo}` : `🤖 ${t.aiFillBtn}`}
-        </button>
-
-        {/* Translation + pronunciation */}
-        {kiDone && (
-          <div style={{ marginTop: '12px', animation: 'vocaraFadeIn 0.3s ease both' }}>
-            <p style={{ color: th.sub, fontSize: '0.72rem', marginBottom: '4px' }}>
-              {LANG_LIST.find(l => l.code === otherLang)?.flag} {LANG_NAMES[otherLang] || otherLang}
-            </p>
-            <textarea
-              style={{ ...s.input, minHeight: '56px', resize: 'vertical', fontFamily: 'inherit', lineHeight: '1.5', marginBottom: '6px' }}
-              value={backText}
-              onChange={e => setBackText(e.target.value)}
-              placeholder={t.translationPlaceholder}
-            />
-            {pronunciation && (
-              <>
-                <p style={{ color: th.sub, fontSize: '0.72rem', marginBottom: '4px' }}>🔉 {t.pronunciation}</p>
-                <input style={{ ...s.input, fontSize: '0.82rem', fontStyle: 'italic', marginBottom: 0 }}
-                  value={pronunciation} onChange={e => setPronunciation(e.target.value)} />
-              </>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* ── SECTION 3: KATEGORIE & ZIEL ── */}
-      {kiDone && backText && (
-        <div style={{ ...s.card, marginBottom: '12px', animation: 'vocaraFadeIn 0.25s ease both' }}>
-          {sectionHead('3', t.categoryDest)}
-
-          <p style={{ color: th.sub, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
-            {t.categoryLabel}
-            {detectedCat && <span style={{ color: th.accent, marginLeft: '8px', fontStyle: 'italic', fontWeight: '600', textTransform: 'none', letterSpacing: 0 }}>· KI: {detectedCat}</span>}
-          </p>
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '14px' }}>
-            {[
-              ['vocabulary', t.vocabCategoryLabel, '#8A8A9A'],
-              ['sentence', t.sentenceCategoryLabel, '#6A9BBA'],
-              ['street', 'Slang', '#C8922A'],
-              ['home', t.areaHome, '#7A8A6A'],
-            ].map(([key, label, color]) => (
-              <button key={key} onClick={() => setCat(key)}
-                style={{ padding: '6px 12px', borderRadius: '20px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: cat === key ? '700' : '400', background: cat === key ? `${color}22` : 'transparent', color: cat === key ? color : th.sub, border: `1px solid ${cat === key ? color : th.border}`, WebkitTapHighlightColor: 'transparent' }}>
-                {label}
-              </button>
-            ))}
-          </div>
-
-          <p style={{ color: th.sub, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
-            {t.forWhom}
-          </p>
-          <div style={{ display: 'flex', gap: '6px' }}>
-            <button onClick={() => setDestination('me')}
-              style={{ flex: 1, padding: '8px 6px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem', background: destination === 'me' ? th.accent : 'transparent', color: destination === 'me' ? (th.btnTextColor || '#111') : th.sub, border: `1px solid ${destination === 'me' ? th.accent : th.border}`, WebkitTapHighlightColor: 'transparent' }}>
-              {t.forMe}
-            </button>
-            {myPartnerUID && <>
-              <button onClick={() => setDestination('partner')}
-                style={{ flex: 1, padding: '8px 6px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem', background: destination === 'partner' ? `${th.gold}22` : 'transparent', color: destination === 'partner' ? th.gold : th.sub, border: `1px solid ${destination === 'partner' ? th.gold : th.border}`, animation: destination === 'partner' ? 'goldShimmer 2.5s ease-in-out infinite' : undefined, WebkitTapHighlightColor: 'transparent' }}>
-                🎁 {partnerName}
-              </button>
-              <button onClick={() => setDestination('both')}
-                style={{ flex: 1, padding: '8px 6px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem', background: destination === 'both' ? `linear-gradient(135deg,${th.accent}22,${th.gold}18)` : 'transparent', color: destination === 'both' ? th.accent : th.sub, border: `1px solid ${destination === 'both' ? th.accent : th.border}`, WebkitTapHighlightColor: 'transparent' }}>
-                💫 {t.bothOption}
-              </button>
-            </>}
-          </div>
-        </div>
-      )}
-
-      {/* ── SECTION 4: SPEICHERN ── */}
-      {kiDone && frontText && backText && (
-        <div style={{ marginBottom: '40px', animation: 'vocaraFadeIn 0.25s ease both' }}>
-          <button style={{ ...s.button, marginBottom: 0, opacity: saving ? 0.6 : 1 }} onClick={save} disabled={saving}>
-            {saving ? (t.saving) :
-              destination === 'partner' ? (isDE ? `🎁 An ${partnerName} senden` : `🎁 Send to ${partnerName}`) :
-              destination === 'both' ? (isDE ? '💫 Für dich & Partner' : '💫 For you & partner') :
-              (t.saveCardBtn)}
-          </button>
-          {status && (
-            <p style={{ color: th.accent, fontSize: '0.88rem', marginTop: '10px', textAlign: 'center', fontWeight: '600', animation: 'vocaraFadeIn 0.3s ease both' }}>{status}</p>
           )}
         </div>
-      )}
-
+        {forPartner && front.trim().length >= 2 && (
+          <button onClick={kiFillPartnerCard} disabled={kiPartnerLoading}
+            style={{ marginTop: '8px', width: '100%', background: `${th.gold}15`, border: `1px solid ${th.gold}44`, color: th.gold, borderRadius: '10px', padding: '8px', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer', opacity: kiPartnerLoading ? 0.6 : 1 }}>
+            {kiPartnerLoading ? '🤖 …' : `🤖 ${isDE ? 'KI ausfüllen' : 'AI fill'}`}
+          </button>
+        )}
       </div>
-    </div>
+      <div style={s.card}>
+        <p style={{ ...s.cardLabel, marginBottom: '6px' }}>
+          {LANG_NAMES[langA] || langA} → {LANG_NAMES[langB] || langB}
+        </p>
+        <input
+          style={{ ...s.input, marginBottom: '8px' }}
+          placeholder={isDE ? `${LANG_NAMES[langA] || langA} — Vorderseite` : `${LANG_NAMES_EN[langA] || langA} — front`}
+          value={front}
+          onChange={e => handleFrontChange(e.target.value)}
+          onBlur={handleFrontBlur}
+        />
+        {/* Back field with auto-translate indicator */}
+        <div style={{ position: 'relative', marginBottom: '12px' }}>
+          <input
+            style={{ ...s.input, marginBottom: 0, paddingRight: backLoading ? '36px' : undefined }}
+            placeholder={backLoading
+              ? (isDE ? 'KI übersetzt…' : 'AI translating…')
+              : (isDE ? `${LANG_NAMES[langB] || langB} — Rückseite (KI-Vorschlag)` : `${LANG_NAMES_EN[langB] || langB} — back (AI suggestion)`)
+            }
+            value={back}
+            onChange={e => { setBack(e.target.value); lastTranslatedFront.current = '' }}
+          />
+          {backLoading && (
+            <div style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', width: '16px', height: '16px', border: `2px solid ${th.gold}44`, borderTopColor: th.gold, borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+          <button onClick={() => setCat('vocabulary')} style={{ flex: 1, padding: '8px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem', background: cat !== 'street' ? 'rgba(140,140,155,0.25)' : 'transparent', color: cat !== 'street' ? '#A0A0B8' : th.sub, border: `1px solid ${cat !== 'street' ? 'rgba(140,140,155,0.45)' : th.border}` }}>Hochsprache</button>
+          <button onClick={() => setCat('street')} style={{ flex: 1, padding: '8px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem', background: cat === 'street' ? 'rgba(180,120,30,0.2)' : 'transparent', color: cat === 'street' ? '#C8922A' : th.sub, border: `1px solid ${cat === 'street' ? 'rgba(180,120,30,0.4)' : th.border}` }}>Slang</button>
+        </div>
+        <button style={{ ...s.button, marginBottom: 0, opacity: (!front.trim() || !back.trim() || backLoading) ? 0.45 : 1 }} onClick={save} disabled={!front.trim() || !back.trim() || backLoading}>
+          {forPartner && partnerName ? (isDE ? `🎁 An ${partnerName} senden` : `🎁 Send to ${partnerName}`) : (isDE ? 'Karte speichern' : 'Save card')}
+        </button>
+        {status && <p style={{ color: th.accent, fontSize: '0.82rem', marginTop: '8px', textAlign: 'center' }}>{status}</p>}
+      </div>
+    </div></div>
   )
 }
 
 function GeschenkkarteScreen({ user, myData, lang, theme, onBack, allCards, cardProgress }) {
   const th = THEMES[theme]; const s = makeStyles(th)
   const isDE = lang === 'de'
-  const t = T[lang] || T.en
   const [selectedCard, setSelectedCard] = useState(null)
   const [message, setMessage] = useState('')
   const [status, setStatus] = useState(null)
@@ -7793,61 +4819,35 @@ function GeschenkkarteScreen({ user, myData, lang, theme, onBack, allCards, card
     if (!selectedCard || !myPartnerUID) return
     setSending(true)
     try {
-      const today = todayStr()
-      // ── Duplicate checks ──────────────────────────────────────────
-      const existingSnap = await getDocs(collection(db, 'users', myPartnerUID, 'incomingCards'))
-      const existing = existingSnap.docs.map(d => d.data())
-      const sameCard = existing.find(e => e.front === selectedCard.front && e.back === selectedCard.back)
-      if (sameCard) {
-        setStatus(t.partnerHasCard)
-        setTimeout(() => setStatus(null), 3000)
-        return
-      }
-      const sentToday = existing.find(e => e.front === selectedCard.front && e.back === selectedCard.back && e.date === today)
-      if (sentToday) {
-        setStatus(t.alreadySentToday)
-        setTimeout(() => setStatus(null), 3000)
-        return
-      }
-      // ── Write gift card ───────────────────────────────────────────
-      const ts = Date.now()
-      const gift = { front: selectedCard.front, back: selectedCard.back, category: selectedCard.category, langA: selectedCard.langA, langB: selectedCard.langB, message: message.trim().slice(0, 100), fromName, fromUid: user.uid, sentAt: ts, date: today }
-      await setDoc(doc(db, 'users', myPartnerUID, 'incomingCards', `gift_${ts}`), gift)
-      // ── Push notification for partner ─────────────────────────────
-      const partnerIsElosy = myPartnerUID === ELOSY_UID
-      const notifText = partnerIsElosy
-        ? `You received a new card from your partner 🎁`
-        : `Du hast eine neue Karte von deinem Partner erhalten 🎁`
-      setDoc(doc(db, 'users', myPartnerUID, 'publicStats', `pendingNotifs_gift_${ts}`), {
-        type: 'gift_card', fromName, fromUid: user.uid, text: notifText, ts,
-      }).catch(() => {})
+      const gift = { front: selectedCard.front, back: selectedCard.back, category: selectedCard.category, langA: selectedCard.langA, langB: selectedCard.langB, message: message.trim().slice(0, 100), fromName, sentAt: Date.now(), date: todayStr() }
+      await updateDoc(doc(db, 'users', myPartnerUID), { pendingGift: gift })
       setStatus(isDE ? `🎁 Geschenkt an ${partnerName} ✓` : `🎁 Gifted to ${partnerName} ✓`)
       setSelectedCard(null); setMessage('')
       setTimeout(() => { setStatus(null); onBack() }, 2000)
-    } catch (e) { console.warn(e); setStatus(t.errorSending) }
+    } catch (e) { console.warn(e); setStatus(isDE ? 'Fehler beim Senden' : 'Error sending') }
     finally { setSending(false) }
   }
 
   if (!myPartnerUID) return (
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
-      <button style={s.backBtn} onClick={onBack}>← {t.back}</button>
+      <button style={s.backBtn} onClick={onBack}>← {isDE ? 'Zurück' : 'Back'}</button>
       <div style={{ textAlign: 'center', marginTop: '60px' }}>
         <p style={{ fontSize: '2.5rem', marginBottom: '12px' }}>🤝</p>
-        <p style={{ color: th.sub }}>{t.noPartnerConnected}</p>
+        <p style={{ color: th.sub }}>{isDE ? 'Verbinde zuerst deinen Partner.' : 'Connect a partner first.'}</p>
       </div>
     </div></div>
   )
 
   return (
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
-      <button style={s.backBtn} onClick={onBack}>← {t.back}</button>
+      <button style={s.backBtn} onClick={onBack}>← {isDE ? 'Zurück' : 'Back'}</button>
       <h2 style={{ color: th.text, marginBottom: '16px', fontSize: '1.2rem', fontFamily: "'Playfair Display', Georgia, serif" }}>
         🎁 {isDE ? `Geschenk für ${partnerName}` : `Gift for ${partnerName}`}
       </h2>
       <div style={s.card}>
-        <p style={{ ...s.cardLabel, marginBottom: '12px' }}>{t.chooseMasteredCard}</p>
+        <p style={{ ...s.cardLabel, marginBottom: '12px' }}>{isDE ? 'Wähle eine gemeisterte Karte:' : 'Choose a mastered card:'}</p>
         {masteredCards.length === 0 ? (
-          <p style={{ color: th.sub, fontSize: '0.85rem' }}>{t.noMasteredCards}</p>
+          <p style={{ color: th.sub, fontSize: '0.85rem' }}>{isDE ? 'Noch keine gemeisterten Karten.' : 'No mastered cards yet.'}</p>
         ) : masteredCards.map(card => (
           <button key={card.id} onClick={() => setSelectedCard(selectedCard?.id === card.id ? null : card)}
             style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', padding: '9px 12px', marginBottom: '6px', borderRadius: '10px', cursor: 'pointer', background: selectedCard?.id === card.id ? `${th.accent}22` : 'transparent', border: `1px solid ${selectedCard?.id === card.id ? th.accent : th.border}`, textAlign: 'left' }}>
@@ -7858,9 +4858,9 @@ function GeschenkkarteScreen({ user, myData, lang, theme, onBack, allCards, card
       </div>
       {selectedCard && (
         <div style={{ ...s.card, animation: 'vocaraFadeIn 0.2s ease both' }}>
-          <p style={{ ...s.cardLabel, marginBottom: '10px' }}>{t.personalMessage}</p>
+          <p style={{ ...s.cardLabel, marginBottom: '10px' }}>{isDE ? 'Persönliche Nachricht (optional):' : 'Personal message (optional):'}</p>
           <input style={{ ...s.input, marginBottom: '0' }}
-            placeholder={lang === 'de' ? 'z.B. „Dieses Wort gefällt mir für dich…"' : 'e.g. "I thought you\'d like this word…"'}
+            placeholder={isDE ? 'z.B. „Dieses Wort gefällt mir für dich…"' : 'e.g. "I thought you\'d like this word…"'}
             value={message} maxLength={100} onChange={e => setMessage(e.target.value)} />
           <p style={{ color: th.sub, fontSize: '0.7rem', textAlign: 'right', margin: '4px 0 12px' }}>{message.length}/100</p>
           <button style={{ ...s.button, marginBottom: 0, opacity: sending ? 0.6 : 1 }} onClick={send} disabled={sending}>
@@ -7873,10 +4873,9 @@ function GeschenkkarteScreen({ user, myData, lang, theme, onBack, allCards, card
   )
 }
 
-function MainSelectionScreen({ lang, theme, firstName, uniqueTargetLangs, pausedLanguages, onSprechen, onEntdecken }) {
+function MainSelectionScreen({ lang, theme, firstName, uniqueTargetLangs, pausedLanguages, onSprechen, onEntdecken, onHorizont }) {
   const th = THEMES[theme]; const s = makeStyles(th)
   const isDE = lang === 'de'
-  const t = T[lang] || T.en
   const [pressedBtn, setPressedBtn] = React.useState(null)
 
   const glassBtn = (id, onClick, titleMain, titleSub, desc, disabled) => {
@@ -7917,7 +4916,7 @@ function MainSelectionScreen({ lang, theme, firstName, uniqueTargetLangs, paused
         <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.45)', lineHeight: 1.4 }}>{desc}</span>
         {disabled && (
           <span style={{ marginTop: '4px', background: `${th.gold}18`, color: th.gold, border: `1px solid ${th.gold}44`, borderRadius: '20px', padding: '2px 12px', fontSize: '0.7rem', fontWeight: '700' }}>
-            {t.comingSoonAlt}
+            {isDE ? 'Bald verfügbar' : 'Coming soon'}
           </span>
         )}
       </button>
@@ -7940,21 +4939,40 @@ function MainSelectionScreen({ lang, theme, firstName, uniqueTargetLangs, paused
             filter: 'drop-shadow(0 0 8px rgba(255,215,0,0.55)) drop-shadow(0 0 22px rgba(255,215,0,0.28))',
           }}>Bridgelab</h1>
           <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: '0.82rem', fontStyle: 'italic', letterSpacing: '0.03em', marginBottom: '0' }}>
-            {t.bridgeDesc}
+            {isDE ? 'Wir bauen keine Apps. Wir bauen Brücken.' : 'We don\'t build apps. We build bridges.'}
           </p>
         </div>
-        {glassBtn('vocara', onSprechen, 'Vocara', t.vocabraLanguage, t.wordsSentencesConv, false)}
+        {glassBtn('vocara', onSprechen, 'Vocara', isDE ? 'Sprache' : 'Language', isDE ? 'Wörter, Sätze & Gespräche' : 'Words, sentences & conversation', false)}
         {glassBtn('entdecken', onEntdecken, 'Katara', 'Strukturiertes Lernen', 'Lern was du willst. Wann du willst.', false)}
+        {glassBtn('horizont', onHorizont, isDE ? 'Horizont' : 'Horizon', null, isDE ? 'Kultur & Auswandern' : 'Culture & emigration', true)}
       </div>
     </div>
   )
 }
 
+function HorizontScreen({ lang, theme, onBack }) {
+  const th = THEMES[theme]; const s = makeStyles(th)
+  const isDE = lang === 'de'
+  return (
+    <div style={s.container} className="vocara-screen">
+      <div style={{ ...s.homeBox, paddingTop: '24px' }}>
+        <button style={s.backBtn} onClick={onBack}>← {isDE ? 'Zurück' : 'Back'}</button>
+        <div style={{ textAlign: 'center', marginTop: '60px' }}>
+          <span style={{ fontSize: '3rem' }}>🌐</span>
+          <h2 style={{ color: th.text, fontSize: '1.8rem', fontFamily: "'Playfair Display', Georgia, serif", margin: '16px 0 10px', fontWeight: '700' }}>{isDE ? 'Horizont' : 'Horizon'}</h2>
+          <p style={{ color: th.sub, fontSize: '0.95rem', marginBottom: '24px', lineHeight: 1.6 }}>{isDE ? 'Kultur & Auswandern' : 'Culture & emigration'}</p>
+          <div style={{ background: `${th.gold}12`, border: `1px solid ${th.gold}33`, borderRadius: '20px', padding: '20px 24px', display: 'inline-block' }}>
+            <p style={{ color: th.gold, fontWeight: '700', fontSize: '1rem', margin: 0 }}>{isDE ? 'Bald verfügbar' : 'Coming soon'}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCards, cardProgress, coupleId, onBack, onLiveSession }) {
   const th = THEMES[theme]; const s = makeStyles(th)
   const isDE = lang === 'de'
-  const t = T[lang] || T.en
   const [innerScreen, setInnerScreen] = useState('list') // 'list' | 'create' | 'set'
   const [activeSet, setActiveSet] = useState(null)
   const [setAction, setSetAction] = useState(null) // 'manual' | 'ki' | null
@@ -8068,7 +5086,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
       console.log('[Vocara] createKategorie — list refreshed ✓')
     } catch (e) {
       console.error('[Vocara] createKategorie — addDoc failed:', e)
-      setCatError(t.errorSaving)
+      setCatError(isDE ? 'Fehler beim Speichern. Bitte erneut versuchen.' : 'Error saving. Please try again.')
     }
     setCatSaving(false)
   }
@@ -8080,7 +5098,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
     const updated = sets.map(s => s.id === activeSet.id ? updatedSet : s)
     await saveSet(updated)
     setActiveSet(updatedSet); setCardFront(''); setCardBack('')
-    setStatus(t.cardAdded)
+    setStatus(isDE ? 'Karte hinzugefügt ✓' : 'Card added ✓')
     setTimeout(() => setStatus(null), 2000)
   }
 
@@ -8091,7 +5109,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
   }
 
   const deleteSet = async (setId) => {
-    if (!window.confirm(t.deleteConfirm)) return
+    if (!window.confirm(isDE ? 'Set wirklich löschen?' : 'Delete this set?')) return
     const updated = sets.filter(s => s.id !== setId)
     await saveSet(updated); setInnerScreen('list'); setActiveSet(null)
   }
@@ -8103,7 +5121,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
       const res = await fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-6', max_tokens: 800, system: CARD_GEN_SYSTEM,
+          model: 'claude-haiku-4-5-20251001', max_tokens: 800,
           messages: [{ role: 'user', content: `Create exactly 10 flashcards about: "${kiTopic.trim()}". Return ONLY a JSON array, no markdown:\n[{"front":"<term or question>","back":"<translation or answer>"}]` }]
         })
       })
@@ -8118,7 +5136,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
       setStatus(isDE ? `${newCards.length} KI-Karten hinzugefügt ✓` : `${newCards.length} AI cards added ✓`)
       setTimeout(() => setStatus(null), 3000)
     } catch (e) {
-      setStatus(t.aiFailed)
+      setStatus(isDE ? 'Fehler bei KI-Generierung' : 'AI generation failed')
       setTimeout(() => setStatus(null), 3000)
     } finally { setKiLoading(false); setSetAction(null) }
   }
@@ -8146,7 +5164,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
       setStatus(isDE ? `${newCards.length} Karten importiert ✓` : `${newCards.length} cards imported ✓`)
       setTimeout(() => setStatus(null), 3000)
     } catch (e) {
-      setStatus(t.importFailed)
+      setStatus(isDE ? 'Import fehlgeschlagen' : 'Import failed')
       setTimeout(() => setStatus(null), 3000)
     } finally { setImportLoading(false); setSetAction(null) }
   }
@@ -8159,8 +5177,8 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
       const existing = pSnap.data()?.cardSets || []
       const shared = { ...set, id: `set_shared_${Date.now()}`, sharedBy: user.displayName?.split(' ')[0] || 'Partner', sharedAt: Date.now() }
       await updateDoc(doc(db, 'users', myData.partnerUID), { cardSets: [...existing, shared] })
-      setStatus(t.setShared); setTimeout(() => setStatus(null), 2500)
-    } catch (e) { setStatus(t.shareFailed); setTimeout(() => setStatus(null), 2500) }
+      setStatus(isDE ? 'Set geteilt ✓' : 'Set shared ✓'); setTimeout(() => setStatus(null), 2500)
+    } catch (e) { setStatus(isDE ? 'Teilen fehlgeschlagen' : 'Share failed'); setTimeout(() => setStatus(null), 2500) }
   }
 
   // ── SET detail view ──
@@ -8169,41 +5187,41 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
       <div style={s.container} className="vocara-screen">
         <div style={{ ...s.homeBox, paddingTop: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
-            <button style={s.backBtn} onClick={() => { setInnerScreen('list'); setActiveSet(null); setSetAction(null) }}>← {t.back}</button>
+            <button style={s.backBtn} onClick={() => { setInnerScreen('list'); setActiveSet(null); setSetAction(null) }}>← {isDE ? 'Zurück' : 'Back'}</button>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
             <span style={{ fontSize: '1.8rem' }}>{activeSet.icon}</span>
             <div style={{ flex: 1, textAlign: 'left' }}>
               <h2 style={{ color: th.text, fontSize: '1.2rem', fontWeight: '700', margin: 0 }}>{activeSet.name}</h2>
-              <p style={{ color: th.sub, fontSize: '0.8rem', margin: 0 }}>{activeSet.cards?.length || 0} {t.cards}</p>
+              <p style={{ color: th.sub, fontSize: '0.8rem', margin: 0 }}>{activeSet.cards?.length || 0} {isDE ? 'Karten' : 'cards'}</p>
             </div>
             {myData?.partnerUID && (
-              <button onClick={() => shareSetWithPartner(activeSet)} style={{ background: 'transparent', border: `1px solid ${th.border}`, color: th.gold, borderRadius: '10px', padding: '6px 12px', cursor: 'pointer', fontSize: '0.75rem' }}>↗ {t.share}</button>
+              <button onClick={() => shareSetWithPartner(activeSet)} style={{ background: 'transparent', border: `1px solid ${th.border}`, color: th.gold, borderRadius: '10px', padding: '6px 12px', cursor: 'pointer', fontSize: '0.75rem' }}>↗ {isDE ? 'Teilen' : 'Share'}</button>
             )}
           </div>
 
           {/* ── Action buttons ── */}
           <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
-            <button onClick={() => setSetAction(a => a === 'manual' ? null : 'manual')} style={{ flex: 1, padding: '10px 6px', borderRadius: '12px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: '600', background: setAction === 'manual' ? `${th.accent}25` : 'transparent', color: setAction === 'manual' ? th.text : th.sub, border: `1px solid ${setAction === 'manual' ? th.accent : th.border}` }}>+ {t.manual}</button>
-            <button onClick={() => setSetAction(a => a === 'ki' ? null : 'ki')} style={{ flex: 1, padding: '10px 6px', borderRadius: '12px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: '600', background: setAction === 'ki' ? `${th.accent}25` : 'transparent', color: setAction === 'ki' ? th.text : th.sub, border: `1px solid ${setAction === 'ki' ? th.accent : th.border}` }}>🤖 {t.aiLabel}</button>
+            <button onClick={() => setSetAction(a => a === 'manual' ? null : 'manual')} style={{ flex: 1, padding: '10px 6px', borderRadius: '12px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: '600', background: setAction === 'manual' ? `${th.accent}25` : 'transparent', color: setAction === 'manual' ? th.text : th.sub, border: `1px solid ${setAction === 'manual' ? th.accent : th.border}` }}>+ {isDE ? 'Manuell' : 'Manual'}</button>
+            <button onClick={() => setSetAction(a => a === 'ki' ? null : 'ki')} style={{ flex: 1, padding: '10px 6px', borderRadius: '12px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: '600', background: setAction === 'ki' ? `${th.accent}25` : 'transparent', color: setAction === 'ki' ? th.text : th.sub, border: `1px solid ${setAction === 'ki' ? th.accent : th.border}` }}>🤖 {isDE ? 'KI' : 'AI'}</button>
             <button onClick={() => fileRef.current?.click()} style={{ flex: 1, padding: '10px 6px', borderRadius: '12px', cursor: importLoading ? 'default' : 'pointer', fontSize: '0.78rem', fontWeight: '600', background: 'transparent', color: importLoading ? th.sub : th.sub, border: `1px solid ${th.border}` }}>
-              {importLoading ? '...' : `📄 Import`}
+              {importLoading ? '...' : `📄 ${isDE ? 'Import' : 'Import'}`}
             </button>
             <input ref={fileRef} type="file" accept=".txt,.csv" style={{ display: 'none' }} onChange={e => { if (e.target.files[0]) handleImport(e.target.files[0]); e.target.value = '' }} />
           </div>
 
           {setAction === 'manual' && (
             <div style={{ ...s.card, marginBottom: '12px' }}>
-              <input style={{ ...s.input, marginBottom: '8px' }} placeholder={t.front} value={cardFront} onChange={e => setCardFront(e.target.value)} />
-              <input style={{ ...s.input, marginBottom: '10px' }} placeholder={t.backLabel} value={cardBack} onChange={e => setCardBack(e.target.value)} />
-              <button style={{ ...s.button, marginBottom: 0 }} onClick={addCardToSet}>{t.addCard}</button>
+              <input style={{ ...s.input, marginBottom: '8px' }} placeholder={isDE ? 'Vorderseite' : 'Front'} value={cardFront} onChange={e => setCardFront(e.target.value)} />
+              <input style={{ ...s.input, marginBottom: '10px' }} placeholder={isDE ? 'Rückseite' : 'Back'} value={cardBack} onChange={e => setCardBack(e.target.value)} />
+              <button style={{ ...s.button, marginBottom: 0 }} onClick={addCardToSet}>{isDE ? 'Karte hinzufügen' : 'Add card'}</button>
             </div>
           )}
 
           {setAction === 'ki' && (
             <div style={{ ...s.card, marginBottom: '12px' }}>
-              <input style={{ ...s.input, marginBottom: '10px' }} placeholder={t.topicPlaceholder} value={kiTopic} onChange={e => setKiTopic(e.target.value)} />
-              <button style={{ ...s.button, marginBottom: 0, opacity: kiLoading ? 0.6 : 1 }} onClick={generateKiCards} disabled={kiLoading}>{kiLoading ? '...' : t.generate10}</button>
+              <input style={{ ...s.input, marginBottom: '10px' }} placeholder={isDE ? 'Thema (z.B. Farben auf Spanisch)' : 'Topic (e.g. Colors in Spanish)'} value={kiTopic} onChange={e => setKiTopic(e.target.value)} />
+              <button style={{ ...s.button, marginBottom: 0, opacity: kiLoading ? 0.6 : 1 }} onClick={generateKiCards} disabled={kiLoading}>{kiLoading ? '...' : isDE ? '10 Karten generieren' : 'Generate 10 cards'}</button>
             </div>
           )}
 
@@ -8212,7 +5230,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
           {/* ── Card list ── */}
           {(activeSet.cards || []).length === 0 ? (
             <div style={{ ...s.card, textAlign: 'center', padding: '28px' }}>
-              <p style={{ color: th.sub, fontSize: '0.9rem', margin: 0 }}>{t.noCardsYet}</p>
+              <p style={{ color: th.sub, fontSize: '0.9rem', margin: 0 }}>{isDE ? 'Noch keine Karten — füge welche hinzu!' : 'No cards yet — add some!'}</p>
             </div>
           ) : (
             <div style={s.card}>
@@ -8228,7 +5246,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
               ))}
             </div>
           )}
-          <button onClick={() => deleteSet(activeSet.id)} style={{ ...s.logoutBtn, marginTop: '16px', color: '#f44336', borderColor: '#f4433644' }}>{t.deleteSet}</button>
+          <button onClick={() => deleteSet(activeSet.id)} style={{ ...s.logoutBtn, marginTop: '16px', color: '#f44336', borderColor: '#f4433644' }}>{isDE ? 'Set löschen' : 'Delete set'}</button>
         </div>
       </div>
     )
@@ -8239,12 +5257,12 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
     return (
       <div style={s.container} className="vocara-screen">
         <div style={{ ...s.homeBox, paddingTop: '16px' }}>
-          <button style={s.backBtn} onClick={() => { setInnerScreen('list'); setNewCatName(''); setCatError('') }}>← {t.back}</button>
-          <h2 style={{ color: th.text, fontSize: '1.2rem', fontWeight: '700', marginBottom: '20px', textAlign: 'left' }}>{t.newCategory}</h2>
+          <button style={s.backBtn} onClick={() => { setInnerScreen('list'); setNewCatName(''); setCatError('') }}>← {isDE ? 'Zurück' : 'Back'}</button>
+          <h2 style={{ color: th.text, fontSize: '1.2rem', fontWeight: '700', marginBottom: '20px', textAlign: 'left' }}>{isDE ? 'Neue Kategorie' : 'New category'}</h2>
           <div style={s.card}>
             <input
               style={{ ...s.input, marginBottom: catError ? '6px' : '14px', borderColor: catError ? '#f44336' : undefined }}
-              placeholder={t.categoryName}
+              placeholder={isDE ? 'Name der Kategorie' : 'Category name'}
               value={newCatName}
               onChange={e => { setNewCatName(e.target.value); if (catError) setCatError('') }}
               onKeyDown={e => { if (e.key === 'Enter') createKategorie() }}
@@ -8258,7 +5276,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
               onClick={createKategorie}
               disabled={catSaving}
             >
-              {catSaving ? (t.saving) : (t.createCategory)}
+              {catSaving ? (isDE ? 'Speichern…' : 'Saving…') : (isDE ? 'Kategorie erstellen' : 'Create category')}
             </button>
           </div>
         </div>
@@ -8271,7 +5289,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
     <div style={s.container} className="vocara-screen">
       <div style={{ ...s.homeBox, paddingTop: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: '18px' }}>
-          <button style={{ ...s.backBtn, marginBottom: 0, marginRight: '8px' }} onClick={onBack}>← {t.back}</button>
+          <button style={{ ...s.backBtn, marginBottom: 0, marginRight: '8px' }} onClick={onBack}>← {isDE ? 'Zurück' : 'Back'}</button>
           <h2 style={{ color: th.text, fontSize: '1.2rem', fontWeight: '700', flex: 1, textAlign: 'center', margin: 0 }}>Katara</h2>
         </div>
 
@@ -8281,7 +5299,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
               <span style={{ fontSize: '1.3rem' }}>🤝</span>
               <p style={{ color: th.text, fontWeight: '700', fontSize: '0.95rem', margin: 0 }}>
-                {t.thisWeekTogether}
+                {isDE ? 'Diese Woche zusammen' : 'This week together'}
               </p>
               {bothDone && <span style={{ marginLeft: 'auto', fontSize: '1.2rem' }}>🎉</span>}
             </div>
@@ -8309,26 +5327,26 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
                 </div>
                 {bothDone && (
                   <p style={{ color: th.gold, fontSize: '0.82rem', fontWeight: '700', textAlign: 'center', marginTop: '10px', marginBottom: 0 }}>
-                    {t.bothGoalsDone}
+                    {isDE ? '✓ Beide Ziele erreicht!' : '✓ Both goals reached!'}
                   </p>
                 )}
                 <button onClick={() => setChallengeInput(String(challengeTarget))}
                   style={{ background: 'transparent', border: 'none', color: th.sub, fontSize: '0.72rem', cursor: 'pointer', padding: '6px 0 0', WebkitTapHighlightColor: 'transparent' }}>
-                  {t.changeGoal}
+                  {isDE ? 'Ziel ändern' : 'Change goal'}
                 </button>
               </>
             ) : (
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <input
                   type="number" min="1" max="500"
-                  placeholder={lang === 'de' ? 'Ziel (z.B. 50)' : 'Goal (e.g. 50)'}
+                  placeholder={isDE ? 'Ziel (z.B. 50)' : 'Goal (e.g. 50)'}
                   value={challengeInput}
                   onChange={e => setChallengeInput(e.target.value)}
                   style={{ ...s.input, flex: 1, marginBottom: 0, fontSize: '0.9rem', padding: '10px 12px' }}
                 />
                 <button onClick={saveChallenge} disabled={challengeSaving || !challengeInput}
                   style={{ ...s.button, padding: '10px 16px', fontSize: '0.85rem', marginBottom: 0, opacity: (!challengeInput || challengeSaving) ? 0.5 : 1 }}>
-                  {t.save}
+                  {isDE ? 'Setzen' : 'Set'}
                 </button>
               </div>
             )}
@@ -8336,7 +5354,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '8px' }}>
                 <input
                   type="number" min="1" max="500"
-                  placeholder={lang === 'de' ? 'Neues Ziel' : 'New goal'}
+                  placeholder={isDE ? 'Neues Ziel' : 'New goal'}
                   value={challengeInput}
                   onChange={e => setChallengeInput(e.target.value)}
                   style={{ ...s.input, flex: 1, marginBottom: 0, fontSize: '0.9rem', padding: '10px 12px' }}
@@ -8369,7 +5387,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                 <span style={{ fontSize: '1.3rem' }}>💑</span>
                 <p style={{ color: th.text, fontWeight: '700', fontSize: '0.95rem', margin: 0 }}>
-                  {t.ourCards}
+                  {isDE ? 'Unsere Karten' : 'Our Cards'}
                 </p>
                 <span style={{ marginLeft: 'auto', background: `${th.gold}18`, color: th.gold, border: `1px solid ${th.gold}44`, borderRadius: '12px', padding: '2px 10px', fontSize: '0.72rem', fontWeight: '700' }}>
                   {sharedMastered.length}
@@ -8388,7 +5406,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
                   </div>
                 ))}
                 {sharedMastered.length > 20 && (
-                  <p style={{ color: th.sub, fontSize: '0.72rem', textAlign: 'center', margin: '4px 0 0' }}>+{sharedMastered.length - 20} {t.more}</p>
+                  <p style={{ color: th.sub, fontSize: '0.72rem', textAlign: 'center', margin: '4px 0 0' }}>+{sharedMastered.length - 20} {isDE ? 'weitere' : 'more'}</p>
                 )}
               </div>
             </div>
@@ -8401,8 +5419,8 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
             style={{ ...s.card, display: 'flex', alignItems: 'center', gap: '14px', width: '100%', cursor: 'pointer', marginBottom: '18px', padding: '16px', textAlign: 'left', border: `1px solid ${th.gold}44`, background: `${th.gold}08` }}>
             <span style={{ fontSize: '1.8rem', flexShrink: 0 }}>⚡</span>
             <div style={{ flex: 1 }}>
-              <p style={{ color: th.text, fontWeight: '700', margin: '0 0 2px', fontSize: '0.95rem' }}>{t.learnTogether}</p>
-              <p style={{ color: th.sub, fontSize: '0.78rem', margin: 0 }}>{t.learnTogetherSub}</p>
+              <p style={{ color: th.text, fontWeight: '700', margin: '0 0 2px', fontSize: '0.95rem' }}>{isDE ? 'Jetzt zusammen lernen' : 'Learn together now'}</p>
+              <p style={{ color: th.sub, fontSize: '0.78rem', margin: 0 }}>{isDE ? 'Gleiche Karten — gleichzeitig' : 'Same cards — at the same time'}</p>
             </div>
             <span style={{ color: th.gold, fontSize: '1rem' }}>›</span>
           </button>
@@ -8411,12 +5429,12 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
         {/* ── KATEGORIEN ── */}
         <div style={{ marginBottom: '8px' }}>
           <p style={{ color: th.sub, fontSize: '0.72rem', fontWeight: '700', letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 10px' }}>
-            {t.categories} {categories.length > 0 && `(${categories.length})`}
+            {isDE ? 'Kategorien' : 'Categories'} {categories.length > 0 && `(${categories.length})`}
           </p>
           {categories.length === 0 ? (
             <div style={{ ...s.card, textAlign: 'center', padding: '28px 20px', marginBottom: '10px' }}>
               <span style={{ fontSize: '2rem', display: 'block', marginBottom: '8px' }}>📂</span>
-              <p style={{ color: th.sub, fontSize: '0.85rem', margin: 0 }}>{t.noCategoriesYet}</p>
+              <p style={{ color: th.sub, fontSize: '0.85rem', margin: 0 }}>{isDE ? 'Noch keine Kategorien — erstelle deine erste!' : 'No categories yet — create your first one!'}</p>
             </div>
           ) : (
             categories.map(cat => (
@@ -8431,7 +5449,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
             ))
           )}
           <button style={{ ...s.button, marginTop: '4px', marginBottom: '20px' }} onClick={() => setInnerScreen('create')}>
-            + {t.newCategory}
+            + {isDE ? 'Neue Kategorie' : 'New category'}
           </button>
         </div>
 
@@ -8447,7 +5465,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
                   <span style={{ fontSize: '1.8rem', flexShrink: 0 }}>{set.icon}</span>
                   <div style={{ flex: 1 }}>
                     <p style={{ color: th.text, fontWeight: '700', margin: '0 0 2px', fontSize: '0.95rem' }}>{set.name}</p>
-                    <p style={{ color: th.sub, fontSize: '0.78rem', margin: 0 }}>{set.cards?.length || 0} {t.cards}</p>
+                    <p style={{ color: th.sub, fontSize: '0.78rem', margin: 0 }}>{set.cards?.length || 0} {isDE ? 'Karten' : 'cards'}</p>
                   </div>
                   {isLocked ? (
                     <span style={{ background: `${th.gold}18`, color: th.gold, border: `1px solid ${th.gold}44`, borderRadius: '12px', padding: '3px 10px', fontSize: '0.72rem', fontWeight: '600', flexShrink: 0 }}>🔒 Premium</span>
@@ -8491,36 +5509,32 @@ function LiveSessionScreen({ user, myData, partnerData, coupleId, allCards, lang
     if (!coupleId) return
     liveRef.current = doc(db, 'shared', coupleId, 'liveSession', 'current')
     // Subscribe to live updates
-    try {
-      unsubRef.current = onSnapshot(liveRef.current, (snap) => {
-        if (snap.exists()) {
-          const data = snap.data()
-          setLiveData(data)
-          if (data.active === false) setStatus('done')
-          else setStatus('active')
-        } else {
-          setLiveData(null)
-          setStatus('waiting')
-        }
-      }, (e) => { console.warn('[Vocara] shared/ snapshot denied (shared/' + coupleId + '):', e?.code || e?.message); setStatus('waiting') })
-    } catch (e) { console.warn('[Vocara] shared/ subscribe failed:', e?.code || e?.message) }
+    unsubRef.current = onSnapshot(liveRef.current, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data()
+        setLiveData(data)
+        if (data.active === false) setStatus('done')
+        else setStatus('active')
+      } else {
+        setLiveData(null)
+        setStatus('waiting')
+      }
+    })
     return () => { if (unsubRef.current) unsubRef.current() }
   }, [coupleId])
 
   const startSession = async () => {
     if (!liveRef.current) return
     const cardIds = sessionCards.map(c => c.id)
-    try {
-      await setDoc(liveRef.current, {
-        hostUID: user.uid,
-        cardIndex: 0,
-        cardIds,
-        answers: {},
-        startedAt: Date.now(),
-        active: true,
-      })
-      setStatus('active')
-    } catch (e) { console.warn('[Vocara] shared/ startSession denied (shared/' + coupleId + '):', e?.code || e?.message) }
+    await setDoc(liveRef.current, {
+      hostUID: user.uid,
+      cardIndex: 0,
+      cardIds,
+      answers: {},
+      startedAt: Date.now(),
+      active: true,
+    })
+    setStatus('active')
   }
 
   const recordAnswer = async (correct) => {
@@ -8565,9 +5579,9 @@ function LiveSessionScreen({ user, myData, partnerData, coupleId, allCards, lang
       <div style={s.container} className="vocara-screen"><div style={{ ...s.homeBox, paddingTop: '40px' }}>
         <div style={{ textAlign: 'center', animation: 'vocaraFadeIn 0.4s ease both' }}>
           <p style={{ fontSize: '3rem', marginBottom: '16px' }}>🎉</p>
-          <h2 style={{ color: th.text, fontSize: '1.4rem', fontWeight: '700', marginBottom: '20px' }}>{t.sessionResult}</h2>
+          <h2 style={{ color: th.text, fontSize: '1.4rem', fontWeight: '700', marginBottom: '20px' }}>{isDE ? 'Session beendet!' : 'Session done!'}</h2>
           <div style={{ ...s.card, marginBottom: '12px' }}>
-            <p style={{ color: th.sub, fontSize: '0.78rem', margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '1px' }}>{t.results}</p>
+            <p style={{ color: th.sub, fontSize: '0.78rem', margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '1px' }}>{isDE ? 'Ergebnis' : 'Results'}</p>
             <div style={{ display: 'flex', justifyContent: 'space-around' }}>
               <div style={{ textAlign: 'center' }}>
                 <p style={{ color: th.text, fontWeight: '700', fontSize: '1.6rem', margin: '0 0 4px' }}>{myCorrect}</p>
@@ -8579,7 +5593,7 @@ function LiveSessionScreen({ user, myData, partnerData, coupleId, allCards, lang
               </div>
             </div>
           </div>
-          <button style={s.button} onClick={onBack}>{'← ' + t.back}</button>
+          <button style={s.button} onClick={onBack}>{isDE ? '← Zurück' : '← Back'}</button>
         </div>
       </div></div>
     )
@@ -8588,27 +5602,27 @@ function LiveSessionScreen({ user, myData, partnerData, coupleId, allCards, lang
   return (
     <div style={s.container} className="vocara-screen"><div style={{ ...s.homeBox, paddingTop: '16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
-        <button style={{ ...s.backBtn, marginBottom: 0 }} onClick={endSession}>← {t.endBtn}</button>
+        <button style={{ ...s.backBtn, marginBottom: 0 }} onClick={endSession}>← {isDE ? 'Beenden' : 'End'}</button>
         <p style={{ color: th.text, fontWeight: '700', fontSize: '1rem', flex: 1, textAlign: 'center', margin: 0 }}>
-          {t.learnToge}
+          {isDE ? '⚡ Gemeinsam lernen' : '⚡ Learn together'}
         </p>
       </div>
 
       {status === 'waiting' && !liveData && (
         <div style={{ ...s.card, textAlign: 'center', padding: '36px 24px' }}>
           <p style={{ fontSize: '2.5rem', marginBottom: '14px' }}>⚡</p>
-          <p style={{ color: th.text, fontWeight: '700', fontSize: '1rem', marginBottom: '8px' }}>{t.readyJointSession}</p>
+          <p style={{ color: th.text, fontWeight: '700', fontSize: '1rem', marginBottom: '8px' }}>{isDE ? 'Bereit für eine gemeinsame Session?' : 'Ready for a joint session?'}</p>
           <p style={{ color: th.sub, fontSize: '0.85rem', marginBottom: '20px' }}>
             {isDE ? `Beide sehen dieselben Karten gleichzeitig.` : `Both see the same cards at the same time.`}
           </p>
-          <button style={s.button} onClick={startSession}>{t.startSession}</button>
+          <button style={s.button} onClick={startSession}>{isDE ? '🚀 Session starten' : '🚀 Start session'}</button>
         </div>
       )}
 
       {status === 'waiting' && liveData?.active && (
         <div style={{ ...s.card, textAlign: 'center', padding: '24px' }}>
-          <p style={{ color: th.sub, fontSize: '0.9rem' }}>{partnerName} {t.partnerStarted}</p>
-          <button style={{ ...s.button, marginTop: '12px' }} onClick={() => setStatus('active')}>{t.joinBtn}</button>
+          <p style={{ color: th.sub, fontSize: '0.9rem' }}>{partnerName} {isDE ? 'hat eine Session gestartet.' : 'started a session.'}</p>
+          <button style={{ ...s.button, marginTop: '12px' }} onClick={() => setStatus('active')}>{isDE ? 'Beitreten' : 'Join'}</button>
         </div>
       )}
 
@@ -8616,7 +5630,7 @@ function LiveSessionScreen({ user, myData, partnerData, coupleId, allCards, lang
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
             <span style={{ color: th.sub, fontSize: '0.78rem' }}>{currentIdx + 1} / {totalCards}</span>
-            <span style={{ color: th.sub, fontSize: '0.78rem' }}>{t.sync} ⚡</span>
+            <span style={{ color: th.sub, fontSize: '0.78rem' }}>{isDE ? 'Synchron' : 'Sync'} ⚡</span>
           </div>
           <div style={{ ...s.bigCard, marginBottom: '20px' }}>
             <p style={{ ...s.cardFront, marginBottom: '10px' }}>{currentCard.front}</p>
@@ -8626,18 +5640,18 @@ function LiveSessionScreen({ user, myData, partnerData, coupleId, allCards, lang
           {/* Partner status */}
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', padding: '0 4px' }}>
             <span style={{ color: myAnswerNow === 'correct' ? '#4CAF50' : myAnswerNow === 'wrong' ? th.accent : th.sub, fontSize: '0.82rem' }}>
-              {myName}: {myAnswerNow === 'correct' ? '✓' : myAnswerNow === 'wrong' ? '✗' : (t.answering)}
+              {myName}: {myAnswerNow === 'correct' ? '✓' : myAnswerNow === 'wrong' ? '✗' : (isDE ? 'antwortet…' : 'answering…')}
             </span>
             <span style={{ color: partnerAnswerNow === 'correct' ? '#4CAF50' : partnerAnswerNow === 'wrong' ? th.accent : th.sub, fontSize: '0.82rem' }}>
-              {partnerName}: {partnerAnswerNow === 'correct' ? '✓' : partnerAnswerNow === 'wrong' ? '✗' : (t.answering)}
+              {partnerName}: {partnerAnswerNow === 'correct' ? '✓' : partnerAnswerNow === 'wrong' ? '✗' : (isDE ? 'antwortet…' : 'answering…')}
             </span>
           </div>
           {!myAnswerNow && (
             <div style={{ display: 'flex', gap: '12px' }}>
               <button onClick={() => recordAnswer(true)}
-                style={{ ...s.button, flex: 1, background: 'rgba(76,175,80,0.15)', border: '1px solid rgba(76,175,80,0.4)', color: '#81c784', marginBottom: 0 }}>✓ {t.knew}</button>
+                style={{ ...s.button, flex: 1, background: 'rgba(76,175,80,0.15)', border: '1px solid rgba(76,175,80,0.4)', color: '#81c784', marginBottom: 0 }}>✓ {isDE ? 'Gewusst' : 'Correct'}</button>
               <button onClick={() => recordAnswer(false)}
-                style={{ ...s.button, flex: 1, background: `${th.accent}15`, border: `1px solid ${th.accent}44`, color: th.accent, marginBottom: 0 }}>✗ {t.didntKnow}</button>
+                style={{ ...s.button, flex: 1, background: `${th.accent}15`, border: `1px solid ${th.accent}44`, color: th.accent, marginBottom: 0 }}>✗ {isDE ? 'Nicht gewusst' : 'Wrong'}</button>
             </div>
           )}
           {myAnswerNow && (
@@ -8670,47 +5684,18 @@ class ErrorBoundary extends Component {
   }
 }
 
-// ── AMBIENT AUDIO ENGINE — DISABLED (oscillator hum removed) ──────────────────
-// Music feature is pending proper streaming integration. All audio noop for now.
-function ambientEnableMubert() {}
-function ambientDisableAll() {}
-function ambientSwitchThemeMubert() {}
-function ambientSetVol() {}
-
 function App() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [myData, setMyData] = useState(null)
   const [partnerData, setPartnerData] = useState(null)
-
-  // Layer 3: force-fetch partner publicStats from server (bypass IndexedDB cache)
-  const refreshPartnerData = async (partnerUID) => {
-    if (!partnerUID) return
-    try {
-      const pubSnap = await getDocFromServer(doc(db, 'users', partnerUID, 'publicStats', 'data'))
-      if (pubSnap.exists()) {
-        console.log('[Partner] publicStats refreshed for', partnerUID)
-        setPartnerData(pubSnap.data())
-      } else {
-        console.warn('[Partner] publicStats not found for', partnerUID)
-      }
-    } catch (e) {
-      console.warn('[Partner] publicStats refresh failed:', e?.message)
-    }
-  }
-
-  const [theme, setTheme] = useState(() => {
-    try { return localStorage.getItem('vocara_theme') || 'nairobi' } catch { return 'nairobi' }
-  })
+  const [theme, setTheme] = useState('nairobi')
   const [lightMode, setLightMode] = useState(false)
   const [cardSize, setCardSize] = useState('normal')
   const [needsLangSetup, setNeedsLangSetup] = useState(false)
   const [needsOnboarding, setNeedsOnboarding] = useState(false)
   const [isNewUser, setIsNewUser] = useState(false)
-  const [mainNav, setMainNav] = useState('main')
-  const [musicEnabled, setMusicEnabled] = useState(() => { try { return localStorage.getItem('vocara_music') === 'true' } catch { return false } })
-  const [musicVolume, setMusicVolume] = useState(() => { try { return parseFloat(localStorage.getItem('vocara_music_vol') || '0.35') } catch { return 0.35 } })
-  const [isOffline, setIsOffline] = useState(!navigator.onLine)
+  const [mainNav, setMainNav] = useState('main') // 'main' | 'sprechen' | 'entdecken' | 'horizont' | 'livesession'
 
   useEffect(() => {
     const id = 'vocara-global-css'
@@ -8719,39 +5704,6 @@ function App() {
       document.head.appendChild(el)
     }
   }, [])
-
-  // ── OFFLINE DETECTION ─────────────────────────────────────
-  useEffect(() => {
-    const on = () => setIsOffline(false); const off = () => setIsOffline(true)
-    window.addEventListener('online', on); window.addEventListener('offline', off)
-    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off) }
-  }, [])
-
-  // ── MUSIC CONTROL ─────────────────────────────────────────
-  useEffect(() => {
-    if (musicEnabled && user) ambientEnableMubert(theme, musicVolume)
-    else ambientDisableAll()
-  }, [musicEnabled, musicVolume, user]) // eslint-disable-line
-
-  const prevThemeRef = useRef(theme)
-  useEffect(() => {
-    if (theme !== prevThemeRef.current) {
-      prevThemeRef.current = theme
-      if (musicEnabled) ambientSwitchThemeMubert(theme, musicVolume)
-    }
-  }, [theme]) // eslint-disable-line
-
-  const handleMusicToggle = async (val) => {
-    setMusicEnabled(val)
-    try { localStorage.setItem('vocara_music', val ? 'true' : 'false') } catch {}
-    if (user) setDoc(doc(db, 'users', user.uid, 'settings', 'music'), { enabled: val }, { merge: true }).catch(() => {})
-  }
-  const handleMusicVolume = async (vol) => {
-    setMusicVolume(vol)
-    try { localStorage.setItem('vocara_music_vol', String(vol)) } catch {}
-    if (musicEnabled) ambientSetVol(vol)
-    if (user) setDoc(doc(db, 'users', user.uid, 'settings', 'music'), { volume: vol }, { merge: true }).catch(() => {})
-  }
 
   // Auto-generate German-phonetic pronunciation for aiCards missing it
   useEffect(() => {
@@ -8788,43 +5740,6 @@ function App() {
     generate()
   }, [myData?.aiCards?.length, user?.uid])
 
-  // Batch-detect wordType for vocabulary aiCards missing it (max 10/day)
-  useEffect(() => {
-    if (!user || !myData) return
-    const today = todayStr()
-    if (myData.lastWordTypeBatch === today) return
-    const vocabCards = (myData.aiCards || []).filter(c => c.category === 'vocabulary' && !/_r(_\d+)?$/.test(c.id) && !c.wordType)
-    const batch = vocabCards.slice(0, 10)
-    if (batch.length === 0) return
-    const detect = async () => {
-      const isMarkLang = (myData.fromLang || 'de').toLowerCase() === 'de'
-      const langInstr = isMarkLang ? 'English' : 'German'
-      const list = batch.map(c => `"${c.front}"`).join(', ')
-      try {
-        const res = await fetch('/api/chat', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: 'claude-haiku-4-5-20251001', max_tokens: 400,
-            messages: [{ role: 'user', content: `For each ${langInstr} word/phrase, return its word type and (for nouns) the article. Word types: ${isMarkLang ? 'Noun/Verb/Adjective/Adverb/Phrase' : 'Nomen/Verb/Adjektiv/Adverb/Phrase'}. Return ONLY JSON array: [{"front":"word","wordType":"Noun","article":"the"}]. Words: [${list}]` }]
-          })
-        })
-        const data = await res.json()
-        const raw = (data.content?.[0]?.text || '').trim()
-        const match = raw.match(/\[[\s\S]*\]/)
-        if (!match) return
-        const results = JSON.parse(match[0])
-        const updatedCards = (myData.aiCards || []).map(c => {
-          const r = results.find(r => r.front?.toLowerCase() === c.front?.toLowerCase())
-          if (!r || c.wordType) return c
-          return { ...c, wordType: r.wordType || null, article: r.article || null }
-        })
-        await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedCards, lastWordTypeBatch: today })
-        setMyData(d => ({ ...d, aiCards: updatedCards, lastWordTypeBatch: today }))
-      } catch(e) {}
-    }
-    detect()
-  }, [myData?.aiCards?.length, user?.uid]) // eslint-disable-line
-
   // #9 Schedule daily notification based on notificationTime setting
   useEffect(() => {
     if (!myData?.notificationTime || myData.notificationTime === 'off') return
@@ -8850,19 +5765,17 @@ function App() {
         setUser(null); setLoading(false)
         return
       }
-      // Force token refresh so auth token is in the SDK cache before any Firestore op
-      try { await u.getIdToken() } catch (_) {}
       try {
         const userRef = doc(db, 'users', u.uid)
+        const code = u.uid.slice(0, 8).toUpperCase()
+        await setDoc(doc(db, 'inviteCodes', code), { uid: u.uid }, { merge: true })
         const snap = await getDoc(userRef)
 
         // ── NEW USER: first login, no profile with createdAt yet
-        // NEVER treat known UIDs as new users — protects Elosy/Mark data
-        const isKnownUID = u.uid === MARK_UID || u.uid === ELOSY_UID
-        if (!isKnownUID && (!snap.exists() || !snap.data()?.createdAt)) {
+        if (!snap.exists() || !snap.data()?.createdAt) {
           const defaultFromLang = u.uid === ELOSY_UID ? 'en' : 'de'
           const profile = { name: u.displayName, email: u.email, createdAt: Date.now(), language: defaultFromLang, fromLang: defaultFromLang, lastActive: todayStr() }
-          await setDoc(userRef, profile, { merge: true })
+          await setDoc(userRef, profile)
           setMyData(profile)
           setIsNewUser(true)
           setUser(u); setLoading(false)
@@ -8870,12 +5783,11 @@ function App() {
         }
 
         // ── RETURNING USER: update presence and load data
-        // Use setDoc+merge so it works even if doc exists but some fields were lost
-        await setDoc(userRef, { name: u.displayName, email: u.email, lastActive: todayStr() }, { merge: true })
+        await updateDoc(userRef, { name: u.displayName, email: u.email, lastActive: todayStr() })
         const freshSnap = await getDoc(userRef)
         if (freshSnap.exists()) {
           const data = freshSnap.data()
-          if (data.theme) { setTheme(data.theme); try { localStorage.setItem('vocara_theme', data.theme) } catch {} }
+          if (data.theme) setTheme(data.theme)
           if (data.lightMode !== undefined) setLightMode(!!data.lightMode)
           if (data.cardSize) setCardSize(data.cardSize)
           // ── BATCH CATEGORY FIX: vocabulary + 3+ words → sentence ─
@@ -8897,15 +5809,6 @@ function App() {
                 if (current !== 'basics') {
                   console.log('Reclassified:', front, '→ basics (protected)')
                   newCats[card.id] = 'basics'
-                  batchChanged = true
-                }
-                continue
-              }
-
-              // urlaub cards are protected — delete any wrong override so card.category takes effect
-              if (card.category === 'urlaub' || card.id?.startsWith('urlaub_')) {
-                if (current && current !== 'urlaub') {
-                  delete newCats[card.id]
                   batchChanged = true
                 }
                 continue
@@ -8959,122 +5862,26 @@ function App() {
               data.fromLang = 'en'; data.toLang = 'de'
             } catch (_) {}
           }
+          setMyData(data)
           const isKnown = u.uid === MARK_UID || u.uid === ELOSY_UID
           if (!isKnown) {
             if (!data.onboardingDone) setNeedsOnboarding(true)
             if (!data.languages || data.languages.length === 0) setNeedsLangSetup(true)
           }
-          // ── PARTNER CONNECTION: cost-optimized — only write when partnerUid actually changed ──
-          const disconnectedFlag = (() => { try { return localStorage.getItem('vocara_manually_disconnected') } catch { return null } })()
-          const CORRECT_PARTNER = u.uid === MARK_UID ? ELOSY_UID : u.uid === ELOSY_UID ? MARK_UID : null
-          const CORRECT_PARTNER_NAME = u.uid === MARK_UID ? 'Elosy' : u.uid === ELOSY_UID ? 'Mark' : null
-          if (!disconnectedFlag && CORRECT_PARTNER && data.partnerUID !== CORRECT_PARTNER) {
-            data.partnerUID = CORRECT_PARTNER; data.partnerName = CORRECT_PARTNER_NAME
-            try { await setDoc(userRef, { partnerUID: CORRECT_PARTNER, partnerName: CORRECT_PARTNER_NAME }, { merge: true }) } catch (_) {}
-          }
-          const pUid = disconnectedFlag ? null : (data.partnerUID || data.partnerUid || (u.uid === MARK_UID ? ELOSY_UID : u.uid === ELOSY_UID ? MARK_UID : null) || null)
-          if (pUid) {
-            try { localStorage.setItem('vocara_partnerUID_' + u.uid, pUid) } catch (_) {}
-            const cachedPartnerUid = (() => { try { return localStorage.getItem('vocara_partnerUid') } catch(_) { return null } })()
-            if (cachedPartnerUid !== pUid) {
-              // Only Firestore-write when partnerUid changed — reduces costs
-              console.log('[Vocara] Partner sync: writing to Firestore', u.uid, '→', pUid)
-              await Promise.all([
-                setDoc(doc(db, 'users', u.uid, 'profile', 'data'), { partnerUid: pUid, partnerName: data.partnerName || null, uid: u.uid, updatedAt: Date.now() }, { merge: true }).catch(() => {}),
-                setDoc(doc(db, 'users', u.uid, 'publicStats', 'data'), { partnerUID: pUid, partnerName: data.partnerName || null }, { merge: true }).catch(() => {}),
-              ])
-              try { localStorage.setItem('vocara_partnerUid', pUid) } catch (_) {}
+          try {
+            if (data.partnerUID) {
+              const pSnap = await getDoc(doc(db, 'users', data.partnerUID))
+              if (pSnap.exists()) setPartnerData(pSnap.data())
             } else {
-              console.log('[Vocara] Partner sync: skipped (no change), partnerUid =', pUid)
-            }
-            // Debug: log publicStats for both users
-            ;(async () => {
-              try {
-                const [myPub, pPub] = await Promise.all([
-                  getDoc(doc(db, 'users', u.uid, 'publicStats', 'data')).catch(() => null),
-                  getDoc(doc(db, 'users', pUid, 'publicStats', 'data')).catch(() => null),
-                ])
-                console.log('[Vocara] MY  users/' + u.uid + '/publicStats/data:', myPub?.exists() ? myPub.data() : 'MISSING')
-                console.log('[Vocara] PTR users/' + pUid + '/publicStats/data:', pPub?.exists() ? pPub.data() : 'MISSING')
-              } catch(e) { console.warn('[Vocara] profile debug failed', e) }
-            })()
-          }
-          // ── CHECK INCOMING CARDS (subcollection) ──
-          try {
-            const incomingSnap = await getDocs(collection(db, 'users', u.uid, 'incomingCards'))
-            if (!incomingSnap.empty) {
-              const queue = incomingSnap.docs.map(d => ({ ...d.data(), _docId: d.id }))
-              setIncomingCardQueue(queue)
-            }
-          } catch (_) {}
-          // Write partnerUID to publicStats if available
-          if (data.partnerUID) {
-            setDoc(doc(db, 'users', u.uid, 'publicStats', 'data'), { partnerUID: data.partnerUID, partnerName: data.partnerName || null }, { merge: true }).catch(() => {})
-          }
-          // ── CHECK PARTNER REQUESTS ──
-          try {
-            const reqSnap = await getDocs(collection(db, 'users', u.uid, 'partnerRequests'))
-            if (!reqSnap.empty) {
-              const pending = reqSnap.docs.find(d => d.data().status === 'pending')
-              if (pending) data._pendingPartnerRequest = { docId: pending.id, ...pending.data() }
-            }
-          } catch (_) {}
-          setMyData(data)
-          // Load music settings from Firestore
-          getDoc(doc(db, 'users', u.uid, 'settings', 'music')).then(mSnap => {
-            if (!mSnap.exists()) return
-            const md = mSnap.data()
-            if (md.enabled !== undefined) { setMusicEnabled(md.enabled); try { localStorage.setItem('vocara_music', md.enabled ? 'true' : 'false') } catch {} }
-            if (md.volume !== undefined) { setMusicVolume(md.volume); try { localStorage.setItem('vocara_music_vol', String(md.volume)) } catch {} }
-          }).catch(() => {})
-          // Load partner stats — fallback chain: publicStats → globalStats → "Noch keine Daten"
-          const loadPartner = async (partnerUID) => {
-            if (!auth.currentUser?.uid) {
-              console.warn('[loadPartner] skipped — no auth yet')
-              return
-            }
-            // 1. Primary: users/{partnerUID}/publicStats/data — force network to bypass IndexedDB cache
-            try {
-              const pubSnap = await getDocFromServer(doc(db, 'users', partnerUID, 'publicStats', 'data'))
-              if (pubSnap.exists()) {
-                setPartnerData(pubSnap.data())
-                try { localStorage.setItem('vocara_partnerName_' + partnerUID, pubSnap.data().name || pubSnap.data().displayName || '') } catch {}
-                return
+              const partnerUID = u.uid === MARK_UID ? ELOSY_UID : u.uid === ELOSY_UID ? MARK_UID : null
+              if (partnerUID) {
+                const pSnap = await getDoc(doc(db, 'users', partnerUID))
+                if (pSnap.exists()) setPartnerData(pSnap.data())
               }
-              console.warn('[Partner] publicStats not found for', partnerUID)
-            } catch (e) { console.warn('[Partner] publicStats read failed for', partnerUID, e?.message) }
-            // 2. Fallback: users/{partnerUID}/globalStats/summary
-            try {
-              const gsSnap = await getDoc(doc(db, 'users', partnerUID, 'globalStats', 'summary'))
-              if (gsSnap.exists()) { setPartnerData(gsSnap.data()); return }
-            } catch (_) {}
-            // 3. Fallback: hardcoded names / "Noch keine Daten"
-            if (partnerUID === ELOSY_UID) setPartnerData({ name: 'Elosy', displayName: 'Elosy', lastActive: null, _noData: true })
-            else if (partnerUID === MARK_UID) setPartnerData({ name: 'Mark', displayName: 'Mark', lastActive: null, _noData: true })
-            else setPartnerData({ _noData: true })
-          }
-          const isKnownPair = u.uid === MARK_UID || u.uid === ELOSY_UID
-          const resolvedPartnerUID = (isKnownPair || !disconnectedFlag)
-            ? (data.partnerUID || data.partnerUid || (u.uid === MARK_UID ? ELOSY_UID : u.uid === ELOSY_UID ? MARK_UID : null))
-            : null
-          if (resolvedPartnerUID) await loadPartner(resolvedPartnerUID)
-          // ── CHECK PARTNER ACTIVITY NOTIFS ──
-          try {
-            const notifSnap = await getDocs(collection(db, 'users', u.uid, 'publicStats'))
-            if (!notifSnap.empty) {
-              notifSnap.docs.forEach(async (nd) => {
-                const n = nd.data()
-                if (n.type === 'partner_session' && 'Notification' in window && Notification.permission === 'granted') {
-                  const isDE = (data.language || data.fromLang || 'de') === 'de'
-                  const body = isDE
-                    ? `${n.fromName} hat gerade ${n.cards} Karten gelernt! 💪`
-                    : `${n.fromName} just practiced ${n.cards} cards! 💪`
-                  new Notification('Vocara', { body, icon: '/vite.svg' })
-                }
-                try { await deleteDoc(nd.ref) } catch (_) {}
-              })
             }
-          } catch (_) {}
+          } catch (partnerErr) {
+            console.error('[Vocara] partner load failed, skipping:', partnerErr)
+          }
         }
       } catch (initErr) {
         console.error('[Vocara] app init failed, falling back to defaults:', initErr)
@@ -9082,68 +5889,18 @@ function App() {
       // Update lastActive timestamp for partner visibility
       try { await updateDoc(doc(db, 'users', u.uid), { lastActive: new Date().toISOString() }) } catch(e) {}
       setUser(u); setLoading(false)
-      // ── PUBLICSTATS: fire-and-forget AFTER auth is fully settled ─────
-      // Written last so auth token is guaranteed to be in SDK cache.
-      ;(async () => {
-        if (!auth.currentUser?.uid) {
-          console.warn('[publicStats] skipped — no auth yet')
-          return
-        }
-        const psPath = `users/${u.uid}/publicStats/data`
-        try {
-          console.log('[publicStats] outer try started', auth.currentUser?.uid)
-          let globalStatsData = {}
-          try {
-            const globalStatsSnap = await getDoc(doc(db, 'users', u.uid, 'globalStats', 'summary'))
-            globalStatsData = globalStatsSnap.exists() ? globalStatsSnap.data() : {}
-            console.log('[publicStats] globalStats read OK', { exists: globalStatsSnap.exists() })
-          } catch (e) {
-            console.warn('[publicStats] globalStats read skipped:', e.code)
-          }
-          let resolvedName = u.displayName || ''
-          if (!resolvedName) {
-            try {
-              const profSnap = await getDoc(doc(db, 'users', u.uid, 'profile', 'data'))
-              if (profSnap.exists()) resolvedName = profSnap.data().displayName || profSnap.data().name || ''
-            } catch (_) {}
-          }
-          const psData = { ...globalStatsData, displayName: resolvedName, lastActive: Date.now(), uid: u.uid }
-          const publicStatsRef = doc(db, 'users', u.uid, 'publicStats', 'data')
-          console.log('[publicStats] WRITING DATA:', JSON.stringify(psData))
-          try {
-            await setDoc(publicStatsRef, psData, { merge: true })
-            console.log('[Login] publicStats OK', u.uid)
-          } catch (e) {
-            console.error('[publicStats] FULL ERROR:', JSON.stringify({ code: e.code, message: e.message, stack: e.stack?.slice(0, 200) }))
-            if (e.code === 'permission-denied') {
-              await new Promise(r => setTimeout(r, 1000))
-              try {
-                await setDoc(publicStatsRef, psData, { merge: true })
-                console.log('[Login] publicStats OK (retry)', u.uid)
-              } catch (e2) {
-                console.error('[publicStats] FULL ERROR (retry):', JSON.stringify({ code: e2.code, message: e2.message, stack: e2.stack?.slice(0, 200) }))
-              }
-            }
-          }
-        } catch (psErr) {
-          console.error('[publicStats] FULL ERROR (outer catch):', JSON.stringify({ code: psErr.code, message: psErr.message, stack: psErr.stack?.slice(0, 200) }))
-        }
-      })()
     })
     return unsubscribe
   }, [])
 
   const saveProgress = async (finalProgress) => {
-    try {
-      const ref = doc(db, 'users', user.uid)
-      await updateDoc(ref, { cardProgress: finalProgress })
-      const snap = await getDoc(ref); if (snap.exists()) setMyData(snap.data())
-    } catch (e) { console.error('[Vocara] saveProgress failed (users/' + user?.uid + '):', e?.code || e?.message) }
+    const ref = doc(db, 'users', user.uid)
+    await updateDoc(ref, { cardProgress: finalProgress })
+    const snap = await getDoc(ref); if (snap.exists()) setMyData(snap.data())
   }
   const handleThemeChange = async (newTheme) => {
     setTheme(newTheme)
-    try { localStorage.setItem('vocara_theme', newTheme) } catch {}
-    if (user) await updateDoc(doc(db, 'users', user.uid), { theme: newTheme }).catch(e => console.warn('[Vocara] theme save failed:', e?.code))
+    if (user) await updateDoc(doc(db, 'users', user.uid), { theme: newTheme })
   }
   const handleLightModeChange = async (val) => {
     setLightMode(val)
@@ -9154,23 +5911,10 @@ function App() {
     if (user) await updateDoc(doc(db, 'users', user.uid), { cardSize: val }).catch(() => {})
   }
   const handlePartnerUpdate = async (partnerUID) => {
-    if (partnerUID) {
-      // On connect: reload full user doc to pick up fresh partnerUID/partnerConnectedAt
-      try {
-        const ref = doc(db, 'users', user.uid)
-        const snap = await getDoc(ref); if (snap.exists()) setMyData(snap.data())
-      } catch (e) { console.warn('[Vocara] own data reload failed:', e?.code) }
-      let loaded = false
-      try { const pub = await getDoc(doc(db, 'users', partnerUID, 'publicStats', 'data')); if (pub.exists()) { setPartnerData(pub.data()); loaded = true } } catch (_) {}
-      if (!loaded) {
-        try { const gs = await getDoc(doc(db, 'users', partnerUID, 'globalStats', 'summary')); if (gs.exists()) { setPartnerData(gs.data()); loaded = true } } catch (_) {}
-      }
-      if (!loaded) setPartnerData({ _noData: true })
-    } else {
-      // On disconnect: only clear partner fields — never reload full doc (could overwrite fresh progress)
-      setMyData(d => ({ ...d, partnerUID: null, partnerName: null, partnerConnectedAt: null }))
-      setPartnerData(null)
-    }
+    const ref = doc(db, 'users', user.uid)
+    const snap = await getDoc(ref); if (snap.exists()) setMyData(snap.data())
+    if (partnerUID) { const pSnap = await getDoc(doc(db, 'users', partnerUID)); if (pSnap.exists()) setPartnerData(pSnap.data()) }
+    else setPartnerData(null)
   }
   const handleSaveCefr = async (level) => {
     try {
@@ -9184,12 +5928,6 @@ function App() {
     if (cityData.homeCity) update.homeCity = cityData.homeCity
     if (cityData.partnerCity) update.partnerCity = cityData.partnerCity
     if (cityData.relationshipType) update.relationshipType = cityData.relationshipType
-    if (cityData.socialRegister) update.socialRegister = cityData.socialRegister
-    if (cityData.musicEnabled !== undefined) {
-      update.musicEnabled = cityData.musicEnabled
-      setMusicEnabled(cityData.musicEnabled)
-      try { localStorage.setItem('vocara_music', cityData.musicEnabled ? 'true' : 'false') } catch {}
-    }
     await updateDoc(doc(db, 'users', user.uid), update)
     setMyData(d => ({ ...d, ...update }))
     setNeedsOnboarding(false)
@@ -9273,6 +6011,7 @@ function App() {
             uniqueTargetLangs={uniqueTargetLangsAll} pausedLanguages={myData?.pausedLanguages || []}
             onSprechen={() => setMainNav('sprechen')}
             onEntdecken={() => { window.open('https://katara-eta.vercel.app', '_blank'); }}
+            onHorizont={() => setMainNav('horizont')}
           />
         )}
         {mainNav === 'sprechen' && (
@@ -9282,15 +6021,7 @@ function App() {
             theme={theme} onThemeChange={handleThemeChange}
             onLightModeChange={handleLightModeChange} onCardSizeChange={handleCardSizeChange}
             onPartnerUpdate={handlePartnerUpdate} onSaveCefr={handleSaveCefr}
-            musicEnabled={musicEnabled} musicVolume={musicVolume}
-            onMusicToggle={handleMusicToggle} onMusicVolume={handleMusicVolume}
-            onRefreshPartner={refreshPartnerData}
             onBack={() => setMainNav('main')} />
-        )}
-        {isOffline && (
-          <div style={{ position: 'fixed', top: '10px', right: '10px', background: 'rgba(50,50,60,0.92)', color: '#bbb', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '10px', padding: '5px 12px', fontSize: '0.72rem', fontWeight: '600', zIndex: 9998, backdropFilter: 'blur(8px)' }}>
-            📵 Offline
-          </div>
         )}
         {mainNav === 'entdecken' && (
           <SetsScreen user={user} myData={myData} setMyData={setMyData} partnerData={partnerData}
@@ -9298,7 +6029,10 @@ function App() {
             coupleId={coupleId}
             onBack={() => setMainNav('main')} onLiveSession={() => setMainNav('livesession')} />
         )}
-{mainNav === 'livesession' && coupleId && (
+        {mainNav === 'horizont' && (
+          <HorizontScreen lang={lang} theme={theme} onBack={() => setMainNav('main')} />
+        )}
+        {mainNav === 'livesession' && coupleId && (
           <LiveSessionScreen user={user} myData={myData} partnerData={partnerData} coupleId={coupleId}
             allCards={allCards} lang={lang} theme={theme} onBack={() => setMainNav('entdecken')} />
         )}
