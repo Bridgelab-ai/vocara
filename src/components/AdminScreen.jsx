@@ -5,12 +5,12 @@ import { THEMES, makeStyles } from '../theme'
 import { todayStr, getISOWeekStr, MARK_UID, ELOSY_UID } from '../appShared'
 
 const POOL_STRUCTURE = {
-  grundlagen:   { endpoint: 'generate-base-pool',             totalLevels: 10 },
-  vocab:        { endpoint: 'generate-vocab-pool',            totalLevels: 22 },
-  street:       { endpoint: 'generate-street-pool',           totalLevels: 18 },
-  home:         { endpoint: 'generate-home-pool',             totalLevels: 14 },
-  urlaub:       { endpoint: 'generate-sentence-pool',         totalLevels: 10 },
-  satztraining: { endpoint: 'generate-sentence-training-pool',totalLevels: 14 },
+  grundlagen:   { endpoint: 'generate-base-pool',              totalLevels: 10, cardsPerLevel: 20 },
+  vocab:        { endpoint: 'generate-vocab-pool',             totalLevels: 22, cardsPerLevel: 30 },
+  street:       { endpoint: 'generate-street-pool',            totalLevels: 18, cardsPerLevel: 25 },
+  home:         { endpoint: 'generate-home-pool',              totalLevels: 14, cardsPerLevel: 22 },
+  urlaub:       { endpoint: 'generate-sentence-pool',          totalLevels: 10, cardsPerLevel: 20 },
+  satztraining: { endpoint: 'generate-sentence-training-pool', totalLevels: 14, cardsPerLevel: 22 },
 }
 const LANGUAGE_PAIRS = ['de_en','de_sw','en_de','en_sw','sw_de','sw_en']
 
@@ -27,6 +27,36 @@ function AdminScreen({ user, lang, theme, onBack }) {
   const [resetTarget, setResetTarget] = useState('mark')
   const [resetLoading, setResetLoading] = useState(false)
   const [resetStatus, setResetStatus] = useState(null)
+  const [poolCounts, setPoolCounts] = useState({})   // cat -> level -> langPair -> count
+
+  const loadPoolStatus = async () => {
+    try {
+      const snap = await getDocs(collection(db, 'sharedCards'))
+      const counts = {}
+      snap.docs.forEach(d => {
+        const data = d.data()
+        const cat = data.category
+        const level = String(data.level)
+        const lp = data.langPair
+        if (!cat || !level || !lp) return
+        if (!counts[cat]) counts[cat] = {}
+        if (!counts[cat][level]) counts[cat][level] = {}
+        counts[cat][level][lp] = data.cards?.length ?? data.count ?? 1
+      })
+      setPoolCounts(counts)
+    } catch (e) { console.warn('loadPoolStatus failed:', e) }
+  }
+
+  const getBtnStyle = (cat) => {
+    const { cardsPerLevel } = POOL_STRUCTURE[cat]
+    const lvl = String(poolLevel)
+    const catCounts = poolCounts[cat]?.[lvl] || {}
+    const total = LANGUAGE_PAIRS.reduce((sum, lp) => sum + (catCounts[lp] ?? 0), 0)
+    const target = cardsPerLevel * LANGUAGE_PAIRS.length
+    if (total === 0)       return { background: 'rgba(40,100,220,0.15)',  color: '#6fa3ef', border: '1px solid rgba(40,100,220,0.35)' }
+    if (total >= target)   return { background: 'rgba(40,180,80,0.15)',   color: '#81c784', border: '1px solid rgba(40,180,80,0.35)' }
+                           return { background: 'rgba(220,180,40,0.15)',  color: '#D4AF00', border: '1px solid rgba(220,180,40,0.35)' }
+  }
 
   const load = async () => {
     setLoading(true)
@@ -39,7 +69,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load(); loadPoolStatus() }, [])
 
   const togglePlan = async (uid, currentPlan) => {
     setToggling(uid)
@@ -91,6 +121,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
       })
       const data = await res.json()
       setPoolStatus(`✓ ${category} L${poolLevel} ${poolLangPair}: ${data.count ?? data.cards?.length ?? 'ok'} cards`)
+      loadPoolStatus()
     } catch (e) { setPoolStatus(`✗ ${category}: ${e.message}`) }
     setPoolLoading(null)
   }
@@ -181,12 +212,15 @@ function AdminScreen({ user, lang, theme, onBack }) {
           </div>
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-          {Object.keys(POOL_STRUCTURE).map(cat => (
-            <button key={cat} onClick={() => generatePool(cat)} disabled={!!poolLoading}
-              style={{ padding: '7px 12px', borderRadius: '10px', fontSize: '0.78rem', fontWeight: '600', cursor: 'pointer', opacity: poolLoading === cat ? 0.5 : 1, background: 'rgba(40,100,220,0.15)', color: '#6fa3ef', border: '1px solid rgba(40,100,220,0.35)' }}>
-              {poolLoading === cat ? '…' : cat}
-            </button>
-          ))}
+          {Object.keys(POOL_STRUCTURE).map(cat => {
+            const bs = getBtnStyle(cat)
+            return (
+              <button key={cat} onClick={() => generatePool(cat)} disabled={!!poolLoading}
+                style={{ padding: '7px 12px', borderRadius: '10px', fontSize: '0.78rem', fontWeight: '600', cursor: 'pointer', opacity: poolLoading === cat ? 0.5 : 1, ...bs }}>
+                {poolLoading === cat ? '…' : cat}
+              </button>
+            )
+          })}
         </div>
         {poolStatus && <p style={{ color: poolStatus.startsWith('✓') ? '#81c784' : '#e06c75', fontSize: '0.75rem', margin: '8px 0 0' }}>{poolStatus}</p>}
       </div>
