@@ -18,7 +18,7 @@ service cloud.firestore {
 
       // cardProgress — own user or admin (admin reset for other users)
       match /cardProgress/{cardId} {
-        allow read, write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+        allow read, write, delete: if request.auth.uid == userId || isAdmin();
       }
 
       // conversationHistory — own only
@@ -33,7 +33,7 @@ service cloud.firestore {
 
       // settings — own user or admin (admin reset for other users)
       match /settings/{doc} {
-        allow read, write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+        allow read, write: if request.auth.uid == userId || isAdmin();
       }
 
       // partnerRequests — any authenticated user can create, only owner reads/deletes
@@ -50,7 +50,7 @@ service cloud.firestore {
 
     // publicStats — absolute path, any authenticated user (partner cross-writes Mark↔Elosy) or admin
     match /users/{uid}/publicStats/data {
-      allow read, write: if request.auth != null || isAdmin();
+      allow read, write, delete: if request.auth != null || isAdmin();
     }
 
     // globalStats — read-only for any authenticated user (subcollection of users/{uid})
