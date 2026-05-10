@@ -152,15 +152,42 @@ function AdminScreen({ user, lang, theme, onBack }) {
     if (!window.confirm('Alle sharedCards unwiderruflich löschen?')) return
     setDeleteAllLoading(true); setDeleteAllStatus(null)
     try {
+      console.log('[deleteAllCards] fetching collection sharedCards…')
       const snap = await getDocs(collection(db, 'sharedCards'))
-      for (let i = 0; i < snap.docs.length; i += 500) {
-        const batch = writeBatch(db)
-        snap.docs.slice(i, i + 500).forEach(d => batch.delete(d.ref))
-        await batch.commit()
+      console.log('[deleteAllCards] snap.size:', snap.size, '| snap.docs.length:', snap.docs.length)
+
+      if (snap.empty) {
+        console.warn('[deleteAllCards] collection returned empty — no docs found')
+        setDeleteAllStatus('⚠ Keine Dokumente gefunden (Sammlung leer oder kein Zugriff)')
+        setDeleteAllLoading(false)
+        return
       }
+
+      let deleted = 0
+      for (let i = 0; i < snap.docs.length; i += 500) {
+        const chunk = snap.docs.slice(i, i + 500)
+        console.log(`[deleteAllCards] batch ${Math.floor(i / 500) + 1}: ${chunk.length} docs — first IDs:`, chunk.slice(0, 3).map(d => d.id))
+        try {
+          const batch = writeBatch(db)
+          chunk.forEach(d => batch.delete(d.ref))
+          await batch.commit()
+          deleted += chunk.length
+          console.log(`[deleteAllCards] batch committed — ${deleted}/${snap.docs.length} deleted`)
+        } catch (batchErr) {
+          console.error('[deleteAllCards] batch commit failed:', batchErr)
+          setDeleteAllStatus(`✗ Batch-Fehler bei doc ${i}–${i + chunk.length}: ${batchErr.message}`)
+          setDeleteAllLoading(false)
+          return
+        }
+      }
+
       setPoolCounts({})
-      setDeleteAllStatus(`✓ ${snap.docs.length} Dokumente gelöscht`)
-    } catch (e) { setDeleteAllStatus(`✗ ${e.message}`) }
+      setDeleteAllStatus(`✓ ${deleted} Dokumente gelöscht`)
+      console.log('[deleteAllCards] done — total deleted:', deleted)
+    } catch (e) {
+      console.error('[deleteAllCards] outer error:', e)
+      setDeleteAllStatus(`✗ ${e.message}`)
+    }
     setDeleteAllLoading(false)
   }
 
