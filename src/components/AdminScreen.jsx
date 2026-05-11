@@ -48,8 +48,22 @@ function AdminScreen({ user, lang, theme, onBack }) {
   // ── Pool status ────────────────────────────────────────────────
   const loadPoolStatus = async () => {
     try {
-      const snap = await getDocs(collection(db, 'sharedCards'))
-      setPoolCounts(buildCounts(snap))
+      const [cardsSnap, exSnap] = await Promise.all([
+        getDocs(collection(db, 'sharedCards')),
+        getDocs(collection(db, 'sharedExercises')),
+      ])
+      const counts = buildCounts(cardsSnap)
+      // satztraining pool lives in sharedExercises — merge counts separately
+      exSnap.docs.forEach(d => {
+        const data = d.data()
+        if (data.level == null || !data.langPair) return
+        const level = String(data.level)
+        const lp = data.langPair
+        if (!counts['satztraining']) counts['satztraining'] = {}
+        if (!counts['satztraining'][level]) counts['satztraining'][level] = {}
+        counts['satztraining'][level][lp] = data.count ?? 1
+      })
+      setPoolCounts(counts)
     } catch (e) { console.warn('loadPoolStatus failed:', e) }
   }
 
@@ -146,10 +160,10 @@ function AdminScreen({ user, lang, theme, onBack }) {
     const counts = {}
     snap.docs.forEach(d => {
       const data = d.data()
-      const level = String(data.level)
       // generators write fromLang+toLang separately; only generate-topic-pool writes langPair
       const lp = data.langPair || (data.fromLang && data.toLang ? `${data.fromLang}_${data.toLang}` : null)
-      if (!level || !lp) return
+      if (data.level == null || !lp) return   // null/undefined level → skip (flat pool docs have no level)
+      const level = String(data.level)
       const rawCat = data.category === 'topics' && data.topicKey
         ? `topic_${data.topicKey}`
         : data.category
@@ -195,9 +209,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
       } catch (e) { console.warn(`generatePool ${category} ${lp}:`, e) }
     }
     setPoolStatus(`✓ ${category} L${poolLevel}: ${generated} generiert, ${skipped} übersprungen`)
-    // Final authoritative refresh
-    const finalSnap = await getDocs(collection(db, 'sharedCards'))
-    setPoolCounts(buildCounts(finalSnap))
+    await loadPoolStatus()   // authoritative refresh — includes sharedExercises for satztraining
     setPoolLoading(null)
   }
 
@@ -235,8 +247,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
       } catch (e) { console.warn(`generateTopicPool ${topicKey} ${lp}:`, e) }
     }
     setTopicStatus(`✓ ${topicKey} L${lvl}: ${generated} generiert, ${skipped} übersprungen`)
-    const finalSnap = await getDocs(collection(db, 'sharedCards'))
-    setPoolCounts(buildCounts(finalSnap))
+    await loadPoolStatus()
     setTopicLoading(null)
   }
 

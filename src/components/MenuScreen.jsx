@@ -1386,7 +1386,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           </button>
           <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '1.8s', opacity: satzLoading ? 0.6 : 1, flexDirection: 'column', alignItems: 'center' }} onClick={startSatzSession} disabled={satzLoading}>
             <span>{satzLoading ? '...' : t.menuSaetze.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</span>
-            {!satzLoading && catLevelBar('sentence')}
+            {!satzLoading && catLevelBar('vocabulary')}
           </button>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
