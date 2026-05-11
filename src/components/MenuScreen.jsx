@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react'
-import { doc, updateDoc, getDoc, setDoc } from 'firebase/firestore'
+import { doc, updateDoc, getDoc, setDoc, getDocs, collection } from 'firebase/firestore'
 import { signOut } from 'firebase/auth'
 import { db, auth } from '../firebase'
 import { THEMES, makeStyles, resolveTheme } from '../theme'
@@ -8,8 +8,9 @@ import {
   clearSessionState, saveSessionHistory, saveSessionState, checkMastery, getNextNewCards,
   CEFR_LEVELS, CEFR_COLORS, CEFR_MASTERY_REQ, WEEK_AREAS, VALID_CATEGORY_SET,
   LANG_FLAGS, NEW_CARDS_BATCH, getLevelName, MARK_UID, ELOSY_UID, APP_VERSION,
-  SESSION_SIZE, MONTHLY_TEST_DAYS, getCatLevel
+  SESSION_SIZE, MONTHLY_TEST_DAYS, getCatLevel, TOPICS_LIST
 } from '../appShared'
+import LanguageProgressScreen from './LanguageProgressScreen'
 import CardScreen from './CardScreen'
 import ResultScreen from './ResultScreen'
 import SettingsScreen from './SettingsScreen'
@@ -89,6 +90,8 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const [wordOfDayBanner, setWordOfDayBanner] = useState(null) // {front, back}
   const [freezeAvailable, setFreezeAvailable] = useState(true)
   const [karteMenu, setKarteMenu] = useState(false)
+  const [themenOpen, setThemenOpen] = useState(false)
+  const [topicSessionLoading, setTopicSessionLoading] = useState(null) // topicKey
   const [dotTooltip, setDotTooltip] = useState(null) // area key
   const [pendingGift, setPendingGift] = useState(null) // gift object
   const [coachMsg, setCoachMsg] = useState(null)
@@ -96,7 +99,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const [tutorRecommendedArea, setTutorRecommendedArea] = useState(null)
   const [sessionCompleteCount, setSessionCompleteCount] = useState(0)
   const [basicsLoading, setBasicsLoading] = useState(false)
-  const VALID_SCREENS = new Set(['menu','cards','result','settings','partner','test','impressum','stats','ki','satz','diary','meinekarten','geschenkkarte','karteerstellen','admin'])
+  const VALID_SCREENS = new Set(['menu','cards','result','settings','partner','test','impressum','stats','ki','satz','diary','meinekarten','geschenkkarte','karteerstellen','admin','langprogress'])
   if (!VALID_SCREENS.has(screen)) { setScreen('menu'); return null }
 
   // ── KI-TUTOR BANNER ──────────────────────────────────────────
@@ -763,6 +766,49 @@ Return ONLY a valid JSON array with no markdown or explanation:
       setSatzLoading(false)
     }
   }
+  const startTopicSession = async (topicKey) => {
+    const toLangCode = (myData?.toLang || (lang === 'de' ? 'en' : 'de')).toLowerCase()
+    const fromLangCode = lang
+    const langPair = `${fromLangCode}_${toLangCode}`
+    const level = myData?.topicLevels?.[topicKey] || 1
+    setTopicSessionLoading(topicKey)
+    try {
+      const docRef = doc(db, 'sharedCards', `${langPair}_topic_${topicKey}_${level}`)
+      const snap = await getDoc(docRef)
+      if (!snap.exists() || !snap.data()?.cards?.length) {
+        setEmptyCategoryMsg(isMarkLang ? `Keine Karten für ${topicKey} Level ${level} — bitte zuerst im Admin generieren.` : `No cards for ${topicKey} Level ${level} — please generate in Admin first.`)
+        setTimeout(() => setEmptyCategoryMsg(null), 4000)
+        setTopicSessionLoading(null)
+        return
+      }
+      const rawCards = snap.data().cards
+      const ts = Date.now()
+      const sessionCards = rawCards.map((c, i) => ({
+        ...c,
+        id: c.id || `topic_${topicKey}_${level}_${ts}_${i}`,
+        category: 'topics',
+        topicKey,
+        langA: fromLangCode,
+        langB: toLangCode,
+        targetLang: toLangCode,
+      }))
+      const sess = buildSession(sessionCards, cardProgress)
+      if (sess.length === 0) {
+        setEmptyCategoryMsg(isMarkLang ? 'Keine Karten verfügbar.' : 'No cards available.')
+        setTimeout(() => setEmptyCategoryMsg(null), 3000)
+        setTopicSessionLoading(null)
+        return
+      }
+      setCurrentSessionMode(`topic_${topicKey}`)
+      setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+    } catch (e) {
+      console.warn('startTopicSession failed:', e)
+      setEmptyCategoryMsg(isMarkLang ? 'Fehler beim Laden der Themen-Karten.' : 'Failed to load topic cards.')
+      setTimeout(() => setEmptyCategoryMsg(null), 3500)
+    }
+    setTopicSessionLoading(null)
+  }
+
   const continueSession = async () => {
     const { category, cards } = resumeDialog
     const answeredSet = new Set(myData?.sessionProgress?.cardIds || [])
@@ -1137,6 +1183,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
   if (screen === 'satz') return <>{homeFloat}<SatzTrainingScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={(myData?.toLang || '').toLowerCase() || (lang === 'de' ? 'en' : 'de')} t={t} /></>
   if (screen === 'diary') return <>{homeFloat}<DiaryScreen user={user} myData={myData} setMyData={setMyData} partnerData={partnerData} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
   if (screen === 'admin' && user.uid === MARK_UID) return <>{homeFloat}<AdminScreen user={user} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
+  if (screen === 'langprogress') return <>{homeFloat}<LanguageProgressScreen user={user} myData={myData} allCards={allCards} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
 
   return (
     <div style={s.container} className="vocara-screen vocara-home-outer"><div style={{ ...s.homeBox, paddingTop: '12px' }} className="vocara-home-box">
@@ -1350,6 +1397,24 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         </div>
       )}
 
+      {/* ── MEINE THEMEN DROPDOWN ── */}
+      <button style={{ ...s.navBtn, marginBottom: themenOpen ? '2px' : '12px', fontSize: '0.9rem', fontWeight: '600', textAlign: 'center' }}
+        onClick={() => setThemenOpen(m => !m)}>
+        🎯 {isMarkLang ? 'Meine Themen' : 'My Topics'} {themenOpen ? '▲' : '▼'}
+      </button>
+      {themenOpen && (
+        <div style={{ background: th.card, border: `1px solid ${th.border}`, borderRadius: '14px', padding: '4px', marginBottom: '12px', animation: 'vocaraFadeIn 0.2s ease both' }}>
+          {TOPICS_LIST.map(topic => (
+            <button key={topic.key}
+              onClick={() => { setThemenOpen(false); startTopicSession(topic.key) }}
+              disabled={!!topicSessionLoading}
+              style={{ ...s.navBtn, marginBottom: '2px', textAlign: 'left', paddingLeft: '16px', opacity: topicSessionLoading && topicSessionLoading !== topic.key ? 0.5 : 1 }}>
+              {topicSessionLoading === topic.key ? '…' : `${topic.emoji} ${lang === 'de' ? topic.de : topic.en}`}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* ── TÄGLICHES LERNZIEL ── */}
       <div style={{ marginBottom: '14px', padding: '0 2px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
@@ -1471,6 +1536,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           {myData?.partnerUID ? `${t.menuPartnerLabel}: ${partnerName}` : t.menuPartnerConnect}
         </button>
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('karteerstellen')}>＋ {isMarkLang ? 'Karte kreieren' : 'Create card'}</button>
+        <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('langprogress')}>🌍 {isMarkLang ? 'Meine Sprachen' : 'My Languages'}</button>
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('settings')}>{t.menuSettings}</button>
         <button className="vocara-nav-btn" style={{ ...s.navBtn, marginBottom: 0 }} onClick={() => signOut(auth)}>{t.menuSignOut}</button>
       </div>

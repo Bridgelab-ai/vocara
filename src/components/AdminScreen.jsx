@@ -14,6 +14,15 @@ const POOL_STRUCTURE = {
   urlaub:       { endpoint: 'generate-sentence-pool',          totalLevels: 10, cardsPerLevel: 20 },
   satztraining: { endpoint: 'generate-sentence-training-pool', totalLevels: 14, cardsPerLevel: 22 },
 }
+const TOPICS_LIST = [
+  { key: 'cooking',  emoji: '🍳', label: 'Kochen' },
+  { key: 'sports',   emoji: '⚽', label: 'Sport' },
+  { key: 'music',    emoji: '🎵', label: 'Musik' },
+  { key: 'travel',   emoji: '✈️', label: 'Reisen' },
+  { key: 'tech',     emoji: '💻', label: 'Technik' },
+  { key: 'business', emoji: '💼', label: 'Business' },
+  { key: 'nature',   emoji: '🌿', label: 'Natur' },
+]
 const LANGUAGE_PAIRS = ['de_en','de_sw','en_de','en_sw','sw_de','sw_en']
 
 function AdminScreen({ user, lang, theme, onBack }) {
@@ -31,6 +40,10 @@ function AdminScreen({ user, lang, theme, onBack }) {
   const [resetTarget, setResetTarget] = useState('mark')
   const [resetLoading, setResetLoading] = useState(false)
   const [resetStatus, setResetStatus] = useState(null)
+  const [topicLoading, setTopicLoading] = useState(null)   // topicKey while running
+  const [topicStatus, setTopicStatus] = useState(null)
+  const [topicResetLoading, setTopicResetLoading] = useState(false)
+  const [topicResetStatus, setTopicResetStatus] = useState(null)
 
   // ── Pool status ────────────────────────────────────────────────
   const loadPoolStatus = async () => {
@@ -39,10 +52,13 @@ function AdminScreen({ user, lang, theme, onBack }) {
       const counts = {}
       snap.docs.forEach(d => {
         const data = d.data()
-        const cat = data.category
         const level = String(data.level)
         const lp = data.langPair
-        if (!cat || !level || !lp) return
+        if (!level || !lp) return
+        const cat = data.category === 'topics' && data.topicKey
+          ? `topic_${data.topicKey}`
+          : data.category
+        if (!cat) return
         if (!counts[cat]) counts[cat] = {}
         if (!counts[cat][level]) counts[cat][level] = {}
         counts[cat][level][lp] = data.cards?.length ?? data.count ?? 1
@@ -55,6 +71,17 @@ function AdminScreen({ user, lang, theme, onBack }) {
     const { cardsPerLevel } = POOL_STRUCTURE[cat]
     const lvl = String(poolLevel)
     const catCounts = poolCounts[cat]?.[lvl] || {}
+    const total = LANGUAGE_PAIRS.reduce((sum, lp) => sum + (catCounts[lp] ?? 0), 0)
+    const target = cardsPerLevel * LANGUAGE_PAIRS.length
+    if (total === 0)     return { background: 'rgba(40,100,220,0.15)', color: '#6fa3ef', border: '1px solid rgba(40,100,220,0.35)' }
+    if (total >= target) return { background: 'rgba(40,180,80,0.15)',  color: '#81c784', border: '1px solid rgba(40,180,80,0.35)' }
+                         return { background: 'rgba(220,180,40,0.15)', color: '#D4AF00', border: '1px solid rgba(220,180,40,0.35)' }
+  }
+
+  const getBtnTopicStyle = (topicKey) => {
+    const cardsPerLevel = 15
+    const lvl = String(poolLevel)
+    const catCounts = poolCounts[`topic_${topicKey}`]?.[lvl] || {}
     const total = LANGUAGE_PAIRS.reduce((sum, lp) => sum + (catCounts[lp] ?? 0), 0)
     const target = cardsPerLevel * LANGUAGE_PAIRS.length
     if (total === 0)     return { background: 'rgba(40,100,220,0.15)', color: '#6fa3ef', border: '1px solid rgba(40,100,220,0.35)' }
@@ -145,6 +172,55 @@ function AdminScreen({ user, lang, theme, onBack }) {
     setPoolStatus(`✓ ${category} L${poolLevel}: ${generated} generiert, ${skipped} übersprungen`)
     await loadPoolStatus()
     setPoolLoading(null)
+  }
+
+  // ── Topic pool generation ─────────────────────────────────────
+  const generateTopicPool = async (topicKey) => {
+    setTopicLoading(topicKey); setTopicStatus(null)
+    const lvl = poolLevel
+    let generated = 0, skipped = 0
+    for (const lp of LANGUAGE_PAIRS) {
+      const existing = poolCounts[`topic_${topicKey}`]?.[String(lvl)]?.[lp] ?? 0
+      if (existing >= 15) { skipped++; continue }
+      setTopicStatus(`⟳ ${topicKey} ${lp} L${lvl}…`)
+      try {
+        const res = await fetch(`${BASE_URL}/api/generate-topic-pool`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ topicKey, level: lvl, langPair: lp })
+        })
+        const data = await res.json()
+        generated++
+        setPoolCounts(prev => {
+          const copy = JSON.parse(JSON.stringify(prev))
+          const key = `topic_${topicKey}`
+          if (!copy[key]) copy[key] = {}
+          if (!copy[key][String(lvl)]) copy[key][String(lvl)] = {}
+          copy[key][String(lvl)][lp] = data.count ?? 15
+          return copy
+        })
+      } catch (e) { console.warn(`generateTopicPool ${topicKey} ${lp}:`, e) }
+    }
+    setTopicStatus(`✓ ${topicKey} L${lvl}: ${generated} generiert, ${skipped} übersprungen`)
+    await loadPoolStatus()
+    setTopicLoading(null)
+  }
+
+  // ── Topic user reset ───────────────────────────────────────────
+  const resetTopics = async () => {
+    const uid = resetTarget === 'mark' ? MARK_UID : ELOSY_UID
+    const name = resetTarget === 'mark' ? 'Mark' : 'Elosy'
+    if (!window.confirm(`Wirklich ${name}s Themen-Fortschritt zurücksetzen? (unlockedTopics, topicProgress, topicCards)`)) return
+    setTopicResetLoading(true); setTopicResetStatus(null)
+    try {
+      await updateDoc(doc(db, 'users', uid), {
+        unlockedTopics: deleteField(),
+        topicProgress: deleteField(),
+        topicCards: deleteField(),
+        topicLevels: deleteField(),
+      })
+      setTopicResetStatus(`✓ ${name} Themen zurückgesetzt`)
+    } catch (e) { setTopicResetStatus(`✗ ${e.message}`) }
+    setTopicResetLoading(false)
   }
 
   // ── Delete all sharedCards ─────────────────────────────────────
@@ -298,6 +374,26 @@ function AdminScreen({ user, lang, theme, onBack }) {
         {poolStatus && <p style={{ color: poolStatus.startsWith('✓') ? '#81c784' : poolStatus.startsWith('⟳') ? th.sub : '#e06c75', fontSize: '0.75rem', margin: '8px 0 0' }}>{poolStatus}</p>}
       </div>
 
+      {/* Hobby Topics Pool */}
+      <div style={{ ...s.card, marginTop: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+          <p style={{ color: th.text, fontSize: '0.88rem', fontWeight: '700', margin: 0 }}>🎯 Themen Pool</p>
+          <span style={{ color: th.sub, fontSize: '0.68rem' }}>🔵 leer&nbsp; 🟡 teilweise&nbsp; 🟢 voll</span>
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+          {TOPICS_LIST.map(t => {
+            const bs = getBtnTopicStyle(t.key)
+            return (
+              <button key={t.key} onClick={() => generateTopicPool(t.key)} disabled={!!topicLoading || !!poolLoading}
+                style={{ padding: '7px 12px', borderRadius: '10px', fontSize: '0.78rem', fontWeight: '600', cursor: (topicLoading || poolLoading) ? 'default' : 'pointer', opacity: topicLoading && topicLoading !== t.key ? 0.4 : 1, ...bs }}>
+                {topicLoading === t.key ? '⟳' : `${t.emoji} ${t.label}`}
+              </button>
+            )
+          })}
+        </div>
+        {topicStatus && <p style={{ color: topicStatus.startsWith('✓') ? '#81c784' : topicStatus.startsWith('⟳') ? th.sub : '#e06c75', fontSize: '0.75rem', margin: '8px 0 0' }}>{topicStatus}</p>}
+      </div>
+
       {/* Delete All sharedCards */}
       <div style={{ ...s.card, marginTop: '12px' }}>
         <p style={{ color: th.text, fontSize: '0.88rem', fontWeight: '700', margin: '0 0 10px' }}>🗑️ sharedCards löschen</p>
@@ -324,6 +420,24 @@ function AdminScreen({ user, lang, theme, onBack }) {
         </div>
         <p style={{ color: th.sub, fontSize: '0.68rem', margin: '6px 0 0' }}>categoryLevels → 1, cardProgress löschen, publicStats löschen</p>
         {resetStatus && <p style={{ color: resetStatus.startsWith('✓') ? '#81c784' : '#e06c75', fontSize: '0.75rem', margin: '6px 0 0' }}>{resetStatus}</p>}
+      </div>
+
+      {/* Themen Reset */}
+      <div style={{ ...s.card, marginTop: '12px' }}>
+        <p style={{ color: th.text, fontSize: '0.88rem', fontWeight: '700', margin: '0 0 10px' }}>🎯 Themen zurücksetzen</p>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <select value={resetTarget} onChange={e => setResetTarget(e.target.value)}
+            style={{ background: th.card, color: th.text, border: `1px solid ${th.border}`, borderRadius: '8px', padding: '5px 8px', fontSize: '0.78rem', cursor: 'pointer' }}>
+            <option value="mark">Mark</option>
+            <option value="elosy">Elosy</option>
+          </select>
+          <button onClick={resetTopics} disabled={topicResetLoading}
+            style={{ padding: '7px 14px', borderRadius: '10px', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', opacity: topicResetLoading ? 0.5 : 1, background: 'rgba(220,40,40,0.15)', color: '#e06c75', border: '1px solid rgba(220,40,40,0.35)' }}>
+            {topicResetLoading ? '…' : 'Themen zurücksetzen'}
+          </button>
+        </div>
+        <p style={{ color: th.sub, fontSize: '0.68rem', margin: '6px 0 0' }}>unlockedTopics, topicProgress, topicCards, topicLevels löschen</p>
+        {topicResetStatus && <p style={{ color: topicResetStatus.startsWith('✓') ? '#81c784' : '#e06c75', fontSize: '0.75rem', margin: '6px 0 0' }}>{topicResetStatus}</p>}
       </div>
 
     </div></div>

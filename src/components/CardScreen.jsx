@@ -590,7 +590,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
           )}
         </div>
       )}
-      {revealed && (newProgress[item.id]?.interval || cardProgress[item.id]?.interval || 0) >= 3 && (
+      {revealed && item.category === 'sentence' && (newProgress[item.id]?.interval || cardProgress[item.id]?.interval || 0) >= 3 && (
         <div style={{ width: '100%', marginBottom: '8px' }}>
           {!kontextVariation && (
             <button onClick={async () => {
