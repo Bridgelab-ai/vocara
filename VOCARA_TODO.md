@@ -1,5 +1,12 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 11.05.2026)
 
+## ✅ Admin Pool-Status-Fix + Duplikat-Erkennung + Plan-Verwaltung (11.05.2026) — V01.004.011
+- POOL-STATUS FIX: per-Paar Zählung statt Summe — alle 6 full=🟢, ≥1=🟡, 0=🔵 ✅
+- DUPLIKAT-ERKENNUNG FIX: frischer Firestore-Read vor jeder Generation (keine stale State) ✅
+- buildCounts() Hilfsfunktion: von loadPoolStatus + generatePool + generateTopicPool genutzt ✅
+- NUTZER PLAN: 4-Option-Select Free/Premium 1.99€/Pro 3.99€/Unbegrenzt — speichert userPlan ✅
+- VERSION V01.004.011 ✅
+
 ## ✅ Hobby-Themen Pool + Sprachfortschritt + Kontext-Fix (11.05.2026) — V01.004.010
 - KONTEXT NUR BEI SÄTZEN: CardScreen zeigt Kontext-Button nur wenn item.category === 'sentence' ✅
 - HOBBY THEMEN POOL: api/_poolStructure.js → topics:{cardsPerLevel:15, totalLevels:10} ✅
