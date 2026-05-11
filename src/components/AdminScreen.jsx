@@ -49,44 +49,31 @@ function AdminScreen({ user, lang, theme, onBack }) {
   const loadPoolStatus = async () => {
     try {
       const snap = await getDocs(collection(db, 'sharedCards'))
-      const counts = {}
-      snap.docs.forEach(d => {
-        const data = d.data()
-        const level = String(data.level)
-        const lp = data.langPair
-        if (!level || !lp) return
-        const cat = data.category === 'topics' && data.topicKey
-          ? `topic_${data.topicKey}`
-          : data.category
-        if (!cat) return
-        if (!counts[cat]) counts[cat] = {}
-        if (!counts[cat][level]) counts[cat][level] = {}
-        counts[cat][level][lp] = data.cards?.length ?? data.count ?? 1
-      })
-      setPoolCounts(counts)
+      setPoolCounts(buildCounts(snap))
     } catch (e) { console.warn('loadPoolStatus failed:', e) }
   }
+
+  const BLUE   = { background: 'rgba(40,100,220,0.15)', color: '#6fa3ef', border: '1px solid rgba(40,100,220,0.35)' }
+  const YELLOW = { background: 'rgba(220,180,40,0.15)', color: '#D4AF00', border: '1px solid rgba(220,180,40,0.35)' }
+  const GREEN  = { background: 'rgba(40,180,80,0.15)',  color: '#81c784', border: '1px solid rgba(40,180,80,0.35)' }
 
   const getBtnStyle = (cat) => {
     const { cardsPerLevel } = POOL_STRUCTURE[cat]
     const lvl = String(poolLevel)
     const catCounts = poolCounts[cat]?.[lvl] || {}
-    const total = LANGUAGE_PAIRS.reduce((sum, lp) => sum + (catCounts[lp] ?? 0), 0)
-    const target = cardsPerLevel * LANGUAGE_PAIRS.length
-    if (total === 0)     return { background: 'rgba(40,100,220,0.15)', color: '#6fa3ef', border: '1px solid rgba(40,100,220,0.35)' }
-    if (total >= target) return { background: 'rgba(40,180,80,0.15)',  color: '#81c784', border: '1px solid rgba(40,180,80,0.35)' }
-                         return { background: 'rgba(220,180,40,0.15)', color: '#D4AF00', border: '1px solid rgba(220,180,40,0.35)' }
+    const full = LANGUAGE_PAIRS.filter(lp => (catCounts[lp] ?? 0) >= cardsPerLevel).length
+    if (full === 0)                    return BLUE
+    if (full === LANGUAGE_PAIRS.length) return GREEN
+                                        return YELLOW
   }
 
   const getBtnTopicStyle = (topicKey) => {
-    const cardsPerLevel = 15
     const lvl = String(poolLevel)
     const catCounts = poolCounts[`topic_${topicKey}`]?.[lvl] || {}
-    const total = LANGUAGE_PAIRS.reduce((sum, lp) => sum + (catCounts[lp] ?? 0), 0)
-    const target = cardsPerLevel * LANGUAGE_PAIRS.length
-    if (total === 0)     return { background: 'rgba(40,100,220,0.15)', color: '#6fa3ef', border: '1px solid rgba(40,100,220,0.35)' }
-    if (total >= target) return { background: 'rgba(40,180,80,0.15)',  color: '#81c784', border: '1px solid rgba(40,180,80,0.35)' }
-                         return { background: 'rgba(220,180,40,0.15)', color: '#D4AF00', border: '1px solid rgba(220,180,40,0.35)' }
+    const full = LANGUAGE_PAIRS.filter(lp => (catCounts[lp] ?? 0) >= 15).length
+    if (full === 0)                    return BLUE
+    if (full === LANGUAGE_PAIRS.length) return GREEN
+                                        return YELLOW
   }
 
   // ── User list ──────────────────────────────────────────────────
@@ -103,13 +90,20 @@ function AdminScreen({ user, lang, theme, onBack }) {
 
   useEffect(() => { load(); loadPoolStatus() }, [])
 
-  const togglePlan = async (uid, currentPlan) => {
+  const PLAN_OPTIONS = [
+    { value: '',           label: 'Free' },
+    { value: 'premium',   label: 'Premium (1.99€)' },
+    { value: 'pro',       label: 'Pro (3.99€)' },
+    { value: 'unlimited', label: 'Unbegrenzt' },
+  ]
+
+  const setPlan = async (uid, value) => {
     setToggling(uid)
-    const next = currentPlan === 'pro' ? null : currentPlan === 'premium' ? 'pro' : 'premium'
+    const plan = value || null
     try {
-      await updateDoc(doc(db, 'users', uid), { plan: next })
-      setUsers(prev => prev.map(u => u.uid === uid ? { ...u, plan: next } : u))
-    } catch (e) { console.warn('togglePlan failed:', e) }
+      await updateDoc(doc(db, 'users', uid), { userPlan: plan })
+      setUsers(prev => prev.map(u => u.uid === uid ? { ...u, userPlan: plan } : u))
+    } catch (e) { console.warn('setPlan failed:', e) }
     setToggling(null)
   }
 
@@ -143,15 +137,43 @@ function AdminScreen({ user, lang, theme, onBack }) {
     return streak
   }
 
+  // ── Build live counts from a Firestore snapshot ───────────────
+  const buildCounts = (snap) => {
+    const counts = {}
+    snap.docs.forEach(d => {
+      const data = d.data()
+      const level = String(data.level)
+      const lp = data.langPair
+      if (!level || !lp) return
+      const cat = data.category === 'topics' && data.topicKey
+        ? `topic_${data.topicKey}`
+        : data.category
+      if (!cat) return
+      if (!counts[cat]) counts[cat] = {}
+      if (!counts[cat][level]) counts[cat][level] = {}
+      counts[cat][level][lp] = data.cards?.length ?? data.count ?? 1
+    })
+    return counts
+  }
+
   // ── Pool generation — all lang pairs, skip existing ───────────
   const generatePool = async (category) => {
     const { endpoint, cardsPerLevel } = POOL_STRUCTURE[category]
     setPoolLoading(category); setPoolStatus(null)
     const lvl = String(poolLevel)
+
+    // Fresh read before starting — ensures duplicate check is not stale
+    const freshSnap = await getDocs(collection(db, 'sharedCards'))
+    const liveCounts = buildCounts(freshSnap)
+    setPoolCounts(liveCounts)
+
     let generated = 0, skipped = 0
     for (const lp of LANGUAGE_PAIRS) {
-      const existing = poolCounts[category]?.[lvl]?.[lp] ?? 0
-      if (existing >= cardsPerLevel) { skipped++; continue }
+      const existing = liveCounts[category]?.[lvl]?.[lp] ?? 0
+      if (existing >= cardsPerLevel) {
+        console.log(`[generatePool] übersprungen: ${category} ${lp} L${lvl} (${existing} >= ${cardsPerLevel})`)
+        skipped++; continue
+      }
       setPoolStatus(`⟳ ${category} ${lp} L${poolLevel}… (${generated + skipped + 1}/${LANGUAGE_PAIRS.length})`)
       try {
         const res = await fetch(`${BASE_URL}/api/${endpoint}`, {
@@ -160,17 +182,16 @@ function AdminScreen({ user, lang, theme, onBack }) {
         })
         const data = await res.json()
         generated++
-        setPoolCounts(prev => {
-          const copy = JSON.parse(JSON.stringify(prev))
-          if (!copy[category]) copy[category] = {}
-          if (!copy[category][lvl]) copy[category][lvl] = {}
-          copy[category][lvl][lp] = data.count ?? data.cards?.length ?? cardsPerLevel
-          return copy
-        })
+        liveCounts[category] = liveCounts[category] || {}
+        liveCounts[category][lvl] = liveCounts[category][lvl] || {}
+        liveCounts[category][lvl][lp] = data.count ?? data.cards?.length ?? cardsPerLevel
+        setPoolCounts({ ...liveCounts })
       } catch (e) { console.warn(`generatePool ${category} ${lp}:`, e) }
     }
     setPoolStatus(`✓ ${category} L${poolLevel}: ${generated} generiert, ${skipped} übersprungen`)
-    await loadPoolStatus()
+    // Final authoritative refresh
+    const finalSnap = await getDocs(collection(db, 'sharedCards'))
+    setPoolCounts(buildCounts(finalSnap))
     setPoolLoading(null)
   }
 
@@ -178,11 +199,22 @@ function AdminScreen({ user, lang, theme, onBack }) {
   const generateTopicPool = async (topicKey) => {
     setTopicLoading(topicKey); setTopicStatus(null)
     const lvl = poolLevel
+    const cardsPerLevel = 15
+
+    // Fresh read before starting
+    const freshSnap = await getDocs(collection(db, 'sharedCards'))
+    const liveCounts = buildCounts(freshSnap)
+    setPoolCounts(liveCounts)
+
     let generated = 0, skipped = 0
+    const key = `topic_${topicKey}`
     for (const lp of LANGUAGE_PAIRS) {
-      const existing = poolCounts[`topic_${topicKey}`]?.[String(lvl)]?.[lp] ?? 0
-      if (existing >= 15) { skipped++; continue }
-      setTopicStatus(`⟳ ${topicKey} ${lp} L${lvl}…`)
+      const existing = liveCounts[key]?.[String(lvl)]?.[lp] ?? 0
+      if (existing >= cardsPerLevel) {
+        console.log(`[generateTopicPool] übersprungen: ${topicKey} ${lp} L${lvl} (${existing} >= ${cardsPerLevel})`)
+        skipped++; continue
+      }
+      setTopicStatus(`⟳ ${topicKey} ${lp} L${lvl}… (${generated + skipped + 1}/${LANGUAGE_PAIRS.length})`)
       try {
         const res = await fetch(`${BASE_URL}/api/generate-topic-pool`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -190,18 +222,15 @@ function AdminScreen({ user, lang, theme, onBack }) {
         })
         const data = await res.json()
         generated++
-        setPoolCounts(prev => {
-          const copy = JSON.parse(JSON.stringify(prev))
-          const key = `topic_${topicKey}`
-          if (!copy[key]) copy[key] = {}
-          if (!copy[key][String(lvl)]) copy[key][String(lvl)] = {}
-          copy[key][String(lvl)][lp] = data.count ?? 15
-          return copy
-        })
+        liveCounts[key] = liveCounts[key] || {}
+        liveCounts[key][String(lvl)] = liveCounts[key][String(lvl)] || {}
+        liveCounts[key][String(lvl)][lp] = data.count ?? cardsPerLevel
+        setPoolCounts({ ...liveCounts })
       } catch (e) { console.warn(`generateTopicPool ${topicKey} ${lp}:`, e) }
     }
     setTopicStatus(`✓ ${topicKey} L${lvl}: ${generated} generiert, ${skipped} übersprungen`)
-    await loadPoolStatus()
+    const finalSnap = await getDocs(collection(db, 'sharedCards'))
+    setPoolCounts(buildCounts(finalSnap))
     setTopicLoading(null)
   }
 
@@ -290,7 +319,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
   const activeThisWeek = users.filter(u => (u.sessionHistory || []).some(h => {
     try { return getISOWeekStr(new Date(...h.date.split('-').map((v,i)=>i===1?v-1:+v))) === thisWeek } catch { return false }
   })).length
-  const premiumCount = users.filter(u => u.plan === 'premium' || u.plan === 'pro').length
+  const premiumCount = users.filter(u => u.userPlan && u.userPlan !== '').length
 
   return (
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
@@ -326,7 +355,8 @@ function AdminScreen({ user, lang, theme, onBack }) {
             const streak = calcSimpleStreak(u.sessionHistory)
             const cards = Object.keys(u.cardProgress || {}).length
             const mastered = Object.values(u.cardProgress || {}).filter(p => (p?.interval || 0) >= 7).length
-            const plan = u.plan || null
+            const plan = u.userPlan || ''
+            const planColor = plan === 'unlimited' ? '#a855f7' : plan === 'pro' ? '#aaa' : plan === 'premium' ? th.gold : th.sub
             return (
               <div key={u.uid} style={{ paddingBottom: '10px', marginBottom: '10px', borderBottom: i < users.length-1 ? `1px solid ${th.border}` : 'none' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -337,10 +367,13 @@ function AdminScreen({ user, lang, theme, onBack }) {
                   <span style={{ color: '#FFA500', fontSize: '0.72rem' }}>🔥 {streak}</span>
                   <span style={{ color: th.sub, fontSize: '0.72rem' }}>📋 {cards} ({mastered}✓)</span>
                   {u.partnerUID && <span style={{ color: th.gold, fontSize: '0.72rem' }}>🤝</span>}
-                  <button onClick={() => togglePlan(u.uid, plan)} disabled={toggling === u.uid}
-                    style={{ marginLeft: 'auto', background: plan === 'pro' ? 'rgba(200,200,255,0.12)' : plan === 'premium' ? `${th.gold}18` : 'transparent', color: plan === 'pro' ? '#aaa' : plan === 'premium' ? th.gold : th.sub, border: `1px solid ${plan ? th.gold+'44' : th.border}`, borderRadius: '8px', padding: '2px 8px', fontSize: '0.65rem', fontWeight: '700', cursor: 'pointer', opacity: toggling === u.uid ? 0.5 : 1 }}>
-                    {plan === 'pro' ? 'Pro' : plan === 'premium' ? 'Premium' : 'Free'} ↻
-                  </button>
+                  <select
+                    value={plan}
+                    onChange={e => setPlan(u.uid, e.target.value)}
+                    disabled={toggling === u.uid}
+                    style={{ marginLeft: 'auto', background: th.card, color: planColor, border: `1px solid ${plan ? th.gold+'44' : th.border}`, borderRadius: '8px', padding: '2px 6px', fontSize: '0.65rem', fontWeight: '700', cursor: 'pointer', opacity: toggling === u.uid ? 0.5 : 1 }}>
+                    {PLAN_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
                 </div>
               </div>
             )
