@@ -1,5 +1,16 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 11.05.2026)
 
+## ✅ Hobby-Themen Pool + Sprachfortschritt + Kontext-Fix (11.05.2026) — V01.004.010
+- KONTEXT NUR BEI SÄTZEN: CardScreen zeigt Kontext-Button nur wenn item.category === 'sentence' ✅
+- HOBBY THEMEN POOL: api/_poolStructure.js → topics:{cardsPerLevel:15, totalLevels:10} ✅
+- GENERATE-TOPIC-POOL.JS: neuer API-Endpunkt, schreibt sharedCards/{langPair}_topic_{topicKey}_{level} ✅
+- ADMIN THEMEN-BUTTONS: 🎯 Themen Pool Section mit 7 Themen-Buttons + 🔵🟡🟢 Farb-Status ✅
+- ADMIN THEMEN-RESET: unlockedTopics/topicProgress/topicCards/topicLevels per deleteField() ✅
+- MEINE THEMEN DROPDOWN: collapsible 🎯 Dropdown auf Homescreen, startet Themen-Session direkt ✅
+- SPRACHFORTSCHRITT: LanguageProgressScreen.jsx mit SVG-Ringen, teal #00D4AA, Space Grotesk ✅
+- 🌍 MEINE SPRACHEN Button in Sekundär-Navigation → navigiert zu LanguageProgressScreen ✅
+- VERSION V01.004.010 ✅
+
 ## ✅ Admin Panel Komplett-Überarbeitung (11.05.2026) — V01.002.009
 - POOL-BUTTONS ALLE PAARE: Ein Klick generiert alle 6 lang pairs für gewähltes Level ✅
 - DUPLIKAT-SCHUTZ: Skip wenn poolCounts[cat][level][lp] >= cardsPerLevel ✅
