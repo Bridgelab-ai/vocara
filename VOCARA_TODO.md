@@ -1,5 +1,18 @@
 # Vocara – Vollständige ToDo & Ideen-Liste (Stand 11.05.2026)
 
+## ✅ Multi-Feature Update (11.05.2026) — V01.007.011
+- POOL STATUS FIX (buildCounts): Doppel-Bug gefixt — langPair-Fallback (fromLang+toLang) + CAT_NORMALIZE Map (vocabulary→vocab, sentence→urlaub) ✅
+- DUPLIKAT-ERKENNUNG: funktioniert jetzt korrekt da buildCounts alle Docs zählt ✅
+- ALLE 6 SPRACHPAARE: AdminScreen LANGUAGE_PAIRS sendet alle 6, Generators akzeptieren langPair-Param ✅
+- BIDIREKTIONALE KARTEN: buildCardPair() wird bereits in generateVocabWords + generateCategoryCards angewendet ✅
+- LEVEL-ANZEIGE HOMESCREEN: catLevelBar() Helper → Lvl X Badge + Fortschrittsbalken auf allen Kategorie-Buttons ✅
+- KI-GESPRÄCH SPRACHE FIX: getSystemPrompt + introPrompt CRITICAL LANGUAGE RULE — opener immer in targetLang ✅
+- SATZTRAINING FORTSCHRITT: onSatzComplete Callback in MenuScreen → schreibt sessionHistory-Eintrag {date, correct, total, area:'satztraining'} ✅
+- WÖCHENTLICHER CRON: bereits deaktiviert (vercel.json crons:[]) ✅
+- STATISTIKEN PARTNER-BADGES: compRow-Section ersetzt durch 5 Badges (🏅🔥🎯📚⚡) mit teal/gold Glow auf Gewinner ✅
+- SPRACHFORTSCHRITT SCREEN: expandierbare Zeilen mit per-Kategorie-Aufschlüsselung ✅
+- VERSION V01.007.011 ✅
+
 ## ✅ Admin Pool-Status-Fix + Duplikat-Erkennung + Plan-Verwaltung (11.05.2026) — V01.004.011
 - POOL-STATUS FIX: per-Paar Zählung statt Summe — alle 6 full=🟢, ≥1=🟡, 0=🔵 ✅
 - DUPLIKAT-ERKENNUNG FIX: frischer Firestore-Read vor jeder Generation (keine stale State) ✅

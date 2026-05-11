@@ -64,12 +64,11 @@ function KiGespraechScreen({ lang, theme, onBack, userName, userToLang = 'en', s
     const regCtx = socialRegisterContext(sessionRegister)
     return `You are playing the role of a ${sc.role} in a ${sc.en} scenario. The user ${userName} is practicing ${targetLang}.
 Social register / tone: ${regCtx}. Adapt your vocabulary and formality accordingly.
-LANGUAGE RULE: You MUST always respond ONLY in ${targetLang}. Never switch languages regardless of what language the user writes in. If the user writes in ${nativeLang} or any other language, gently remind them to practice ${targetLang} and respond in ${targetLang}.
+CRITICAL LANGUAGE RULE: You MUST ALWAYS respond EXCLUSIVELY in ${targetLang}. This is non-negotiable. NEVER write a single word in ${nativeLang} or any other language. If the user writes in ${nativeLang}, respond ONLY in ${targetLang} and gently remind them to practice ${targetLang}.
 ${tenseRule}
-Stay in character throughout.
-If the user makes a grammar mistake, continue naturally, then add a brief tip like "💡 Tip: ..."
+Stay in character. If the user makes a grammar mistake, continue naturally, then add "💡 Tip: ..." written entirely in ${targetLang}.
 Keep each response to 1-3 sentences. Be realistic and helpful for the scenario.
-After the user has sent ${MAX_EXCHANGES} messages, add "---END---" at the end of your response.`
+After the user has sent ${MAX_EXCHANGES} messages, add "---END---" at the very end of your response.`
   }
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, loading])
@@ -103,8 +102,11 @@ After the user has sent ${MAX_EXCHANGES} messages, add "---END---" at the end of
       try { await setDoc(doc(db, 'users', user.uid, 'conversationHistory', String(Date.now())), entry) } catch(_) {}
     }
     try {
-      const introPrompt = `Role-play: ${sc.en}. Character: ${sc.role}. User language: ${nativeLang}. Practice language: ${targetLang}.
-Return ONLY valid JSON (no markdown): {"intro":"brief 1-2 sentence situation description in ${nativeLang} — set the scene for the user","opener":"the character's first in-character message in ${targetLang}, short and natural (1-2 sentences)"}`
+      const introPrompt = `Role-play scenario: ${sc.en}. Character: ${sc.role}.
+User's native language: ${nativeLang}. Language the user is PRACTICING: ${targetLang}.
+Return ONLY valid JSON (no markdown, no code fences):
+{"intro":"1-2 sentence scene description for the user — MUST be written ENTIRELY in ${nativeLang}","opener":"the character's very first in-character line — MUST be written ENTIRELY in ${targetLang} only. NEVER use any ${nativeLang} words in the opener."}
+CRITICAL: intro = ${nativeLang} only. opener = ${targetLang} only. No exceptions.`
       const res = await fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 200, messages: [{ role: 'user', content: introPrompt }] })

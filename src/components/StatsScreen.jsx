@@ -56,6 +56,12 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
   const partnerWeekSessions = partnerHistory.filter(weekFilter).length
   const myWeekLearnSec = sessionHistory.filter(weekFilter).reduce((a, b) => a + (b.total || 0) * 15, 0)
   const partnerWeekLearnSec = partnerHistory.filter(weekFilter).reduce((a, b) => a + (b.total || 0) * 15, 0)
+  const myWeekCorrect = sessionHistory.filter(weekFilter).reduce((a, b) => a + (b.correct || 0), 0)
+  const partnerWeekCorrect = partnerHistory.filter(weekFilter).reduce((a, b) => a + (b.correct || 0), 0)
+  const myWeekTotal = sessionHistory.filter(weekFilter).reduce((a, b) => a + (b.total || 0), 0)
+  const partnerWeekTotal = partnerHistory.filter(weekFilter).reduce((a, b) => a + (b.total || 0), 0)
+  const myWeekAccuracy = myWeekTotal > 0 ? Math.round(myWeekCorrect / myWeekTotal * 100) : 0
+  const partnerWeekAccuracy = partnerWeekTotal > 0 ? Math.round(partnerWeekCorrect / partnerWeekTotal * 100) : 0
   const fmtMin = (s) => s < 60 ? `${s}s` : `${Math.round(s / 60)} min`
   const AREA_LABEL_MAP = { vocabulary: lang === 'de' ? 'Worte' : 'Words', sentence: lang === 'de' ? 'Sätze' : 'Sentences', street: lang === 'de' ? 'Straße' : 'Street', home: lang === 'de' ? 'Zuhause' : 'Home', basics: lang === 'de' ? 'Grundlagen' : 'Basics', urlaub: lang === 'de' ? '✈️ Urlaub' : '✈️ Travel' }
   const getFavArea = (progress) => {
@@ -258,21 +264,41 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
       {/* ── PARTNER COMPARISON ── */}
       {hasPartner && (
         <div style={s.card}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
             <span style={{ color: th.accent, fontWeight: '700', fontSize: '0.9rem' }}>{myName}</span>
             <span style={{ color: th.sub, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px', alignSelf: 'center' }}>vs</span>
             <span style={{ color: th.gold, fontWeight: '700', fontSize: '0.9rem' }}>{partnerName}</span>
           </div>
-          {compRow(t.learnedToday, todayCorrect, partnerTodayCorrect)}
-          {compRow(lang === 'de' ? 'Sessions heute' : 'Sessions today', todaySessions, partnerTodaySessions)}
-          {compRow('Streak 🔥', myStreak, partnerStreak)}
-          {compRow(lang === 'de' ? 'Gemeistert ✓' : 'Mastered ✓', myMastered, partnerMastered)}
-          {compRow(lang === 'de' ? 'Aktive Karten' : 'Active cards', Object.keys(cardProgress).length, partnerActive)}
-          {compRow(lang === 'de' ? 'Gesamt gelernt' : 'Total learned', myTotalLearned, partnerTotalLearned)}
-          {compRow(lang === 'de' ? 'Längster Streak 🏆' : 'Best streak 🏆', myLongestStreak, partnerLongestStreak)}
-          {compRow(lang === 'de' ? 'Lerntage gesamt' : 'Total learning days', myLearningDays, partnerLearningDays)}
-          {compRow(t.favArea, myFavArea, partnerFavArea)}
-          {(myWeeklyFavArea || partnerWeeklyFavArea) && compRow(lang === 'de' ? '📅 Diese Woche' : '📅 This week', myWeeklyFavArea || '—', partnerWeeklyFavArea || '—')}
+          {/* ── ACHIEVEMENT BADGES ── */}
+          {(() => {
+            const TEAL = '#00D4AA'
+            const badges = [
+              { emoji: '🏅', label: lang === 'de' ? 'Fleißigster' : 'Most diligent', myVal: myWeekSessions, pVal: partnerWeekSessions, fmt: v => `${v}` },
+              { emoji: '🔥', label: lang === 'de' ? 'Longest Streak' : 'Best streak', myVal: myLongestStreak, pVal: partnerLongestStreak, fmt: v => `${v}d` },
+              { emoji: '🎯', label: lang === 'de' ? 'Genauigkeit' : 'Accuracy', myVal: myWeekAccuracy, pVal: partnerWeekAccuracy, fmt: v => `${v}%` },
+              { emoji: '📚', label: lang === 'de' ? 'Gemeistert' : 'Mastered', myVal: myMastered, pVal: partnerMastered, fmt: v => `${v}` },
+              { emoji: '⚡', label: lang === 'de' ? 'Wochenkarten' : 'Week cards', myVal: myWeekCorrect, pVal: partnerWeekCorrect, fmt: v => `${v}` },
+            ]
+            return (
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '12px' }}>
+                {badges.map(({ emoji, label, myVal, pVal, fmt }) => {
+                  const myWins = myVal > pVal
+                  const pWins = pVal > myVal
+                  return (
+                    <div key={label} style={{ flex: '1 1 calc(33% - 4px)', minWidth: '80px', textAlign: 'center', padding: '8px 4px', borderRadius: '12px', background: myWins ? `${TEAL}15` : pWins ? `${th.gold}15` : th.card, border: `1px solid ${myWins ? TEAL + '40' : pWins ? th.gold + '40' : th.border}`, boxShadow: myWins ? `0 0 8px ${TEAL}25` : pWins ? `0 0 8px ${th.gold}25` : 'none' }}>
+                      <div style={{ fontSize: '1.1rem' }}>{emoji}</div>
+                      <div style={{ color: th.sub, fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.4px', margin: '2px 0 4px' }}>{label}</div>
+                      <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
+                        <span style={{ color: myWins ? TEAL : th.sub, fontWeight: myWins ? '700' : '500', fontSize: '0.82rem' }}>{fmt(myVal)}</span>
+                        <span style={{ color: th.border, fontSize: '0.55rem' }}>:</span>
+                        <span style={{ color: pWins ? th.gold : th.sub, fontWeight: pWins ? '700' : '500', fontSize: '0.82rem' }}>{fmt(pVal)}</span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })()}
           {/* ── LERNZEIT BARS ── */}
           {(() => {
             const nowWeek = getISOWeekStr()

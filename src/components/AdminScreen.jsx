@@ -138,16 +138,22 @@ function AdminScreen({ user, lang, theme, onBack }) {
   }
 
   // ── Build live counts from a Firestore snapshot ───────────────
+  // CAT_NORMALIZE maps generator-written category names → AdminScreen POOL_STRUCTURE keys
+  // generate-vocab-pool writes 'vocabulary', generate-sentence-pool writes 'sentence'
+  const CAT_NORMALIZE = { vocabulary: 'vocab', sentence: 'urlaub' }
+
   const buildCounts = (snap) => {
     const counts = {}
     snap.docs.forEach(d => {
       const data = d.data()
       const level = String(data.level)
-      const lp = data.langPair
+      // generators write fromLang+toLang separately; only generate-topic-pool writes langPair
+      const lp = data.langPair || (data.fromLang && data.toLang ? `${data.fromLang}_${data.toLang}` : null)
       if (!level || !lp) return
-      const cat = data.category === 'topics' && data.topicKey
+      const rawCat = data.category === 'topics' && data.topicKey
         ? `topic_${data.topicKey}`
         : data.category
+      const cat = CAT_NORMALIZE[rawCat] || rawCat
       if (!cat) return
       if (!counts[cat]) counts[cat] = {}
       if (!counts[cat][level]) counts[cat][level] = {}

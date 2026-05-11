@@ -356,6 +356,25 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
     ? allCards.filter(c => !pausedLanguages.includes(c.targetLang))
     : allCards
 
+  // ── CATEGORY LEVEL BADGE + PROGRESS BAR ──────────────────
+  const CAT_THRESHOLDS = [0, 1, 5, 10, 15, 20, 30, 40, 50, 65, 80]
+  const catLevelBar = (cat) => {
+    const catCards = activeCards.filter(c => c.category === cat && !/_r(_\d+)?$/.test(c.id))
+    const mastered = catCards.filter(c => (cardProgress[c.id]?.interval || 0) >= 7).length
+    const level = getCatLevel(mastered)
+    const next = CAT_THRESHOLDS[Math.min(level + 1, 10)]
+    const prev = CAT_THRESHOLDS[level]
+    const pct = level >= 10 ? 100 : next > prev ? Math.min(100, Math.round(((mastered - prev) / (next - prev)) * 100)) : 100
+    return (
+      <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', width: '100%', marginTop: '6px' }}>
+        <span style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.38)', fontWeight: '600', letterSpacing: '0.5px' }}>Lvl {level}</span>
+        <span style={{ display: 'block', width: '70%', height: '2px', background: 'rgba(255,255,255,0.1)', borderRadius: '1px', overflow: 'hidden' }}>
+          <span style={{ display: 'block', height: '100%', width: `${pct}%`, background: 'rgba(255,255,255,0.42)', borderRadius: '1px' }} />
+        </span>
+      </span>
+    )
+  }
+
   // ── WORT DES TAGES ────────────────────────────────────────
   const wordOfDay = (() => {
     const mastered = activeCards.filter(c => !/_r(_\d+)?$/.test(c.id) && (cardProgress[c.id]?.interval || 0) >= 7)
@@ -1180,7 +1199,14 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
   if (screen === 'impressum') return <>{homeFloat}<ImpressumScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
   if (screen === 'stats') return <>{homeFloat}<StatsScreen user={user} myData={myData} partnerData={partnerData} allCards={allCards} lang={lang} theme={theme} onBack={() => setScreen('menu')} cardProgress={cardProgress} /></>
   if (screen === 'ki') return <>{homeFloat}<KiGespraechScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={(myData?.toLang || '').toLowerCase() || (lang === 'de' ? 'en' : 'de')} /></>
-  if (screen === 'satz') return <>{homeFloat}<SatzTrainingScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={(myData?.toLang || '').toLowerCase() || (lang === 'de' ? 'en' : 'de')} t={t} /></>
+  if (screen === 'satz') return <>{homeFloat}<SatzTrainingScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={(myData?.toLang || '').toLowerCase() || (lang === 'de' ? 'en' : 'de')} t={t} onSatzComplete={async (correct, total) => {
+    const entry = { date: todayStr(), correct, total, area: 'satztraining', ts: Date.now() }
+    const updated = [entry, ...(myData?.sessionHistory || [])].slice(0, 60)
+    try {
+      await updateDoc(doc(db, 'users', user.uid), { sessionHistory: updated })
+      setMyData(prev => ({ ...prev, sessionHistory: updated }))
+    } catch(e) { console.warn('satz session save failed:', e) }
+  }} /></>
   if (screen === 'diary') return <>{homeFloat}<DiaryScreen user={user} myData={myData} setMyData={setMyData} partnerData={partnerData} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
   if (screen === 'admin' && user.uid === MARK_UID) return <>{homeFloat}<AdminScreen user={user} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
   if (screen === 'langprogress') return <>{homeFloat}<LanguageProgressScreen user={user} myData={myData} allCards={allCards} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
@@ -1354,26 +1380,31 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
       {/* ── 5-BUTTON GRID ── */}
       <div className="vocara-cat-grid" style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '12px' }}>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '0s' }} onClick={() => startCategorySession('vocabulary')}>
-            {t.menuWorte.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
+          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '0s', flexDirection: 'column', alignItems: 'center' }} onClick={() => startCategorySession('vocabulary')}>
+            <span>{t.menuWorte.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</span>
+            {catLevelBar('vocabulary')}
           </button>
-          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '1.8s', opacity: satzLoading ? 0.6 : 1 }} onClick={startSatzSession} disabled={satzLoading}>
-            {satzLoading ? '...' : t.menuSaetze.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
+          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '1.8s', opacity: satzLoading ? 0.6 : 1, flexDirection: 'column', alignItems: 'center' }} onClick={startSatzSession} disabled={satzLoading}>
+            <span>{satzLoading ? '...' : t.menuSaetze.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</span>
+            {!satzLoading && catLevelBar('sentence')}
           </button>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '3.5s' }} onClick={() => startCategorySession('street')}>
-            {t.menuStraße.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
+          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '3.5s', flexDirection: 'column', alignItems: 'center' }} onClick={() => startCategorySession('street')}>
+            <span>{t.menuStraße.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</span>
+            {catLevelBar('street')}
           </button>
-          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '5.2s' }} onClick={() => startCategorySession('home')}>
-            {t.menuHause.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
+          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '5.2s', flexDirection: 'column', alignItems: 'center' }} onClick={() => startCategorySession('home')}>
+            <span>{t.menuHause.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</span>
+            {catLevelBar('home')}
           </button>
         </div>
         <button className="vocara-alle-btn" style={{ ...s.button, padding: '13px 28px', fontSize: '0.9rem', letterSpacing: '0.2px', marginBottom: 0, '--gleam-delay': '2.5s' }} onClick={() => startCategorySession('all')}>
           {t.menuAlle}
         </button>
-        <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '6.8s', width: '100%', opacity: basicsLoading ? 0.6 : 1 }} onClick={startBasicsSession} disabled={basicsLoading}>
-          {basicsLoading ? '...' : (t.menuGrundlagen || 'Die\nGrundlagen').split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
+        <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '6.8s', width: '100%', opacity: basicsLoading ? 0.6 : 1, flexDirection: 'column', alignItems: 'center' }} onClick={startBasicsSession} disabled={basicsLoading}>
+          <span>{basicsLoading ? '...' : (t.menuGrundlagen || 'Die\nGrundlagen').split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</span>
+          {!basicsLoading && catLevelBar('basics')}
         </button>
       </div>
 
