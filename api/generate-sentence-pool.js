@@ -105,7 +105,7 @@ async function writePool(fromLang, toLang, level, exercises) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ fields }),
   })
-  if (!r.ok) throw new Error(`Firestore write failed: ${r.status}`)
+  if (!r.ok) throw new Error(`Firestore write failed: ${r.status} ${await r.text()}`)
 }
 
 // ── SENTENCE FLASHCARD POOL (sharedCards/{pair}_sentence_level{N}) ────────────
@@ -197,7 +197,7 @@ async function writeFlashcardPool(fromLang, toLang, level, cards) {
   }
   const mask = ['fromLang','toLang','category','level','generatedAt','count','cards'].map(f => `updateMask.fieldPaths=${f}`).join('&')
   const r = await fetch(`${docPath}?${mask}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields }) })
-  if (!r.ok) throw new Error(`Firestore write failed: ${r.status}`)
+  if (!r.ok) throw new Error(`Firestore write failed: ${r.status} ${await r.text()}`)
 }
 
 // Writes sentence flashcards to the flat sharedCards/{pair}_sentence path (read by startSatzSession)
@@ -283,7 +283,7 @@ export default async function handler(req, res) {
           return { pair: `${from}→${to}`, level, total: cards.length, path: `sharedCards/${from}_${to}_sentence` }
         }
         return { pair: `${from}→${to}`, level, error: 'No cards generated' }
-      } catch (e) { return { pair: `${from}→${to}`, level, error: e.message } }
+      } catch (e) { console.error(`[sentence] ${from}_${to} L${level}:`, e.message); return { pair: `${from}→${to}`, level, error: e.message } }
     }))
     return res.status(200).json({ generated: results, total: results.reduce((s, r) => s + (r.total || 0), 0) })
   }
@@ -304,7 +304,7 @@ export default async function handler(req, res) {
           return { pair: `${from}→${to}`, level, total: cards.length, categories: Object.entries(byCat).map(([k,v]) => ({ category: k, count: v })) }
         }
         return { pair: `${from}→${to}`, level, error: 'No cards generated' }
-      } catch (e) { return { pair: `${from}→${to}`, level, error: e.message } }
+      } catch (e) { console.error(`[flashcards] ${from}_${to} L${level}:`, e.message); return { pair: `${from}→${to}`, level, error: e.message } }
     }))
     return res.status(200).json({ generated: results, total: results.reduce((s, r) => s + (r.total || 0), 0) })
   }
