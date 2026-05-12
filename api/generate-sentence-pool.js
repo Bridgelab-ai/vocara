@@ -134,40 +134,41 @@ const FLASHCARD_THEMES = [
   { key: 'smalltalk', label: 'Smalltalk', theme: 'small talk: greetings, opinions, hobbies, polite phrases' },
 ]
 
-async function generateFlashcardCategory(fromLang, toLang, cat, level = 1) {
+async function processFlashcardPair(fromLang, toLang, level = 1) {
   const fromName = LANG_NAMES[fromLang]
   const toName = LANG_NAMES[toLang]
   const spec = SENTENCE_LEVEL_SPEC[level] || SENTENCE_LEVEL_SPEC[1]
-  const count = Math.ceil(33 / FLASHCARD_THEMES.length)
-  const prompt = `Generate exactly ${count} natural sentence flashcards for a ${fromName} speaker learning ${toName}.
+  const themes = FLASHCARD_THEMES.map(t => `- ${t.key} (${t.label}): ${t.theme}`).join('\n')
+  const prompt = `Generate exactly 30 natural sentence flashcards for a ${fromName} speaker learning ${toName}.
 Level ${level}/12 — difficulty: ${spec.diff}
-Category: ${cat.label} — theme: ${cat.theme}
+Generate 6 cards per category. Categories:
+${themes}
 Rules:
-- front: sentence in ${fromName} (native language), difficulty appropriate for Level ${level}
+- front: sentence in ${fromName}, difficulty appropriate for Level ${level}
 - back: natural ${toName} translation (as a native speaker would say it)
 - Vary structure: questions, statements, requests
+- vocabCategory must be exactly one of: alltag, reisen, arbeit, familie, smalltalk
 Return ONLY a valid JSON array (no markdown):
-[{"front":"sentence in ${fromName}","back":"sentence in ${toName}","vocabCategory":"${cat.key}"}]`
+[{"front":"...","back":"...","vocabCategory":"alltag|reisen|arbeit|familie|smalltalk"}]`
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001', max_tokens: 3000,
-      system: 'You are a professional language teacher. Return ONLY valid JSON array, no markdown.',
-      messages: [{ role: 'user', content: prompt }],
+  const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('AI timeout after 25s')), 25000))
+  const res = await Promise.race([
+    fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001', max_tokens: 2000,
+        system: 'You are a professional language teacher. Return ONLY valid JSON array, no markdown.',
+        messages: [{ role: 'user', content: prompt }],
+      }),
     }),
-  })
+    timeout,
+  ])
   const data = await res.json()
   const raw = (data.content?.[0]?.text || '').trim()
   const match = raw.match(/\[[\s\S]*\]/)
   if (!match) return []
-  try { return JSON.parse(match[0]).slice(0, count) } catch { return [] }
-}
-
-async function processFlashcardPair(fromLang, toLang, level = 1) {
-  const results = await Promise.all(FLASHCARD_THEMES.map(cat => generateFlashcardCategory(fromLang, toLang, cat, level)))
-  return results.flat()
+  try { return JSON.parse(match[0]).slice(0, 35) } catch { return [] }
 }
 
 async function writeFlashcardPool(fromLang, toLang, level, cards) {
@@ -245,15 +246,19 @@ Rules:
 Return ONLY a valid JSON array (no markdown):
 [{"front":"sentence in ${fromName}","back":"sentence in ${toName}","vocabCategory":"alltag"}]`
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001', max_tokens: 3000,
-      system: 'You are a professional language teacher. Return ONLY valid JSON array, no markdown.',
-      messages: [{ role: 'user', content: prompt }],
+  const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('AI timeout after 25s')), 25000))
+  const res = await Promise.race([
+    fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001', max_tokens: 2000,
+        system: 'You are a professional language teacher. Return ONLY valid JSON array, no markdown.',
+        messages: [{ role: 'user', content: prompt }],
+      }),
     }),
-  })
+    timeout,
+  ])
   const data = await res.json()
   const raw = (data.content?.[0]?.text || '').trim()
   const match = raw.match(/\[[\s\S]*\]/)
