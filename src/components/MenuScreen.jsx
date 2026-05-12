@@ -54,7 +54,7 @@ function VocaraLogoSVG({ withSlogans = false, animate = false, isDE = true }) {
   )
 }
 
-function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSaveProgress, theme, onThemeChange, onLightModeChange, onCardSizeChange, onPartnerUpdate, onSaveCefr, onBack, categoryLevels, masteredCounts, poolReady }) {
+function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSaveProgress, theme, onThemeChange, onLightModeChange, onCardSizeChange, onPartnerUpdate, onSaveCefr, onBack, categoryLevels, masteredCounts, loadCardsForCategory }) {
   const [screen, setScreen] = useState('menu')
   const [session, setSession] = useState(null)
   const [result, setResult] = useState(null)
@@ -99,6 +99,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const [tutorRecommendedArea, setTutorRecommendedArea] = useState(null)
   const [sessionCompleteCount, setSessionCompleteCount] = useState(0)
   const [basicsLoading, setBasicsLoading] = useState(false)
+  const [catLoading, setCatLoading] = useState(null)
   const VALID_SCREENS = new Set(['menu','cards','result','settings','partner','test','impressum','stats','ki','satz','diary','meinekarten','geschenkkarte','karteerstellen','admin','langprogress'])
   if (!VALID_SCREENS.has(screen)) { setScreen('menu'); return null }
 
@@ -613,8 +614,20 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
     }
   }
 
-  const startCategorySession = (category) => {
+  const startCategorySession = async (category) => {
     console.log('[Vocara] startCategorySession:', category)
+    if (loadCardsForCategory) {
+      setCatLoading(category)
+      const level = myData?.categoryLevels?.[category] || 1
+      const poolCat = category === 'all' ? null : category
+      const poolLevel = category === 'all' ? null : level
+      try {
+        const fetched = await loadCardsForCategory(poolCat, poolLevel)
+        console.log('[POOL] lazy loaded for', category, 'L' + level + ':', fetched.length)
+        fetched.forEach(c => { if (!allCards.find(a => a.id === c.id)) allCards.push(c) })
+      } catch (e) { console.error('[POOL] load failed:', e) }
+      setCatLoading(null)
+    }
     // ── MEINE WORTE HARD FILTER ─────────────────────────────────
     // Only single-word or max 2-word fronts are allowed in vocabulary.
     // basics are always excluded. Any sentence slipping through is rejected here.
@@ -1390,9 +1403,9 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
       {/* ── 5-BUTTON GRID ── */}
       <div className="vocara-cat-grid" style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '12px' }}>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '0s', flexDirection: 'column', alignItems: 'center' }} onClick={() => startCategorySession('vocabulary')}>
-            <span>{t.menuWorte.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</span>
-            {catLevelBar('vocabulary')}
+          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '0s', flexDirection: 'column', alignItems: 'center', opacity: catLoading ? 0.5 : 1 }} onClick={() => startCategorySession('vocabulary')} disabled={!!catLoading}>
+            <span>{catLoading === 'vocabulary' ? '⟳' : t.menuWorte.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</span>
+            {catLoading !== 'vocabulary' && catLevelBar('vocabulary')}
           </button>
           <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '1.8s', opacity: satzLoading ? 0.6 : 1, flexDirection: 'column', alignItems: 'center' }} onClick={startSatzSession} disabled={satzLoading}>
             <span>{satzLoading ? '...' : t.menuSaetze.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</span>
@@ -1400,17 +1413,17 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           </button>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '3.5s', flexDirection: 'column', alignItems: 'center' }} onClick={() => startCategorySession('street')}>
-            <span>{t.menuStraße.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</span>
-            {catLevelBar('street')}
+          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '3.5s', flexDirection: 'column', alignItems: 'center', opacity: catLoading ? 0.5 : 1 }} onClick={() => startCategorySession('street')} disabled={!!catLoading}>
+            <span>{catLoading === 'street' ? '⟳' : t.menuStraße.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</span>
+            {catLoading !== 'street' && catLevelBar('street')}
           </button>
-          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '5.2s', flexDirection: 'column', alignItems: 'center' }} onClick={() => startCategorySession('home')}>
+          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '5.2s', flexDirection: 'column', alignItems: 'center', opacity: catLoading ? 0.5 : 1 }} onClick={() => startCategorySession('home')} disabled={!!catLoading}>
             <span>{t.menuHause.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</span>
             {catLevelBar('home')}
           </button>
         </div>
-        <button className="vocara-alle-btn" style={{ ...s.button, padding: '13px 28px', fontSize: '0.9rem', letterSpacing: '0.2px', marginBottom: 0, '--gleam-delay': '2.5s', opacity: poolReady ? 1 : 0.5 }} onClick={() => startCategorySession('all')} disabled={!poolReady}>
-          {poolReady ? t.menuAlle : '⟳ Laden...'}
+        <button className="vocara-alle-btn" style={{ ...s.button, padding: '13px 28px', fontSize: '0.9rem', letterSpacing: '0.2px', marginBottom: 0, '--gleam-delay': '2.5s', opacity: catLoading ? 0.5 : 1 }} onClick={() => startCategorySession('all')} disabled={!!catLoading}>
+          {catLoading === 'all' ? '⟳ Laden...' : t.menuAlle}
         </button>
         <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '6.8s', width: '100%', opacity: basicsLoading ? 0.6 : 1, flexDirection: 'column', alignItems: 'center' }} onClick={startBasicsSession} disabled={basicsLoading}>
           <span>{basicsLoading ? '...' : (t.menuGrundlagen || 'Die\nGrundlagen').split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</span>

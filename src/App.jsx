@@ -2840,26 +2840,20 @@ function App() {
   const [needsOnboarding, setNeedsOnboarding] = useState(false)
   const [isNewUser, setIsNewUser] = useState(false)
   const [mainNav, setMainNav] = useState('main') // 'main' | 'sprechen' | 'entdecken' | 'horizont' | 'livesession'
-  const [poolCards, setPoolCards] = useState([])
-  const [poolReady, setPoolReady] = useState(false)
-
-  useEffect(() => {
-    if (!myData?.uid) return
-    getDocs(collection(db, 'sharedCards')).then(snap => {
-      console.log('[POOL] total docs:', snap.size)
-      console.log('[POOL] first doc sample:', snap.docs[0]?.data())
-      const cards = []
-      snap.forEach(d => {
-        const data = d.data()
-        ;(data.cards || []).forEach(c =>
-          buildCardPair({ ...c, targetLang: data.toLang || c.langB }).forEach(p => cards.push(p))
-        )
-      })
-      console.log('[POOL] cards after build:', cards.length)
-      setPoolCards(cards)
-      setPoolReady(true)
+  const CAT_NORMALIZE_POOL = { vocabulary: 'vocab', sentence: 'urlaub' }
+  const loadCardsForCategory = async (category, level) => {
+    const snap = await getDocs(collection(db, 'sharedCards'))
+    const cards = []
+    snap.forEach(d => {
+      const data = d.data()
+      if (category && data.category !== category && CAT_NORMALIZE_POOL[data.category] !== category) return
+      if (level && data.level !== level) return
+      ;(data.cards || []).forEach(c =>
+        buildCardPair({ ...c, targetLang: data.toLang || c.langB }).forEach(p => cards.push(p))
+      )
     })
-  }, [myData?.uid])
+    return cards
+  }
 
   useEffect(() => {
     const id = 'vocara-global-css'
@@ -3126,7 +3120,6 @@ function App() {
   const cardCategories = myData?.cardCategories || {}
   const allCards = [
     ...(myData?.aiCards || []).flatMap(buildCardPair),
-    ...poolCards,
   ].map(card => {
     const baseId = card.id.replace(/_r(_\d+)?$/, '')
     const aiCat = cardCategories[baseId]
@@ -3189,7 +3182,7 @@ function App() {
             theme={theme} onThemeChange={handleThemeChange}
             onLightModeChange={handleLightModeChange} onCardSizeChange={handleCardSizeChange}
             onPartnerUpdate={handlePartnerUpdate} onSaveCefr={handleSaveCefr}
-            onBack={() => setMainNav('main')} poolReady={poolReady} />
+            onBack={() => setMainNav('main')} loadCardsForCategory={loadCardsForCategory} />
         )}
         {mainNav === 'entdecken' && (
           <SetsScreen user={user} myData={myData} setMyData={setMyData} partnerData={partnerData}
