@@ -422,6 +422,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
         cardProgress: {},
         publicStats: deleteField(),
         sessionHistory: [],
+        weeklyGoals: { week: '', completed: [] },
       })
       setResetStatus(`✓ ${name} vollständig zurückgesetzt`)
       load()
