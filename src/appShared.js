@@ -160,7 +160,16 @@ export function getCatLevel(masteredCount) {
 }
 
 // ── CONSTANTS ─────────────────────────────────────────────────
-export const APP_VERSION = 'V01.009.004'
+export const APP_VERSION = 'V01.009.005'
+
+export const POOL_STRUCTURE = {
+  grundlagen:   { totalLevels: 10, cardsPerLevel: 20 },
+  vocab:        { totalLevels: 22, cardsPerLevel: 30 },
+  street:       { totalLevels: 18, cardsPerLevel: 25 },
+  home:         { totalLevels: 14, cardsPerLevel: 22 },
+  urlaub:       { totalLevels: 10, cardsPerLevel: 20 },
+  satztraining: { totalLevels: 14, cardsPerLevel: 22 },
+}
 export const SESSION_SIZE = 15
 export const NEW_CARDS_BATCH = 3
 export const MASTERY_THRESHOLD = 0.85

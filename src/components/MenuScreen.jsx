@@ -8,7 +8,7 @@ import {
   clearSessionState, saveSessionHistory, saveSessionState, checkMastery, getNextNewCards,
   CEFR_LEVELS, CEFR_COLORS, CEFR_MASTERY_REQ, WEEK_AREAS, VALID_CATEGORY_SET,
   LANG_FLAGS, NEW_CARDS_BATCH, getLevelName, MARK_UID, ELOSY_UID, APP_VERSION,
-  SESSION_SIZE, MONTHLY_TEST_DAYS, getCatLevel, TOPICS_LIST
+  SESSION_SIZE, MONTHLY_TEST_DAYS, getCatLevel, TOPICS_LIST, POOL_STRUCTURE
 } from '../appShared'
 import LanguageProgressScreen from './LanguageProgressScreen'
 import CardScreen from './CardScreen'
@@ -1180,6 +1180,24 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     }
     setMasteryUnlocked(unlocked)
     await onSaveProgress(finalProgress)
+    // ── Pool level-up check ────────────────────────────────
+    const CAT_TO_POOL = { vocabulary: 'vocab', sentence: 'urlaub' }
+    const poolKey = CAT_TO_POOL[currentSessionMode] || currentSessionMode
+    const poolInfo = POOL_STRUCTURE[poolKey]
+    if (poolInfo && currentSessionMode !== 'all') {
+      const catCards = allCards.filter(c => c.category === currentSessionMode || CAT_TO_POOL[c.category] === poolKey)
+      const masteredCount = catCards.filter(c => (finalProgress[c.id]?.interval ?? 0) >= 7).length
+      const currentCatLevel = myData?.categoryLevels?.[currentSessionMode] || 1
+      if (currentCatLevel < poolInfo.totalLevels && masteredCount >= poolInfo.cardsPerLevel * 0.8) {
+        const newLevel = currentCatLevel + 1
+        const newCategoryLevels = { ...(myData?.categoryLevels || {}), [currentSessionMode]: newLevel }
+        try {
+          await updateDoc(doc(db, 'users', user.uid), { categoryLevels: newCategoryLevels })
+          setMyData(d => ({ ...d, categoryLevels: newCategoryLevels }))
+          console.log(`[LevelUp] ${currentSessionMode} → Lv${newLevel} (${masteredCount}/${poolInfo.cardsPerLevel} mastered)`)
+        } catch (e) { console.error('[LevelUp] Failed:', e) }
+      }
+    }
     // ── Learning time tracking ─────────────────────────────
     const sessionMinutes = Math.max(1, Math.round((correct + wrong) * 30 / 60))
     const nowMonth = new Date().toISOString().slice(0, 7)
