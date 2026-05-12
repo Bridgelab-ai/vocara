@@ -679,12 +679,13 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
       setResumeDialog({ category, cards })
       return
     }
-    let sess = buildSession(cards, cardProgress)
+    const userSessionSize = Math.min(cards.length, myData?.sessionSize || 10)
+    let sess = buildSession(cards, cardProgress, userSessionSize)
     console.log('[Vocara] buildSession result:', sess.length)
     // Fallback: if nothing is due (all reviewed, none overdue), practice all category cards
     if (sess.length === 0) {
       const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
-      sess = shuffle(cards).slice(0, SESSION_SIZE)
+      sess = shuffle(cards).slice(0, userSessionSize)
       console.log('[Vocara] fallback session (all cards):', sess.length)
     }
     if (sess.length === 0) return
@@ -1182,15 +1183,16 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     await onSaveProgress(finalProgress)
     // ── Pool level-up check ────────────────────────────────
     const CAT_TO_POOL = { vocabulary: 'vocab', sentence: 'urlaub' }
+    const CAT_ID_PREFIX = { vocabulary: 'vocab_', sentence: 'sentence_', street: 'street_', home: 'home_', grundlagen: 'grundlagen_' }
     const poolKey = CAT_TO_POOL[currentSessionMode] || currentSessionMode
     const poolInfo = POOL_STRUCTURE[poolKey]
-    if (poolInfo && currentSessionMode !== 'all') {
-      const catCards = allCards.filter(c => c.category === currentSessionMode || CAT_TO_POOL[c.category] === poolKey)
-      const masteredCount = catCards.filter(c => (finalProgress[c.id]?.interval ?? 0) >= 7).length
+    const idPrefix = CAT_ID_PREFIX[currentSessionMode]
+    if (poolInfo && idPrefix && currentSessionMode !== 'all') {
+      const masteredCount = Object.entries(finalProgress)
+        .filter(([id]) => id.startsWith(idPrefix))
+        .filter(([, p]) => (p?.interval ?? 0) >= 7).length
       const currentCatLevel = myData?.categoryLevels?.[currentSessionMode] || 1
-      const threshold = poolInfo.cardsPerLevel * 0.8
-      console.log('[LEVELUP DEBUG] category:', currentSessionMode, 'masteredCount:', masteredCount, 'threshold:', threshold, 'currentLevel:', currentCatLevel, 'catCards:', catCards.length, 'allCards:', allCards.length)
-      if (currentCatLevel < poolInfo.totalLevels && masteredCount >= threshold) {
+      if (currentCatLevel < poolInfo.totalLevels && masteredCount >= poolInfo.cardsPerLevel * 0.8) {
         const newLevel = currentCatLevel + 1
         const newCategoryLevels = { ...(myData?.categoryLevels || {}), [currentSessionMode]: newLevel }
         try {
