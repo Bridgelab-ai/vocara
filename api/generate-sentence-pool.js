@@ -275,18 +275,16 @@ export default async function handler(req, res) {
     const pairsToRun = body.pair
       ? PAIRS.filter(p => `${p.from}_${p.to}` === body.pair)
       : PAIRS
-    const results = []
-    for (const { from, to } of pairsToRun) {
+    const results = await Promise.all(pairsToRun.map(async ({ from, to }) => {
       try {
         const cards = await generateFlatFlashcards(from, to, level, count)
         if (cards.length > 0) {
           await writeFlatSentencePool(from, to, level, cards)
-          results.push({ pair: `${from}→${to}`, level, total: cards.length, path: `sharedCards/${from}_${to}_sentence` })
-        } else {
-          results.push({ pair: `${from}→${to}`, level, error: 'No cards generated' })
+          return { pair: `${from}→${to}`, level, total: cards.length, path: `sharedCards/${from}_${to}_sentence` }
         }
-      } catch (e) { results.push({ pair: `${from}→${to}`, level, error: e.message }) }
-    }
+        return { pair: `${from}→${to}`, level, error: 'No cards generated' }
+      } catch (e) { return { pair: `${from}→${to}`, level, error: e.message } }
+    }))
     return res.status(200).json({ generated: results, total: results.reduce((s, r) => s + (r.total || 0), 0) })
   }
 
@@ -296,20 +294,18 @@ export default async function handler(req, res) {
     const pairsToRun = body.pair
       ? PAIRS.filter(p => `${p.from}_${p.to}` === body.pair)
       : PAIRS
-    const results = []
-    for (const { from, to } of pairsToRun) {
+    const results = await Promise.all(pairsToRun.map(async ({ from, to }) => {
       try {
         const cards = await processFlashcardPair(from, to, level)
         if (cards.length > 0) {
           await writeFlashcardPool(from, to, level, cards)
           const byCat = {}
           for (const c of cards) { byCat[c.vocabCategory] = (byCat[c.vocabCategory] || 0) + 1 }
-          results.push({ pair: `${from}→${to}`, level, total: cards.length, categories: Object.entries(byCat).map(([k,v]) => ({ category: k, count: v })) })
-        } else {
-          results.push({ pair: `${from}→${to}`, level, error: 'No cards generated' })
+          return { pair: `${from}→${to}`, level, total: cards.length, categories: Object.entries(byCat).map(([k,v]) => ({ category: k, count: v })) }
         }
-      } catch (e) { results.push({ pair: `${from}→${to}`, level, error: e.message }) }
-    }
+        return { pair: `${from}→${to}`, level, error: 'No cards generated' }
+      } catch (e) { return { pair: `${from}→${to}`, level, error: e.message } }
+    }))
     return res.status(200).json({ generated: results, total: results.reduce((s, r) => s + (r.total || 0), 0) })
   }
 
