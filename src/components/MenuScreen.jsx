@@ -618,12 +618,13 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
     console.log('[Vocara] startCategorySession:', category)
     if (loadCardsForCategory) {
       setCatLoading(category)
-      const level = myData?.categoryLevels?.[category] || 1
+      const CAT_TO_POOL_KEY = { vocabulary: 'vocab', sentence: 'urlaub' }
+      const poolCatKey = CAT_TO_POOL_KEY[category] || category
+      const level = myData?.categoryLevels?.[poolCatKey] || 1
       const poolCat = category === 'all' ? null : category
       const poolLevel = category === 'all' ? null : level
       try {
         const fetched = await loadCardsForCategory(poolCat, poolLevel)
-        console.log('[POOL] lazy loaded for', category, 'L' + level + ':', fetched.length)
         fetched.forEach(c => { if (!allCards.find(a => a.id === c.id)) allCards.push(c) })
       } catch (e) { console.error('[POOL] load failed:', e) }
       setCatLoading(null)
@@ -1191,11 +1192,10 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
       const masteredCount = Object.entries(finalProgress)
         .filter(([id]) => id.startsWith(idPrefix))
         .filter(([, p]) => (p?.interval ?? 0) >= 7).length
-      console.log('[LEVELUP] prefix:', idPrefix, 'matches:', Object.keys(finalProgress).filter(id => id.startsWith(idPrefix)).length, 'mastered:', masteredCount, 'threshold:', poolInfo.cardsPerLevel * 0.8)
-      const currentCatLevel = myData?.categoryLevels?.[currentSessionMode] || 1
+      const currentCatLevel = myData?.categoryLevels?.[poolKey] || 1
       if (currentCatLevel < poolInfo.totalLevels && masteredCount >= poolInfo.cardsPerLevel * 0.8) {
         const newLevel = currentCatLevel + 1
-        const newCategoryLevels = { ...(myData?.categoryLevels || {}), [currentSessionMode]: newLevel }
+        const newCategoryLevels = { ...(myData?.categoryLevels || {}), [poolKey]: newLevel }
         try {
           await updateDoc(doc(db, 'users', user.uid), { categoryLevels: newCategoryLevels })
           setMyData(d => ({ ...d, categoryLevels: newCategoryLevels }))

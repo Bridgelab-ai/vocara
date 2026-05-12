@@ -2847,7 +2847,7 @@ function App() {
     snap.forEach(d => {
       const data = d.data()
       if (category && data.category !== category && CAT_NORMALIZE_POOL[data.category] !== category) return
-      if (level && data.level !== level) return
+      if (level && Number(data.level) !== Number(level)) return
       ;(data.cards || []).forEach(c =>
         buildCardPair({ ...c, targetLang: data.toLang || c.langB }).forEach(p => cards.push(p))
       )
