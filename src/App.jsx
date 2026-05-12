@@ -2833,6 +2833,7 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [myData, setMyData] = useState(null)
   const [partnerData, setPartnerData] = useState(null)
+  const partnerUnsubRef = useRef(null)
   const [theme, setTheme] = useState('nairobi')
   const [lightMode, setLightMode] = useState(false)
   const [cardSize, setCardSize] = useState('normal')
@@ -2917,6 +2918,7 @@ function App() {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       if (!u) {
         // LOGOUT: clear all local state so next user starts fresh
+        if (partnerUnsubRef.current) { partnerUnsubRef.current(); partnerUnsubRef.current = null }
         setMyData(null); setPartnerData(null)
         setNeedsOnboarding(false); setNeedsLangSetup(false); setIsNewUser(false)
         setMainNav('main')
@@ -3026,19 +3028,13 @@ function App() {
             if (!data.onboardingDone) setNeedsOnboarding(true)
             if (!data.languages || data.languages.length === 0) setNeedsLangSetup(true)
           }
-          try {
-            if (data.partnerUID) {
-              const pSnap = await getDoc(doc(db, 'users', data.partnerUID))
-              if (pSnap.exists()) setPartnerData(pSnap.data())
-            } else {
-              const partnerUID = u.uid === MARK_UID ? ELOSY_UID : u.uid === ELOSY_UID ? MARK_UID : null
-              if (partnerUID) {
-                const pSnap = await getDoc(doc(db, 'users', partnerUID))
-                if (pSnap.exists()) setPartnerData(pSnap.data())
-              }
-            }
-          } catch (partnerErr) {
-            console.error('[Vocara] partner load failed, skipping:', partnerErr)
+          if (partnerUnsubRef.current) { partnerUnsubRef.current(); partnerUnsubRef.current = null }
+          const resolvedPartnerUID = data.partnerUID || (u.uid === MARK_UID ? ELOSY_UID : u.uid === ELOSY_UID ? MARK_UID : null)
+          if (resolvedPartnerUID) {
+            partnerUnsubRef.current = onSnapshot(doc(db, 'users', resolvedPartnerUID),
+              snap => { if (snap.exists()) setPartnerData(snap.data()) },
+              () => {}
+            )
           }
         }
       } catch (initErr) {
@@ -3182,6 +3178,7 @@ function App() {
             theme={theme} onThemeChange={handleThemeChange}
             onLightModeChange={handleLightModeChange} onCardSizeChange={handleCardSizeChange}
             onPartnerUpdate={handlePartnerUpdate} onSaveCefr={handleSaveCefr}
+            categoryLevels={myData?.categoryLevels || {}}
             onBack={() => setMainNav('main')} loadCardsForCategory={loadCardsForCategory} />
         )}
         {mainNav === 'entdecken' && (

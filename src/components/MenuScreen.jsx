@@ -358,18 +358,23 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
     : allCards
 
   // ── CATEGORY LEVEL BADGE + PROGRESS BAR ──────────────────
-  const CAT_THRESHOLDS = [0, 1, 5, 10, 15, 20, 30, 40, 50, 65, 80]
+  const CAT_TO_POOL_BAR = { vocabulary: 'vocab', sentence: 'urlaub' }
+  const CAT_ID_PREFIX_BAR = { vocabulary: 'vocab_', sentence: 'sentence_', street: 'street_', home: 'home_', grundlagen: 'grundlagen_' }
   const catLevelBar = (cat) => {
-    const catCards = activeCards.filter(c => c.category === cat && !/_r(_\d+)?$/.test(c.id))
-    const mastered = catCards.filter(c => (cardProgress[c.id]?.interval || 0) >= 1).length
-    const level = categoryLevels?.[cat] ?? getCatLevel(mastered)
-    const next = CAT_THRESHOLDS[Math.min(level + 1, 10)]
-    const prev = CAT_THRESHOLDS[level]
-    const computedPct = level >= 10 ? 100 : next > prev ? Math.min(100, Math.round(((mastered - prev) / (next - prev)) * 100)) : 100
-    const pct = masteredCounts?.[cat] != null ? Math.min(100, Math.round((masteredCounts[cat] / 20) * 100)) : computedPct
+    const poolKey = CAT_TO_POOL_BAR[cat] || cat
+    const poolInfo = POOL_STRUCTURE[poolKey]
+    const cardsPerLevel = poolInfo?.cardsPerLevel || 20
+    const currentLevel = categoryLevels?.[poolKey] || 1
+    const idPrefix = CAT_ID_PREFIX_BAR[cat]
+    const mastered = idPrefix
+      ? Object.entries(cardProgress || {})
+          .filter(([id]) => id.startsWith(idPrefix))
+          .filter(([, p]) => (p?.interval ?? 0) >= 1).length
+      : activeCards.filter(c => c.category === cat && !/_r(_\d+)?$/.test(c.id) && (cardProgress[c.id]?.interval || 0) >= 1).length
+    const pct = Math.min(100, Math.round((mastered / cardsPerLevel) * 100))
     return (
       <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', width: '100%', marginTop: '6px' }}>
-        <span style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.38)', fontWeight: '600', letterSpacing: '0.5px' }}>Lvl {categoryLevels?.[cat] || level}</span>
+        <span style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.38)', fontWeight: '600', letterSpacing: '0.5px' }}>Lvl {currentLevel}</span>
         <span style={{ display: 'block', width: '70%', height: '3px', background: 'rgba(255,255,255,0.1)', borderRadius: '1px', overflow: 'hidden' }}>
           <span style={{ display: 'block', height: '100%', width: `${pct}%`, background: '#00D4AA', borderRadius: '1px' }} />
         </span>
