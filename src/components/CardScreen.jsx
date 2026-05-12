@@ -257,12 +257,14 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
       easyInterval = masteredIntervals[Math.min(mrc - 1, masteredIntervals.length - 1)]
     } else if (prevEasyCount >= 5) {
       easyInterval = 30
-    } else if (prevEasyCount === 1) {
-      easyInterval = 5
+    } else if (prevEasyCount === 4) {
+      easyInterval = 12
+    } else if (prevEasyCount === 3) {
+      easyInterval = 9
     } else if (prevEasyCount === 2) {
-      easyInterval = 10
+      easyInterval = 6
     } else {
-      easyInterval = 21
+      easyInterval = 3
     }
     const masteredReviewCount = wasMastered ? (prev.masteredReviewCount || 0) + 1 : (nowMastered ? 1 : 0)
     const isGolden = nowMastered || easyInterval >= 14
