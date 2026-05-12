@@ -3039,8 +3039,13 @@ function App() {
 
   const saveProgress = async (finalProgress) => {
     const ref = doc(db, 'users', user.uid)
-    await updateDoc(ref, { cardProgress: finalProgress })
-    const snap = await getDoc(ref); if (snap.exists()) setMyData(snap.data())
+    try {
+      await updateDoc(ref, { cardProgress: finalProgress })
+      console.log('[PROGRESS DEBUG] cardProgress written, keys:', Object.keys(finalProgress).length)
+      const snap = await getDoc(ref); if (snap.exists()) setMyData(snap.data())
+    } catch (err) {
+      console.error('[PROGRESS ERROR]', err)
+    }
   }
   const handleThemeChange = async (newTheme) => {
     setTheme(newTheme)

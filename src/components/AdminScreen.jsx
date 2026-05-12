@@ -55,6 +55,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
         getDocs(collection(db, 'sharedCards')),
         getDocs(collection(db, 'sharedExercises')),
       ])
+      console.log('[ADMIN DEBUG] sharedCards docs found:', cardsSnap.docs.length)
       const counts = buildCounts(cardsSnap)
       // satztraining pool lives in sharedExercises — merge counts separately
       exSnap.docs.forEach(d => {
