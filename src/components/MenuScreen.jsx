@@ -1188,7 +1188,9 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
       const catCards = allCards.filter(c => c.category === currentSessionMode || CAT_TO_POOL[c.category] === poolKey)
       const masteredCount = catCards.filter(c => (finalProgress[c.id]?.interval ?? 0) >= 7).length
       const currentCatLevel = myData?.categoryLevels?.[currentSessionMode] || 1
-      if (currentCatLevel < poolInfo.totalLevels && masteredCount >= poolInfo.cardsPerLevel * 0.8) {
+      const threshold = poolInfo.cardsPerLevel * 0.8
+      console.log('[LEVELUP DEBUG] category:', currentSessionMode, 'masteredCount:', masteredCount, 'threshold:', threshold, 'currentLevel:', currentCatLevel, 'catCards:', catCards.length, 'allCards:', allCards.length)
+      if (currentCatLevel < poolInfo.totalLevels && masteredCount >= threshold) {
         const newLevel = currentCatLevel + 1
         const newCategoryLevels = { ...(myData?.categoryLevels || {}), [currentSessionMode]: newLevel }
         try {
