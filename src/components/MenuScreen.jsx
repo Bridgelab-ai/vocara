@@ -341,7 +341,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   )
 
   const { lightMode, cardSize } = React.useContext(AppPrefsContext)
-  const t = T[lang]; const th = resolveTheme(theme, lightMode); const s = makeStyles(th)
+  const t = T[lang]; const th = resolveTheme(theme, lightMode ?? false); const s = makeStyles(th)
   const firstName = user.displayName?.split(' ')[0] || user.displayName
   const cardProgress = myData?.cardProgress || {}
   const isMarkLang = lang === 'de'
@@ -362,8 +362,8 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const CAT_ID_PREFIX_BAR = { vocabulary: 'vocab_', sentence: 'sentence_', street: 'street_', home: 'home_', grundlagen: 'grundlagen_' }
   const catLevelBar = (cat) => {
     const poolKey = CAT_TO_POOL_BAR[cat] || cat
-    const poolInfo = POOL_STRUCTURE[poolKey]
-    const cardsPerLevel = poolInfo?.cardsPerLevel || 20
+    const poolInfo = POOL_STRUCTURE[poolKey] || { cardsPerLevel: 20 }
+    const cardsPerLevel = poolInfo.cardsPerLevel
     const currentLevel = categoryLevels?.[poolKey] || 1
     const idPrefix = CAT_ID_PREFIX_BAR[cat]
     const mastered = idPrefix
@@ -1249,7 +1249,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
   if (screen === 'partner') return <>{homeFloat}<PartnerScreen user={user} myData={myData} lang={lang} theme={theme} onBack={() => setScreen('menu')} onPartnerUpdate={(uid) => { onPartnerUpdate(uid); setScreen('menu') }} /></>
   if (screen === 'test') return <>{homeFloat}<PlacementTest lang={lang} theme={theme} user={user} onBack={() => setScreen('menu')} onSaveCefr={onSaveCefr} /></>
   if (screen === 'impressum') return <>{homeFloat}<ImpressumScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
-  if (screen === 'stats') return <>{homeFloat}<StatsScreen user={user} myData={myData} partnerData={partnerData} allCards={allCards} lang={lang} theme={theme} onBack={() => setScreen('menu')} cardProgress={cardProgress} /></>
+  if (screen === 'stats') return <>{homeFloat}<StatsScreen user={user} myData={myData} partnerData={partnerData} allCards={allCards} lang={lang} theme={theme} th={th} s={s} onBack={() => setScreen('menu')} cardProgress={cardProgress} /></>
   if (screen === 'ki') return <>{homeFloat}<KiGespraechScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={(myData?.toLang || '').toLowerCase() || (lang === 'de' ? 'en' : 'de')} /></>
   if (screen === 'satz') return <>{homeFloat}<SatzTrainingScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={(myData?.toLang || '').toLowerCase() || (lang === 'de' ? 'en' : 'de')} t={t} onSatzComplete={async (correct, total) => {
     const entry = { date: todayStr(), correct, total, area: 'satztraining', ts: Date.now() }
