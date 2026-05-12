@@ -1191,6 +1191,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
       const masteredCount = Object.entries(finalProgress)
         .filter(([id]) => id.startsWith(idPrefix))
         .filter(([, p]) => (p?.interval ?? 0) >= 7).length
+      console.log('[LEVELUP] prefix:', idPrefix, 'matches:', Object.keys(finalProgress).filter(id => id.startsWith(idPrefix)).length, 'mastered:', masteredCount, 'threshold:', poolInfo.cardsPerLevel * 0.8)
       const currentCatLevel = myData?.categoryLevels?.[currentSessionMode] || 1
       if (currentCatLevel < poolInfo.totalLevels && masteredCount >= poolInfo.cardsPerLevel * 0.8) {
         const newLevel = currentCatLevel + 1
