@@ -2841,6 +2841,7 @@ function App() {
   const [isNewUser, setIsNewUser] = useState(false)
   const [mainNav, setMainNav] = useState('main') // 'main' | 'sprechen' | 'entdecken' | 'horizont' | 'livesession'
   const [poolCards, setPoolCards] = useState([])
+  const [poolReady, setPoolReady] = useState(false)
 
   useEffect(() => {
     if (!myData?.uid) return
@@ -2852,7 +2853,9 @@ function App() {
           buildCardPair({ ...c, targetLang: data.toLang || c.langB }).forEach(p => cards.push(p))
         )
       })
+      console.log('[POOL] loaded cards:', cards.length)
       setPoolCards(cards)
+      setPoolReady(true)
     })
   }, [myData?.uid])
 
@@ -3184,7 +3187,7 @@ function App() {
             theme={theme} onThemeChange={handleThemeChange}
             onLightModeChange={handleLightModeChange} onCardSizeChange={handleCardSizeChange}
             onPartnerUpdate={handlePartnerUpdate} onSaveCefr={handleSaveCefr}
-            onBack={() => setMainNav('main')} />
+            onBack={() => setMainNav('main')} poolReady={poolReady} />
         )}
         {mainNav === 'entdecken' && (
           <SetsScreen user={user} myData={myData} setMyData={setMyData} partnerData={partnerData}
