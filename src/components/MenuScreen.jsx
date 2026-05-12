@@ -447,7 +447,16 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   }, [screen])
 
   const startSession = () => {
-    const sess = buildSession(activeCards, cardProgress)
+    const toLangs = myData?.toLangs?.length > 0
+      ? myData.toLangs
+      : [{ lang: (myData?.toLang || (lang === 'de' ? 'en' : 'de')).toLowerCase(), percent: 100 }]
+    const alloc = toLangs.map(e => ({ lang: e.lang, n: Math.round(SESSION_SIZE * e.percent / 100) }))
+    const allocSum = alloc.reduce((s, a) => s + a.n, 0)
+    if (allocSum !== SESSION_SIZE) alloc[0].n += SESSION_SIZE - allocSum
+    const shuffleAll = arr => [...arr].sort(() => Math.random() - 0.5)
+    const sess = shuffleAll(alloc.flatMap(({ lang: lc, n }) =>
+      buildSession(activeCards.filter(c => c.targetLang === lc), cardProgress, n)
+    ))
     setCurrentSessionMode('all')
     setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
   }

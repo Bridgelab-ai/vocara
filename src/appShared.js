@@ -160,7 +160,7 @@ export function getCatLevel(masteredCount) {
 }
 
 // ── CONSTANTS ─────────────────────────────────────────────────
-export const APP_VERSION = 'V01.008.000'
+export const APP_VERSION = 'V01.008.001'
 export const SESSION_SIZE = 15
 export const NEW_CARDS_BATCH = 3
 export const MASTERY_THRESHOLD = 0.85
@@ -258,7 +258,7 @@ export function buildCardPair(card) {
   return [forwardCard, ...reversedCards]
 }
 
-export function buildSession(allCards, cardProgress) {
+export function buildSession(allCards, cardProgress, maxCards = SESSION_SIZE) {
   const today = todayStr()
   const forced = [], due = [], newCards = []
   allCards.forEach(card => {
@@ -274,8 +274,8 @@ export function buildSession(allCards, cardProgress) {
     return pa < pb ? -1 : pa > pb ? 1 : 0
   })
   const reviews = [...shuffle(forced), ...sortedDue]
-  const newBatch = reviews.length < 10 ? shuffle(newCards).slice(0, 5) : []
-  return [...reviews, ...newBatch].slice(0, SESSION_SIZE)
+  const newBatch = reviews.length < maxCards ? shuffle(newCards).slice(0, Math.min(5, maxCards)) : []
+  return [...reviews, ...newBatch].slice(0, maxCards)
 }
 
 export function checkMastery(allCards, cardProgress, sessionCorrect, sessionTotal) {
