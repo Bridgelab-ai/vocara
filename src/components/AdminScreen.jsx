@@ -210,7 +210,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
       try {
         const res = await fetch(`${BASE_URL}/api/${endpoint}`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ level: poolLevel, langPair: lp })
+          body: JSON.stringify({ level: poolLevel, pair: lp})
         })
         const data = await res.json()
         generated++
@@ -240,7 +240,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
       try {
         const res = await fetch(`${BASE_URL}/api/${endpoint}`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ level: lvl, langPair: lp })
+          body: JSON.stringify({ level: lvl, pair: lp})
         })
         const data = await res.json()
         generated++
@@ -270,7 +270,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
           try {
             const res = await fetch(`${BASE_URL}/api/${endpoint}`, {
               method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ level: lvl, langPair: lp })
+              body: JSON.stringify({ level: lvl, pair: lp})
             })
             const data = await res.json()
             totalGenerated++
@@ -310,7 +310,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
       try {
         const res = await fetch(`${BASE_URL}/api/generate-topic-pool`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ topicKey, level: lvl, langPair: lp })
+          body: JSON.stringify({ topicKey, level: lvl, pair: lp})
         })
         const data = await res.json()
         generated++
