@@ -2846,6 +2846,8 @@ function App() {
   useEffect(() => {
     if (!myData?.uid) return
     getDocs(collection(db, 'sharedCards')).then(snap => {
+      console.log('[POOL] total docs:', snap.size)
+      console.log('[POOL] first doc sample:', snap.docs[0]?.data())
       const cards = []
       snap.forEach(d => {
         const data = d.data()
@@ -2853,7 +2855,7 @@ function App() {
           buildCardPair({ ...c, targetLang: data.toLang || c.langB }).forEach(p => cards.push(p))
         )
       })
-      console.log('[POOL] loaded cards:', cards.length)
+      console.log('[POOL] cards after build:', cards.length)
       setPoolCards(cards)
       setPoolReady(true)
     })
