@@ -54,7 +54,7 @@ function VocaraLogoSVG({ withSlogans = false, animate = false, isDE = true }) {
   )
 }
 
-function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSaveProgress, theme, onThemeChange, onLightModeChange, onCardSizeChange, onPartnerUpdate, onSaveCefr, onBack }) {
+function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSaveProgress, theme, onThemeChange, onLightModeChange, onCardSizeChange, onPartnerUpdate, onSaveCefr, onBack, categoryLevels, masteredCounts }) {
   const [screen, setScreen] = useState('menu')
   const [session, setSession] = useState(null)
   const [result, setResult] = useState(null)
@@ -361,15 +361,16 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const catLevelBar = (cat) => {
     const catCards = activeCards.filter(c => c.category === cat && !/_r(_\d+)?$/.test(c.id))
     const mastered = catCards.filter(c => (cardProgress[c.id]?.interval || 0) >= 7).length
-    const level = getCatLevel(mastered)
+    const level = categoryLevels?.[cat] ?? getCatLevel(mastered)
     const next = CAT_THRESHOLDS[Math.min(level + 1, 10)]
     const prev = CAT_THRESHOLDS[level]
-    const pct = level >= 10 ? 100 : next > prev ? Math.min(100, Math.round(((mastered - prev) / (next - prev)) * 100)) : 100
+    const computedPct = level >= 10 ? 100 : next > prev ? Math.min(100, Math.round(((mastered - prev) / (next - prev)) * 100)) : 100
+    const pct = masteredCounts?.[cat] != null ? Math.min(100, Math.round((masteredCounts[cat] / 20) * 100)) : computedPct
     return (
       <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', width: '100%', marginTop: '6px' }}>
-        <span style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.38)', fontWeight: '600', letterSpacing: '0.5px' }}>Lvl {level}</span>
-        <span style={{ display: 'block', width: '70%', height: '2px', background: 'rgba(255,255,255,0.1)', borderRadius: '1px', overflow: 'hidden' }}>
-          <span style={{ display: 'block', height: '100%', width: `${pct}%`, background: 'rgba(255,255,255,0.42)', borderRadius: '1px' }} />
+        <span style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.38)', fontWeight: '600', letterSpacing: '0.5px' }}>Lvl {categoryLevels?.[cat] || level}</span>
+        <span style={{ display: 'block', width: '70%', height: '3px', background: 'rgba(255,255,255,0.1)', borderRadius: '1px', overflow: 'hidden' }}>
+          <span style={{ display: 'block', height: '100%', width: `${pct}%`, background: '#00D4AA', borderRadius: '1px' }} />
         </span>
       </span>
     )
