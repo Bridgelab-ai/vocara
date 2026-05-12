@@ -269,6 +269,16 @@ Return ONLY a valid JSON array (no markdown):
 // ── HANDLER ───────────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
+  if (req.method === 'GET') {
+    const testUrl = `${FIRESTORE_BASE}/sharedCards/test_write_check`
+    const testRes = await fetch(testUrl, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields: { test: { stringValue: 'ok' } } })
+    })
+    const testBody = await testRes.text()
+    return res.status(200).json({ status: testRes.status, body: testBody })
+  }
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
   let body = {}
   try { const chunks = []; for await (const chunk of req) chunks.push(chunk); body = JSON.parse(Buffer.concat(chunks).toString() || '{}') } catch {}
