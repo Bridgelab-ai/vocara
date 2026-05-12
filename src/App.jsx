@@ -2840,6 +2840,23 @@ function App() {
   const [needsOnboarding, setNeedsOnboarding] = useState(false)
   const [isNewUser, setIsNewUser] = useState(false)
   const [mainNav, setMainNav] = useState('main') // 'main' | 'sprechen' | 'entdecken' | 'horizont' | 'livesession'
+  const [poolCards, setPoolCards] = useState([])
+
+  useEffect(() => {
+    if (!myData) return
+    const activeLangs = myData.toLangs?.length > 0
+      ? myData.toLangs.map(l => l.lang)
+      : [myData.toLang || (myData.fromLang === 'de' ? 'en' : 'de')]
+    getDocs(collection(db, 'sharedCards')).then(snap => {
+      const cards = []
+      snap.forEach(d => {
+        const data = d.data()
+        if (!activeLangs.includes(data.toLang)) return
+        ;(data.cards || []).forEach(c => cards.push({ ...c, targetLang: data.toLang || c.langB }))
+      })
+      setPoolCards(cards)
+    })
+  }, [myData?.toLangs, myData?.toLang])
 
   useEffect(() => {
     const id = 'vocara-global-css'
@@ -3105,9 +3122,8 @@ function App() {
 
   const cardCategories = myData?.cardCategories || {}
   const allCards = [
-    ...(isMarkUser ? ALL_MARK_CARDS : isElosyUser ? ALL_ELOSY_CARDS : []),
     ...(myData?.aiCards || []).flatMap(buildCardPair),
-    ...(myData?.sharedCards || []),
+    ...poolCards,
   ].map(card => {
     const baseId = card.id.replace(/_r(_\d+)?$/, '')
     const aiCat = cardCategories[baseId]
