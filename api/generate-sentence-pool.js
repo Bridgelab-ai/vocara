@@ -273,6 +273,17 @@ export default async function handler(req, res) {
   let body = {}
   try { const chunks = []; for await (const chunk of req) chunks.push(chunk); body = JSON.parse(Buffer.concat(chunks).toString() || '{}') } catch {}
 
+  if (body.test === true) {
+    const testUrl = `${FIRESTORE_BASE}/sharedCards/test_write_check`
+    const testRes = await fetch(testUrl, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields: { test: { stringValue: 'ok' }, category: { stringValue: 'sentence' } } })
+    })
+    const testBody = await testRes.text()
+    return res.status(200).json({ status: testRes.status, body: testBody })
+  }
+
   // type: 'sentence' → generate flashcards to flat sharedCards/{pair}_sentence (used by startSatzSession)
   if (body.type === 'sentence') {
     const level = Math.min(12, Math.max(1, body.level || 3))
