@@ -44,6 +44,8 @@ function AdminScreen({ user, lang, theme, onBack }) {
   const [topicStatus, setTopicStatus] = useState(null)
   const [topicResetLoading, setTopicResetLoading] = useState(false)
   const [topicResetStatus, setTopicResetStatus] = useState(null)
+  const [deleteNoLevelLoading, setDeleteNoLevelLoading] = useState(false)
+  const [deleteNoLevelStatus, setDeleteNoLevelStatus] = useState(null)
 
   // ── Pool status ────────────────────────────────────────────────
   const loadPoolStatus = async () => {
@@ -269,6 +271,27 @@ function AdminScreen({ user, lang, theme, onBack }) {
     setTopicResetLoading(false)
   }
 
+  // ── Delete user cards without level field ─────────────────────
+  const deleteCardsWithoutLevel = async () => {
+    if (!window.confirm('Alle Karten ohne Level-Feld für Mark UND Elosy löschen?')) return
+    setDeleteNoLevelLoading(true); setDeleteNoLevelStatus(null)
+    let totalDeleted = 0
+    for (const uid of [MARK_UID, ELOSY_UID]) {
+      try {
+        const snap = await getDocs(collection(db, 'users', uid, 'cards'))
+        const toDelete = snap.docs.filter(d => d.data().level == null)
+        for (let i = 0; i < toDelete.length; i += 500) {
+          const batch = writeBatch(db)
+          toDelete.slice(i, i + 500).forEach(d => batch.delete(d.ref))
+          await batch.commit()
+          totalDeleted += toDelete.slice(i, i + 500).length
+        }
+      } catch (e) { console.warn(`deleteCardsWithoutLevel uid=${uid}:`, e) }
+    }
+    setDeleteNoLevelStatus(`✓ ${totalDeleted} Karten ohne Level gelöscht`)
+    setDeleteNoLevelLoading(false)
+  }
+
   // ── Delete all sharedCards ─────────────────────────────────────
   const deleteAllCards = async () => {
     if (!window.confirm('Alle sharedCards unwiderruflich löschen?')) return
@@ -447,11 +470,18 @@ function AdminScreen({ user, lang, theme, onBack }) {
       {/* Delete All sharedCards */}
       <div style={{ ...s.card, marginTop: '12px' }}>
         <p style={{ color: th.text, fontSize: '0.88rem', fontWeight: '700', margin: '0 0 10px' }}>🗑️ sharedCards löschen</p>
-        <button onClick={deleteAllCards} disabled={deleteAllLoading}
-          style={{ padding: '7px 16px', borderRadius: '10px', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', opacity: deleteAllLoading ? 0.5 : 1, background: 'rgba(220,40,40,0.15)', color: '#e06c75', border: '1px solid rgba(220,40,40,0.35)' }}>
-          {deleteAllLoading ? '…' : '🗑️ Alle sharedCards löschen'}
-        </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <button onClick={deleteAllCards} disabled={deleteAllLoading}
+            style={{ padding: '7px 16px', borderRadius: '10px', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', opacity: deleteAllLoading ? 0.5 : 1, background: 'rgba(220,40,40,0.15)', color: '#e06c75', border: '1px solid rgba(220,40,40,0.35)' }}>
+            {deleteAllLoading ? '…' : '🗑️ Alle sharedCards löschen'}
+          </button>
+          <button onClick={deleteCardsWithoutLevel} disabled={deleteNoLevelLoading}
+            style={{ padding: '7px 16px', borderRadius: '10px', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', opacity: deleteNoLevelLoading ? 0.5 : 1, background: 'rgba(220,40,40,0.15)', color: '#e06c75', border: '1px solid rgba(220,40,40,0.35)' }}>
+            {deleteNoLevelLoading ? '…' : '🗑️ Alte Karten ohne Level löschen'}
+          </button>
+        </div>
         {deleteAllStatus && <p style={{ color: deleteAllStatus.startsWith('✓') ? '#81c784' : '#e06c75', fontSize: '0.75rem', margin: '8px 0 0' }}>{deleteAllStatus}</p>}
+        {deleteNoLevelStatus && <p style={{ color: deleteNoLevelStatus.startsWith('✓') ? '#81c784' : '#e06c75', fontSize: '0.75rem', margin: '4px 0 0' }}>{deleteNoLevelStatus}</p>}
       </div>
 
       {/* Reset User */}
