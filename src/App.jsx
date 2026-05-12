@@ -2843,20 +2843,18 @@ function App() {
   const [poolCards, setPoolCards] = useState([])
 
   useEffect(() => {
-    if (!myData) return
-    const activeLangs = myData.toLangs?.length > 0
-      ? myData.toLangs.map(l => l.lang)
-      : [myData.toLang || (myData.fromLang === 'de' ? 'en' : 'de')]
+    if (!myData?.uid) return
     getDocs(collection(db, 'sharedCards')).then(snap => {
       const cards = []
       snap.forEach(d => {
         const data = d.data()
-        if (!activeLangs.includes(data.toLang)) return
-        ;(data.cards || []).forEach(c => cards.push({ ...c, targetLang: data.toLang || c.langB }))
+        ;(data.cards || []).forEach(c =>
+          buildCardPair({ ...c, targetLang: data.toLang || c.langB }).forEach(p => cards.push(p))
+        )
       })
       setPoolCards(cards)
     })
-  }, [myData?.toLangs, myData?.toLang])
+  }, [myData?.uid])
 
   useEffect(() => {
     const id = 'vocara-global-css'

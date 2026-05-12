@@ -421,9 +421,13 @@ function AdminScreen({ user, lang, theme, onBack }) {
         categoryLevels: catLevels,
         cardProgress: {},
         publicStats: deleteField(),
+        dailySessions: 0,
+        todayCount: 0,
+        lastSessionDate: '',
       })
       setResetStatus(`✓ ${name} vollständig zurückgesetzt`)
       load()
+      setTimeout(() => window.location.reload(), 1200)
     } catch (e) { setResetStatus(`✗ ${e.message}`) }
     setResetLoading(false)
   }
