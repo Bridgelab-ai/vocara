@@ -16,6 +16,7 @@ function StatRow({ label, mastered, active, total, s }) {
 }
 
 function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack, cardProgress, t: tProp, onRefreshPartner, th, s }) {
+  if (!th || !s) return null
   const t = tProp
   const today = todayStr()
 
@@ -32,7 +33,7 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
   const todayCorrect = sessionHistory.filter(h => h.date === today).reduce((a, b) => a + (b.correct || 0), 0)
   const todaySessions = sessionHistory.filter(h => h.date === today).length
   const myStreak = calcStreak(sessionHistory)
-  const totalCards = allCards.filter(c => !/_r(_\d+)?$/.test(c.id)).length
+  const totalCards = (allCards ?? []).filter(c => !/_r(_\d+)?$/.test(c.id)).length
   const dueTomorrow = Object.values(cardProgress).filter(p => p.nextReview === tomorrow).length
   const myMastered = Object.values(cardProgress).filter(p => (p?.interval || 0) >= 7).length
 
@@ -67,7 +68,7 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
   const getFavArea = (progress) => {
     const counts = {}
     Object.keys(progress).forEach(id => {
-      const card = allCards.find(c => c.id === id)
+      const card = (allCards ?? []).find(c => c.id === id)
       if (card?.category) counts[card.category] = (counts[card.category] || 0) + 1
     })
     const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]
