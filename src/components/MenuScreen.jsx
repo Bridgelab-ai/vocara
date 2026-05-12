@@ -360,7 +360,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const CAT_THRESHOLDS = [0, 1, 5, 10, 15, 20, 30, 40, 50, 65, 80]
   const catLevelBar = (cat) => {
     const catCards = activeCards.filter(c => c.category === cat && !/_r(_\d+)?$/.test(c.id))
-    const mastered = catCards.filter(c => (cardProgress[c.id]?.interval || 0) >= 7).length
+    const mastered = catCards.filter(c => (cardProgress[c.id]?.interval || 0) >= 1).length
     const level = categoryLevels?.[cat] ?? getCatLevel(mastered)
     const next = CAT_THRESHOLDS[Math.min(level + 1, 10)]
     const prev = CAT_THRESHOLDS[level]

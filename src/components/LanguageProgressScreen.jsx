@@ -47,10 +47,10 @@ function LanguageProgressScreen({ user, myData, allCards, lang, theme, onBack })
   const buildStats = (targetLang) => {
     const cards = allCards.filter(c => c.targetLang === targetLang && !/_r(_\d+)?$/.test(c.id))
     const total = cards.length
-    const mastered = cards.filter(c => (cardProgress[c.id]?.interval || 0) >= 3).length
+    const mastered = cards.filter(c => (cardProgress[c.id]?.interval || 0) >= 1).length
     const learning = cards.filter(c => {
       const p = cardProgress[c.id]
-      return p && (p.interval || 0) >= 1 && (p.interval || 0) < 3
+      return p && (p.interval || 0) >= 1 && (p.interval || 0) < 7
     }).length
     const pct = total > 0 ? Math.round((mastered / total) * 100) : 0
     let lastActive = null
@@ -64,7 +64,7 @@ function LanguageProgressScreen({ user, myData, allCards, lang, theme, onBack })
     return CAT_INFO.map(cat => {
       const cards = allCards.filter(c => c.targetLang === targetLang && c.category === cat.key && !/_r(_\d+)?$/.test(c.id))
       const total = cards.length
-      const mastered = cards.filter(c => (cardProgress[c.id]?.interval || 0) >= 3).length
+      const mastered = cards.filter(c => (cardProgress[c.id]?.interval || 0) >= 1).length
       return { ...cat, total, mastered }
     }).filter(c => c.total > 0)
   }
@@ -78,7 +78,7 @@ function LanguageProgressScreen({ user, myData, allCards, lang, theme, onBack })
     ...targetLangs.filter(l => l !== toLangCode),
   ].filter(l => targetLangs.includes(l))
 
-  const totalMastered = Object.values(cardProgress).filter(p => (p?.interval || 0) >= 3).length
+  const totalMastered = Object.values(cardProgress).filter(p => (p?.interval || 0) >= 7).length
   const totalCards = allCards.filter(c => !/_r(_\d+)?$/.test(c.id)).length
 
   return (
