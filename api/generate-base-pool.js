@@ -1,20 +1,13 @@
 // Base pool generator — POST /api/generate-base-pool
 // Generates Grundlagen Level 4 + vocab_emotions cards for all 6 language pairs
 // Levels 1-3 already generated; this run adds Level 4 + emotions focus vocab
-import { POOL_STRUCTURE, getRarity, markImportant } from './_poolStructure.js'
+import { POOL_STRUCTURE, LANGUAGE_PAIRS, getRarity, markImportant } from './_poolStructure.js'
 export const config = { api: { bodyParser: false } }
 
 const LANG_NAMES = { en: 'English', de: 'German', sw: 'Swahili', fr: 'French', es: 'Spanish', th: 'Thai' }
 const FIRESTORE_BASE = 'https://firestore.googleapis.com/v1/projects/vocara-ca2b7/databases/(default)/documents'
 
-const LANG_PAIRS = [
-  { from: 'de', to: 'en' },
-  { from: 'de', to: 'sw' },
-  { from: 'en', to: 'de' },
-  { from: 'en', to: 'sw' },
-  { from: 'sw', to: 'de' },
-  { from: 'sw', to: 'en' },
-]
+const LANG_PAIRS = LANGUAGE_PAIRS.map(p => { const [from, to] = p.split('_'); return { from, to } })
 
 const LEVEL_CONTENT = {
   1: (fromName, toName) =>

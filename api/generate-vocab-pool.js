@@ -1,16 +1,12 @@
 // Vocab pool generator — POST /api/generate-vocab-pool
 // Body: { level: 1-22, from?, to? } — Writes to sharedCards/{pair}_vocab_level{N}
-import { POOL_STRUCTURE, getRarity, markImportant } from './_poolStructure.js'
+import { POOL_STRUCTURE, LANGUAGE_PAIRS, getRarity, markImportant } from './_poolStructure.js'
 export const config = { api: { bodyParser: false } }
 
 const LANG_NAMES = { en: 'English', de: 'German', sw: 'Swahili' }
 const FIRESTORE_BASE = 'https://firestore.googleapis.com/v1/projects/vocara-ca2b7/databases/(default)/documents'
 
-const PAIRS = [
-  { from: 'de', to: 'en' },
-  { from: 'en', to: 'de' },
-  { from: 'de', to: 'sw' },
-]
+const PAIRS = LANGUAGE_PAIRS.map(p => { const [from, to] = p.split('_'); return { from, to } })
 
 // 12 level definitions: topic focus + difficulty progression
 const LEVEL_SPEC = {
