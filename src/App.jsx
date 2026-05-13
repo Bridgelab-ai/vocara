@@ -2864,40 +2864,6 @@ function App() {
     }
   }, [])
 
-  // Auto-generate German-phonetic pronunciation for aiCards missing it
-  useEffect(() => {
-    if (!user || !myData) return
-    const aiCards = (myData.aiCards || []).filter(c => !/_r(_\d+)?$/.test(c.id) && !c.pronunciation)
-    const cardProg = myData.cardProgress || {}
-    const needsPhonetic = aiCards.filter(c => !cardProg[c.id]?._phonetic).slice(0, 5)
-    if (needsPhonetic.length === 0) return
-    const generate = async () => {
-      for (const card of needsPhonetic) {
-        try {
-          const res = await fetch('/api/chat', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              model: 'claude-haiku-4-5-20251001', max_tokens: 30,
-              messages: [{ role: 'user', content: `Give ONLY the German-phonetic pronunciation for this word/phrase: "${card.front}". Output only the phonetic spelling, nothing else. Example: "weather" → "WE-dser", "through" → "Ssru"` }]
-            })
-          })
-          const data = await res.json()
-          const phonetic = data.content?.[0]?.text?.trim()
-          if (phonetic && phonetic.length < 60) {
-            const update = {}
-            update[`cardProgress.${card.id}._phonetic`] = phonetic
-            await updateDoc(doc(db, 'users', user.uid), update).catch(() => {})
-            setMyData(d => {
-              const cp = { ...(d.cardProgress || {}) }
-              cp[card.id] = { ...cp[card.id], _phonetic: phonetic }
-              return { ...d, cardProgress: cp }
-            })
-          }
-        } catch(e) {}
-      }
-    }
-    generate()
-  }, [myData?.aiCards?.length, user?.uid])
 
   // #9 Schedule daily notification based on notificationTime setting
   useEffect(() => {

@@ -1184,7 +1184,6 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         })
         unlocked = true
       }
-      generateAICards()
     }
     setMasteryUnlocked(unlocked)
     await onSaveProgress(finalProgress)

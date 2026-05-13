@@ -1,4 +1,10 @@
-# Vocara – Vollständige ToDo & Ideen-Liste (Stand 11.05.2026)
+# Vocara – Vollständige ToDo & Ideen-Liste (Stand 13.05.2026)
+
+## ✅ Session-Cleanup (13.05.2026) — V01.009.011
+- FIX 1: buildSession new cards cap: Math.min(5,maxCards) → Math.min(maxCards,newCards.length) — fills session up to maxCards when no due cards exist ✅
+- FIX 2: generateAICards() call removed from handleFinish/checkMastery — pool cards from sharedCards replace AI generation ✅
+- FIX 3: phonetic auto-generation useEffect removed from App.jsx — no longer auto-generates _phonetic on load ✅
+- VERSION V01.009.011 ✅
 
 ## ✅ Multi-Feature Update (11.05.2026) — V01.007.011
 - POOL STATUS FIX (buildCounts): Doppel-Bug gefixt — langPair-Fallback (fromLang+toLang) + CAT_NORMALIZE Map (vocabulary→vocab, sentence→urlaub) ✅
