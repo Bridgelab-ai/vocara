@@ -272,6 +272,8 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
   let body = {}
   try { const chunks = []; for await (const chunk of req) chunks.push(chunk); body = JSON.parse(Buffer.concat(chunks).toString() || '{}') } catch {}
+  console.log('[SENTENCE-POOL] called with body:', JSON.stringify(body))
+  try {
 
   // type: 'sentence' → generate flashcards to flat sharedCards/{pair}_sentence (used by startSatzSession)
   if (body.type === 'sentence') {
@@ -340,4 +342,8 @@ export default async function handler(req, res) {
     generated: results,
     total: results.filter(r => r.count).reduce((s, r) => s + r.count, 0),
   })
+  } catch (err) {
+    console.error('[SENTENCE-POOL FATAL]', err.message, err.stack)
+    return res.status(500).json({ error: err.message })
+  }
 }
