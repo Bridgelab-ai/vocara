@@ -60,7 +60,7 @@ Return ONLY a valid JSON array, no markdown:
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
+      model: 'claude-sonnet-4-20250514',
       max_tokens: 6000,
       system: 'You are a language education expert. Generate high-quality grammar exercises. Return ONLY a valid JSON array with no markdown fences.',
       messages: [{ role: 'user', content: prompt }],
@@ -151,13 +151,13 @@ Rules:
 Return ONLY a valid JSON array (no markdown):
 [{"front":"...","back":"...","vocabCategory":"alltag|reisen|arbeit|familie|smalltalk"}]`
 
-  const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('AI timeout after 50s')), 50000))
+  const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('AI timeout after 55s')), 55000))
   const res = await Promise.race([
     fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001', max_tokens: 2000,
+        model: 'claude-sonnet-4-20250514', max_tokens: 2000,
         system: 'You are a professional language teacher. Return ONLY valid JSON array, no markdown.',
         messages: [{ role: 'user', content: prompt }],
       }),
@@ -246,13 +246,13 @@ Rules:
 Return ONLY a valid JSON array (no markdown):
 [{"front":"sentence in ${fromName}","back":"sentence in ${toName}","vocabCategory":"alltag"}]`
 
-  const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('AI timeout after 50s')), 50000))
+  const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('AI timeout after 55s')), 55000))
   const res = await Promise.race([
     fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001', max_tokens: 2000,
+        model: 'claude-sonnet-4-20250514', max_tokens: 2000,
         system: 'You are a professional language teacher. Return ONLY valid JSON array, no markdown.',
         messages: [{ role: 'user', content: prompt }],
       }),
@@ -277,65 +277,64 @@ export default async function handler(req, res) {
 
   // type: 'sentence' → generate flashcards to flat sharedCards/{pair}_sentence (used by startSatzSession)
   if (body.type === 'sentence') {
+    if (!body.pair) return res.status(400).json({ error: 'body.pair required' })
+    const pairDef = PAIRS.find(p => `${p.from}_${p.to}` === body.pair)
+    if (!pairDef) return res.status(400).json({ error: `Unknown pair: ${body.pair}` })
+    const { from, to } = pairDef
     const level = Math.min(12, Math.max(1, body.level || 3))
     const count = Math.min(50, Math.max(5, body.count || 20))
-    const pairsToRun = body.pair
-      ? PAIRS.filter(p => `${p.from}_${p.to}` === body.pair)
-      : PAIRS
-    const results = await Promise.all(pairsToRun.map(async ({ from, to }) => {
-      try {
-        const cards = await generateFlatFlashcards(from, to, level, count)
-        if (cards.length > 0) {
-          await writeFlatSentencePool(from, to, level, cards)
-          return { pair: `${from}→${to}`, level, total: cards.length, path: `sharedCards/${from}_${to}_sentence` }
-        }
-        return { pair: `${from}→${to}`, level, error: 'No cards generated' }
-      } catch (e) { console.error(`[sentence] ${from}_${to} L${level}:`, e.message); return { pair: `${from}→${to}`, level, error: e.message } }
-    }))
-    return res.status(200).json({ generated: results, total: results.reduce((s, r) => s + (r.total || 0), 0) })
+    try {
+      const cards = await generateFlatFlashcards(from, to, level, count)
+      if (cards.length === 0) return res.status(200).json({ generated: [{ pair: `${from}→${to}`, level, error: 'No cards generated' }], total: 0 })
+      await writeFlatSentencePool(from, to, level, cards)
+      return res.status(200).json({ generated: [{ pair: `${from}→${to}`, level, total: cards.length, path: `sharedCards/${from}_${to}_sentence` }], total: cards.length })
+    } catch (e) {
+      console.error(`[sentence] ${from}_${to} L${level}:`, e.message)
+      return res.status(200).json({ generated: [{ pair: `${from}→${to}`, level, error: e.message }], total: 0 })
+    }
   }
 
   // type: 'flashcards' → generate sentence flashcards to sharedCards/{pair}_sentence_level{N}
   if (body.type === 'flashcards') {
+    if (!body.pair) return res.status(400).json({ error: 'body.pair required' })
+    const pairDef = PAIRS.find(p => `${p.from}_${p.to}` === body.pair)
+    if (!pairDef) return res.status(400).json({ error: `Unknown pair: ${body.pair}` })
+    const { from, to } = pairDef
     const level = Math.min(POOL_STRUCTURE.satztraining.totalLevels, Math.max(1, body.level || 1))
-    const pairsToRun = body.pair
-      ? PAIRS.filter(p => `${p.from}_${p.to}` === body.pair)
-      : PAIRS
-    const results = await Promise.all(pairsToRun.map(async ({ from, to }) => {
-      try {
-        const cards = await processFlashcardPair(from, to, level)
-        if (cards.length > 0) {
-          await writeFlashcardPool(from, to, level, cards)
-          const byCat = {}
-          for (const c of cards) { byCat[c.vocabCategory] = (byCat[c.vocabCategory] || 0) + 1 }
-          return { pair: `${from}→${to}`, level, total: cards.length, categories: Object.entries(byCat).map(([k,v]) => ({ category: k, count: v })) }
-        }
-        return { pair: `${from}→${to}`, level, error: 'No cards generated' }
-      } catch (e) { console.error(`[flashcards] ${from}_${to} L${level}:`, e.message); return { pair: `${from}→${to}`, level, error: e.message } }
-    }))
-    return res.status(200).json({ generated: results, total: results.reduce((s, r) => s + (r.total || 0), 0) })
+    try {
+      const cards = await processFlashcardPair(from, to, level)
+      if (cards.length === 0) return res.status(200).json({ generated: [{ pair: `${from}→${to}`, level, error: 'No cards generated' }], total: 0 })
+      await writeFlashcardPool(from, to, level, cards)
+      const byCat = {}
+      for (const c of cards) { byCat[c.vocabCategory] = (byCat[c.vocabCategory] || 0) + 1 }
+      return res.status(200).json({ generated: [{ pair: `${from}→${to}`, level, total: cards.length, categories: Object.entries(byCat).map(([k,v]) => ({ category: k, count: v })) }], total: cards.length })
+    } catch (e) {
+      console.error(`[flashcards] ${from}_${to} L${level}:`, e.message)
+      return res.status(200).json({ generated: [{ pair: `${from}→${to}`, level, error: e.message }], total: 0 })
+    }
   }
 
   // Default: generate sentence exercises to sharedSentences/{pair}_level{N}
-  let body2 = body
+  if (!body.pair) return res.status(400).json({ error: 'body.pair required' })
+  const pairDef = PAIRS.find(p => `${p.from}_${p.to}` === body.pair)
+  if (!pairDef) return res.status(400).json({ error: `Unknown pair: ${body.pair}` })
+  const { from, to } = pairDef
   const results = []
   for (const level of [1, 2, 3]) {
-    for (const { from, to } of PAIRS) {
-      try {
-        const [b1, b2] = await Promise.all([
-          generateBatch(from, to, level, 25),
-          generateBatch(from, to, level, 25),
-        ])
-        const all = [...b1, ...b2].slice(0, 50)
-        if (all.length > 0) {
-          await writePool(from, to, level, all)
-          results.push({ pair: `${from}→${to}`, level, count: all.length })
-        } else {
-          results.push({ pair: `${from}→${to}`, level, error: 'No exercises generated' })
-        }
-      } catch (e) {
-        results.push({ pair: `${from}→${to}`, level, error: e.message })
+    try {
+      const [b1, b2] = await Promise.all([
+        generateBatch(from, to, level, 25),
+        generateBatch(from, to, level, 25),
+      ])
+      const all = [...b1, ...b2].slice(0, 50)
+      if (all.length > 0) {
+        await writePool(from, to, level, all)
+        results.push({ pair: `${from}→${to}`, level, count: all.length })
+      } else {
+        results.push({ pair: `${from}→${to}`, level, error: 'No exercises generated' })
       }
+    } catch (e) {
+      results.push({ pair: `${from}→${to}`, level, error: e.message })
     }
   }
   res.status(200).json({
