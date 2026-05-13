@@ -2842,12 +2842,18 @@ function App() {
   const [isNewUser, setIsNewUser] = useState(false)
   const [mainNav, setMainNav] = useState('main') // 'main' | 'sprechen' | 'entdecken' | 'horizont' | 'livesession'
   const CAT_NORMALIZE_POOL = { vocabulary: 'vocab', sentence: 'urlaub' }
+  // Maps caller's category key → what generators actually write as data.category
+  const CAT_ALIASES = { urlaub: 'sentence', vocabulary: 'vocab', satztraining: 'sentence' }
   const loadCardsForCategory = async (category, level) => {
     const snap = await getDocs(collection(db, 'sharedCards'))
     const cards = []
     snap.forEach(d => {
       const data = d.data()
-      if (category && data.category !== category && CAT_NORMALIZE_POOL[data.category] !== category) return
+      if (category) {
+        const docCat = CAT_NORMALIZE_POOL[data.category] || data.category
+        const wantCat = CAT_ALIASES[category] || category
+        if (data.category !== category && docCat !== category && data.category !== wantCat) return
+      }
       if (level && Number(data.level) !== Number(level)) return
       ;(data.cards || []).forEach(c =>
         buildCardPair({ ...c, targetLang: data.toLang || c.langB }).forEach(p => cards.push(p))
