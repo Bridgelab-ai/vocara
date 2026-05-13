@@ -211,7 +211,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
       try {
         const res = await fetch(`${BASE_URL}/api/${endpoint}`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ level: poolLevel, pair: lp, from: lp.split('_')[0], to: lp.split('_')[1] })
+          body: JSON.stringify({ level: poolLevel, pair: lp, from: lp.split('_')[0], to: lp.split('_')[1], ...(category === 'urlaub' ? {type:'flashcards'} : category === 'satztraining' ? {type:'sentence'} : {}) })
         })
         const data = await res.json()
         generated++
@@ -241,7 +241,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
       try {
         const res = await fetch(`${BASE_URL}/api/${endpoint}`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ level: lvl, pair: lp, from: lp.split('_')[0], to: lp.split('_')[1] })
+          body: JSON.stringify({ level: lvl, pair: lp, from: lp.split('_')[0], to: lp.split('_')[1], ...(cat === 'urlaub' ? {type:'flashcards'} : cat === 'satztraining' ? {type:'sentence'} : {}) })
         })
         const data = await res.json()
         generated++
@@ -271,7 +271,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
           try {
             const res = await fetch(`${BASE_URL}/api/${endpoint}`, {
               method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ level: lvl, pair: lp, from: lp.split('_')[0], to: lp.split('_')[1] })
+              body: JSON.stringify({ level: lvl, pair: lp, from: lp.split('_')[0], to: lp.split('_')[1], ...(cat === 'urlaub' ? {type:'flashcards'} : cat === 'satztraining' ? {type:'sentence'} : {}) })
             })
             const data = await res.json()
             totalGenerated++
