@@ -18,7 +18,7 @@ function StatRow({ label, mastered, active, total, s }) {
 function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack, cardProgress, t: tProp, onRefreshPartner, th, s }) {
   if (!th || !s) return null
   if (!myData) return null
-  const t = tProp
+  const t = tProp || {}
   const safePartner = partnerData || {}
   const today = todayStr()
 
