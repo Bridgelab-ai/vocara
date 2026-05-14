@@ -116,9 +116,9 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
     if (!SR) { setMicState('unsupported'); return }
     setMicState('listening'); setMicResult(null)
     const rec = new SR()
-    const toLangResult = getToLangText(item, userToLang) || { text: item.back, langCode: userToLang }
-    const { text: toLangText, langCode: toLangCode } = toLangResult
-    rec.lang = SPEECH_LANGS[toLangCode] || 'en-GB'
+    // Expected answer is always item.back, in item.langB (buildCardPair guarantees this for both forward and reverse cards)
+    const answerText = item.back
+    rec.lang = SPEECH_LANGS[item.langB] || 'en-GB'
     rec.interimResults = false; rec.maxAlternatives = 3
     const timeout = setTimeout(() => { try { rec.stop() } catch(e) {} }, 5000)
     rec.onresult = (e) => {
@@ -127,9 +127,9 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
       for (let r = 0; r < e.results.length; r++)
         for (let a = 0; a < e.results[r].length; a++) alts.push(e.results[r][a].transcript.trim())
       const transcript = alts[0] || ''
-      const expWords = toLangText.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(Boolean)
+      const expWords = answerText.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(Boolean)
       const gotWords = alts.join(' ').toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(Boolean)
-      const origWords = toLangText.split(/\s+/)
+      const origWords = answerText.split(/\s+/)
       const words = expWords.map((w, i) => ({
         word: origWords[i] || w,
         correct: gotWords.some(g => fuzzyWordMatch(w, g))
