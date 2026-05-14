@@ -2855,6 +2855,7 @@ function App() {
         const wantCat = CAT_ALIASES[category] || category
         if (data.category !== category && docCat !== category && data.category !== wantCat) return
       }
+      console.log('[LOAD DEBUG] doc level:', data.level, typeof data.level, 'filter level:', level, typeof level)
       if (level && Number(data.level) !== Number(level)) return
       ;(data.cards || []).forEach(c => {
         if (
