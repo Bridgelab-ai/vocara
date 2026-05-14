@@ -670,13 +670,21 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
       setResumeDialog({ category, cards })
       return
     }
-    const userSessionSize = Math.min(cards.length, myData?.sessionSize || 10)
-    let sess = buildSession(cards, cardProgress, userSessionSize)
+    const userSessionSize = myData?.sessionSize || 10
+    const toLangs = myData?.toLangs?.length > 0
+      ? myData.toLangs
+      : [{ lang: myData?.toLang || 'en', percent: 100 }]
+    const alloc = toLangs.map(e => ({ lang: e.lang, n: Math.round(userSessionSize * e.percent / 100) }))
+    const allocSum = alloc.reduce((s, a) => s + a.n, 0)
+    if (allocSum !== userSessionSize) alloc[0].n += userSessionSize - allocSum
+    let sess = alloc.flatMap(({ lang: lc, n }) =>
+      buildSession(cards.filter(c => c.targetLang === lc || c.langB === lc), cardProgress, n)
+    )
+    sess = [...sess].sort(() => Math.random() - 0.5)
     // Fallback: if nothing is due (all reviewed, none overdue), practice all category cards
     if (sess.length === 0) {
       const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
       sess = shuffle(cards).slice(0, userSessionSize)
-      console.log('[Vocara] fallback session (all cards):', sess.length)
     }
     if (sess.length === 0) return
     setCurrentSessionMode(category)
