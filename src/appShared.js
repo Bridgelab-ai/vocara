@@ -219,7 +219,12 @@ export function daysSince(dateStr) {
 }
 
 // ── CARD CATEGORIES ───────────────────────────────────────────
-export const VALID_CATEGORIES = ['vocabulary', 'sentence', 'street', 'home', 'basics']
+export const VALID_CATEGORIES = [
+  'vocabulary', 'sentence', 'street', 'home', 'basics',
+  'grundlagen', 'vocab', 'saetze', 'urlaub', 'satztraining',
+  'kochen', 'liebe', 'sport', 'film', 'musik', 'reisen',
+  'business', 'natur', 'tech', 'gesundheit', 'psychologie', 'ausgehen'
+]
 export const VALID_CATEGORY_SET = new Set(VALID_CATEGORIES)
 
 const DE_VOCAB_WHITELIST = new Set([

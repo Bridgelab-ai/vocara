@@ -659,21 +659,8 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
       : category === 'all'
         ? activeCards
         : category === 'vocabulary'
-          ? activeCards.filter(c => {
-              const pass = vocabGuard(c)
-              if (!pass && c.category === 'vocabulary') {
-                console.log(`[Meine Worte GUARD] silently rejected: "${c.front}" (${c.front?.trim().split(' ').length} words)`)
-              }
-              return pass
-            })
+          ? activeCards.filter(c => vocabGuard(c))
           : activeCards.filter(c => c.category === category || c.category === filterCat)
-    if (category !== 'all') {
-      const excluded = activeCards.filter(c => c.category !== category)
-      console.log('[Vocara] cards in category:', cards.length, '| excluded:', excluded.length, '| total:', activeCards.length)
-      excluded.slice(0, 20).forEach(c => console.log(`  [filtered out] "${c.front}" → category:${c.category} id:${c.id}`))
-    } else {
-      console.log('[Vocara] cards (all):', cards.length)
-    }
     if (cards.length === 0) {
       alert('Für dieses Level wurden noch keine Karten generiert. Bitte im Admin-Bereich generieren.')
       return
@@ -685,7 +672,6 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
     }
     const userSessionSize = Math.min(cards.length, myData?.sessionSize || 10)
     let sess = buildSession(cards, cardProgress, userSessionSize)
-    console.log('[Vocara] buildSession result:', sess.length)
     // Fallback: if nothing is due (all reviewed, none overdue), practice all category cards
     if (sess.length === 0) {
       const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)

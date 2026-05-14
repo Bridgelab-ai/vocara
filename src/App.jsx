@@ -49,7 +49,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.086.155'
+const APP_VERSION = 'V01.086.156'
 const MARK_UID = 'aiNZh4Myn8Y0KfYkGGrkNNW0HC72'
 const ELOSY_UID = 'NIX3DYenRdbRjmr2EHsIad9GcqG3'
 const SESSION_SIZE = 15
@@ -2859,13 +2859,7 @@ function App() {
         if (data.category !== category && docCat !== category && data.category !== wantCat) return
       }
       if (level && String(data.level) !== String(level)) return
-      if (data.category === 'grundlagen') {
-        console.log('[DEBUG grundlagen]', d.id, 'data.level=', data.level, typeof data.level, 'filter level=', level, typeof level, 'match=', String(data.level) === String(level))
-      }
       ;(data.cards || []).forEach(c => {
-        if (d.id === 'de_en_grundlagen_1') {
-          console.log('[CARD DEBUG]', c.id, 'langA:', c.langA, 'langB:', c.langB, 'userFromLang:', userFromLang, 'pass:', (c.langA||'').toLowerCase() === userFromLang || (c.langB||'').toLowerCase() === userFromLang)
-        }
         if (
           (c.langA || '').toLowerCase() !== userFromLang &&
           (c.langB || '').toLowerCase() !== userFromLang
