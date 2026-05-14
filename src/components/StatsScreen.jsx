@@ -121,7 +121,7 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
           ← {t?.back}
         </button>
         <span style={{ color: th.text, fontWeight: '600', fontSize: '1rem', marginLeft: '8px' }}>
-          {t.statistics}
+          {t?.statistics}
         </span>
       </div>
       <div style={{ ...s.homeBox, paddingTop: '68px' }}>
