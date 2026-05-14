@@ -481,6 +481,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
       setPoolCounts({})
       setDeleteAllStatus(`✓ ${deleted} Dokumente gelöscht`)
       console.log('[deleteAllCards] done — total deleted:', deleted)
+      setTimeout(() => window.location.reload(), 1200)
     } catch (e) {
       console.error('[deleteAllCards] outer error:', e)
       setDeleteAllStatus(`✗ ${e.message}`)
