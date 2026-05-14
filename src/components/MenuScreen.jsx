@@ -712,40 +712,7 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
       setCatLoading(null)
     }
   }
-  const startBasicsSession = async () => {
-    const existingBasics = activeCards.filter(c => c.category === 'basics')
-    if (existingBasics.length > 0) {
-      const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
-      const sess = buildSession(existingBasics, cardProgress)
-      const finalSess = sess.length > 0 ? sess : shuffle(existingBasics).slice(0, SESSION_SIZE)
-      setCurrentSessionMode('basics'); setSession(finalSess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
-      markAreaDone('basics'); return
-    }
-    setBasicsLoading(true)
-    const isMarkLang = lang === 'de'
-    const toLangName = isMarkLang ? 'English' : 'German'
-    const fromLangName = isMarkLang ? 'German' : 'English'
-    const prompt = `Generate exactly 12 basic vocabulary flashcards covering: colors (rot/red, blau/blue, grün/green, gelb/yellow), numbers (1-5), shapes (Kreis/circle, Quadrat/square), and basic greetings (Hallo, Danke, Bitte).
-Front language: ${fromLangName}. Back language: ${toLangName}. Category: basics.
-Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","context":"..."}]`
-    try {
-      const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 800, messages: [{ role: 'user', content: prompt }] }) })
-      const data = await res.json()
-      const text = data.content?.[0]?.text || ''
-      const parsed = JSON.parse(text.replace(/```json|```/g, '').trim())
-      const ts = Date.now()
-      const newCards = parsed.map((c, i) => ({ ...c, id: `basics_${ts}_${i}`, langA: isMarkLang ? 'de' : 'en', langB: isMarkLang ? 'en' : 'de', source: 'ai-basics', createdAt: ts }))
-      const updatedAiCards = [...(myData?.aiCards || []), ...newCards]
-      await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards })
-      setMyData(d => ({ ...d, aiCards: updatedAiCards }))
-      const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
-      const sess = shuffle(newCards).slice(0, SESSION_SIZE)
-      setCurrentSessionMode('basics'); setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
-      markAreaDone('basics')
-    } catch(e) { console.warn('Failed to generate basics:', e) }
-    setBasicsLoading(false)
-  }
+  const startBasicsSession = () => startCategorySession('grundlagen')
 
   const startSatzSession = async () => {
     const LANG_NAMES = { en: 'English', de: 'German', sw: 'Swahili' }
@@ -1454,9 +1421,9 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         <button className="vocara-alle-btn" style={{ ...s.button, padding: '13px 28px', fontSize: '0.9rem', letterSpacing: '0.2px', marginBottom: 0, '--gleam-delay': '2.5s', opacity: catLoading ? 0.5 : 1 }} onClick={() => startCategorySession('all')} disabled={!!catLoading}>
           {catLoading === 'all' ? '⟳ Laden...' : t.menuAlle}
         </button>
-        <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '6.8s', width: '100%', opacity: basicsLoading ? 0.6 : 1, flexDirection: 'column', alignItems: 'center' }} onClick={startBasicsSession} disabled={basicsLoading}>
-          <span>{basicsLoading ? '...' : (t.menuGrundlagen || 'Die\nGrundlagen').split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</span>
-          {!basicsLoading && catLevelBar('basics')}
+        <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '6.8s', width: '100%', opacity: catLoading === 'grundlagen' ? 0.6 : 1, flexDirection: 'column', alignItems: 'center' }} onClick={startBasicsSession} disabled={catLoading === 'grundlagen'}>
+          <span>{catLoading === 'grundlagen' ? '⟳' : (t.menuGrundlagen || 'Die\nGrundlagen').split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</span>
+          {catLoading !== 'grundlagen' && catLevelBar('basics')}
         </button>
       </div>
 
