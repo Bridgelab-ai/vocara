@@ -11,7 +11,8 @@ export const LANGUAGE_PAIRS = ACTIVE_LANGUAGES.flatMap(a =>
 export const POOL_STRUCTURE = {
   grundlagen:   { cardsPerLevel: 20, totalLevels: 10 },
   vocab:        { cardsPerLevel: 30, totalLevels: 22 },
-  street:       { cardsPerLevel: 25, totalLevels: 18 },
+  street:       { cardsPerLevel: 25, totalLevels: 12 },
+  saetze:       { cardsPerLevel: 20, totalLevels: 10 },
   home:         { cardsPerLevel: 22, totalLevels: 14 },
   urlaub:       { cardsPerLevel: 20, totalLevels: 10 },
   satztraining: { cardsPerLevel: 22, totalLevels: 14 },

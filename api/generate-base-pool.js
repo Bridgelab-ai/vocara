@@ -11,97 +11,74 @@ const LANG_PAIRS = LANGUAGE_PAIRS.map(p => { const [from, to] = p.split('_'); re
 
 const LEVEL_CONTENT = {
   1: (fromName, toName) =>
-    `Generate exactly 50 Level 1 Grundlagen flashcards for a ${fromName} speaker learning ${toName}.
-Cover in this order:
-- Numbers 1-10: one, two, three, four, five, six, seven, eight, nine, ten (10 cards)
-- Basic greetings: hello, goodbye, good morning, good evening, good night, thank you, please, sorry, yes, no (10 cards)
-- Colors: red, blue, green, yellow, white, black, orange, purple, pink, brown (10 cards)
-- Family members: mother, father, brother, sister, grandmother, grandfather, son, daughter, husband, wife (10 cards)
-- Basic classroom words: book, pen, table, chair, door, window, teacher, student, school, word (10 cards)
-All ${fromName} fronts, all ${toName} backs. 100% accurate. Include phonetic pronunciation for the ${toName} word.
+    `Generate exactly 20 Level 1 Grundlagen flashcards for a ${fromName} speaker learning ${toName}.
+Single words only: numbers 1-10, basic colors (red/blue/green/yellow/black/white/orange/purple/brown/pink), personal pronouns (I/you/he/she/it/we/they). Exactly 20 unique words.
+All ${fromName} fronts, all ${toName} backs. Include phonetic pronunciation for ${toName}.
 Return ONLY a valid JSON array (no markdown):
-[{"front":"word in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic for ${toName}","category":"grundlagen","level":1,"wordType":"number|greeting|color|family|noun","tense":"present"}]`,
+[{"front":"word in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic","category":"grundlagen","level":1,"wordType":"number|color|pronoun","tense":"present"}]`,
 
   2: (fromName, toName) =>
-    `Generate exactly 50 Level 2 Grundlagen flashcards for a ${fromName} speaker learning ${toName}.
-Cover in this order:
-- Numbers 11-100: eleven, twelve, thirteen, twenty, thirty, forty, fifty, sixty, seventy, eighty, hundred (11 cards)
-- Days of the week: Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday (7 cards)
-- Months: January, February, March, April, May, June, July, August, September, October, November, December (12 cards)
-- Personal pronouns: I, you, he, she, we, you(plural), they (7 cards — use the ${toName} equivalents)
-- Basic verbs in present tense: to be, to have, to go, to come, to eat, to drink, to see, to want, to know, to need, to like, to say, to make (13 cards)
-All ${fromName} fronts, all ${toName} backs. 100% accurate. Include phonetic pronunciation for the ${toName} word.
+    `Generate exactly 20 Level 2 Grundlagen flashcards for a ${fromName} speaker learning ${toName}.
+Single words only: greetings (hello/goodbye/good morning/good evening/good night), politeness words (thank you/please/excuse me/sorry/yes/no/you're welcome/of course/no problem). Exactly 20 unique words.
+All ${fromName} fronts, all ${toName} backs. Include phonetic pronunciation for ${toName}.
 Return ONLY a valid JSON array (no markdown):
-[{"front":"word/phrase in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic for ${toName}","category":"grundlagen","level":2,"wordType":"number|day|month|pronoun|verb","tense":"present"}]`,
+[{"front":"word in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic","category":"grundlagen","level":2,"wordType":"greeting|phrase","tense":"present"}]`,
 
   3: (fromName, toName) =>
-    `Generate exactly 30 Level 3 Grundlagen flashcards for a ${fromName} speaker learning ${toName}.
-Cover in this order:
-- Common nouns: table, door, house, car, water, food, time, day, year, city (10 cards)
-- Basic adjectives: big, small, good, bad, new, old, beautiful, fast, slow, hot (10 cards)
-- Question words: who, what, where, when, why, how, how much, how many (8 cards)
-- Useful phrases: please repeat, I don't understand (2 cards)
-All ${fromName} fronts, all ${toName} backs. 100% accurate. Include phonetic pronunciation for the ${toName} word.
+    `Generate exactly 20 Level 3 Grundlagen flashcards for a ${fromName} speaker learning ${toName}.
+Single words only: family members (mother/father/sister/brother/grandmother/grandfather/son/daughter/baby/aunt/uncle/cousin/husband/wife), body parts (head/hand/foot/eye/ear/nose/mouth/heart/back/leg). Exactly 20 unique words.
+All ${fromName} fronts, all ${toName} backs. Include phonetic pronunciation for ${toName}.
 Return ONLY a valid JSON array (no markdown):
-[{"front":"word/phrase in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic for ${toName}","category":"grundlagen","level":3,"wordType":"noun|adjective|question|phrase","tense":"present"}]`,
+[{"front":"word in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic","category":"grundlagen","level":3,"wordType":"noun","tense":"present"}]`,
 
   4: (fromName, toName) =>
-    `Generate exactly 20 Level 4 Grundlagen flashcards (A2+) for a ${fromName} speaker learning ${toName}.
-Cover these 3 groups:
-1. Modal verbs (8 cards): can/können, must/müssen, may/dürfen, should/sollen, want/wollen, like/mögen, need to/brauchen zu, be allowed to/dürfen — use the natural ${toName} equivalent with a short example sentence as front
-2. Comparative & superlative (6 cards): bigger/größer, smaller/kleiner, faster/schneller, better/besser, worse/schlechter, more expensive/teurer — front in ${fromName}, back in ${toName}
-3. Time expressions (6 cards): yesterday/gestern, tomorrow/morgen, soon/bald, already/schon, still/noch, sometimes/manchmal — front in ${fromName}, back in ${toName}
-All ${fromName} fronts, all ${toName} backs. 100% accurate. Include phonetic pronunciation for ${toName}.
+    `Generate exactly 20 Level 4 Grundlagen flashcards for a ${fromName} speaker learning ${toName}.
+Single words only: numbers 11-100 (eleven/twenty/thirty/forty/fifty/sixty/seventy/eighty/ninety/hundred), days of week, months January-June. Exactly 20 unique words.
+All ${fromName} fronts, all ${toName} backs. Include phonetic pronunciation for ${toName}.
 Return ONLY a valid JSON array (no markdown):
-[{"front":"short phrase in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic","category":"grundlagen","level":4,"wordType":"modal|adjective|adverb","tense":"present"}]`,
+[{"front":"word in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic","category":"grundlagen","level":4,"wordType":"number|day|month","tense":"present"}]`,
 
   5: (fromName, toName) =>
-    `Generate exactly 20 Level 5 Grundlagen flashcards (B1) for a ${fromName} speaker learning ${toName}.
-Cover these 3 groups:
-1. Subordinating conjunctions (7 cards): because/weil, although/obwohl, so that/damit, while/während, if/wenn, after/nachdem, as soon as/sobald — give the ${toName} conjunction with a short example
-2. Common B1 connectors & discourse markers (7 cards): moreover/außerdem, nevertheless/trotzdem, therefore/deswegen, on the other hand/andererseits, firstly/zunächst, finally/schließlich, overall/insgesamt
-3. Everyday B1 phrases (6 cards): that depends/das kommt darauf an, I mean/ich meine, in my opinion/meiner Meinung nach, you're right/du hast recht, I'm not sure/ich bin nicht sicher, that makes sense/das macht Sinn
-All ${fromName} fronts, all ${toName} backs. 100% accurate. Include phonetic pronunciation for ${toName}.
+    `Generate exactly 20 Level 5 Grundlagen flashcards for a ${fromName} speaker learning ${toName}.
+Single words only — essential verbs in infinitive: to be/to have/to go/to come/to make/to say/to see/to want/to can/to must/to give/to take/to know/to think/to like/to need/to work/to live/to eat/to drink. Exactly 20 unique verbs.
+All ${fromName} fronts, all ${toName} backs. Include phonetic pronunciation for ${toName}.
 Return ONLY a valid JSON array (no markdown):
-[{"front":"phrase in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic for ${toName}","category":"grundlagen","level":5,"wordType":"conjunction|phrase","tense":"present"}]`,
+[{"front":"verb in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic","category":"grundlagen","level":5,"wordType":"verb","tense":"present"}]`,
 
   6: (fromName, toName) =>
-    `Generate exactly 20 Level 6 Grundlagen flashcards (B1+) for a ${fromName} speaker learning ${toName}.
-Cover these 3 groups:
-1. Passive voice constructions (7 cards): is being built/wird gebaut, was done/wurde gemacht, it is said/es wird gesagt, has been found/wurde gefunden, is known/ist bekannt, will be opened/wird geöffnet, can be seen/kann gesehen werden — give the ${toName} passive phrase and its ${fromName} meaning
-2. Relative clause starters (6 cards): the man who/der Mann, der; the woman who/die Frau, die; the thing that/das Ding, das; the people who/die Leute, die; the reason why/der Grund, warum; the day when/der Tag, als
-3. Common idioms (7 cards): to keep fingers crossed/Daumen drücken, to get to the point/auf den Punkt kommen, to hit the nail on the head/ins Schwarze treffen, to be on the same page/einer Meinung sein, to cost an arm and a leg/ein Vermögen kosten, once in a blue moon/alle Jubeljahre, to break the ice/das Eis brechen
-All ${fromName} fronts, all ${toName} backs. 100% accurate. Include phonetic pronunciation for ${toName}.
+    `Generate exactly 20 Level 6 Grundlagen flashcards for a ${fromName} speaker learning ${toName}.
+Single words only: food and drinks (water/bread/milk/meat/fruit/vegetable/coffee/tea/rice/egg/sugar/salt/fish/chicken/soup), animals (dog/cat/bird/horse/cow/elephant/lion/monkey/rabbit/snake). Exactly 20 unique words.
+All ${fromName} fronts, all ${toName} backs. Include phonetic pronunciation for ${toName}.
 Return ONLY a valid JSON array (no markdown):
-[{"front":"phrase in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic for ${toName}","category":"grundlagen","level":6,"wordType":"phrase|idiom","tense":"present"}]`,
+[{"front":"word in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic","category":"grundlagen","level":6,"wordType":"noun","tense":"present"}]`,
 
   7: (fromName, toName) =>
-    `Generate exactly 20 Level 7 Grundlagen flashcards (B1-B2 intermediate-upper) for a ${fromName} speaker learning ${toName}.
-Focus on: passive constructions, reported speech markers (he said that.../she asked whether...), complex sentence connectors (not only...but also, either...or, neither...nor, as soon as, as long as), expressing cause and effect.
-All ${fromName} fronts, all ${toName} backs. 100% accurate. Include phonetic pronunciation for ${toName}.
+    `Generate exactly 20 Level 7 Grundlagen flashcards for a ${fromName} speaker learning ${toName}.
+Single words only: places (house/school/market/city/hospital/church/beach/forest/airport/station/park/hotel/restaurant/bank/pharmacy), directions (left/right/straight/near/far). Exactly 20 unique words.
+All ${fromName} fronts, all ${toName} backs. Include phonetic pronunciation for ${toName}.
 Return ONLY a valid JSON array (no markdown):
-[{"front":"phrase in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic for ${toName}","category":"grundlagen","level":7,"wordType":"phrase","tense":"present"}]`,
+[{"front":"word in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic","category":"grundlagen","level":7,"wordType":"noun|adverb","tense":"present"}]`,
 
   8: (fromName, toName) =>
-    `Generate exactly 20 Level 8 Grundlagen flashcards (B2 upper-intermediate) for a ${fromName} speaker learning ${toName}.
-Focus on: subjunctive/conditional mood (if I were.../I wish.../it would be better if...), expressing regret and wishes about past events, formal versus informal register switching, nuanced ways to agree/disagree/express doubt.
-All ${fromName} fronts, all ${toName} backs. 100% accurate. Include phonetic pronunciation for ${toName}.
+    `Generate exactly 20 Level 8 Grundlagen flashcards for a ${fromName} speaker learning ${toName}.
+Single words only: time expressions (today/yesterday/tomorrow/now/later/always/never/sometimes/soon/already/still/again/before/after/during/early/late/every day/last week/next year). Exactly 20 unique words or short phrases.
+All ${fromName} fronts, all ${toName} backs. Include phonetic pronunciation for ${toName}.
 Return ONLY a valid JSON array (no markdown):
-[{"front":"phrase in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic for ${toName}","category":"grundlagen","level":8,"wordType":"phrase","tense":"present"}]`,
+[{"front":"word/phrase in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic","category":"grundlagen","level":8,"wordType":"adverb|phrase","tense":"present"}]`,
 
   9: (fromName, toName) =>
-    `Generate exactly 20 Level 9 Grundlagen flashcards (B2-C1 advanced) for a ${fromName} speaker learning ${toName}.
-Focus on: expressing nuanced emotions and states (I tend to.../I can't help but.../I'm inclined to.../I can't stand.../it occurs to me that...), academic discourse markers, phrases for presenting arguments, conceding points, and building complex reasoning.
-All ${fromName} fronts, all ${toName} backs. 100% accurate. Include phonetic pronunciation for ${toName}.
+    `Generate exactly 20 Level 9 Grundlagen flashcards for a ${fromName} speaker learning ${toName}.
+Single words only: feelings (happy/sad/tired/hungry/thirsty/angry/scared/surprised/bored/sick/excited/nervous/proud/lonely/confused), weather (sun/rain/wind/snow/hot/cold/cloudy/storm/warm/fog). Exactly 20 unique words.
+All ${fromName} fronts, all ${toName} backs. Include phonetic pronunciation for ${toName}.
 Return ONLY a valid JSON array (no markdown):
-[{"front":"phrase in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic for ${toName}","category":"grundlagen","level":9,"wordType":"phrase","tense":"present"}]`,
+[{"front":"word in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic","category":"grundlagen","level":9,"wordType":"adjective|noun","tense":"present"}]`,
 
   10: (fromName, toName) =>
-    `Generate exactly 20 Level 10 Grundlagen flashcards (C1 advanced) for a ${fromName} speaker learning ${toName}.
-Focus on: sophisticated register variation (formal/informal/literary), complex participial phrases, literary and elevated vocabulary that educated native speakers use naturally, subtle pragmatic markers that control tone and attitude in discourse.
-All ${fromName} fronts, all ${toName} backs. 100% accurate. Include phonetic pronunciation for ${toName}.
+    `Generate exactly 20 Level 10 Grundlagen flashcards for a ${fromName} speaker learning ${toName}.
+Single words only: question words (who/what/where/when/how/why/which/how much/how many/how long/how often/how far), basic adjectives (big/small/good/bad/new/old/fast/slow/beautiful/ugly/clean/dirty). Exactly 20 unique words.
+All ${fromName} fronts, all ${toName} backs. Include phonetic pronunciation for ${toName}.
 Return ONLY a valid JSON array (no markdown):
-[{"front":"phrase in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic for ${toName}","category":"grundlagen","level":10,"wordType":"phrase","tense":"present"}]`,
+[{"front":"word in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic","category":"grundlagen","level":10,"wordType":"question|adjective","tense":"present"}]`,
 }
 
 async function generateCards(fromLang, toLang, level) {
@@ -118,7 +95,7 @@ async function generateCards(fromLang, toLang, level) {
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
       max_tokens: 6000,
-      system: 'You are a professional language educator. Generate accurate beginner flashcards. Return ONLY valid JSON array, no markdown.',
+      system: 'You are a professional language educator creating flashcards for language learners from absolute beginner to fluent. Generate ONLY the requested content type — single words or short phrases, never full sentences unless explicitly required. Every card must be unique — never repeat a word already in this level. Return ONLY valid JSON array, no markdown, no explanation.',
       messages: [{ role: 'user', content: prompt }],
     }),
   })
