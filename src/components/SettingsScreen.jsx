@@ -6,7 +6,7 @@ import { MARK_UID, ELOSY_UID, SOCIAL_REGISTERS, AVAILABLE_LANGS, TOPICS_LIST, CA
 import { THEMES } from '../theme'
 import { invalidateCache } from '../hooks/useCardCache'
 
-function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setMyData, allCards, lang, onPartner, onLightModeChange, onCardSizeChange, musicEnabled, musicVolume, onMusicToggle, onMusicVolume, onToLangChange, categoryLevels, setCategoryLevels, lightMode, cardSize, appVersion, onSprachkompass = () => {} }) {
+function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setMyData, allCards, lang, onPartner, onLightModeChange, onCardSizeChange, musicEnabled, musicVolume, onMusicToggle, onMusicVolume, onToLangChange, categoryLevels, setCategoryLevels, lightMode, cardSize, appVersion, onSprachkompass = () => {}, onSprachpuls = () => {} }) {
   const th = THEMES[theme]
   const isDE = lang === 'de'
   const pausedLanguages = myData?.pausedLanguages || []
@@ -688,6 +688,18 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
           🧭 {isDE ? 'Sprachkompass starten' : 'Start Language Compass'}
         </button>
       )}
+
+      {/* ── SPRACHPULS ── */}
+      {onSprachpuls && (() => {
+        const lastPuls = (myData?.sprachpulsResults || []).slice(-1)[0]
+        return (
+          <button style={{ ...s.logoutBtn, marginTop: '8px', color: '#7C9CEF', border: '1px solid rgba(124,156,239,0.35)' }}
+            onClick={onSprachpuls}>
+            📊 {isDE ? 'Sprachpuls starten' : 'Start Language Pulse'}
+            {lastPuls && <span style={{ fontSize: '0.72rem', opacity: 0.65, marginLeft: '6px' }}>· {lastPuls.date}</span>}
+          </button>
+        )
+      })()}
 
       {/* ── ABMELDEN ── */}
       <button style={{ ...s.logoutBtn, marginTop: '8px', color: '#e06c75', border: '1px solid rgba(224,108,117,0.35)' }}

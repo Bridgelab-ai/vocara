@@ -89,10 +89,12 @@ function AdminScreen({ user, lang, theme, onBack }) {
     snap.docs.forEach(d => {
       const data = d.data()
       if (!data.cefrLevel || !data.fromLang || !data.toLang) return
+      const tt = data.testType || 'sprachkompass'
       const lp = `${data.fromLang}_${data.toLang}`
       const lvl = data.cefrLevel
-      if (!counts[lvl]) counts[lvl] = {}
-      counts[lvl][lp] = data.questions?.length ?? data.count ?? 0
+      if (!counts[tt]) counts[tt] = {}
+      if (!counts[tt][lvl]) counts[tt][lvl] = {}
+      counts[tt][lvl][lp] = data.questions?.length ?? data.count ?? 0
     })
     return counts
   }
@@ -144,9 +146,10 @@ function AdminScreen({ user, lang, theme, onBack }) {
                                          return YELLOW
   }
 
-  const getTestLevelBtnStyle = (cefrLevel) => {
-    const lvlCounts = testCounts?.[cefrLevel] ?? {}
-    const full = LANGUAGE_PAIRS.filter(lp => (lvlCounts?.[lp] ?? 0) >= 4).length
+  const getTestLevelBtnStyle = (testType, cefrLevel) => {
+    const threshold = testType === 'sprachpuls' ? 3 : 4
+    const lvlCounts = testCounts?.[testType]?.[cefrLevel] ?? {}
+    const full = LANGUAGE_PAIRS.filter(lp => (lvlCounts?.[lp] ?? 0) >= threshold).length
     if (full === 0)                     return BLUE
     if (full === LANGUAGE_PAIRS.length) return GREEN
                                          return YELLOW
@@ -442,9 +445,10 @@ function AdminScreen({ user, lang, theme, onBack }) {
     const lkey = `${testType}_${cefrLevel}`
     setTestLoading(lkey); setTestStatus(null)
     let generated = 0, skipped = 0
+    const threshold = testType === 'sprachpuls' ? 3 : 4
     for (const lp of LANGUAGE_PAIRS) {
-      const existing = testCounts[cefrLevel]?.[lp] ?? 0
-      if (existing >= 4) { skipped++; continue }
+      const existing = testCounts[testType]?.[cefrLevel]?.[lp] ?? 0
+      if (existing >= threshold) { skipped++; continue }
       setTestStatus(`⟳ ${lp} ${cefrLevel}… (${generated + skipped + 1}/${LANGUAGE_PAIRS.length})`)
       try {
         const res = await fetch(`${BASE_URL}/api/generate-test-pool`, {
@@ -455,8 +459,9 @@ function AdminScreen({ user, lang, theme, onBack }) {
         generated++
         setTestCounts(prev => {
           const next = { ...prev }
-          if (!next[cefrLevel]) next[cefrLevel] = {}
-          next[cefrLevel] = { ...next[cefrLevel], [lp]: data.count ?? 4 }
+          if (!next[testType]) next[testType] = {}
+          if (!next[testType][cefrLevel]) next[testType][cefrLevel] = {}
+          next[testType][cefrLevel] = { ...next[testType][cefrLevel], [lp]: data.count ?? threshold }
           return next
         })
       } catch (e) { console.warn(`generateTestAtLevel ${testType} ${cefrLevel} ${lp}:`, e) }
@@ -756,7 +761,44 @@ function AdminScreen({ user, lang, theme, onBack }) {
                 {isExp && (
                   <div style={{ borderTop: `1px solid ${th.border}`, padding: '8px 10px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                     {['A1','A2','B1','B2','C1'].map(lvl => {
-                      const bs = getTestLevelBtnStyle(lvl)
+                      const bs = getTestLevelBtnStyle(t.key, lvl)
+                      const lkey = `${t.key}_${lvl}`
+                      return (
+                        <button key={lvl} onClick={() => generateTestAtLevel(t.key, lvl)} disabled={!!testLoading}
+                          style={{ padding: '4px 8px', borderRadius: '8px', fontSize: '0.72rem', fontWeight: '700', cursor: testLoading ? 'default' : 'pointer', opacity: testLoading && testLoading !== lkey ? 0.5 : 1, ...bs }}>
+                          {testLoading === lkey ? '⟳' : lvl}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+        {testStatus && <p style={{ color: testStatus.startsWith('✓') ? '#81c784' : testStatus.startsWith('⟳') ? th.sub : '#e06c75', fontSize: '0.75rem', margin: '8px 0 0' }}>{testStatus}</p>}
+      </div>
+
+      {/* Sprachpuls Pool */}
+      <div style={{ ...s.card, marginTop: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+          <p style={{ color: th.text, fontSize: '0.88rem', fontWeight: '700', margin: 0 }}>📊 Sprachpuls Pool</p>
+          <span style={{ color: th.sub, fontSize: '0.68rem' }}>🔵 leer&nbsp; 🟡 teilweise&nbsp; 🟢 voll</span>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          {[{ key: 'sprachpuls', label: 'Sprachpuls', emoji: '📊' }].map(t => {
+            const isExp = expandedTest === t.key
+            return (
+              <div key={t.key} style={{ border: `1px solid ${th.border}`, borderRadius: '12px', overflow: 'hidden' }}>
+                <button onClick={() => setExpandedTest(isExp ? null : t.key)}
+                  style={{ width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ color: th.text, fontSize: '0.82rem', fontWeight: '600' }}>{t.emoji} {t.label}</span>
+                  <span style={{ color: th.sub, fontSize: '0.7rem' }}>5L {isExp ? '▲' : '▼'}</span>
+                </button>
+                {isExp && (
+                  <div style={{ borderTop: `1px solid ${th.border}`, padding: '8px 10px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                    {['A1','A2','B1','B2','C1'].map(lvl => {
+                      const bs = getTestLevelBtnStyle(t.key, lvl)
                       const lkey = `${t.key}_${lvl}`
                       return (
                         <button key={lvl} onClick={() => generateTestAtLevel(t.key, lvl)} disabled={!!testLoading}

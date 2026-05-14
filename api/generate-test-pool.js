@@ -1,7 +1,7 @@
 // Test pool generator — POST /api/generate-test-pool
 // Generates multiple-choice CEFR assessment questions for Sprachkompass/Sprachpuls
 // Body: { testType, cefrLevel, pair, from, to }
-import { TEST_STRUCTURE, SPRACHKOMPASS_LEVEL_CONTENT } from './_testStructure.js'
+import { TEST_STRUCTURE, SPRACHKOMPASS_LEVEL_CONTENT, SPRACHPULS_LEVEL_CONTENT } from './_testStructure.js'
 
 const FIRESTORE_BASE = 'https://firestore.googleapis.com/v1/projects/vocara-ca2b7/databases/(default)/documents'
 const LANG_NAMES = { en: 'English', de: 'German', sw: 'Swahili', fr: 'French', es: 'Spanish', th: 'Thai' }
@@ -11,7 +11,9 @@ async function generateQuestions(testType, cefrLevel, fromLang, toLang) {
   const toName = LANG_NAMES[toLang] || toLang
   const basePrompt = testType === 'sprachkompass'
     ? SPRACHKOMPASS_LEVEL_CONTENT[cefrLevel]
-    : `Generate 3 multiple-choice questions at ${cefrLevel} level for a ${fromName} speaker learning ${toName}. Each question: 1 correct + 3 wrong answers.`
+    : testType === 'sprachpuls'
+      ? SPRACHPULS_LEVEL_CONTENT[cefrLevel]
+      : `Generate 3 multiple-choice questions at ${cefrLevel} level for a ${fromName} speaker learning ${toName}. Each question: 1 correct + 3 wrong answers.`
 
   const prompt = `${basePrompt}
 
