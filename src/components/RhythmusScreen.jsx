@@ -35,7 +35,7 @@ function RhythmusScreen({ lang, theme, onBack, allCards, cardProgress, userToLan
     rec.onresult = (e) => {
       const heard = e.results[0][0].transcript.trim()
       setTranscript(heard)
-      const { text: toLangText } = getToLangText(sentence, userToLang) || { text: sentence.back }
+      const { text: toLangText } = getToLangText(sentence, userToLang) || { text: sentence?.back }
       const tWords = (toLangText || '').split(/\s+/)
       const hWords = heard.toLowerCase().split(/\s+/)
       const correct = tWords.filter(w => hWords.some(h => fuzzyWordMatch(w, h))).length
@@ -63,8 +63,8 @@ function RhythmusScreen({ lang, theme, onBack, allCards, cardProgress, userToLan
       ) : (
         <>
           {(() => {
-            const { text: toText, langCode: toLCode } = getToLangText(sentence, userToLang) || { text: sentence.back, langCode: userToLang }
-            const nativeText = sentence.langA?.toLowerCase() === toLCode ? sentence.back : sentence.front
+            const { text: toText, langCode: toLCode } = getToLangText(sentence, userToLang) || { text: sentence?.back, langCode: userToLang }
+            const nativeText = sentence?.langA?.toLowerCase() === toLCode ? sentence?.back : sentence?.front
             return (
               <div style={{ ...s.card, textAlign: 'center', position: 'relative' }}>
                 <p style={{ color: th.sub, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 10px' }}>{t.repeatAfter}</p>

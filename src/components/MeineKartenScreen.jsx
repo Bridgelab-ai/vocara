@@ -34,7 +34,7 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
     return matchSearch && matchCat
   })
 
-  const openEdit = (card) => { setEditCard(card); setEditFront(card.front); setEditBack(card.back); setEditCat(card.category || 'vocabulary'); setEditPronunciation(card.pronunciation || '') }
+  const openEdit = (card) => { setEditCard(card); setEditFront(card?.front); setEditBack(card?.back); setEditCat(card?.category || 'vocabulary'); setEditPronunciation(card?.pronunciation || '') }
 
   const saveEdit = async () => {
     if (!editFront.trim() || !editBack.trim()) return
@@ -53,7 +53,7 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
   const shareWithPartner = async (card) => {
     if (!myPartnerUID) return
     const myFirstName = user.displayName?.split(' ')[0] || 'Partner'
-    const gift = { front: card.front, back: card.back, category: card.category || 'vocabulary', langA: card.langA, langB: card.langB, fromName: myFirstName, message: '' }
+    const gift = { front: card?.front, back: card?.back, category: card?.category || 'vocabulary', langA: card?.langA, langB: card?.langB, fromName: myFirstName, message: '' }
     try {
       await updateDoc(doc(db, 'users', myPartnerUID), { pendingGift: gift })
       setSaveStatus(isDE ? 'Geteilt ✓' : 'Shared ✓')
@@ -127,7 +127,7 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
                     <p style={{ color: th.text, fontSize: '0.88rem', margin: 0, fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.front}</p>
                     {isGold && <span style={{ fontSize: '0.68rem', flexShrink: 0 }}>⭐</span>}
                   </div>
-                  <p style={{ color: th.sub, fontSize: '0.77rem', margin: '0 0 3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.back}</p>
+                  <p style={{ color: th.sub, fontSize: '0.77rem', margin: '0 0 3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card?.back}</p>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{ background: card.category === 'street' ? 'rgba(180,120,30,0.2)' : 'rgba(140,140,155,0.15)', color: card.category === 'street' ? '#C8922A' : '#8A8A9A', borderRadius: '4px', padding: '1px 6px', fontSize: '8px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.4px', flexShrink: 0 }}>
                       {card.category === 'street' ? 'Slang' : 'Hochsprache'}

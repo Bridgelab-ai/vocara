@@ -18,14 +18,14 @@ function ResultScreen({ correct, wrong, fast, easy, weakestCard, strongestCard, 
             <div style={{ marginBottom: strongestCard ? '14px' : 0 }}>
               <p style={{ ...s.cardLabel, marginBottom: '5px', color: '#e06c75' }}>⚠️ {isMarkLang ? 'Schwächste Karte' : 'Weakest card'}</p>
               <p style={{ color: th?.text || '#fff', fontSize: '0.9rem', margin: 0, fontWeight: '500' }}>{weakestCard.front}</p>
-              <p style={{ color: th?.sub || '#888', fontSize: '0.8rem', margin: '2px 0 0' }}>{weakestCard.back}</p>
+              <p style={{ color: th?.sub || '#888', fontSize: '0.8rem', margin: '2px 0 0' }}>{weakestCard?.back}</p>
             </div>
           )}
           {strongestCard && (
             <div>
               <p style={{ ...s.cardLabel, marginBottom: '5px', color: '#4CAF50' }}>⚡ {isMarkLang ? 'Stärkste Karte' : 'Strongest card'}</p>
               <p style={{ color: th?.text || '#fff', fontSize: '0.9rem', margin: 0, fontWeight: '500' }}>{strongestCard.front}</p>
-              <p style={{ color: th?.sub || '#888', fontSize: '0.8rem', margin: '2px 0 0' }}>{strongestCard.back}</p>
+              <p style={{ color: th?.sub || '#888', fontSize: '0.8rem', margin: '2px 0 0' }}>{strongestCard?.back}</p>
             </div>
           )}
         </div>

@@ -21,7 +21,7 @@ function GeschenkkarteScreen({ user, myData, lang, theme, onBack, allCards, card
     if (!selectedCard || !myPartnerUID) return
     setSending(true)
     try {
-      const gift = { front: selectedCard.front, back: selectedCard.back, category: selectedCard.category, langA: selectedCard.langA, langB: selectedCard.langB, message: message.trim().slice(0, 100), fromName, sentAt: Date.now(), date: todayStr() }
+      const gift = { front: selectedCard?.front, back: selectedCard?.back, category: selectedCard?.category, langA: selectedCard?.langA, langB: selectedCard?.langB, message: message.trim().slice(0, 100), fromName, sentAt: Date.now(), date: todayStr() }
       await updateDoc(doc(db, 'users', myPartnerUID), { pendingGift: gift })
       setStatus(isDE ? `🎁 Geschenkt an ${partnerName} ✓` : `🎁 Gifted to ${partnerName} ✓`)
       setSelectedCard(null); setMessage('')
@@ -54,7 +54,7 @@ function GeschenkkarteScreen({ user, myData, lang, theme, onBack, allCards, card
           <button key={card.id} onClick={() => setSelectedCard(selectedCard?.id === card.id ? null : card)}
             style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', padding: '9px 12px', marginBottom: '6px', borderRadius: '10px', cursor: 'pointer', background: selectedCard?.id === card.id ? `${th.accent}22` : 'transparent', border: `1px solid ${selectedCard?.id === card.id ? th.accent : th.border}`, textAlign: 'left' }}>
             <span style={{ color: th.text, fontSize: '0.85rem', fontWeight: '500' }}>{card.front}</span>
-            <span style={{ color: th.sub, fontSize: '0.78rem', marginLeft: '8px', flexShrink: 0 }}>→ {card.back}</span>
+            <span style={{ color: th.sub, fontSize: '0.78rem', marginLeft: '8px', flexShrink: 0 }}>→ {card?.back}</span>
           </button>
         ))}
       </div>

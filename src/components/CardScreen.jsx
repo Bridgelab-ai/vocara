@@ -98,7 +98,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
   const t = tProp || {}
   const item = queue[index]
   const question = item.front
-  const answer = item.back
+  const answer = item?.back
   const fromLang = item.langA
   const toLang = item.langB
   const showPronunciation = item.pronunciation
@@ -117,7 +117,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
     setMicState('listening'); setMicResult(null)
     const rec = new SR()
     // Expected answer is always item.back, in item.langB (buildCardPair guarantees this for both forward and reverse cards)
-    const answerText = item.back
+    const answerText = item?.back
     rec.lang = SPEECH_LANGS[item.langB] || 'en-GB'
     rec.interimResults = false; rec.maxAlternatives = 3
     const timeout = setTimeout(() => { try { rec.stop() } catch(e) {} }, 5000)
@@ -153,7 +153,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001', max_tokens: 60,
-        messages: [{ role: 'user', content: `Give ONLY the German-phonetic pronunciation guide for this English word or short phrase: "${item.back}". Output only the phonetic spelling (how a German speaker would read it to sound like English), nothing else. Examples: swamped→swompt, through→thruu, though→dhoo, world→wörld, knight→nait` }]
+        messages: [{ role: 'user', content: `Give ONLY the German-phonetic pronunciation guide for this English word or short phrase: "${item?.back}". Output only the phonetic spelling (how a German speaker would read it to sound like English), nothing else. Examples: swamped→swompt, through→thruu, though→dhoo, world→wörld, knight→nait` }]
       })
     }).then(r => r.json()).then(d => {
       const ph = d.content?.[0]?.text?.trim() || ''
@@ -173,7 +173,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
     if (wrong < 10 || patternTip !== null) return
     setPatternTip('loading')
     const cards = wrongCardsRef.current.slice(0, 10)
-    const cardList = cards.map(c => `"${c.front}" → "${c.back}"`).join('; ')
+    const cardList = cards.map(c => `"${c?.front}" → "${c?.back}"`).join('; ')
     const tipLang = lang === 'de' ? 'German' : 'English'
     fetch('/api/chat', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -199,7 +199,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
     fetch('/api/chat', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 120,
-        messages: [{ role: 'user', content: `For the vocabulary word: "${item.front}" (${fromL}) = "${item.back}" (${toL}), write exactly ONE short natural example sentence in ${fromL} using this word, then translate it to ${toL}. Return ONLY valid JSON: {"from":"sentence in ${fromL}","to":"sentence in ${toL}"}` }]
+        messages: [{ role: 'user', content: `For the vocabulary word: "${item?.front}" (${fromL}) = "${item?.back}" (${toL}), write exactly ONE short natural example sentence in ${fromL} using this word, then translate it to ${toL}. Return ONLY valid JSON: {"from":"sentence in ${fromL}","to":"sentence in ${toL}"}` }]
       })
     }).then(r => r.json()).then(d => {
       try {
@@ -349,7 +349,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
       fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 100,
-          messages: [{ role: 'user', content: `The user got this card wrong. Front: "${item.front}" Back: "${item.back}". In 1-2 short sentences in ${fromLang === 'de' ? 'German' : 'English'}, explain the grammar rule or memory trick that helps remember this. Be brief and encouraging.` }]
+          messages: [{ role: 'user', content: `The user got this card wrong. Front: "${item?.front}" Back: "${item?.back}". In 1-2 short sentences in ${fromLang === 'de' ? 'German' : 'English'}, explain the grammar rule or memory trick that helps remember this. Be brief and encouraging.` }]
         })
       }).then(r => r.json()).then(d => setKiExplanation(d.content?.[0]?.text?.trim() || null)).catch(() => setKiExplanation(null))
     }
@@ -600,7 +600,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
               try {
                 const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
                   model: 'claude-haiku-4-5-20251001', max_tokens: 180,
-                  messages: [{ role: 'user', content: `For the phrase "${item.front}" (meaning: "${item.back}"), give 3 very short context variants in ${item.langA === 'de' ? 'German' : 'English'}:\n1. Formal (1 example sentence)\n2. Informal (1 example sentence)\n3. Romantic (1 example sentence)\nFormat: formal: ...\ninformal: ...\nromantic: ...` }]
+                  messages: [{ role: 'user', content: `For the phrase "${item?.front}" (meaning: "${item?.back}"), give 3 very short context variants in ${item?.langA === 'de' ? 'German' : 'English'}:\n1. Formal (1 example sentence)\n2. Informal (1 example sentence)\n3. Romantic (1 example sentence)\nFormat: formal: ...\ninformal: ...\nromantic: ...` }]
                 })})
                 const text = (await res.json()).content?.[0]?.text?.trim() || ''
                 const formal = text.match(/formal:\s*(.+)/i)?.[1]?.trim() || ''

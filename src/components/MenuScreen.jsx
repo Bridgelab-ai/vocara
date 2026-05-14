@@ -532,7 +532,7 @@ Return ONLY JSON: [{"front": "German word", "back": "English translation", "cate
         .map((c, i) => ({
           id: `vocab_ai_${ts}_${i}`,
           front: c.front.trim(),
-          back: c.back.trim(),
+          back: c.back?.trim(),
           category: 'vocabulary',
           langA, langB,
           source: 'ai-vocab',
@@ -552,7 +552,7 @@ Return ONLY JSON: [{"front": "German word", "back": "English translation", "cate
       const updatedProgress = { ...(data2.cardProgress || {}) }
       newCards.forEach(c => {
         updatedProgress[c.id] = { interval: 0, consecutiveFast: 0, wrongSessions: 0, nextReview: todayStr() }
-        console.log('[vocabWords] Saved:', c.front, '→', c.back)
+        console.log('[vocabWords] Saved:', c?.front, '→', c?.back)
       })
       await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedAiCards, cardProgress: updatedProgress })
       setMyData(d => ({ ...d, aiCards: updatedAiCards, cardProgress: updatedProgress }))
@@ -767,7 +767,7 @@ Return ONLY valid JSON array: [{"front":"...","back":"...","category":"basics","
     setSatzLoading(true)
     try {
       // Use the toLang text (back) — the target language words the user has actually learned
-      const wordList = knownVocabCards.map(c => c.back).slice(0, 60).join(', ')
+      const wordList = knownVocabCards.map(c => c?.back).slice(0, 60).join(', ')
       const toLangCode = isMarkLang ? 'de' : 'en'
       const fromLangCode = isMarkLang ? 'en' : 'de'
       const toLangName = LANG_NAMES[toLangCode]
@@ -792,9 +792,9 @@ Return ONLY a valid JSON array with no markdown or explanation:
       const ts = Date.now()
       const sessionCards = parsed.slice(0, 5).map((card, i) => ({
         id: `satz_temp_${ts}_${i}`,
-        front: card.front,
-        back: card.back,
-        context: card.context || '',
+        front: card?.front,
+        back: card?.back,
+        context: card?.context || '',
         category: 'sentence',
         langA: fromLangCode,
         langB: toLangCode,
@@ -1055,10 +1055,10 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         parsed.slice(0, req.count).forEach((card, i) => {
           allNewCards.push({
             id: `ai_${req.langA}_${ts}_${i}`,
-            front: card.front,
-            back: card.back,
-            context: card.context || '',
-            category: VALID_CATEGORY_SET.has(card.category) ? card.category : 'vocabulary',
+            front: card?.front,
+            back: card?.back,
+            context: card?.context || '',
+            category: VALID_CATEGORY_SET.has(card?.category) ? card?.category : 'vocabulary',
             langA: req.langA,
             langB: req.langB,
             source: 'ai-generated',
@@ -1396,7 +1396,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
               <button onClick={() => setDailyCardDismissed(true)} style={{ background: 'transparent', border: 'none', color: th.sub, cursor: 'pointer', fontSize: '0.9rem', padding: '0 2px', lineHeight: 1 }}>✕</button>
             </div>
             <p style={{ color: th.text, fontWeight: '700', margin: '0 0 3px', fontSize: '0.92rem' }}>{dailyCard.front}</p>
-            <p style={{ color: th.accent, fontWeight: '600', margin: '0 0 3px', fontSize: '1rem' }}>{dailyCard.back}</p>
+            <p style={{ color: th.accent, fontWeight: '600', margin: '0 0 3px', fontSize: '1rem' }}>{dailyCard?.back}</p>
             {dailyCard.context && <p style={{ color: th.sub, fontSize: '0.75rem', fontStyle: 'italic', margin: 0, lineHeight: 1.4 }}>„{dailyCard.context}"</p>}
           </div>
         )
@@ -1768,7 +1768,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           <div style={{ background: th.card, border: `1px solid ${th.gold}44`, borderRadius: '22px', padding: '28px 24px', maxWidth: '340px', width: '100%', textAlign: 'center', boxShadow: `0 0 40px ${th.glowColor}33` }}>
             <p style={{ color: th.gold, fontSize: '0.72rem', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 12px' }}>{isMarkLang ? "Heute's Wort" : "Word of the day"}</p>
             <p style={{ color: th.text, fontSize: '1.4rem', fontWeight: '700', margin: '0 0 6px' }}>{wordOfDayBanner.front}</p>
-            <p style={{ color: th.accent, fontSize: '1rem', margin: '0 0 14px' }}>{wordOfDayBanner.back}</p>
+            <p style={{ color: th.accent, fontSize: '1rem', margin: '0 0 14px' }}>{wordOfDayBanner?.back}</p>
             <p style={{ color: th.sub, fontSize: '0.78rem', margin: 0, lineHeight: 1.5, fontStyle: 'italic' }}>
               {isMarkLang ? '— heute begegnet es dir überall.' : '— it will appear in every area today.'}
             </p>
@@ -1821,7 +1821,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
             <div style={{ background: th.bg, borderRadius: '14px', padding: '18px', margin: '14px 0', border: `1px solid ${th.border}` }}>
               <p style={{ color: th.text, fontWeight: 'bold', fontSize: '1.1rem', margin: '0 0 8px' }}>{surpriseCard.front}</p>
               <div style={{ height: '1px', background: th.border, margin: '8px 0' }} />
-              <p style={{ color: th.accent, fontWeight: 'bold', fontSize: '1.3rem', margin: 0 }}>{surpriseCard.back}</p>
+              <p style={{ color: th.accent, fontWeight: 'bold', fontSize: '1.3rem', margin: 0 }}>{surpriseCard?.back}</p>
             </div>
             <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
               <button onClick={() => dismissSurprise(true)} style={{ flex: 1, background: `${th.accent}25`, color: th.text, border: `1px solid ${th.accent}55`, borderRadius: '14px', padding: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '0.9rem', backdropFilter: 'blur(8px)' }}>
