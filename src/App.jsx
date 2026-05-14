@@ -49,7 +49,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.086.148'
+const APP_VERSION = 'V01.086.149'
 const MARK_UID = 'aiNZh4Myn8Y0KfYkGGrkNNW0HC72'
 const ELOSY_UID = 'NIX3DYenRdbRjmr2EHsIad9GcqG3'
 const SESSION_SIZE = 15
@@ -2845,7 +2845,10 @@ function App() {
   // Maps caller's category key → what generators actually write as data.category
   const CAT_ALIASES = { urlaub: 'sentence', vocabulary: 'vocab', satztraining: 'sentence' }
   const loadCardsForCategory = async (category, level) => {
-    const snap = await getDocs(collection(db, 'sharedCards'))
+    const snap = await Promise.race([
+      getDocs(collection(db, 'sharedCards')),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Firestore timeout')), 10000))
+    ])
     const cards = []
     const userFromLang = (myData?.fromLang || 'de').toLowerCase()
     snap.forEach(d => {
