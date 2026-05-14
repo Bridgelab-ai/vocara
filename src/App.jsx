@@ -3098,6 +3098,7 @@ function App() {
     const aiCat = cardCategories[baseId]
     return aiCat ? { ...card, category: aiCat } : card
   })
+  console.log('[ALLCARDS DEBUG] aiCards:', myData?.aiCards?.length, 'allCards total:', allCards.length)
 
   const hour = new Date().getHours()
   const timeOverlay = hour >= 0 && hour < 6
