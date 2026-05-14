@@ -39,6 +39,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
   const [toggling, setToggling] = useState(null)
   const [poolLevel, setPoolLevel] = useState(1)
   const [batchLevel, setBatchLevel] = useState(1)
+  const [batchLevelTopic, setBatchLevelTopic] = useState(1)
   const [poolLoading, setPoolLoading] = useState(null)   // category key while running
   const [poolStatus, setPoolStatus] = useState(null)
   const [poolCounts, setPoolCounts] = useState({})       // cat -> level -> langPair -> count
@@ -301,31 +302,40 @@ function AdminScreen({ user, lang, theme, onBack }) {
       }
     }
 
-    if (lvl <= 8) {
-      for (const { key: topicKey } of TOPICS_LIST) {
-        for (const lp of LANGUAGE_PAIRS) {
-          const existing = liveCounts[topicKey]?.[String(lvl)]?.[lp] ?? 0
-          if (existing >= 15) { totalSkipped++; continue }
-          setPoolStatus(`⟳ ${topicKey} L${lvl} ${lp}…`)
-          try {
-            const res = await fetch(`${BASE_URL}/api/generate-topic-pool`, {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ topic: topicKey, level: lvl, pair: lp, from: lp.split('_')[0], to: lp.split('_')[1] })
-            })
-            const data = await res.json()
-            totalGenerated++
-            liveCounts[topicKey] = liveCounts[topicKey] || {}
-            liveCounts[topicKey][String(lvl)] = liveCounts[topicKey][String(lvl)] || {}
-            liveCounts[topicKey][String(lvl)][lp] = data.count ?? 15
-            setPoolCounts({ ...liveCounts })
-          } catch (e) { console.warn(`generateStufe ${topicKey} L${lvl} ${lp}:`, e) }
-        }
-      }
-    }
-
     setPoolStatus(`✓ Stufe ${lvl}: ${totalGenerated} generiert, ${totalSkipped} übersprungen`)
     await loadPoolStatus()
     setPoolLoading(null)
+  }
+
+  const generateTopicStufe = async () => {
+    const lvl = batchLevelTopic
+    setTopicLoading('__all__'); setTopicStatus(null)
+    const freshSnap = await getDocs(collection(db, 'sharedCards'))
+    const liveCounts = buildCounts(freshSnap)
+    setPoolCounts(liveCounts)
+    let totalGenerated = 0, totalSkipped = 0
+    for (const { key: topicKey } of TOPICS_LIST) {
+      for (const lp of LANGUAGE_PAIRS) {
+        const existing = liveCounts[topicKey]?.[String(lvl)]?.[lp] ?? 0
+        if (existing >= 15) { totalSkipped++; continue }
+        setTopicStatus(`⟳ ${topicKey} L${lvl} ${lp}…`)
+        try {
+          const res = await fetch(`${BASE_URL}/api/generate-topic-pool`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ topic: topicKey, level: lvl, pair: lp, from: lp.split('_')[0], to: lp.split('_')[1] })
+          })
+          const data = await res.json()
+          totalGenerated++
+          liveCounts[topicKey] = liveCounts[topicKey] || {}
+          liveCounts[topicKey][String(lvl)] = liveCounts[topicKey][String(lvl)] || {}
+          liveCounts[topicKey][String(lvl)][lp] = data.count ?? 15
+          setPoolCounts({ ...liveCounts })
+        } catch (e) { console.warn(`generateTopicStufe ${topicKey} L${lvl} ${lp}:`, e) }
+      }
+    }
+    setTopicStatus(`✓ Themen Stufe ${lvl}: ${totalGenerated} generiert, ${totalSkipped} übersprungen`)
+    await loadPoolStatus()
+    setTopicLoading(null)
   }
 
   // ── Topic pool generation ─────────────────────────────────────
@@ -620,6 +630,17 @@ function AdminScreen({ user, lang, theme, onBack }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
           <p style={{ color: th.text, fontSize: '0.88rem', fontWeight: '700', margin: 0 }}>🎯 Themen Pool</p>
           <span style={{ color: th.sub, fontSize: '0.68rem' }}>🔵 leer&nbsp; 🟡 teilweise&nbsp; 🟢 voll</span>
+        </div>
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', alignItems: 'center' }}>
+          <select value={batchLevelTopic} onChange={e => setBatchLevelTopic(Number(e.target.value))}
+            disabled={!!topicLoading}
+            style={{ background: th.card, color: th.text, border: `1px solid ${th.border}`, borderRadius: '8px', padding: '6px 8px', fontSize: '0.78rem', cursor: 'pointer', flex: '0 0 auto' }}>
+            {[1,2,3,4,5,6,7,8].map(n => <option key={n} value={n}>Stufe {n}</option>)}
+          </select>
+          <button onClick={generateTopicStufe} disabled={!!topicLoading || !!poolLoading}
+            style={{ flex: 1, padding: '8px', borderRadius: '10px', fontSize: '0.8rem', fontWeight: '700', cursor: (topicLoading || poolLoading) ? 'default' : 'pointer', opacity: (topicLoading || poolLoading) && topicLoading !== '__all__' ? 0.5 : 1, background: 'rgba(0,212,170,0.12)', color: '#00D4AA', border: '1px solid rgba(0,212,170,0.35)' }}>
+            {topicLoading === '__all__' ? `⟳ ${topicStatus || ''}` : `⚡ Stufe ${batchLevelTopic} generieren`}
+          </button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           {TOPICS_LIST.map(t => {
