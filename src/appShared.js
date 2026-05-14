@@ -74,7 +74,7 @@ export function getToLangText(card, userToLang) {
   if (!card) return null
   const toLang = (userToLang || card.targetLang || card.langA || 'en').toLowerCase()
   if ((card.langA || '').toLowerCase() === toLang) return { text: card.front, langCode: toLang }
-  if ((card.langB || '').toLowerCase() === toLang) return { text: card.back, langCode: toLang }
+  if ((card.langB || '').toLowerCase() === toLang) return { text: card?.back, langCode: toLang }
   return null
 }
 
@@ -260,7 +260,7 @@ export function buildCardPair(card) {
   const raw = card.category || ruleCategory(card)
   const category = VALID_CATEGORY_SET.has(raw) ? raw : 'vocabulary'
   const forwardCard = { ...card, targetLang, category }
-  const meanings = card.back.split(' / ').map(m => m.trim()).filter(Boolean)
+  const meanings = (card.back || '').split(' / ').map(m => m.trim()).filter(Boolean)
   let reversedCards
   if (meanings.length > 1) {
     reversedCards = meanings.map((meaning, i) => ({
@@ -268,7 +268,7 @@ export function buildCardPair(card) {
       langA: card.langB, langB: card.langA, targetLang, category,
     }))
   } else {
-    reversedCards = [{ ...card, id: `${card.id}_r`, front: card.back, back: card.front, langA: card.langB, langB: card.langA, targetLang, category }]
+    reversedCards = [{ ...card, id: `${card.id}_r`, front: card?.back, back: card.front, langA: card.langB, langB: card.langA, targetLang, category }]
   }
   return [forwardCard, ...reversedCards]
 }
