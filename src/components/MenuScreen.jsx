@@ -369,8 +369,8 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
     const mastered = idPrefix
       ? Object.entries(cardProgress || {})
           .filter(([id]) => id.startsWith(idPrefix))
-          .filter(([, p]) => (p?.interval ?? 0) >= 1).length
-      : activeCards.filter(c => c.category === cat && !/_r(_\d+)?$/.test(c.id) && (cardProgress[c.id]?.interval || 0) >= 1).length
+          .filter(([, p]) => p !== undefined && p !== null).length
+      : activeCards.filter(c => c.category === cat && !/_r(_\d+)?$/.test(c.id) && cardProgress[c.id] !== undefined).length
     const pct = Math.min(100, Math.round((mastered / cardsPerLevel) * 100))
     return (
       <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', width: '100%', marginTop: '6px' }}>
