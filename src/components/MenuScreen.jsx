@@ -693,7 +693,7 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
     // Show Wort des Tages banner for 2s before starting any session
     const startSession = () => {
       setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
-      if (['vocabulary', 'street', 'home', 'basics'].includes(category)) markAreaDone(category)
+      if (['vocabulary', 'street', 'home', 'basics', 'grundlagen', 'vocab', 'urlaub', 'saetze', 'satztraining'].includes(category)) markAreaDone(category)
     }
     if (wordOfDay) {
       setWordOfDayBanner(wordOfDay)
