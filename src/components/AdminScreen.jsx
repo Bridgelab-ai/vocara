@@ -16,13 +16,18 @@ const POOL_STRUCTURE = {
   saetze:       { endpoint: 'generate-saetze-pool',            totalLevels: 10, cardsPerLevel: 20 },
 }
 const TOPICS_LIST = [
-  { key: 'cooking',  emoji: '🍳', label: 'Kochen' },
-  { key: 'sports',   emoji: '⚽', label: 'Sport' },
-  { key: 'music',    emoji: '🎵', label: 'Musik' },
-  { key: 'travel',   emoji: '✈️', label: 'Reisen' },
-  { key: 'tech',     emoji: '💻', label: 'Technik' },
-  { key: 'business', emoji: '💼', label: 'Business' },
-  { key: 'nature',   emoji: '🌿', label: 'Natur' },
+  { key: 'kochen',      emoji: '🍳', label: 'Kochen'      },
+  { key: 'liebe',       emoji: '❤️', label: 'Liebe'       },
+  { key: 'sport',       emoji: '💪', label: 'Sport'       },
+  { key: 'film',        emoji: '🎬', label: 'Film'        },
+  { key: 'musik',       emoji: '🎵', label: 'Musik'       },
+  { key: 'reisen',      emoji: '✈️', label: 'Reisen'      },
+  { key: 'business',    emoji: '💼', label: 'Business'    },
+  { key: 'natur',       emoji: '🌿', label: 'Natur'       },
+  { key: 'tech',        emoji: '💻', label: 'Tech'        },
+  { key: 'gesundheit',  emoji: '🏥', label: 'Gesundheit'  },
+  { key: 'psychologie', emoji: '🧠', label: 'Psychologie' },
+  { key: 'ausgehen',    emoji: '🍺', label: 'Ausgehen'    },
 ]
 const LANGUAGE_PAIRS = ['de_en','de_sw','en_de','en_sw','sw_de','sw_en']
 
@@ -88,7 +93,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
 
   const getBtnTopicStyle = (topicKey) => {
     const lvl = String(poolLevel)
-    const catCounts = poolCounts[`topic_${topicKey}`]?.[lvl] || {}
+    const catCounts = poolCounts[topicKey]?.[lvl] || {}
     const full = LANGUAGE_PAIRS.filter(lp => (catCounts[lp] ?? 0) >= 15).length
     if (full === 0)                    return BLUE
     if (full === LANGUAGE_PAIRS.length) return GREEN
@@ -178,8 +183,8 @@ function AdminScreen({ user, lang, theme, onBack }) {
       const lp = data.langPair || (data.fromLang && data.toLang ? `${data.fromLang}_${data.toLang}` : null)
       if (data.level == null || !lp) return   // null/undefined level → skip (flat pool docs have no level)
       const level = String(data.level)
-      const rawCat = data.category === 'topics' && data.topicKey
-        ? `topic_${data.topicKey}`
+      const rawCat = (data.category === 'topics' && data.topicKey)
+        ? data.topicKey
         : data.category
       const cat = CAT_NORMALIZE[rawCat] || rawCat
       if (!cat) return
@@ -301,7 +306,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
     setPoolCounts(liveCounts)
 
     let generated = 0, skipped = 0
-    const key = `topic_${topicKey}`
+    const key = topicKey
     for (const lp of LANGUAGE_PAIRS) {
       const existing = liveCounts[key]?.[String(lvl)]?.[lp] ?? 0
       if (existing >= cardsPerLevel) {
@@ -312,7 +317,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
       try {
         const res = await fetch(`${BASE_URL}/api/generate-topic-pool`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ topicKey, level: lvl, pair: lp, from: lp.split('_')[0], to: lp.split('_')[1] })
+          body: JSON.stringify({ topic: topicKey, level: lvl, pair: lp, from: lp.split('_')[0], to: lp.split('_')[1] })
         })
         const data = await res.json()
         generated++

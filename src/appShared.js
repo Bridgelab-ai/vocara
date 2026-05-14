@@ -11,13 +11,18 @@ export const AVAILABLE_LANGS = [
 ]
 
 export const TOPICS_LIST = [
-  { key: 'cooking',  emoji: '🍳', de: 'Kochen',    en: 'Cooking'   },
-  { key: 'sports',   emoji: '⚽', de: 'Fußball',   en: 'Football'  },
-  { key: 'music',    emoji: '🎵', de: 'Musik',     en: 'Music'     },
-  { key: 'travel',   emoji: '✈️', de: 'Reisen',    en: 'Travel'    },
-  { key: 'tech',     emoji: '💻', de: 'Technik',   en: 'Tech'      },
-  { key: 'business', emoji: '💼', de: 'Business',  en: 'Business'  },
-  { key: 'nature',   emoji: '🌿', de: 'Natur',     en: 'Nature'    },
+  { key: 'kochen',      emoji: '🍳', de: 'Kochen',      en: 'Cooking'     },
+  { key: 'liebe',       emoji: '❤️', de: 'Liebe',       en: 'Love'        },
+  { key: 'sport',       emoji: '💪', de: 'Sport',       en: 'Sport'       },
+  { key: 'film',        emoji: '🎬', de: 'Film',        en: 'Film'        },
+  { key: 'musik',       emoji: '🎵', de: 'Musik',       en: 'Music'       },
+  { key: 'reisen',      emoji: '✈️', de: 'Reisen',      en: 'Travel'      },
+  { key: 'business',    emoji: '💼', de: 'Business',    en: 'Business'    },
+  { key: 'natur',       emoji: '🌿', de: 'Natur',       en: 'Nature'      },
+  { key: 'tech',        emoji: '💻', de: 'Tech',        en: 'Tech'        },
+  { key: 'gesundheit',  emoji: '🏥', de: 'Gesundheit',  en: 'Health'      },
+  { key: 'psychologie', emoji: '🧠', de: 'Psychologie', en: 'Psychology'  },
+  { key: 'ausgehen',    emoji: '🍺', de: 'Ausgehen',    en: 'Going Out'   },
 ]
 
 export const CARD_GEN_SYSTEM = `You are a professional native-level translator and linguist.
@@ -160,7 +165,7 @@ export function getCatLevel(masteredCount) {
 }
 
 // ── CONSTANTS ─────────────────────────────────────────────────
-export const APP_VERSION = 'V01.085.132'
+export const APP_VERSION = 'V01.086.130'
 
 export const POOL_STRUCTURE = {
   grundlagen:   { totalLevels: 10, cardsPerLevel: 20 },

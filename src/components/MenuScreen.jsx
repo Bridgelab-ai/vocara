@@ -823,7 +823,7 @@ Return ONLY a valid JSON array with no markdown or explanation:
     const level = myData?.topicLevels?.[topicKey] || 1
     setTopicSessionLoading(topicKey)
     try {
-      const docRef = doc(db, 'sharedCards', `${langPair}_topic_${topicKey}_${level}`)
+      const docRef = doc(db, 'sharedCards', `${langPair}_${topicKey}_${level}`)
       const snap = await getDoc(docRef)
       if (!snap.exists() || !snap.data()?.cards?.length) {
         setEmptyCategoryMsg(isMarkLang ? `Keine Karten für ${topicKey} Level ${level} — bitte zuerst im Admin generieren.` : `No cards for ${topicKey} Level ${level} — please generate in Admin first.`)
@@ -836,7 +836,6 @@ Return ONLY a valid JSON array with no markdown or explanation:
       const sessionCards = rawCards.map((c, i) => ({
         ...c,
         id: c.id || `topic_${topicKey}_${level}_${ts}_${i}`,
-        category: 'topics',
         topicKey,
         langA: fromLangCode,
         langB: toLangCode,
