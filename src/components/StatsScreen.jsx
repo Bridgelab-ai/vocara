@@ -234,8 +234,8 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
         const fastest = withReaction.sort((a, b) => a[1]._lastReactionMs - b[1]._lastReactionMs)[0]
         const hardest = entries.filter(([, p]) => (p?.wrongCount || 0) > 0).sort((a, b) => (b[1].wrongCount || 0) - (a[1].wrongCount || 0))[0]
         const avgMs = Math.round(withReaction.reduce((s, [, p]) => s + p._lastReactionMs, 0) / withReaction.length)
-        const fastCard = allCards.find(c => c.id === fastest?.[0])
-        const hardCard = allCards.find(c => c.id === hardest?.[0])
+        const fastCard = (allCards ?? []).find(c => c.id === fastest?.[0])
+        const hardCard = (allCards ?? []).find(c => c.id === hardest?.[0])
         return (
           <div style={{ ...s.card, marginBottom: '16px' }}>
             <p style={{ ...s.cardLabel, marginBottom: '10px' }}>{t.reactionTime}</p>
@@ -249,13 +249,13 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
                 <p style={{ color: th.sub, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.5px', margin: 0 }}>{t.fastest}</p>
               </div>
             </div>
-            {fastCard && <p style={{ color: th.sub, fontSize: '0.75rem', margin: '0 0 6px', textAlign: 'center', fontStyle: 'italic' }}>⚡ "{fastCard.front}"</p>}
+            {fastCard && <p style={{ color: th.sub, fontSize: '0.75rem', margin: '0 0 6px', textAlign: 'center', fontStyle: 'italic' }}>⚡ "{fastCard?.front}"</p>}
             {hardCard && (
               <div style={{ padding: '8px 10px', background: `${th.accent}12`, borderRadius: '8px', border: `1px solid ${th.accent}30` }}>
                 <p style={{ color: th.sub, fontSize: '0.72rem', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                   🎯 {t.hardestCard}
                 </p>
-                <p style={{ color: th.text, fontSize: '0.82rem', fontWeight: '600', margin: 0 }}>"{hardCard.front}" · {hardest[1].wrongCount}✗</p>
+                <p style={{ color: th.text, fontSize: '0.82rem', fontWeight: '600', margin: 0 }}>"{hardCard?.front}" · {hardest[1].wrongCount}✗</p>
               </div>
             )}
           </div>
