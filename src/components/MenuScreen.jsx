@@ -622,6 +622,7 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
 
   const startCategorySession = async (category) => {
     console.log('[Vocara] startCategorySession:', category)
+    let sessionCards = null
     if (loadCardsForCategory) {
       setCatLoading(category)
       const CAT_TO_POOL_KEY = { vocabulary: 'vocab', sentence: 'urlaub' }
@@ -636,7 +637,7 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
           setCatLoading(null)
           return
         }
-        fetched.forEach(c => { if (!allCards.find(a => a.id === c.id)) allCards.push(c) })
+        sessionCards = [...fetched]
       } catch (e) { console.error('[POOL] load failed:', e) }
       setCatLoading(null)
     }
@@ -651,17 +652,18 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
         c.category === 'vocabulary' && c.front?.trim().split(' ').length <= 2
       )
     }
+    const source = sessionCards || activeCards
     const cards = category === 'all'
-      ? activeCards
+      ? source
       : category === 'vocabulary'
-        ? activeCards.filter(c => {
+        ? source.filter(c => {
             const pass = vocabGuard(c)
             if (!pass && c.category === 'vocabulary') {
               console.log(`[Meine Worte GUARD] silently rejected: "${c.front}" (${c.front?.trim().split(' ').length} words)`)
             }
             return pass
           })
-        : activeCards.filter(c => c.category === category)
+        : source.filter(c => c.category === category)
     if (category !== 'all') {
       const excluded = activeCards.filter(c => c.category !== category)
       console.log('[Vocara] cards in category:', cards.length, '| excluded:', excluded.length, '| total:', activeCards.length)

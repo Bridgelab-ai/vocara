@@ -49,7 +49,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.086.145'
+const APP_VERSION = 'V01.086.146'
 const MARK_UID = 'aiNZh4Myn8Y0KfYkGGrkNNW0HC72'
 const ELOSY_UID = 'NIX3DYenRdbRjmr2EHsIad9GcqG3'
 const SESSION_SIZE = 15
@@ -2855,7 +2855,6 @@ function App() {
         const wantCat = CAT_ALIASES[category] || category
         if (data.category !== category && docCat !== category && data.category !== wantCat) return
       }
-      console.log('[LOAD DEBUG] doc level:', data.level, typeof data.level, 'filter level:', level, typeof level)
       if (level && Number(data.level) !== Number(level)) return
       ;(data.cards || []).forEach(c => {
         if (
