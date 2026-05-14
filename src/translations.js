@@ -32,6 +32,9 @@ export const T = {
     menuAddCards: 'Karten hinzufügen', menuCategorize: 'Kategorisieren', menuSettings: 'Einstellungen', menuSignOut: 'Abmelden',
     menuPartnerConnect: 'Partner verbinden', menuPartnerLabel: 'Partner',
     weekGoalTitle: 'Wochenziel', weekGoalDone: 'Heute: vollständig. ✓',
+    languagesLabel: 'Aktive Sprachen', learnLanguages: 'Lernsprachen & Anteile', addLanguage: '+ Sprache hinzufügen',
+    myLanguages: 'Meine Sprachen', nativeLanguage: 'Ausgangssprache', targetLanguage: 'Zielsprache',
+    saveFailed: 'Speichern fehlgeschlagen', targetLangRequired: 'Bitte wähle eine Zielsprache',
   },
   en: {
     hello: 'Hello', mySession: '🃏 My session', whereAmI: '🎯 Where do I stand?',
@@ -66,5 +69,8 @@ export const T = {
     menuAddCards: 'Add cards', menuCategorize: 'Categorize', menuSettings: 'Settings', menuSignOut: 'Sign out',
     menuPartnerConnect: 'Connect partner', menuPartnerLabel: 'Partner',
     weekGoalTitle: 'Weekly goal', weekGoalDone: 'Today: complete. ✓',
+    languagesLabel: 'Active languages', learnLanguages: 'Learning languages & ratios', addLanguage: '+ Add language',
+    myLanguages: 'My languages', nativeLanguage: 'Native language', targetLanguage: 'Target language',
+    saveFailed: 'Save failed', targetLangRequired: 'Please select a target language',
   }
 }
