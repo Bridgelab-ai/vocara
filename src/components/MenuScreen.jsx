@@ -645,12 +645,15 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
     // basics are always excluded. Any sentence slipping through is rejected here.
     const vocabGuard = (c) => {
       if (c.category === 'basics') return false
+      if (c.category === 'vocab') return true
       return (
         c.category === 'vocabulary' && !c.front?.trim().includes(' ')
       ) || (
         c.category === 'vocabulary' && c.front?.trim().split(' ').length <= 2
       )
     }
+    const CAT_TO_POOL_FILTER = { vocabulary: 'vocab', urlaub: 'sentence' }
+    const filterCat = CAT_TO_POOL_FILTER[category] || category
     const source = sessionCards || activeCards
     const cards = category === 'all'
       ? source
@@ -662,7 +665,7 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
             }
             return pass
           })
-        : source.filter(c => c.category === category)
+        : source.filter(c => c.category === category || c.category === filterCat)
     if (category !== 'all') {
       const excluded = activeCards.filter(c => c.category !== category)
       console.log('[Vocara] cards in category:', cards.length, '| excluded:', excluded.length, '| total:', activeCards.length)
@@ -670,7 +673,7 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
     } else {
       console.log('[Vocara] cards (all):', cards.length)
     }
-    if (!sessionCards || sessionCards.length === 0) {
+    if (cards.length === 0) {
       alert('Für dieses Level wurden noch keine Karten generiert. Bitte im Admin-Bereich generieren.')
       return
     }
