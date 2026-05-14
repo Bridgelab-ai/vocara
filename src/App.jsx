@@ -49,7 +49,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.086.152'
+const APP_VERSION = 'V01.086.153'
 const MARK_UID = 'aiNZh4Myn8Y0KfYkGGrkNNW0HC72'
 const ELOSY_UID = 'NIX3DYenRdbRjmr2EHsIad9GcqG3'
 const SESSION_SIZE = 15
@@ -2853,13 +2853,12 @@ function App() {
     const userFromLang = (myData?.fromLang || 'de').toLowerCase()
     snap.forEach(d => {
       const data = d.data()
-      console.log('[FILTER] doc:', d.id, 'category:', data.category, 'level:', data.level, 'langA:', data.cards?.[0]?.langA, 'langB:', data.cards?.[0]?.langB, 'fromLang:', userFromLang)
       if (category) {
         const docCat = CAT_NORMALIZE_POOL[data.category] || data.category
         const wantCat = CAT_ALIASES[category] || category
         if (data.category !== category && docCat !== category && data.category !== wantCat) return
       }
-      if (level && Number(data.level) !== Number(level)) return
+      if (level && String(data.level) !== String(level)) return
       ;(data.cards || []).forEach(c => {
         if (
           (c.langA || '').toLowerCase() !== userFromLang &&

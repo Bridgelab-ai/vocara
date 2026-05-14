@@ -622,7 +622,6 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
 
   const startCategorySession = async (category) => {
     try {
-    console.log('[START] category:', category, 'loadCardsForCategory type:', typeof loadCardsForCategory)
     console.log('[Vocara] startCategorySession:', category)
     let sessionCards = null
     if (loadCardsForCategory) {
