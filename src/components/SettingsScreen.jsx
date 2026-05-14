@@ -378,12 +378,26 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
               {t.targetLanguage}
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-              {AVAILABLE_LANGS.filter(l => l.code !== currentFromLang).map(l => (
-                <button key={l.code} onClick={() => handleToLangChange(l.code)}
-                  style={{ padding: '6px 12px', borderRadius: '10px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: currentToLang === l.code ? '700' : '400', background: currentToLang === l.code ? th.gold + '33' : 'transparent', color: currentToLang === l.code ? th.gold : th.sub, border: `1px solid ${currentToLang === l.code ? th.gold + '88' : th.border}`, transition: 'all 0.2s' }}>
-                  {l.flag} {l.label}
-                </button>
-              ))}
+              {AVAILABLE_LANGS.map(l => {
+                const isActive = ['de', 'en', 'sw'].includes(l.code)
+                const isSelected = currentToLang === l.code
+                return (
+                  <button key={l.code}
+                    onClick={() => isActive && handleToLangChange(l.code)}
+                    disabled={!isActive}
+                    style={{ padding: '6px 12px', borderRadius: '10px', fontSize: '0.8rem',
+                      cursor: isActive ? 'pointer' : 'default',
+                      fontWeight: isSelected ? '700' : '400',
+                      background: isSelected ? th.gold + '33' : 'transparent',
+                      color: isSelected ? th.gold : isActive ? th.sub : th.border,
+                      border: `1px solid ${isSelected ? th.gold + '88' : isActive ? th.border : th.border + '55'}`,
+                      opacity: isActive ? 1 : 0.45,
+                      transition: 'all 0.2s', position: 'relative' }}>
+                    {l.flag} {l.label}
+                    {!isActive && <span style={{ fontSize: '0.6rem', marginLeft: '4px', opacity: 0.7 }}>{lang === 'de' ? 'bald' : 'soon'}</span>}
+                  </button>
+                )
+              })}
             </div>
           </div>
         )
