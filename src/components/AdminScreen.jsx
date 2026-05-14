@@ -56,6 +56,10 @@ function AdminScreen({ user, lang, theme, onBack }) {
   const [deleteNoLevelStatus, setDeleteNoLevelStatus] = useState(null)
   const [expandedCat, setExpandedCat] = useState(null)
   const [expandedTopic, setExpandedTopic] = useState(null)
+  const [testLoading, setTestLoading] = useState(null)
+  const [testStatus, setTestStatus] = useState(null)
+  const [testCounts, setTestCounts] = useState({})
+  const [expandedTest, setExpandedTest] = useState(null)
 
   // ── Pool status ────────────────────────────────────────────────
   const loadPoolStatus = async () => {
@@ -78,6 +82,26 @@ function AdminScreen({ user, lang, theme, onBack }) {
       })
       setPoolCounts(counts)
     } catch (e) { console.warn('loadPoolStatus failed:', e) }
+  }
+
+  const buildTestCounts = (snap) => {
+    const counts = {}
+    snap.docs.forEach(d => {
+      const data = d.data()
+      if (!data.cefrLevel || !data.fromLang || !data.toLang) return
+      const lp = `${data.fromLang}_${data.toLang}`
+      const lvl = data.cefrLevel
+      if (!counts[lvl]) counts[lvl] = {}
+      counts[lvl][lp] = data.questions?.length ?? data.count ?? 0
+    })
+    return counts
+  }
+
+  const loadTestPoolStatus = async () => {
+    try {
+      const snap = await getDocs(collection(db, 'testCards'))
+      setTestCounts(buildTestCounts(snap))
+    } catch (e) { console.warn('loadTestPoolStatus failed:', e) }
   }
 
   const BLUE   = { background: 'rgba(40,100,220,0.15)', color: '#6fa3ef', border: '1px solid rgba(40,100,220,0.35)' }
@@ -120,6 +144,14 @@ function AdminScreen({ user, lang, theme, onBack }) {
                                          return YELLOW
   }
 
+  const getTestLevelBtnStyle = (cefrLevel) => {
+    const lvlCounts = testCounts[cefrLevel] || {}
+    const full = LANGUAGE_PAIRS.filter(lp => (lvlCounts[lp] ?? 0) >= 4).length
+    if (full === 0)                     return BLUE
+    if (full === LANGUAGE_PAIRS.length) return GREEN
+                                         return YELLOW
+  }
+
   // ── User list ──────────────────────────────────────────────────
   const load = async () => {
     setLoading(true)
@@ -132,7 +164,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
     setLoading(false)
   }
 
-  useEffect(() => { load(); loadPoolStatus() }, [])
+  useEffect(() => { load(); loadPoolStatus(); loadTestPoolStatus() }, [])
 
   const PLAN_OPTIONS = [
     { value: '',           label: 'Free' },
@@ -405,6 +437,35 @@ function AdminScreen({ user, lang, theme, onBack }) {
     setTopicLoading(null)
   }
 
+  // ── Test pool generation (Sprachkompass) ──────────────────────
+  const generateTestAtLevel = async (testType, cefrLevel) => {
+    const lkey = `${testType}_${cefrLevel}`
+    setTestLoading(lkey); setTestStatus(null)
+    let generated = 0, skipped = 0
+    for (const lp of LANGUAGE_PAIRS) {
+      const existing = testCounts[cefrLevel]?.[lp] ?? 0
+      if (existing >= 4) { skipped++; continue }
+      setTestStatus(`⟳ ${lp} ${cefrLevel}… (${generated + skipped + 1}/${LANGUAGE_PAIRS.length})`)
+      try {
+        const res = await fetch(`${BASE_URL}/api/generate-test-pool`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ testType, cefrLevel, pair: lp, from: lp.split('_')[0], to: lp.split('_')[1] })
+        })
+        const data = await res.json()
+        generated++
+        setTestCounts(prev => {
+          const next = { ...prev }
+          if (!next[cefrLevel]) next[cefrLevel] = {}
+          next[cefrLevel] = { ...next[cefrLevel], [lp]: data.count ?? 4 }
+          return next
+        })
+      } catch (e) { console.warn(`generateTestAtLevel ${testType} ${cefrLevel} ${lp}:`, e) }
+    }
+    setTestStatus(`✓ ${testType} ${cefrLevel}: ${generated} generiert, ${skipped} übersprungen`)
+    await loadTestPoolStatus()
+    setTestLoading(null)
+  }
+
   // ── Topic user reset ───────────────────────────────────────────
   const resetTopics = async () => {
     const uid = resetTarget === 'mark' ? MARK_UID : ELOSY_UID
@@ -674,6 +735,43 @@ function AdminScreen({ user, lang, theme, onBack }) {
           })}
         </div>
         {topicStatus && <p style={{ color: topicStatus.startsWith('✓') ? '#81c784' : topicStatus.startsWith('⟳') ? th.sub : '#e06c75', fontSize: '0.75rem', margin: '8px 0 0' }}>{topicStatus}</p>}
+      </div>
+
+      {/* Sprachkompass Pool */}
+      <div style={{ ...s.card, marginTop: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+          <p style={{ color: th.text, fontSize: '0.88rem', fontWeight: '700', margin: 0 }}>🧭 Sprachkompass Pool</p>
+          <span style={{ color: th.sub, fontSize: '0.68rem' }}>🔵 leer&nbsp; 🟡 teilweise&nbsp; 🟢 voll</span>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          {[{ key: 'sprachkompass', label: 'Sprachkompass', emoji: '🧭' }].map(t => {
+            const isExp = expandedTest === t.key
+            return (
+              <div key={t.key} style={{ border: `1px solid ${th.border}`, borderRadius: '12px', overflow: 'hidden' }}>
+                <button onClick={() => setExpandedTest(isExp ? null : t.key)}
+                  style={{ width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ color: th.text, fontSize: '0.82rem', fontWeight: '600' }}>{t.emoji} {t.label}</span>
+                  <span style={{ color: th.sub, fontSize: '0.7rem' }}>5L {isExp ? '▲' : '▼'}</span>
+                </button>
+                {isExp && (
+                  <div style={{ borderTop: `1px solid ${th.border}`, padding: '8px 10px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                    {['A1','A2','B1','B2','C1'].map(lvl => {
+                      const bs = getTestLevelBtnStyle(lvl)
+                      const lkey = `${t.key}_${lvl}`
+                      return (
+                        <button key={lvl} onClick={() => generateTestAtLevel(t.key, lvl)} disabled={!!testLoading}
+                          style={{ padding: '4px 8px', borderRadius: '8px', fontSize: '0.72rem', fontWeight: '700', cursor: testLoading ? 'default' : 'pointer', opacity: testLoading && testLoading !== lkey ? 0.5 : 1, ...bs }}>
+                          {testLoading === lkey ? '⟳' : lvl}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+        {testStatus && <p style={{ color: testStatus.startsWith('✓') ? '#81c784' : testStatus.startsWith('⟳') ? th.sub : '#e06c75', fontSize: '0.75rem', margin: '8px 0 0' }}>{testStatus}</p>}
       </div>
 
       {/* Delete All sharedCards */}
