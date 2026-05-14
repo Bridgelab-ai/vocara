@@ -11,6 +11,7 @@ import ResultScreen from './components/ResultScreen'
 import AdminScreen from './components/AdminScreen'
 import OnboardingScreen from './components/OnboardingScreen'
 import MenuScreen from './components/MenuScreen'
+import SprachkompassScreen from './components/SprachkompassScreen'
 import { AppPrefsContext } from './context'
 
 // ── THEME RESOLVER (applies light mode overrides) ─────────────
@@ -49,7 +50,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.087.135'
+const APP_VERSION = 'V01.088.133'
 const MARK_UID = 'aiNZh4Myn8Y0KfYkGGrkNNW0HC72'
 const ELOSY_UID = 'NIX3DYenRdbRjmr2EHsIad9GcqG3'
 const SESSION_SIZE = 15
@@ -3089,7 +3090,7 @@ function App() {
   if (isNewUser) return <WelcomeScreen user={user} theme={theme} onContinue={() => { setIsNewUser(false); setMainNav('entdecken') }} />
 
   // Onboarding: show for new users before lang setup
-  if (needsOnboarding) return <OnboardingScreen lang={lang} theme={theme} onDone={handleOnboardingDone} />
+  if (needsOnboarding) return <OnboardingScreen lang={lang} theme={theme} onDone={handleOnboardingDone} onSprachkompass={() => setMainNav('sprachkompass')} />
 
   if (needsLangSetup) return <LangSetupScreen user={user} lang={lang} theme={theme} onDone={(langs) => { setNeedsLangSetup(false); setMyData(d => ({ ...d, languages: langs })) }} />
 
@@ -3168,6 +3169,11 @@ function App() {
         )}
         {mainNav === 'horizont' && (
           <HorizontScreen lang={lang} theme={theme} onBack={() => setMainNav('main')} />
+        )}
+        {mainNav === 'sprachkompass' && (
+          <SprachkompassScreen user={user} myData={myData} setMyData={setMyData} theme={theme} lightMode={lightMode} lang={lang}
+            onBack={() => setMainNav('sprechen')}
+            onComplete={() => setMainNav('sprechen')} />
         )}
         {mainNav === 'livesession' && coupleId && (
           <LiveSessionScreen user={user} myData={myData} partnerData={partnerData} coupleId={coupleId}

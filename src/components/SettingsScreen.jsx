@@ -681,6 +681,14 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
         )
       })()}
 
+      {/* ── SPRACHKOMPASS ── */}
+      {onSprachkompass && (
+        <button style={{ ...s.logoutBtn, marginTop: '8px', color: '#00D4AA', border: '1px solid rgba(0,212,170,0.35)' }}
+          onClick={onSprachkompass}>
+          🧭 {isDE ? 'Sprachkompass starten' : 'Start Language Compass'}
+        </button>
+      )}
+
       {/* ── ABMELDEN ── */}
       <button style={{ ...s.logoutBtn, marginTop: '8px', color: '#e06c75', border: '1px solid rgba(224,108,117,0.35)' }}
         onClick={() => { if (window.confirm(t.signOut)) signOut(auth) }}>

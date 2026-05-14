@@ -46,16 +46,23 @@ const ONBOARDING_SLIDES_EN = [
   },
 ]
 
-function OnboardingScreen({ lang, theme, onDone }) {
+function OnboardingScreen({ lang, theme, onDone, onSprachkompass }) {
   const th = THEMES[theme]
   const slides = lang === 'de' ? ONBOARDING_SLIDES_DE : ONBOARDING_SLIDES_EN
   const [index, setIndex] = useState(0)
   const [showCities, setShowCities] = useState(false)
   const [showRelType, setShowRelType] = useState(false)
+  const [showSprachkompassOffer, setShowSprachkompassOffer] = useState(false)
+  const [pendingDoneData, setPendingDoneData] = useState(null)
   const [homeCity, setHomeCity] = useState('')
   const [partnerCity, setPartnerCity] = useState('')
   const [pendingCityData, setPendingCityData] = useState({})
   const isLast = index === slides.length - 1
+
+  const finishOnboarding = (data) => {
+    if (onSprachkompass) { setPendingDoneData(data); setShowSprachkompassOffer(true) }
+    else onDone(data)
+  }
   const slide = slides[index]
 
   const inputStyle = { width: '100%', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '10px', padding: '12px 14px', color: '#fff', fontSize: '1rem', outline: 'none', boxSizing: 'border-box', marginBottom: '12px' }
@@ -88,13 +95,13 @@ function OnboardingScreen({ lang, theme, onDone }) {
           </p>
           {REL_OPTIONS.map(opt => (
             <button key={opt.key} style={relBtnStyle(false)}
-              onClick={() => onDone({ ...pendingCityData, relationshipType: opt.key })}>
+              onClick={() => finishOnboarding({ ...pendingCityData, relationshipType: opt.key })}>
               <span style={{ fontSize: '1.5rem' }}>{opt.emoji}</span>
               <span>{lang === 'de' ? opt.de : opt.en}</span>
             </button>
           ))}
           <button style={{ background: 'transparent', color: th.sub, border: 'none', padding: '8px', fontSize: '0.85rem', cursor: 'pointer', width: '100%', marginTop: '4px' }}
-            onClick={() => onDone(pendingCityData)}>
+            onClick={() => finishOnboarding(pendingCityData)}>
             {lang === 'de' ? 'Überspringen' : 'Skip'}
           </button>
         </div>
@@ -148,6 +155,34 @@ function OnboardingScreen({ lang, theme, onDone }) {
     )
   }
 
+  if (showSprachkompassOffer) {
+    return (
+      <div style={{ minHeight: '100vh', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: th.bg }} className="vocara-screen">
+        <div style={{ textAlign: 'center', padding: '32px 24px', width: '100%', maxWidth: '420px', animation: 'vocaraFadeIn 0.3s ease both' }}>
+          <p style={{ fontSize: '4rem', margin: '0 0 16px 0' }}>🧭</p>
+          <h2 style={{ color: th.gold, fontSize: '1.5rem', fontWeight: 'bold', margin: '0 0 12px 0' }}>
+            {lang === 'de' ? 'Sprachstand testen?' : 'Test your level?'}
+          </h2>
+          <p style={{ color: th.sub, fontSize: '0.95rem', lineHeight: '1.6', margin: '0 0 32px 0' }}>
+            {lang === 'de'
+              ? 'Ein kurzer Test ermittelt deinen Sprachstand und passt deinen Lernpfad automatisch an.'
+              : 'A quick test determines your level and automatically adjusts your learning path.'}
+          </p>
+          <button
+            style={{ background: th.accent, color: '#fff', border: 'none', padding: '14px 28px', borderRadius: '10px', fontSize: '1rem', cursor: 'pointer', fontWeight: 'bold', width: '100%', marginBottom: '12px' }}
+            onClick={() => { onDone(pendingDoneData || {}); onSprachkompass() }}>
+            {lang === 'de' ? '🧭 Ja, Test starten' : '🧭 Yes, start test'}
+          </button>
+          <button
+            style={{ background: 'transparent', color: th.sub, border: 'none', padding: '8px', fontSize: '0.85rem', cursor: 'pointer', width: '100%' }}
+            onClick={() => onDone(pendingDoneData || {})}>
+            {lang === 'de' ? 'Überspringen' : 'Skip'}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div style={{ minHeight: '100vh', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: th.bg }} className="vocara-screen">
       <div style={{ textAlign: 'center', padding: '32px 24px', width: '100%', maxWidth: '420px' }}>
@@ -165,7 +200,7 @@ function OnboardingScreen({ lang, theme, onDone }) {
           style={{ background: th.accent, color: '#fff', border: 'none', padding: '14px 28px', borderRadius: '10px', fontSize: '1rem', cursor: 'pointer', fontWeight: 'bold', width: '100%', marginBottom: '12px' }}
           onClick={() => isLast ? setShowCities(true) : setIndex(i => i + 1)}
         >
-          {isLast ? (lang === 'de' ? 'Weiter →' : 'Next →') : (lang === 'de' ? 'Weiter →' : 'Next →')}
+          {lang === 'de' ? 'Weiter →' : 'Next →'}
         </button>
         {!isLast && (
           <button
