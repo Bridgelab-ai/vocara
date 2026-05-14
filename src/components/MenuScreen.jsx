@@ -632,7 +632,6 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
       const poolLevel = category === 'all' ? null : level
       try {
         const fetched = await loadCardsForCategory(poolCat, poolLevel)
-        console.log('[SESSION] fetched cards:', fetched?.length, 'category:', category, 'level:', level)
         if (!fetched || fetched.length === 0) {
           alert('Für dieses Level wurden noch keine Karten generiert. Bitte im Admin-Bereich generieren.')
           setCatLoading(null)
@@ -672,21 +671,9 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
     } else {
       console.log('[Vocara] cards (all):', cards.length)
     }
-    if (category === 'vocabulary' && cards.length < 5) {
-      generateVocabWords(cards) // pass existing cards so they're included in the session
-      return
-    }
-    if (cards.length === 0) {
-      if (category === 'street') {
-        generateCategoryCards('street')
-        return
-      }
-      if (category === 'home') {
-        generateCategoryCards('home')
-        return
-      }
-      setEmptyCategoryMsg(isMarkLang ? 'Hier wartet noch nichts — aber das ändert sich.' : 'Nothing here yet — but that changes now.')
-      setTimeout(() => setEmptyCategoryMsg(null), 3500)
+    if (!sessionCards || sessionCards.length === 0) {
+      alert('Für dieses Level wurden noch keine Karten generiert. Bitte im Admin-Bereich generieren.')
+      setCatLoading(null)
       return
     }
     const sp = myData?.sessionProgress
