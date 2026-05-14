@@ -1428,7 +1428,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
       {/* ── 5-BUTTON GRID ── */}
       <div className="vocara-cat-grid" style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '12px' }}>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '0s', flexDirection: 'column', alignItems: 'center', opacity: catLoading ? 0.5 : 1 }} onClick={() => startCategorySession('vocabulary')} disabled={catLoading === category}>
+          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '0s', flexDirection: 'column', alignItems: 'center', opacity: catLoading ? 0.5 : 1 }} onClick={() => startCategorySession('vocabulary')} disabled={catLoading === 'vocabulary'}>
             <span>{catLoading === 'vocabulary' ? '⟳' : t.menuWorte.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</span>
             {catLoading !== 'vocabulary' && catLevelBar('vocabulary')}
           </button>
@@ -1438,16 +1438,16 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           </button>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '3.5s', flexDirection: 'column', alignItems: 'center', opacity: catLoading ? 0.5 : 1 }} onClick={() => startCategorySession('street')} disabled={catLoading === category}>
+          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '3.5s', flexDirection: 'column', alignItems: 'center', opacity: catLoading ? 0.5 : 1 }} onClick={() => startCategorySession('street')} disabled={catLoading === 'street'}>
             <span>{catLoading === 'street' ? '⟳' : t.menuStraße.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</span>
             {catLoading !== 'street' && catLevelBar('street')}
           </button>
-          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '5.2s', flexDirection: 'column', alignItems: 'center', opacity: catLoading ? 0.5 : 1 }} onClick={() => startCategorySession('home')} disabled={catLoading === category}>
+          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '5.2s', flexDirection: 'column', alignItems: 'center', opacity: catLoading ? 0.5 : 1 }} onClick={() => startCategorySession('home')} disabled={catLoading === 'home'}>
             <span>{t.menuHause.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</span>
             {catLevelBar('home')}
           </button>
         </div>
-        <button className="vocara-alle-btn" style={{ ...s.button, padding: '13px 28px', fontSize: '0.9rem', letterSpacing: '0.2px', marginBottom: 0, '--gleam-delay': '2.5s', opacity: catLoading ? 0.5 : 1 }} onClick={() => startCategorySession('all')} disabled={catLoading === category}>
+        <button className="vocara-alle-btn" style={{ ...s.button, padding: '13px 28px', fontSize: '0.9rem', letterSpacing: '0.2px', marginBottom: 0, '--gleam-delay': '2.5s', opacity: catLoading ? 0.5 : 1 }} onClick={() => startCategorySession('all')} disabled={!!catLoading}>
           {catLoading === 'all' ? '⟳ Laden...' : t.menuAlle}
         </button>
         <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '6.8s', width: '100%', opacity: basicsLoading ? 0.6 : 1, flexDirection: 'column', alignItems: 'center' }} onClick={startBasicsSession} disabled={basicsLoading}>
