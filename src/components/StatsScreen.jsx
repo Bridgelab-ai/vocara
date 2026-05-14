@@ -19,6 +19,7 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
   if (!th || !s) return null
   if (!myData) return null
   const t = tProp
+  const safePartner = partnerData || {}
   const today = todayStr()
 
   useEffect(() => {
@@ -38,13 +39,13 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
   const dueTomorrow = Object.values(cardProgress).filter(p => p.nextReview === tomorrow).length
   const myMastered = Object.values(cardProgress).filter(p => (p?.interval || 0) >= 7).length
 
-  const partnerHistory = partnerData?.sessionHistory || []
-  const partnerStreak = partnerData?.streak ?? calcStreak(partnerHistory)
+  const partnerHistory = safePartner?.sessionHistory || []
+  const partnerStreak = safePartner?.streak ?? calcStreak(partnerHistory)
   const partnerTodayCorrect = partnerHistory.filter(h => h.date === today).reduce((a, b) => a + (b.correct || 0), 0)
   const partnerTodaySessions = partnerHistory.filter(h => h.date === today).length
-  const partnerProgress = partnerData?.cardProgress || {}
-  const partnerMastered = partnerData?.masteredCards ?? Object.values(partnerProgress).filter(p => (p?.interval || 0) >= 7).length
-  const partnerActive = partnerData?.totalCards ?? Object.keys(partnerProgress).length
+  const partnerProgress = safePartner?.cardProgress || {}
+  const partnerMastered = safePartner?.masteredCards ?? Object.values(partnerProgress).filter(p => (p?.interval || 0) >= 7).length
+  const partnerActive = safePartner?.totalCards ?? Object.keys(partnerProgress).length
 
   const myTotalLearned = sessionHistory.reduce((a, b) => a + (b.correct || 0), 0)
   const partnerTotalLearned = partnerHistory.reduce((a, b) => a + (b.correct || 0), 0)
@@ -91,7 +92,7 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
   const partnerWeeklyFavArea = getWeeklyFavArea(partnerHistory)
 
   const myName = myData?.name?.split(' ')[0] || user.displayName?.split(' ')[0] || 'Ich'
-  const partnerName = myData?.partnerName || partnerData?.name?.split(' ')[0] || 'Partner'
+  const partnerName = myData?.partnerName || safePartner?.name?.split(' ')[0] || 'Partner'
   const hasPartner = !!myData?.partnerUID || !!partnerData
 
   const statBox = (label, value, sub) => (
@@ -128,7 +129,7 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
 
       {/* ── TOP STATS GRID ── */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
-        {statBox(t.learnedToday, todayCorrect, `${todaySessions} Session${todaySessions !== 1 ? 's' : ''}`)}
+        {statBox(t?.learnedToday, todayCorrect, `${todaySessions} Session${todaySessions !== 1 ? 's' : ''}`)}
         {statBox('Streak', myStreak > 0 ? `🔥 ${myStreak}` : '—', t.statDays)}
       </div>
       <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
@@ -308,9 +309,9 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
             const myW = myData?.learningWeek === nowWeek ? (myData?.weeklyMinutes || 0) : 0
             const myM = myData?.learningMonth === nowMonth ? (myData?.monthlyMinutes || 0) : 0
             const myT = myData?.totalMinutes || 0
-            const pW = partnerData?.learningWeek === nowWeek ? (partnerData?.weeklyMinutes || 0) : 0
-            const pM = partnerData?.learningMonth === nowMonth ? (partnerData?.monthlyMinutes || 0) : 0
-            const pT = partnerData?.totalMinutes || 0
+            const pW = safePartner?.learningWeek === nowWeek ? (safePartner?.weeklyMinutes || 0) : 0
+            const pM = safePartner?.learningMonth === nowMonth ? (safePartner?.monthlyMinutes || 0) : 0
+            const pT = safePartner?.totalMinutes || 0
             const fmtM = (m) => m < 60 ? `${m}m` : `${Math.round(m/60)}h`
             const BarPair = ({ label, myVal, pVal }) => {
               const maxVal = Math.max(myVal, pVal, 1)
