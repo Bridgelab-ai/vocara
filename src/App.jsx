@@ -2859,6 +2859,9 @@ function App() {
         if (data.category !== category && docCat !== category && data.category !== wantCat) return
       }
       if (level && String(data.level) !== String(level)) return
+      if (data.category === 'grundlagen') {
+        console.log('[DEBUG grundlagen]', d.id, 'data.level=', data.level, typeof data.level, 'filter level=', level, typeof level, 'match=', String(data.level) === String(level))
+      }
       ;(data.cards || []).forEach(c => {
         if (
           (c.langA || '').toLowerCase() !== userFromLang &&
