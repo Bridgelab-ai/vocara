@@ -3,6 +3,7 @@ import { getDocs, collection, doc, updateDoc, deleteField, writeBatch } from 'fi
 import { db } from '../firebase'
 import { THEMES, makeStyles } from '../theme'
 import { todayStr, getISOWeekStr, MARK_UID, ELOSY_UID } from '../appShared'
+import { TOPIC_STRUCTURE } from '../../api/_topicStructure.js'
 
 const BASE_URL = 'https://vocara-peach.vercel.app'
 
@@ -28,6 +29,8 @@ const TOPICS_LIST = [
   { key: 'gesundheit',  emoji: '🏥', label: 'Gesundheit'  },
   { key: 'psychologie', emoji: '🧠', label: 'Psychologie' },
   { key: 'ausgehen',    emoji: '🍺', label: 'Ausgehen'    },
+  { key: 'zahlen',      emoji: '🔢', label: 'Zahlen'      },
+  { key: 'alphabet',    emoji: '🔤', label: 'Alphabet'    },
 ]
 const LANGUAGE_PAIRS = ['de_en','de_sw','en_de','en_sw','sw_de','sw_en']
 
@@ -572,6 +575,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
         sessionHistory: [],
         weeklyGoals: { week: '', completed: [] },
         aiCards: [],
+        topicLevels: {},
       })
       setResetStatus(`✓ ${name} vollständig zurückgesetzt`)
       load()
@@ -719,11 +723,11 @@ function AdminScreen({ user, lang, theme, onBack }) {
                 <button onClick={() => setExpandedTopic(isExp ? null : t.key)}
                   style={{ width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ color: th.text, fontSize: '0.82rem', fontWeight: '600' }}>{t.emoji} {t.label}</span>
-                  <span style={{ color: th.sub, fontSize: '0.7rem' }}>8L {isExp ? '▲' : '▼'}</span>
+                  <span style={{ color: th.sub, fontSize: '0.7rem' }}>{TOPIC_STRUCTURE[t.key]?.totalLevels || 8}L {isExp ? '▲' : '▼'}</span>
                 </button>
                 {isExp && (
                   <div style={{ borderTop: `1px solid ${th.border}`, padding: '8px 10px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                    {[1,2,3,4,5,6,7,8].map(lvl => {
+                    {Array.from({ length: TOPIC_STRUCTURE[t.key]?.totalLevels || 8 }, (_, i) => i + 1).map(lvl => {
                       const bs = getTopicLevelBtnStyle(t.key, lvl)
                       const lkey = `${t.key}_${lvl}`
                       return (

@@ -10,6 +10,7 @@ import {
   LANG_FLAGS, NEW_CARDS_BATCH, getLevelName, MARK_UID, ELOSY_UID, APP_VERSION,
   SESSION_SIZE, MONTHLY_TEST_DAYS, getCatLevel, TOPICS_LIST, POOL_STRUCTURE
 } from '../appShared'
+import { TOPIC_STRUCTURE } from '../../api/_topicStructure.js'
 import LanguageProgressScreen from './LanguageProgressScreen'
 import CardScreen from './CardScreen'
 import ResultScreen from './ResultScreen'
@@ -1171,6 +1172,25 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         } catch (e) { console.error('[LevelUp] Failed:', e) }
       }
     }
+    // ── Topic level-up check ──────────────────────────────
+    if (currentSessionMode.startsWith('topic_')) {
+      const topicKey = currentSessionMode.slice('topic_'.length)
+      const topicInfo = TOPIC_STRUCTURE[topicKey]
+      if (topicInfo) {
+        const topicLevel = myData?.topicLevels?.[topicKey] || 1
+        const prefix = `${topicKey}_${topicLevel}_`
+        const masteredCount = Object.entries(finalProgress)
+          .filter(([id, p]) => id.startsWith(prefix) && (p?.interval ?? 0) >= 7).length
+        if (topicLevel < topicInfo.totalLevels && masteredCount >= topicInfo.cardsPerLevel * 0.8) {
+          const newLevel = topicLevel + 1
+          const newTopicLevels = { ...(myData?.topicLevels || {}), [topicKey]: newLevel }
+          try {
+            await updateDoc(doc(db, 'users', user.uid), { topicLevels: newTopicLevels })
+            setMyData(d => ({ ...d, topicLevels: newTopicLevels }))
+          } catch (e) { console.error('[TopicLevelUp] Failed:', e) }
+        }
+      }
+    }
     // ── Learning time tracking ─────────────────────────────
     const sessionMinutes = Math.max(1, Math.round((correct + wrong) * 30 / 60))
     const nowMonth = new Date().toISOString().slice(0, 7)
@@ -1451,14 +1471,32 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
       </button>
       {themenOpen && (
         <div style={{ background: th.card, border: `1px solid ${th.border}`, borderRadius: '14px', padding: '4px', marginBottom: '12px', animation: 'vocaraFadeIn 0.2s ease both' }}>
-          {TOPICS_LIST.map(topic => (
-            <button key={topic.key}
-              onClick={() => { setThemenOpen(false); startTopicSession(topic.key) }}
-              disabled={!!topicSessionLoading}
-              style={{ ...s.navBtn, marginBottom: '2px', textAlign: 'left', paddingLeft: '16px', opacity: topicSessionLoading && topicSessionLoading !== topic.key ? 0.5 : 1 }}>
-              {topicSessionLoading === topic.key ? '…' : `${topic.emoji} ${lang === 'de' ? topic.de : topic.en}`}
-            </button>
-          ))}
+          {TOPICS_LIST.map(topic => {
+            const topicLevel = myData?.topicLevels?.[topic.key] || 1
+            const totalLevels = TOPIC_STRUCTURE[topic.key]?.totalLevels || 8
+            const cardsPerLevel = TOPIC_STRUCTURE[topic.key]?.cardsPerLevel || 15
+            const prefix = `${topic.key}_${topicLevel}_`
+            const seenCount = Object.entries(cardProgress).filter(([id, p]) => id.startsWith(prefix) && p !== undefined && p !== null).length
+            const pct = Math.min(100, Math.round((seenCount / cardsPerLevel) * 100))
+            return (
+              <button key={topic.key}
+                onClick={() => { setThemenOpen(false); startTopicSession(topic.key) }}
+                disabled={!!topicSessionLoading}
+                style={{ ...s.navBtn, marginBottom: '2px', textAlign: 'left', paddingLeft: '16px', opacity: topicSessionLoading && topicSessionLoading !== topic.key ? 0.5 : 1, position: 'relative', overflow: 'hidden' }}>
+                {topicSessionLoading === topic.key ? '…' : (
+                  <>
+                    <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                      <span>{topic.emoji} {lang === 'de' ? topic.de : topic.en}</span>
+                      <span style={{ fontSize: '0.68rem', fontWeight: '700', color: th.accent, opacity: 0.85, marginLeft: '8px', flexShrink: 0 }}>Lv{topicLevel}/{totalLevels}</span>
+                    </span>
+                    {pct > 0 && (
+                      <span style={{ position: 'absolute', bottom: 0, left: 0, height: '2px', width: `${pct}%`, background: th.accent, borderRadius: '0 1px 1px 0', opacity: 0.5 }} />
+                    )}
+                  </>
+                )}
+              </button>
+            )
+          })}
         </div>
       )}
 

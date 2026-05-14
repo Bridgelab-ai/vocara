@@ -12,6 +12,8 @@ export const TOPIC_STRUCTURE = {
   gesundheit:  { cardsPerLevel: 15, totalLevels: 8 },
   psychologie: { cardsPerLevel: 15, totalLevels: 8 },
   ausgehen:    { cardsPerLevel: 15, totalLevels: 8 },
+  zahlen:      { cardsPerLevel: 15, totalLevels: 8 },
+  alphabet:    { cardsPerLevel: 15, totalLevels: 6 },
 }
 
 export const TOPIC_NAMES = {
@@ -27,12 +29,15 @@ export const TOPIC_NAMES = {
   gesundheit:  { en: 'Health & Body',        de: 'Gesundheit & Körper' },
   psychologie: { en: 'Psychology & Mind',    de: 'Psychologie & Geist' },
   ausgehen:    { en: 'Going Out & Social',   de: 'Ausgehen & Freizeit' },
+  zahlen:      { en: 'Numbers & Counting',   de: 'Zahlen & Zählen'    },
+  alphabet:    { en: 'Alphabet & Spelling',  de: 'Alphabet & Schrift'  },
 }
 
 export const TOPIC_EMOJIS = {
   kochen: '🍳', liebe: '❤️', sport: '💪', film: '🎬',
   musik: '🎵', reisen: '✈️', business: '💼', natur: '🌿',
   tech: '💻', gesundheit: '🏥', psychologie: '🧠', ausgehen: '🍺',
+  zahlen: '🔢', alphabet: '🔤',
 }
 
 export const TOPIC_LEVEL_CONTENT = {

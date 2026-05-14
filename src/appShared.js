@@ -23,6 +23,8 @@ export const TOPICS_LIST = [
   { key: 'gesundheit',  emoji: '🏥', de: 'Gesundheit',  en: 'Health'      },
   { key: 'psychologie', emoji: '🧠', de: 'Psychologie', en: 'Psychology'  },
   { key: 'ausgehen',    emoji: '🍺', de: 'Ausgehen',    en: 'Going Out'   },
+  { key: 'zahlen',      emoji: '🔢', de: 'Zahlen',      en: 'Numbers'     },
+  { key: 'alphabet',    emoji: '🔤', de: 'Alphabet',    en: 'Alphabet'    },
 ]
 
 export const CARD_GEN_SYSTEM = `You are a professional native-level translator and linguist.
@@ -165,7 +167,7 @@ export function getCatLevel(masteredCount) {
 }
 
 // ── CONSTANTS ─────────────────────────────────────────────────
-export const APP_VERSION = 'V01.089.134'
+export const APP_VERSION = 'V01.090.133'
 
 export const POOL_STRUCTURE = {
   grundlagen:   { totalLevels: 10, cardsPerLevel: 20 },
