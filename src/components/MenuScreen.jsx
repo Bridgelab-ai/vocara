@@ -654,18 +654,19 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
     }
     const CAT_TO_POOL_FILTER = { vocabulary: 'vocab', urlaub: 'sentence' }
     const filterCat = CAT_TO_POOL_FILTER[category] || category
-    const source = sessionCards || activeCards
-    const cards = category === 'all'
-      ? source
-      : category === 'vocabulary'
-        ? source.filter(c => {
-            const pass = vocabGuard(c)
-            if (!pass && c.category === 'vocabulary') {
-              console.log(`[Meine Worte GUARD] silently rejected: "${c.front}" (${c.front?.trim().split(' ').length} words)`)
-            }
-            return pass
-          })
-        : source.filter(c => c.category === category || c.category === filterCat)
+    const cards = sessionCards
+      ? (category === 'vocabulary' ? sessionCards.filter(c => vocabGuard(c)) : sessionCards)
+      : category === 'all'
+        ? activeCards
+        : category === 'vocabulary'
+          ? activeCards.filter(c => {
+              const pass = vocabGuard(c)
+              if (!pass && c.category === 'vocabulary') {
+                console.log(`[Meine Worte GUARD] silently rejected: "${c.front}" (${c.front?.trim().split(' ').length} words)`)
+              }
+              return pass
+            })
+          : activeCards.filter(c => c.category === category || c.category === filterCat)
     if (category !== 'all') {
       const excluded = activeCards.filter(c => c.category !== category)
       console.log('[Vocara] cards in category:', cards.length, '| excluded:', excluded.length, '| total:', activeCards.length)
