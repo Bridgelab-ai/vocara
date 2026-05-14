@@ -6,7 +6,7 @@ import { MARK_UID, ELOSY_UID, SOCIAL_REGISTERS, AVAILABLE_LANGS, TOPICS_LIST, CA
 import { THEMES } from '../theme'
 import { invalidateCache } from '../hooks/useCardCache'
 
-function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setMyData, allCards, lang, onPartner, onLightModeChange, onCardSizeChange, musicEnabled, musicVolume, onMusicToggle, onMusicVolume, onToLangChange, categoryLevels, setCategoryLevels, lightMode, cardSize, appVersion }) {
+function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setMyData, allCards, lang, onPartner, onLightModeChange, onCardSizeChange, musicEnabled, musicVolume, onMusicToggle, onMusicVolume, onToLangChange, categoryLevels, setCategoryLevels, lightMode, cardSize, appVersion, onSprachkompass = () => {} }) {
   const th = THEMES[theme]
   const isDE = lang === 'de'
   const pausedLanguages = myData?.pausedLanguages || []
