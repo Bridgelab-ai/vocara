@@ -145,8 +145,8 @@ function AdminScreen({ user, lang, theme, onBack }) {
   }
 
   const getTestLevelBtnStyle = (cefrLevel) => {
-    const lvlCounts = testCounts[cefrLevel] || {}
-    const full = LANGUAGE_PAIRS.filter(lp => (lvlCounts[lp] ?? 0) >= 4).length
+    const lvlCounts = testCounts?.[cefrLevel] ?? {}
+    const full = LANGUAGE_PAIRS.filter(lp => (lvlCounts?.[lp] ?? 0) >= 4).length
     if (full === 0)                     return BLUE
     if (full === LANGUAGE_PAIRS.length) return GREEN
                                          return YELLOW
