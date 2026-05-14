@@ -118,7 +118,7 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
           onClick={onBack}
           style={{ background: 'none', border: 'none', color: th.accent, cursor: 'pointer', fontSize: '1.1rem', fontWeight: '700', padding: '12px 8px 12px 0', display: 'flex', alignItems: 'center', gap: '6px', WebkitTapHighlightColor: 'transparent' }}
         >
-          ← {t.back}
+          ← {t?.back}
         </button>
         <span style={{ color: th.text, fontWeight: '600', fontSize: '1rem', marginLeft: '8px' }}>
           {t.statistics}

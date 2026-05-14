@@ -519,7 +519,7 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
             const raw = ((await res.json()).content?.[0]?.text || '[]').trim()
             const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim())
             const ts = Date.now()
-            const newCards = parsed.slice(0, 15).map((c, i) => ({ id: `topic_${topic.key}_${ts}_${i}`, front: c.front?.trim(), back: c.back?.trim(), category: 'vocabulary', tense: 'present', wordType: c.wordType || null, article: c.article || null, langA, langB, source: `topic-${topic.key}`, topic: topic.key, createdAt: ts })).filter(c => c.front && c.back)
+            const newCards = parsed.slice(0, 15).map((c, i) => ({ id: `topic_${topic.key}_${ts}_${i}`, front: c.front?.trim(), back: c?.back?.trim(), category: 'vocabulary', tense: 'present', wordType: c.wordType || null, article: c.article || null, langA, langB, source: `topic-${topic.key}`, topic: topic.key, createdAt: ts })).filter(c => c.front && c.back)
             const updatedCards = [...(myData?.aiCards || []), ...newCards]
             const updatedTopics = [...new Set([...unlockedTopics, topic.key])]
             await updateDoc(doc(db, 'users', user.uid), { aiCards: updatedCards, unlockedTopics: updatedTopics })

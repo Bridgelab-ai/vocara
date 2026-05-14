@@ -49,7 +49,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.086.138'
+const APP_VERSION = 'V01.086.139'
 const MARK_UID = 'aiNZh4Myn8Y0KfYkGGrkNNW0HC72'
 const ELOSY_UID = 'NIX3DYenRdbRjmr2EHsIad9GcqG3'
 const SESSION_SIZE = 15
@@ -160,7 +160,7 @@ function getToLangText(card, userToLang) {
   if (!card) return null
   const toLang = (userToLang || card.targetLang || card.langA || 'en').toLowerCase()
   if ((card.langA || '').toLowerCase() === toLang) return { text: card.front, langCode: toLang }
-  if ((card.langB || '').toLowerCase() === toLang) return { text: card.back, langCode: toLang }
+  if ((card.langB || '').toLowerCase() === toLang) return { text: card?.back, langCode: toLang }
   return null // never guess — silence is better than speaking the wrong language
 }
 
@@ -599,7 +599,7 @@ function buildCardPair(card) {
     reversedCards = [{
       ...card,
       id: `${card.id}_r`,
-      front: card.back,
+      front: card?.back,
       back: card.front,
       langA: card.langB,
       langB: card.langA,
@@ -1963,7 +1963,7 @@ function GeschenkkarteScreen({ user, myData, lang, theme, onBack, allCards, card
     if (!selectedCard || !myPartnerUID) return
     setSending(true)
     try {
-      const gift = { front: selectedCard.front, back: selectedCard.back, category: selectedCard.category, langA: selectedCard.langA, langB: selectedCard.langB, message: message.trim().slice(0, 100), fromName, sentAt: Date.now(), date: todayStr() }
+      const gift = { front: selectedCard.front, back: selectedCard?.back, category: selectedCard.category, langA: selectedCard.langA, langB: selectedCard.langB, message: message.trim().slice(0, 100), fromName, sentAt: Date.now(), date: todayStr() }
       await updateDoc(doc(db, 'users', myPartnerUID), { pendingGift: gift })
       setStatus(isDE ? `🎁 Geschenkt an ${partnerName} ✓` : `🎁 Gifted to ${partnerName} ✓`)
       setSelectedCard(null); setMessage('')
@@ -1996,7 +1996,7 @@ function GeschenkkarteScreen({ user, myData, lang, theme, onBack, allCards, card
           <button key={card.id} onClick={() => setSelectedCard(selectedCard?.id === card.id ? null : card)}
             style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', padding: '9px 12px', marginBottom: '6px', borderRadius: '10px', cursor: 'pointer', background: selectedCard?.id === card.id ? `${th.accent}22` : 'transparent', border: `1px solid ${selectedCard?.id === card.id ? th.accent : th.border}`, textAlign: 'left' }}>
             <span style={{ color: th.text, fontSize: '0.85rem', fontWeight: '500' }}>{card.front}</span>
-            <span style={{ color: th.sub, fontSize: '0.78rem', marginLeft: '8px', flexShrink: 0 }}>→ {card.back}</span>
+            <span style={{ color: th.sub, fontSize: '0.78rem', marginLeft: '8px', flexShrink: 0 }}>→ {card?.back}</span>
           </button>
         ))}
       </div>
@@ -2273,7 +2273,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
       const raw = data.content?.[0]?.text?.trim() || '[]'
       const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim())
       const ts = Date.now()
-      const newCards = parsed.slice(0, 10).map((c, i) => ({ id: `sc_ki_${ts}_${i}`, front: c.front, back: c.back }))
+      const newCards = parsed.slice(0, 10).map((c, i) => ({ id: `sc_ki_${ts}_${i}`, front: c.front, back: c?.back }))
       const updatedSet = { ...activeSet, cards: [...(activeSet.cards || []), ...newCards] }
       const updated = sets.map(s => s.id === activeSet.id ? updatedSet : s)
       await saveSet(updated); setActiveSet(updatedSet); setKiTopic('')
@@ -2301,7 +2301,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
       const raw = data.content?.[0]?.text?.trim() || '[]'
       const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim())
       const ts = Date.now()
-      const newCards = parsed.slice(0, 50).map((c, i) => ({ id: `sc_imp_${ts}_${i}`, front: c.front, back: c.back }))
+      const newCards = parsed.slice(0, 50).map((c, i) => ({ id: `sc_imp_${ts}_${i}`, front: c.front, back: c?.back }))
       const updatedSet = { ...activeSet, cards: [...(activeSet.cards || []), ...newCards] }
       const updated = sets.map(s => s.id === activeSet.id ? updatedSet : s)
       await saveSet(updated); setActiveSet(updatedSet)
@@ -2383,7 +2383,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
                   <div style={{ flex: 1, textAlign: 'left' }}>
                     <span style={{ color: th.text, fontSize: '0.85rem', fontWeight: '600' }}>{c.front}</span>
                     <span style={{ color: th.sub, fontSize: '0.82rem' }}> → </span>
-                    <span style={{ color: th.accent, fontSize: '0.85rem' }}>{c.back}</span>
+                    <span style={{ color: th.accent, fontSize: '0.85rem' }}>{c?.back}</span>
                   </div>
                   <button onClick={() => deleteCardFromSet(c.id)} style={{ background: 'transparent', border: 'none', color: '#f4433666', cursor: 'pointer', fontSize: '1rem', padding: '4px 8px' }}>✕</button>
                 </div>
@@ -2545,7 +2545,7 @@ function SetsScreen({ user, myData, setMyData, partnerData, lang, theme, allCard
                   <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px', background: `${th.gold}08`, borderRadius: '10px', border: `1px solid ${th.gold}22` }}>
                     <span style={{ color: th.text, fontSize: '0.82rem', fontWeight: '600', flex: 1 }}>{c.front}</span>
                     <span style={{ color: th.sub, fontSize: '0.72rem' }}>→</span>
-                    <span style={{ color: th.accent, fontSize: '0.82rem', flex: 1, textAlign: 'right' }}>{c.back}</span>
+                    <span style={{ color: th.accent, fontSize: '0.82rem', flex: 1, textAlign: 'right' }}>{c?.back}</span>
                     <span style={{ fontSize: '0.7rem', flexShrink: 0 }}>💑</span>
                   </div>
                 ))}
@@ -2779,7 +2779,7 @@ function LiveSessionScreen({ user, myData, partnerData, coupleId, allCards, lang
           <div style={{ ...s.bigCard, marginBottom: '20px' }}>
             <p style={{ ...s.cardFront, marginBottom: '10px' }}>{currentCard.front}</p>
             <div style={{ height: '1px', background: th.border, width: '60%', margin: '8px auto' }} />
-            <p style={{ ...s.cardBack }}>{currentCard.back}</p>
+            <p style={{ ...s.cardBack }}>{currentCard?.back}</p>
           </div>
           {/* Partner status */}
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', padding: '0 4px' }}>

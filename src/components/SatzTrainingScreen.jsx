@@ -78,7 +78,7 @@ function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userN
       }
     } catch (e) { console.warn('[Vocara] sharedExercises pool load failed, falling back to KI:', e.message) }
 
-    const wordList = knownVocab.map(c => c.back).slice(0, 30).join(', ')
+    const wordList = knownVocab.map(c => c?.back).slice(0, 30).join(', ')
     const prompt = `Create 8 varied grammar exercises for a ${targetLang} learner at ${diffLabel} level. Native language: ${fromLang}.
 Use these known words where possible: ${wordList}
 IMPORTANT: ALL hints, explanations, and question labels must be written in ${fromLang}, not ${targetLang}.

@@ -314,7 +314,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
       const newQueue = [...queue]
       newQueue.splice(index, 1)
       newQueue.splice(Math.min(index + 5, newQueue.length), 0, { ...item })
-      wrongCardsRef.current.push({ front: item.front, back: item.back })
+      wrongCardsRef.current.push({ front: item.front, back: item?.back })
       setQueue(newQueue); setNewProgress(finalNewProgress); setWrong(w => w + 1); setRevealed(false)
       onSaveState?.(newQueue, index, finalNewProgress)
     } else {

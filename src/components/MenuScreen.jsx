@@ -236,7 +236,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
         const raw = data.content?.[0]?.text?.trim() || '{}'
         const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim())
         if (parsed.front && parsed.back) {
-          const card = { front: parsed.front, back: parsed.back, context: parsed.context || '', date: todayD, category, langA: toLangCode, langB: fromLangCode }
+          const card = { front: parsed.front, back: parsed?.back, context: parsed.context || '', date: todayD, category, langA: toLangCode, langB: fromLangCode }
           setDailyCard(card)
           await setDoc(doc(db, 'users', user.uid, 'dailyCards', todayD), card).catch(() => {})
           const recentArr = [...(myData?.recentDailyFronts || []), parsed.front].slice(-30)
@@ -511,7 +511,7 @@ Return ONLY JSON: [{"front": "German word", "back": "English translation", "cate
 
       const newCards = parsed
         .filter(c => {
-          if (!c.front?.trim() || !c.back?.trim()) return false
+          if (!c.front?.trim() || !c?.back?.trim()) return false
           const words = c.front.trim().split(' ').filter(Boolean)
           // Allow single words OR "to X" infinitives — reject everything else
           const isInfinitive = words.length === 2 && words[0].toLowerCase() === 'to'
@@ -532,7 +532,7 @@ Return ONLY JSON: [{"front": "German word", "back": "English translation", "cate
         .map((c, i) => ({
           id: `vocab_ai_${ts}_${i}`,
           front: c.front.trim(),
-          back: c.back?.trim(),
+          back: c?.back?.trim(),
           category: 'vocabulary',
           langA, langB,
           source: 'ai-vocab',
@@ -1786,12 +1786,12 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
             <div style={{ background: th.bg, borderRadius: '14px', padding: '16px', margin: '10px 0', border: `1px solid ${th.border}` }}>
               <p style={{ color: th.text, fontWeight: 'bold', fontSize: '1.1rem', margin: '0 0 8px' }}>{pendingGift.front}</p>
               <div style={{ height: '1px', background: th.border, margin: '8px 0' }} />
-              <p style={{ color: th.accent, fontWeight: 'bold', fontSize: '1.3rem', margin: 0 }}>{pendingGift.back}</p>
+              <p style={{ color: th.accent, fontWeight: 'bold', fontSize: '1.3rem', margin: 0 }}>{pendingGift?.back}</p>
             </div>
             <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
               <button
                 onClick={async () => {
-                  const giftCard = { id: `gift_${Date.now()}`, front: pendingGift.front, back: pendingGift.back, category: pendingGift.category || 'vocabulary', langA: pendingGift.langA || 'de', langB: pendingGift.langB || 'en', source: 'gift', sharedBy: pendingGift.fromName }
+                  const giftCard = { id: `gift_${Date.now()}`, front: pendingGift.front, back: pendingGift?.back, category: pendingGift.category || 'vocabulary', langA: pendingGift.langA || 'de', langB: pendingGift.langB || 'en', source: 'gift', sharedBy: pendingGift.fromName }
                   const updated = [...(myData?.aiCards || []), giftCard]
                   await updateDoc(doc(db, 'users', user.uid), { aiCards: updated, pendingGift: null, pendingGiftSeenDate: todayStr() }).catch(() => {})
                   setMyData(d => ({ ...d, aiCards: updated, pendingGift: null, pendingGiftSeenDate: todayStr() }))

@@ -29,7 +29,7 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
   }
 
   const filtered = userCards.filter(c => {
-    const matchSearch = !search.trim() || c.front.toLowerCase().includes(search.toLowerCase()) || c.back.toLowerCase().includes(search.toLowerCase())
+    const matchSearch = !search.trim() || c.front.toLowerCase().includes(search.toLowerCase()) || (c?.back || '').toLowerCase().includes(search.toLowerCase())
     const matchCat = filterCat === 'all' || c.category === filterCat
     return matchSearch && matchCat
   })
