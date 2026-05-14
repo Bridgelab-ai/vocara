@@ -2845,7 +2845,9 @@ function App() {
   // Maps caller's category key → what generators actually write as data.category
   const CAT_ALIASES = { urlaub: 'sentence', vocabulary: 'vocab', satztraining: 'sentence' }
   const loadCardsForCategory = async (category, level) => {
+    console.log('[LOAD] called with category:', category, 'level:', level)
     const snap = await getDocs(collection(db, 'sharedCards'))
+    console.log('[LOAD] total docs from Firestore:', snap.size)
     const cards = []
     const userFromLang = (myData?.fromLang || 'de').toLowerCase()
     snap.forEach(d => {
