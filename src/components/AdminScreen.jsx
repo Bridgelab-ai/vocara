@@ -164,7 +164,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
     setLoading(false)
   }
 
-  useEffect(() => { load(); loadPoolStatus(); loadTestPoolStatus() }, [])
+  useEffect(() => { load(); loadPoolStatus(); try { loadTestPoolStatus() } catch(e) { console.error('[TEST POOL]', e) } }, [])
 
   const PLAN_OPTIONS = [
     { value: '',           label: 'Free' },
@@ -738,6 +738,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
       </div>
 
       {/* Sprachkompass Pool */}
+      {console.log('[RENDER] Sprachkompass section reached')}
       <div style={{ ...s.card, marginTop: '12px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
           <p style={{ color: th.text, fontSize: '0.88rem', fontWeight: '700', margin: 0 }}>🧭 Sprachkompass Pool</p>
