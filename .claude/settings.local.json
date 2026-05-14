@@ -56,7 +56,12 @@
       "Bash(sed 's/^+//')",
       "Bash(cat)",
       "Bash(echo \"imports written: $?\")",
-      "Bash(echo \"done: $?\")"
+      "Bash(echo \"done: $?\")",
+      "Bash(grep -n \"id.*stringValue\\\\|id.*=.*\\\\`\" \"C:\\\\Users\\\\Bridgelab\\\\vocara\\\\api\\\\generate-vocab-pool.js\")",
+      "Bash(grep -n \"id.*stringValue\\\\|id.*=.*\\\\`\" \"C:\\\\Users\\\\Bridgelab\\\\vocara\\\\api\\\\generate-street-pool.js\")",
+      "Bash(grep -n \"id.*stringValue\\\\|id.*=.*\\\\`\" \"C:\\\\Users\\\\Bridgelab\\\\vocara\\\\api\\\\generate-home-pool.js\")",
+      "Bash(grep -n \"id.*stringValue\\\\|id.*=.*\\\\`\" \"C:\\\\Users\\\\Bridgelab\\\\vocara\\\\api\\\\generate-sentence-pool.js\")",
+      "Bash(grep -n \"id.*stringValue\\\\|id.*=.*\\\\`\" \"C:\\\\Users\\\\Bridgelab\\\\vocara\\\\api\\\\generate-sentence-training-pool.js\")"
     ]
   }
 }

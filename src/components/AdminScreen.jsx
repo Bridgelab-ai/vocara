@@ -738,7 +738,6 @@ function AdminScreen({ user, lang, theme, onBack }) {
       </div>
 
       {/* Sprachkompass Pool */}
-      {console.log('[RENDER] Sprachkompass section reached')}
       <div style={{ ...s.card, marginTop: '12px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
           <p style={{ color: th.text, fontSize: '0.88rem', fontWeight: '700', margin: 0 }}>🧭 Sprachkompass Pool</p>
