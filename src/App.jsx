@@ -2853,6 +2853,7 @@ function App() {
     const userFromLang = (myData?.fromLang || 'de').toLowerCase()
     snap.forEach(d => {
       const data = d.data()
+      console.log('[FILTER] doc:', d.id, 'category:', data.category, 'level:', data.level, 'langA:', data.cards?.[0]?.langA, 'langB:', data.cards?.[0]?.langB, 'fromLang:', userFromLang)
       if (category) {
         const docCat = CAT_NORMALIZE_POOL[data.category] || data.category
         const wantCat = CAT_ALIASES[category] || category
