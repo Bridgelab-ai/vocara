@@ -631,6 +631,11 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
       const poolLevel = category === 'all' ? null : level
       try {
         const fetched = await loadCardsForCategory(poolCat, poolLevel)
+        if (!fetched || fetched.length === 0) {
+          alert('Für dieses Level wurden noch keine Karten generiert. Bitte im Admin-Bereich generieren.')
+          setCatLoading(null)
+          return
+        }
         fetched.forEach(c => { if (!allCards.find(a => a.id === c.id)) allCards.push(c) })
       } catch (e) { console.error('[POOL] load failed:', e) }
       setCatLoading(null)
@@ -826,8 +831,7 @@ Return ONLY a valid JSON array with no markdown or explanation:
       const docRef = doc(db, 'sharedCards', `${langPair}_${topicKey}_${level}`)
       const snap = await getDoc(docRef)
       if (!snap.exists() || !snap.data()?.cards?.length) {
-        setEmptyCategoryMsg(isMarkLang ? `Keine Karten für ${topicKey} Level ${level} — bitte zuerst im Admin generieren.` : `No cards for ${topicKey} Level ${level} — please generate in Admin first.`)
-        setTimeout(() => setEmptyCategoryMsg(null), 4000)
+        alert('Für dieses Level wurden noch keine Karten generiert. Bitte im Admin-Bereich generieren.')
         setTopicSessionLoading(null)
         return
       }

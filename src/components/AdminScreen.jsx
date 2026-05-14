@@ -38,6 +38,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
   const [loading, setLoading] = useState(true)
   const [toggling, setToggling] = useState(null)
   const [poolLevel, setPoolLevel] = useState(1)
+  const [batchLevel, setBatchLevel] = useState(1)
   const [poolLoading, setPoolLoading] = useState(null)   // category key while running
   const [poolStatus, setPoolStatus] = useState(null)
   const [poolCounts, setPoolCounts] = useState({})       // cat -> level -> langPair -> count
@@ -262,34 +263,58 @@ function AdminScreen({ user, lang, theme, onBack }) {
     setPoolLoading(null)
   }
 
-  const generateAll = async () => {
+  const generateStufe = async () => {
+    const lvl = batchLevel
     setPoolLoading('__all__'); setPoolStatus(null)
     const freshSnap = await getDocs(collection(db, 'sharedCards'))
     const liveCounts = buildCounts(freshSnap)
     setPoolCounts(liveCounts)
     let totalGenerated = 0, totalSkipped = 0
+
     for (const [cat, { endpoint, totalLevels, cardsPerLevel }] of Object.entries(POOL_STRUCTURE)) {
-      for (let lvl = 1; lvl <= totalLevels; lvl++) {
+      if (lvl > totalLevels) continue
+      for (const lp of LANGUAGE_PAIRS) {
+        const existing = liveCounts[cat]?.[String(lvl)]?.[lp] ?? 0
+        if (existing >= cardsPerLevel) { totalSkipped++; continue }
+        setPoolStatus(`⟳ ${cat} L${lvl} ${lp}…`)
+        try {
+          const res = await fetch(`${BASE_URL}/api/${endpoint}`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ level: lvl, pair: lp, from: lp.split('_')[0], to: lp.split('_')[1], ...(cat === 'urlaub' ? {type:'flashcards'} : cat === 'satztraining' ? {type:'sentence'} : {}) })
+          })
+          const data = await res.json()
+          totalGenerated++
+          liveCounts[cat] = liveCounts[cat] || {}
+          liveCounts[cat][String(lvl)] = liveCounts[cat][String(lvl)] || {}
+          liveCounts[cat][String(lvl)][lp] = data.count ?? data.cards?.length ?? cardsPerLevel
+          setPoolCounts({ ...liveCounts })
+        } catch (e) { console.warn(`generateStufe ${cat} L${lvl} ${lp}:`, e) }
+      }
+    }
+
+    if (lvl <= 8) {
+      for (const { key: topicKey } of TOPICS_LIST) {
         for (const lp of LANGUAGE_PAIRS) {
-          const existing = liveCounts[cat]?.[String(lvl)]?.[lp] ?? 0
-          if (existing >= cardsPerLevel) { totalSkipped++; continue }
-          setPoolStatus(`⟳ ${cat} L${lvl} ${lp}…`)
+          const existing = liveCounts[topicKey]?.[String(lvl)]?.[lp] ?? 0
+          if (existing >= 15) { totalSkipped++; continue }
+          setPoolStatus(`⟳ ${topicKey} L${lvl} ${lp}…`)
           try {
-            const res = await fetch(`${BASE_URL}/api/${endpoint}`, {
+            const res = await fetch(`${BASE_URL}/api/generate-topic-pool`, {
               method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ level: lvl, pair: lp, from: lp.split('_')[0], to: lp.split('_')[1], ...(cat === 'urlaub' ? {type:'flashcards'} : cat === 'satztraining' ? {type:'sentence'} : {}) })
+              body: JSON.stringify({ topic: topicKey, level: lvl, pair: lp, from: lp.split('_')[0], to: lp.split('_')[1] })
             })
             const data = await res.json()
             totalGenerated++
-            liveCounts[cat] = liveCounts[cat] || {}
-            liveCounts[cat][String(lvl)] = liveCounts[cat][String(lvl)] || {}
-            liveCounts[cat][String(lvl)][lp] = data.count ?? data.cards?.length ?? cardsPerLevel
+            liveCounts[topicKey] = liveCounts[topicKey] || {}
+            liveCounts[topicKey][String(lvl)] = liveCounts[topicKey][String(lvl)] || {}
+            liveCounts[topicKey][String(lvl)][lp] = data.count ?? 15
             setPoolCounts({ ...liveCounts })
-          } catch (e) { console.warn(`generateAll ${cat} L${lvl} ${lp}:`, e) }
+          } catch (e) { console.warn(`generateStufe ${topicKey} L${lvl} ${lp}:`, e) }
         }
       }
     }
-    setPoolStatus(`✓ Alles: ${totalGenerated} generiert, ${totalSkipped} übersprungen`)
+
+    setPoolStatus(`✓ Stufe ${lvl}: ${totalGenerated} generiert, ${totalSkipped} übersprungen`)
     await loadPoolStatus()
     setPoolLoading(null)
   }
@@ -510,10 +535,17 @@ function AdminScreen({ user, lang, theme, onBack }) {
           <p style={{ color: th.text, fontSize: '0.88rem', fontWeight: '700', margin: 0 }}>Pool Generieren</p>
           <span style={{ color: th.sub, fontSize: '0.68rem' }}>🔵 leer&nbsp; 🟡 teilweise&nbsp; 🟢 voll</span>
         </div>
-        <button onClick={generateAll} disabled={!!poolLoading}
-          style={{ width: '100%', padding: '8px', borderRadius: '10px', fontSize: '0.8rem', fontWeight: '700', cursor: poolLoading ? 'default' : 'pointer', marginBottom: '10px', opacity: poolLoading && poolLoading !== '__all__' ? 0.5 : 1, background: 'rgba(0,212,170,0.12)', color: '#00D4AA', border: '1px solid rgba(0,212,170,0.35)' }}>
-          {poolLoading === '__all__' ? `⟳ ${poolStatus || ''}` : '⚡ Alles generieren'}
-        </button>
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', alignItems: 'center' }}>
+          <select value={batchLevel} onChange={e => setBatchLevel(Number(e.target.value))}
+            disabled={!!poolLoading}
+            style={{ background: th.card, color: th.text, border: `1px solid ${th.border}`, borderRadius: '8px', padding: '6px 8px', fontSize: '0.78rem', cursor: 'pointer', flex: '0 0 auto' }}>
+            {[1,2,3,4,5,6,7,8,9,10].map(n => <option key={n} value={n}>Stufe {n}</option>)}
+          </select>
+          <button onClick={generateStufe} disabled={!!poolLoading}
+            style={{ flex: 1, padding: '8px', borderRadius: '10px', fontSize: '0.8rem', fontWeight: '700', cursor: poolLoading ? 'default' : 'pointer', opacity: poolLoading && poolLoading !== '__all__' ? 0.5 : 1, background: 'rgba(0,212,170,0.12)', color: '#00D4AA', border: '1px solid rgba(0,212,170,0.35)' }}>
+            {poolLoading === '__all__' ? `⟳ ${poolStatus || ''}` : `⚡ Stufe ${batchLevel} generieren`}
+          </button>
+        </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           {Object.entries(POOL_STRUCTURE).map(([cat, { totalLevels }]) => {
             const isExp = expandedCat === cat
