@@ -54,6 +54,7 @@ function AdminScreen({ user, lang, theme, onBack }) {
   const [deleteNoLevelLoading, setDeleteNoLevelLoading] = useState(false)
   const [deleteNoLevelStatus, setDeleteNoLevelStatus] = useState(null)
   const [expandedCat, setExpandedCat] = useState(null)
+  const [expandedTopic, setExpandedTopic] = useState(null)
 
   // ── Pool status ────────────────────────────────────────────────
   const loadPoolStatus = async () => {
@@ -105,6 +106,14 @@ function AdminScreen({ user, lang, theme, onBack }) {
     const { cardsPerLevel } = POOL_STRUCTURE[cat]
     const catCounts = poolCounts[cat]?.[String(lvl)] || {}
     const full = LANGUAGE_PAIRS.filter(lp => (catCounts[lp] ?? 0) >= cardsPerLevel).length
+    if (full === 0)                     return BLUE
+    if (full === LANGUAGE_PAIRS.length) return GREEN
+                                         return YELLOW
+  }
+
+  const getTopicLevelBtnStyle = (topicKey, lvl) => {
+    const catCounts = poolCounts[topicKey]?.[String(lvl)] || {}
+    const full = LANGUAGE_PAIRS.filter(lp => (catCounts[lp] ?? 0) >= 15).length
     if (full === 0)                     return BLUE
     if (full === LANGUAGE_PAIRS.length) return GREEN
                                          return YELLOW
@@ -357,6 +366,35 @@ function AdminScreen({ user, lang, theme, onBack }) {
     setTopicLoading(null)
   }
 
+  const generateTopicAtLevel = async (topicKey, lvl) => {
+    const lkey = `${topicKey}_${lvl}`
+    setTopicLoading(lkey); setTopicStatus(null)
+    const freshSnap = await getDocs(collection(db, 'sharedCards'))
+    const liveCounts = buildCounts(freshSnap)
+    setPoolCounts(liveCounts)
+    let generated = 0, skipped = 0
+    for (const lp of LANGUAGE_PAIRS) {
+      const existing = liveCounts[topicKey]?.[String(lvl)]?.[lp] ?? 0
+      if (existing >= 15) { skipped++; continue }
+      setTopicStatus(`⟳ ${topicKey} ${lp} L${lvl}… (${generated + skipped + 1}/${LANGUAGE_PAIRS.length})`)
+      try {
+        const res = await fetch(`${BASE_URL}/api/generate-topic-pool`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ topic: topicKey, level: lvl, pair: lp, from: lp.split('_')[0], to: lp.split('_')[1] })
+        })
+        const data = await res.json()
+        generated++
+        liveCounts[topicKey] = liveCounts[topicKey] || {}
+        liveCounts[topicKey][String(lvl)] = liveCounts[topicKey][String(lvl)] || {}
+        liveCounts[topicKey][String(lvl)][lp] = data.count ?? 15
+        setPoolCounts({ ...liveCounts })
+      } catch (e) { console.warn(`generateTopicAtLevel ${topicKey} L${lvl} ${lp}:`, e) }
+    }
+    setTopicStatus(`✓ ${topicKey} L${lvl}: ${generated} generiert, ${skipped} übersprungen`)
+    await loadPoolStatus()
+    setTopicLoading(null)
+  }
+
   // ── Topic user reset ───────────────────────────────────────────
   const resetTopics = async () => {
     const uid = resetTarget === 'mark' ? MARK_UID : ELOSY_UID
@@ -577,20 +615,37 @@ function AdminScreen({ user, lang, theme, onBack }) {
         {poolStatus && poolLoading !== '__all__' && <p style={{ color: poolStatus.startsWith('✓') ? '#81c784' : poolStatus.startsWith('⟳') ? th.sub : '#e06c75', fontSize: '0.75rem', margin: '8px 0 0' }}>{poolStatus}</p>}
       </div>
 
-      {/* Hobby Topics Pool */}
+      {/* Themen Pool */}
       <div style={{ ...s.card, marginTop: '12px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
           <p style={{ color: th.text, fontSize: '0.88rem', fontWeight: '700', margin: 0 }}>🎯 Themen Pool</p>
           <span style={{ color: th.sub, fontSize: '0.68rem' }}>🔵 leer&nbsp; 🟡 teilweise&nbsp; 🟢 voll</span>
         </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           {TOPICS_LIST.map(t => {
-            const bs = getBtnTopicStyle(t.key)
+            const isExp = expandedTopic === t.key
             return (
-              <button key={t.key} onClick={() => generateTopicPool(t.key)} disabled={!!topicLoading || !!poolLoading}
-                style={{ padding: '7px 12px', borderRadius: '10px', fontSize: '0.78rem', fontWeight: '600', cursor: (topicLoading || poolLoading) ? 'default' : 'pointer', opacity: topicLoading && topicLoading !== t.key ? 0.4 : 1, ...bs }}>
-                {topicLoading === t.key ? '⟳' : `${t.emoji} ${t.label}`}
-              </button>
+              <div key={t.key} style={{ border: `1px solid ${th.border}`, borderRadius: '12px', overflow: 'hidden' }}>
+                <button onClick={() => setExpandedTopic(isExp ? null : t.key)}
+                  style={{ width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ color: th.text, fontSize: '0.82rem', fontWeight: '600' }}>{t.emoji} {t.label}</span>
+                  <span style={{ color: th.sub, fontSize: '0.7rem' }}>8L {isExp ? '▲' : '▼'}</span>
+                </button>
+                {isExp && (
+                  <div style={{ borderTop: `1px solid ${th.border}`, padding: '8px 10px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                    {[1,2,3,4,5,6,7,8].map(lvl => {
+                      const bs = getTopicLevelBtnStyle(t.key, lvl)
+                      const lkey = `${t.key}_${lvl}`
+                      return (
+                        <button key={lvl} onClick={() => generateTopicAtLevel(t.key, lvl)} disabled={!!topicLoading || !!poolLoading}
+                          style={{ padding: '4px 8px', borderRadius: '8px', fontSize: '0.72rem', fontWeight: '700', cursor: (topicLoading || poolLoading) ? 'default' : 'pointer', opacity: topicLoading && topicLoading !== lkey ? 0.5 : 1, ...bs }}>
+                          {topicLoading === lkey ? '⟳' : `L${lvl}`}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
             )
           })}
         </div>
