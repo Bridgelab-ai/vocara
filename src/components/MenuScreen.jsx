@@ -361,6 +361,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const CAT_TO_POOL_BAR = { vocabulary: 'vocab', sentence: 'urlaub' }
   const CAT_ID_PREFIX_BAR = { vocabulary: 'vocab_', sentence: 'sentence_', street: 'street_', home: 'home_', grundlagen: 'grundlagen_' }
   const catLevelBar = (cat) => {
+    if (cat === 'grundlagen') console.log('[BAR DEBUG] grundlagen keys:', Object.keys(cardProgress).filter(k => k.startsWith('grundlagen')).length, 'total keys:', Object.keys(cardProgress).length)
     const poolKey = CAT_TO_POOL_BAR[cat] || cat
     const poolInfo = POOL_STRUCTURE[poolKey] || { cardsPerLevel: 20 }
     const cardsPerLevel = poolInfo.cardsPerLevel
