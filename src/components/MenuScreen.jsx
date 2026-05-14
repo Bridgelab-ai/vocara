@@ -25,7 +25,6 @@ import GeschenkkarteScreen from './GeschenkkarteScreen'
 import ImpressumScreen from './ImpressumScreen'
 import KarteErstellenScreen from './KarteErstellenScreen'
 import PartnerScreen from './PartnerScreen'
-import PlacementTest from './PlacementTest'
 import DiaryScreen from './DiaryScreen'
 import MeineKartenScreen from './MeineKartenScreen'
 import { AppPrefsContext } from '../context'
@@ -1212,7 +1211,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
   if (screen === 'geschenkkarte') return <>{homeFloat}<GeschenkkarteScreen user={user} myData={myData} lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} /></>
   if (screen === 'karteerstellen') return <>{homeFloat}<KarteErstellenScreen user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
   if (screen === 'partner') return <>{homeFloat}<PartnerScreen user={user} myData={myData} lang={lang} theme={theme} onBack={() => setScreen('menu')} onPartnerUpdate={(uid) => { onPartnerUpdate(uid); setScreen('menu') }} /></>
-  if (screen === 'test') return <>{homeFloat}<PlacementTest lang={lang} theme={theme} user={user} onBack={() => setScreen('menu')} onSaveCefr={onSaveCefr} /></>
+  if (screen === 'test') return <SprachkompassScreen user={user} myData={myData} setMyData={setMyData} theme={theme} th={th} s={s} lightMode={lightMode} lang={lang} onBack={() => setScreen('menu')} onComplete={() => setScreen('menu')} />
   if (screen === 'impressum') return <>{homeFloat}<ImpressumScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
   if (screen === 'stats') return <>{homeFloat}<StatsScreen user={user} myData={myData} partnerData={partnerData} allCards={allCards} lang={lang} theme={theme} th={th} s={s} onBack={() => setScreen('menu')} cardProgress={cardProgress} t={t} /></>
   if (screen === 'ki') return <>{homeFloat}<KiGespraechScreen lang={lang} theme={theme} th={th} s={s} onBack={() => setScreen('menu')} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={(myData?.toLang || '').toLowerCase() || (lang === 'de' ? 'en' : 'de')} /></>
@@ -1259,7 +1258,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
 
       {/* ── MONTHLY TEST BANNER ── */}
       {testDue && (
-        <button style={{ ...s.menuBtnWarning, marginBottom: '12px' }} onClick={() => setScreen('test')}>
+        <button style={{ ...s.menuBtnWarning, marginBottom: '12px' }} onClick={() => setScreen('sprachpuls')}>
           <span style={{ flex: 1 }}>
             <span style={{ display: 'block', fontWeight: 'bold', color: '#f44336' }}>{t.monthlyTestBanner}</span>
             <span style={{ fontSize: '0.75rem', color: th.sub }}>{t.monthlyTestSub}</span>

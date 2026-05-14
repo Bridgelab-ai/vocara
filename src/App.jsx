@@ -50,7 +50,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.089.133'
+const APP_VERSION = 'V01.089.134'
 const MARK_UID = 'aiNZh4Myn8Y0KfYkGGrkNNW0HC72'
 const ELOSY_UID = 'NIX3DYenRdbRjmr2EHsIad9GcqG3'
 const SESSION_SIZE = 15
@@ -1473,95 +1473,6 @@ function ThaiColorPronunciation({ text }) {
   )
 }
 
-function PlacementTest({ lang, theme, user, onBack, onSaveCefr }) {
-  const th = THEMES[theme]; const s = makeStyles(th); const t = T[lang]
-  const questions = lang === 'de' ? PLACEMENT_EN : PLACEMENT_DE
-  const [index, setIndex] = useState(0)
-  const [selected, setSelected] = useState(null)
-  const [revealed, setRevealed] = useState(false)
-  const [wrongStreak, setWrongStreak] = useState(0)
-  const [scores, setScores] = useState({})
-  const [done, setDone] = useState(false)
-  const [finalLevel, setFinalLevel] = useState(null)
-  const [stopped, setStopped] = useState(false)
-  const q = questions[index]
-  const calcLevel = (sc) => {
-    for (let i = CEFR_LEVELS.length - 1; i >= 0; i--) {
-      const lvl = CEFR_LEVELS[i]; const data = sc[lvl]
-      if (data && data.correct / data.total >= 0.6) return lvl
-    }
-    return 'A1'
-  }
-  const handleSelect = (optIdx) => {
-    if (revealed) return
-    setSelected(optIdx); setRevealed(true)
-    const isCorrect = optIdx === q.correct
-    const lvl = q.level; const prev = scores[lvl] || { correct: 0, total: 0 }
-    const newScores = { ...scores, [lvl]: { correct: prev.correct + (isCorrect ? 1 : 0), total: prev.total + 1 } }
-    setScores(newScores)
-    const newStreak = isCorrect ? 0 : wrongStreak + 1
-    setTimeout(() => {
-      if (newStreak >= 3 || index + 1 >= questions.length) {
-        try {
-          const level = calcLevel(newScores)
-          try { onSaveCefr(level) } catch(e) { console.warn('[Vocara] onSaveCefr error:', e) }
-          window.location.reload()
-        } catch(completionErr) {
-          console.error('[Vocara] test completion crashed:', completionErr)
-          window.location.reload()
-        }
-      } else { setWrongStreak(newStreak); setIndex(i => i + 1); setSelected(null); setRevealed(false) }
-    }, 1200)
-  }
-  if (done) {
-    const totalCorrect = Object.values(scores).reduce((a, b) => a + b.correct, 0)
-    const totalQ = Object.values(scores).reduce((a, b) => a + b.total, 0)
-    return (
-      <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
-        <button style={s.backBtn} onClick={onBack}>← {t.back}</button>
-        <h2 style={{ color: th.gold, fontSize: '1.3rem', marginBottom: '8px' }}>{t.testDone}</h2>
-        <div style={{ background: CEFR_COLORS[finalLevel] + '22', border: `2px solid ${CEFR_COLORS[finalLevel]}`, borderRadius: '16px', padding: '24px', marginBottom: '16px' }}>
-          <p style={{ color: CEFR_COLORS[finalLevel], fontSize: '3rem', fontWeight: 'bold', margin: 0 }}>{finalLevel}</p>
-          <p style={{ color: th.text, margin: '8px 0 0 0', fontSize: '1.1rem' }}>{CEFR_DESC[lang][finalLevel]}</p>
-        </div>
-        {stopped && <p style={{ color: th.sub, fontSize: '0.85rem', marginBottom: '12px' }}>{t.testStop3}</p>}
-        <div style={s.card}>
-          {CEFR_LEVELS.map(lvl => scores[lvl] ? (
-            <div key={lvl} style={{ ...s.langRow, marginBottom: '8px' }}>
-              <span style={{ color: CEFR_COLORS[lvl], fontWeight: 'bold', fontSize: '0.9rem' }}>{lvl}</span>
-              <span style={s.langPct}>{scores[lvl].correct}/{scores[lvl].total}</span>
-            </div>
-          ) : null)}
-          <div style={{ ...s.langRow, marginTop: '8px', paddingTop: '8px', borderTop: `1px solid ${th.border}` }}>
-            <span style={s.lang}>{t.testScore}</span><span style={s.langPct}>{totalCorrect}/{totalQ}</span>
-          </div>
-        </div>
-        <button style={s.button} onClick={onBack}>← Zurück zur Startseite</button>
-      </div></div>
-    )
-  }
-  const pct = (index / questions.length) * 100
-  return (
-    <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
-      <div style={s.cardHeader}>
-        <div>
-          <p style={s.greeting}>{t.testQuestion} {index + 1} {t.testOf} {questions.length}</p>
-          <span style={{ color: CEFR_COLORS[q.level], fontSize: '0.75rem', fontWeight: 'bold' }}>{q.level}</span>
-        </div>
-        <button style={s.stopBtn} onClick={onBack}>{t.stop}</button>
-      </div>
-      <div style={s.progressBar}><div style={{ ...s.progressFill, width: `${pct}%`, background: CEFR_COLORS[q.level] }} /></div>
-      <div style={{ ...s.bigCard, marginTop: '12px', minHeight: '100px' }}>
-        <p style={{ ...s.cardFront, marginBottom: 0 }}>{q.question}</p>
-      </div>
-      {q.options.map((opt, i) => (
-        <button key={i} style={s.optionBtn(selected === i, i === q.correct, revealed)} onClick={() => handleSelect(i)}>
-          {String.fromCharCode(65 + i)}. {opt ?? '—'}
-        </button>
-      ))}
-    </div></div>
-  )
-}
 
 function WelcomeScreen({ user, theme, onContinue }) {
   const th = THEMES[theme]; const s = makeStyles(th)
