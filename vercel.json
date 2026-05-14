@@ -4,8 +4,7 @@
   ],
   "crons": [],
   "functions": {
-    "api/generate-sentence-pool.js": {
-      "maxDuration": 60
-    }
+    "api/generate-sentence-pool.js": { "maxDuration": 60 },
+    "api/generate-saetze-pool.js":   { "maxDuration": 60 }
   }
 }

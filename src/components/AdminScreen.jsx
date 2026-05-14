@@ -9,10 +9,11 @@ const BASE_URL = 'https://vocara-peach.vercel.app'
 const POOL_STRUCTURE = {
   grundlagen:   { endpoint: 'generate-base-pool',              totalLevels: 10, cardsPerLevel: 20 },
   vocab:        { endpoint: 'generate-vocab-pool',             totalLevels: 22, cardsPerLevel: 30 },
-  street:       { endpoint: 'generate-street-pool',            totalLevels: 18, cardsPerLevel: 25 },
+  street:       { endpoint: 'generate-street-pool',            totalLevels: 12, cardsPerLevel: 25 },
   home:         { endpoint: 'generate-home-pool',              totalLevels: 14, cardsPerLevel: 22 },
   urlaub:       { endpoint: 'generate-sentence-pool',          totalLevels: 10, cardsPerLevel: 20 },
   satztraining: { endpoint: 'generate-sentence-training-pool', totalLevels: 14, cardsPerLevel: 22 },
+  saetze:       { endpoint: 'generate-saetze-pool',            totalLevels: 10, cardsPerLevel: 20 },
 }
 const TOPICS_LIST = [
   { key: 'cooking',  emoji: '🍳', label: 'Kochen' },
