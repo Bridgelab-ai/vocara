@@ -632,6 +632,7 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
       const poolLevel = category === 'all' ? null : level
       try {
         const fetched = await loadCardsForCategory(poolCat, poolLevel)
+        console.log('[SESSION] fetched cards:', fetched?.length, 'category:', category, 'level:', level)
         if (!fetched || fetched.length === 0) {
           alert('Für dieses Level wurden noch keine Karten generiert. Bitte im Admin-Bereich generieren.')
           setCatLoading(null)
