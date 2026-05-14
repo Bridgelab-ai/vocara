@@ -49,7 +49,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.002.006'
+const APP_VERSION = 'V01.086.137'
 const MARK_UID = 'aiNZh4Myn8Y0KfYkGGrkNNW0HC72'
 const ELOSY_UID = 'NIX3DYenRdbRjmr2EHsIad9GcqG3'
 const SESSION_SIZE = 15
@@ -582,7 +582,7 @@ function buildCardPair(card) {
   const category = VALID_CATEGORY_SET.has(raw) ? raw : 'vocabulary'
   const forwardCard = { ...card, targetLang, category }
 
-  const meanings = card.back.split(' / ').map(m => m.trim()).filter(Boolean)
+  const meanings = (card.back || '').split(' / ').map(m => m.trim()).filter(Boolean)
   let reversedCards
   if (meanings.length > 1) {
     reversedCards = meanings.map((meaning, i) => ({
@@ -2847,6 +2847,7 @@ function App() {
   const loadCardsForCategory = async (category, level) => {
     const snap = await getDocs(collection(db, 'sharedCards'))
     const cards = []
+    const userFromLang = (myData?.fromLang || 'de').toLowerCase()
     snap.forEach(d => {
       const data = d.data()
       if (category) {
@@ -2855,9 +2856,13 @@ function App() {
         if (data.category !== category && docCat !== category && data.category !== wantCat) return
       }
       if (level && Number(data.level) !== Number(level)) return
-      ;(data.cards || []).forEach(c =>
+      ;(data.cards || []).forEach(c => {
+        if (
+          (c.langA || '').toLowerCase() !== userFromLang &&
+          (c.langB || '').toLowerCase() !== userFromLang
+        ) return
         buildCardPair({ ...c, targetLang: data.toLang || c.langB }).forEach(p => cards.push(p))
-      )
+      })
     })
     return cards
   }
