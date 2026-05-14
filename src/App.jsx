@@ -49,7 +49,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.086.144'
+const APP_VERSION = 'V01.086.145'
 const MARK_UID = 'aiNZh4Myn8Y0KfYkGGrkNNW0HC72'
 const ELOSY_UID = 'NIX3DYenRdbRjmr2EHsIad9GcqG3'
 const SESSION_SIZE = 15
@@ -3098,8 +3098,6 @@ function App() {
     const aiCat = cardCategories[baseId]
     return aiCat ? { ...card, category: aiCat } : card
   })
-  console.log('[ALLCARDS DEBUG] aiCards:', myData?.aiCards?.length, 'allCards total:', allCards.length)
-
   const hour = new Date().getHours()
   const timeOverlay = hour >= 0 && hour < 6
     ? 'rgba(0,20,50,0.06)'         // 00–06: deep night blue (#46)

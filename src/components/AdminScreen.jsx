@@ -479,6 +479,8 @@ function AdminScreen({ user, lang, theme, onBack }) {
       }
 
       setPoolCounts({})
+      await updateDoc(doc(db, 'users', MARK_UID), { aiCards: [] })
+      await updateDoc(doc(db, 'users', ELOSY_UID), { aiCards: [] })
       setDeleteAllStatus(`✓ ${deleted} Dokumente gelöscht`)
       console.log('[deleteAllCards] done — total deleted:', deleted)
       setTimeout(() => window.location.reload(), 1200)
