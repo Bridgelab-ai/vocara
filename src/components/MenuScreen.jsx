@@ -1620,7 +1620,6 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('partner')}>
           {myData?.partnerUID ? `${t.menuPartnerLabel}: ${partnerName}` : t.menuPartnerConnect}
         </button>
-        <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('karteerstellen')}>＋ {isMarkLang ? 'Karte kreieren' : 'Create card'}</button>
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('langprogress')}>🌍 {isMarkLang ? 'Meine Sprachen' : 'My Languages'}</button>
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('settings')}>{t.menuSettings}</button>
         <button className="vocara-nav-btn" style={{ ...s.navBtn, marginBottom: 0 }} onClick={() => signOut(auth)}>{t.menuSignOut}</button>
