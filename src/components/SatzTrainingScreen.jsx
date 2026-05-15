@@ -61,6 +61,7 @@ function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userN
       const levels = DIFF_TO_LEVELS[diffKey] || [1,2,3,4]
       const cacheKey = `satz_${lang}_${userToLang}_${diffKey}`
       let rawExercises = getCards(cacheKey)
+      console.log('[SATZ] cache check:', cacheKey, 'cached:', getCards(cacheKey))
       if (!rawExercises || rawExercises.length === 0) {
         try {
           const snaps = await Promise.all(levels.map(n => getDoc(doc(db, 'sharedExercises', `${lang}_${userToLang}_satz_level${n}`))))
