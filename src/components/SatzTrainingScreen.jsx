@@ -76,6 +76,7 @@ function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userN
           chips: ex.chips && ex.chips.length > 0 ? ex.chips : (ex.type === 'order' ? ex.answer.split(' ') : undefined),
         }))
         const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, 10)
+        console.log('[SATZ] setting exercises:', rawExercises?.length)
         setExercises(shuffled)
         exerciseStartRef.current = Date.now()
         if (shuffled[0]?.type === 'order') initChips(shuffled[0])
