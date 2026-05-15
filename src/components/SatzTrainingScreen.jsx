@@ -62,7 +62,10 @@ function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userN
       let rawExercises = getCards(cacheKey)
       if (!rawExercises) {
         const snaps = await Promise.all(levels.map(n => getDoc(doc(db, 'sharedSentences', `${lang}_${userToLang}_level${n}`))))
+        console.log('[SATZ] snaps found:', snaps.filter(s => s.exists()).length, 'of', levels.length)
+        snaps.forEach((s, i) => console.log('[SATZ] doc', levels[i], ':', s.exists() ? s.data().exercises?.length + ' exercises' : 'NOT FOUND'))
         rawExercises = snaps.flatMap(s => s.exists() ? (s.data().exercises || []) : [])
+        console.log('[SATZ] rawExercises total:', rawExercises.length)
         if (rawExercises.length >= 8) setCards(cacheKey, rawExercises)
       }
       if (rawExercises && rawExercises.length >= 8) {
