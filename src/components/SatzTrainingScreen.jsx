@@ -13,7 +13,7 @@ function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userN
   const targetLang = LANG_NAMES_FULL[ttsLangCode] || ttsLangCode
   const fromLang = LANG_NAMES_FULL[lang] || lang
 
-  const knownVocab = allCards.filter(c =>
+  const knownVocab = (allCards || []).filter(c =>
     c.category === 'vocabulary' && !/_r(_\d+)?$/.test(c.id) && (cardProgress[c.id]?.interval || 0) >= 2
   )
 
