@@ -710,7 +710,7 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
   }
   const startBasicsSession = () => startCategorySession('grundlagen')
 
-  const startSatzSession = () => startCategorySession('satztraining')
+  const startSatzSession = () => setScreen('satz')
   const startTopicSession = async (topicKey) => {
     const toLangCode = (myData?.toLang || (lang === 'de' ? 'en' : 'de')).toLowerCase()
     const fromLangCode = lang
@@ -1349,9 +1349,8 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
             <span>{catLoading === 'vocabulary' ? '⟳' : t.menuWorte.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</span>
             {catLoading !== 'vocabulary' && catLevelBar('vocabulary')}
           </button>
-          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '1.8s', opacity: catLoading === 'satztraining' ? 0.6 : 1, flexDirection: 'column', alignItems: 'center' }} onClick={startSatzSession} disabled={catLoading === 'satztraining'}>
-            <span>{catLoading === 'satztraining' ? '...' : t.menuSaetze.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</span>
-            {catLoading !== 'satztraining' && catLevelBar('satztraining')}
+          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '1.8s', flexDirection: 'column', alignItems: 'center' }} onClick={startSatzSession}>
+            <span>{t.menuSaetze.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</span>
           </button>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
@@ -1528,8 +1527,8 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
 
       {/* ── SECONDARY NAVIGATION ── */}
       <div className="vocara-nav-section" style={{ marginTop: '4px', marginBottom: '10px' }}>
-        <button className="vocara-nav-btn" style={{ ...s.navBtn, opacity: catLoading === 'satztraining' ? 0.6 : 1 }} onClick={startSatzSession} disabled={catLoading === 'satztraining'}>
-          ✍️ {catLoading === 'satztraining' ? '…' : t.menuSatz}
+        <button className="vocara-nav-btn" style={s.navBtn} onClick={startSatzSession}>
+          ✍️ {t.menuSatz}
         </button>
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('ki')}>{t.menuKi}</button>
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('stats')}>
