@@ -1,12 +1,12 @@
 // cache-bust-v3-SATZ-FIX
 import React, { useState, useEffect, useRef } from 'react'
-import { doc, getDoc } from 'firebase/firestore'
+import { doc, getDoc, updateDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 import { THEMES, makeStyles } from '../theme'
 import { getCards, setCards } from '../hooks/useCardCache'
 import { speak } from '../appShared'
 
-function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userName, userToLang = 'en', onSatzComplete, t: tProp }) {
+function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userName, userToLang = 'en', onSatzComplete, t: tProp, user }) {
   if (!lang || !theme) return null
   const th = THEMES[theme]; const s = makeStyles(th); const t = tProp
   const LANG_NAMES_FULL = { en: 'English', de: 'German', sw: 'Swahili', th: 'Thai', es: 'Spanish', fr: 'French', ar: 'Arabic', tr: 'Turkish', pt: 'Portuguese' }
@@ -51,6 +51,9 @@ function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userN
   const generateExercises = async (chosenDifficulty) => {
     setLoading(true); setError(null); setIndex(0); setDone(false)
     setCorrect(0); setRevealed(false); setSelfRating(null); setUserInput(''); setSemanticResult(null); setAutoEasy(false)
+    if (user?.uid && chosenDifficulty) {
+      try { await updateDoc(doc(db, 'users', user.uid), { satzDifficulty: chosenDifficulty }) } catch {}
+    }
 
     const diffLabel = { leicht: 'beginner (A1-A2)', mittel: 'intermediate (B1)', schwer: 'advanced (B2-C1)' }[chosenDifficulty || 'mittel'] || 'intermediate (B1)'
     const diffKey = chosenDifficulty || 'mittel'
