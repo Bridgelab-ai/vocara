@@ -48,8 +48,6 @@ function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userN
   }
 
   const generateExercises = async (chosenDifficulty) => {
-    console.log('[SATZ] generateExercises called with diff:', chosenDifficulty)
-    console.log('[SATZ] lang:', lang, 'userToLang:', userToLang, 'path:', `${lang}_${userToLang}_level1`)
     setLoading(true); setError(null); setIndex(0); setDone(false)
     setCorrect(0); setRevealed(false); setSelfRating(null); setUserInput(''); setSemanticResult(null); setAutoEasy(false)
 
@@ -62,19 +60,12 @@ function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userN
       const levels = DIFF_TO_LEVELS[diffKey] || [1,2,3,4]
       const cacheKey = `satz_${lang}_${userToLang}_${diffKey}`
       let rawExercises = getCards(cacheKey)
-      if (!rawExercises) {
-        console.log('[SATZ] fetching levels:', levels)
+      if (!rawExercises || rawExercises.length === 0) {
         try {
           const snaps = await Promise.all(levels.map(n => getDoc(doc(db, 'sharedSentences', `${lang}_${userToLang}_level${n}`))))
-          console.log('[SATZ] snaps resolved')
-          console.log('[SATZ] snaps found:', snaps.filter(s => s.exists()).length, 'of', levels.length)
-          snaps.forEach((s, i) => console.log('[SATZ] doc', levels[i], ':', s.exists() ? s.data().exercises?.length + ' exercises' : 'NOT FOUND'))
           rawExercises = snaps.flatMap(s => s.exists() ? (s.data().exercises || []) : [])
-          console.log('[SATZ] rawExercises total:', rawExercises.length)
           if (rawExercises.length >= 8) setCards(cacheKey, rawExercises)
-        } catch(err) {
-          console.error('[SATZ] fetch error:', err)
-        }
+        } catch(err) {}
       }
       if (rawExercises && rawExercises.length >= 8) {
         const pool = rawExercises.map(ex => ({
