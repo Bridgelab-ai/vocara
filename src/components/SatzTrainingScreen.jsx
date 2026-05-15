@@ -1,4 +1,4 @@
-// cache-bust-v2
+// cache-bust-v3-SATZ-FIX
 import React, { useState, useEffect, useRef } from 'react'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '../firebase'
@@ -95,7 +95,7 @@ Mix exercise types: gap, order, tense, conjugation, translation. Return ONLY val
     try {
       const res = await fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 2200, messages: [{ role: 'user', content: prompt }] })
+        body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2200, messages: [{ role: 'user', content: prompt }] })
       })
       const data = await res.json()
       const text = data.content?.[0]?.text || ''
