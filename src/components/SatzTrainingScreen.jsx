@@ -61,11 +61,9 @@ function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userN
       const levels = DIFF_TO_LEVELS[diffKey] || [1,2,3,4]
       const cacheKey = `satz_${lang}_${userToLang}_${diffKey}`
       let rawExercises = getCards(cacheKey)
-      console.log('[SATZ] cache check:', cacheKey, 'cached:', getCards(cacheKey))
       if (!rawExercises || rawExercises.length === 0) {
         try {
           const snaps = await Promise.all(levels.map(n => getDoc(doc(db, 'sharedExercises', `${lang}_${userToLang}_satz_level${n}`))))
-          console.log('[SATZ] snaps:', snaps.map((s,i) => `level${levels[i]}:${s.exists()?'found':'missing'}`))
           rawExercises = snaps.flatMap(s => s.exists() ? (s.data().exercises || []) : [])
           if (rawExercises.length >= 8) setCards(cacheKey, rawExercises)
         } catch(err) { console.error('[SATZ] error:', err); setError(err.message) }
@@ -76,9 +74,7 @@ function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userN
           chips: ex.chips && ex.chips.length > 0 ? ex.chips : (ex.type === 'order' ? ex.answer.split(' ') : undefined),
         }))
         const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, 10)
-        console.log('[SATZ] setting exercises:', rawExercises?.length)
         setExercises(shuffled)
-        console.log('[SATZ] first exercise:', shuffled[0], 'index:', 0)
         exerciseStartRef.current = Date.now()
         if (shuffled[0]?.type === 'order') initChips(shuffled[0])
         setLoading(false)
