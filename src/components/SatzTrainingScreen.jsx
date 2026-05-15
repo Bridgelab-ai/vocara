@@ -66,7 +66,7 @@ function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userN
           const snaps = await Promise.all(levels.map(n => getDoc(doc(db, 'sharedSentences', `${lang}_${userToLang}_level${n}`))))
           rawExercises = snaps.flatMap(s => s.exists() ? (s.data().exercises || []) : [])
           if (rawExercises.length >= 8) setCards(cacheKey, rawExercises)
-        } catch(err) {}
+        } catch(err) { console.error('[SATZ] error:', err); setError(err.message) }
       }
       if (rawExercises && rawExercises.length >= 8) {
         const pool = rawExercises.map(ex => ({
@@ -243,7 +243,14 @@ Mix exercise types: gap, order, tense, conjugation, translation. Return ONLY val
     </div></div>
   )
 
-  if (!ex) return null
+  if (!ex) return (
+    <div style={{ ...s.screen, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px' }}>
+      <p style={{ color: th.text, fontSize: '1.1rem', textAlign: 'center', marginBottom: '24px' }}>
+        {loading ? '⏳ Übungen werden geladen...' : '⚠️ Keine Übungen gefunden. Bitte im Admin-Bereich Satztraining generieren.'}
+      </p>
+      {!loading && <button onClick={onBack} style={{ ...s.btn, background: th.accent }}>← Zurück</button>}
+    </div>
+  )
   const correct_bool = revealed && semanticResult !== 'loading' ? isAnswerCorrect() : null
 
   return (
