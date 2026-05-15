@@ -36,6 +36,7 @@ function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userN
   const exerciseStartRef = useRef(Date.now())
 
   const ex = exercises[index]
+  console.log('[RENDER] exercises:', exercises.length, 'ex:', !!ex, 'loading:', loading)
 
   useEffect(() => { generateExercises('leicht') }, [])
   useEffect(() => { if (done && onSatzComplete) onSatzComplete(correct, exercises.length) }, [done])
