@@ -7,6 +7,7 @@ import { getCards, setCards } from '../hooks/useCardCache'
 import { speak } from '../appShared'
 
 function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userName, userToLang = 'en', onSatzComplete, t: tProp }) {
+  if (!lang || !theme) return null
   const th = THEMES[theme]; const s = makeStyles(th); const t = tProp
   const LANG_NAMES_FULL = { en: 'English', de: 'German', sw: 'Swahili', th: 'Thai', es: 'Spanish', fr: 'French', ar: 'Arabic', tr: 'Turkish', pt: 'Portuguese' }
   const ttsLangCode = userToLang.toLowerCase()
@@ -14,7 +15,7 @@ function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userN
   const fromLang = LANG_NAMES_FULL[lang] || lang
 
   const knownVocab = (allCards || []).filter(c =>
-    c.category === 'vocabulary' && !/_r(_\d+)?$/.test(c.id) && (cardProgress[c.id]?.interval || 0) >= 2
+    c.category === 'vocabulary' && !/_r(_\d+)?$/.test(c.id) && ((cardProgress || {})[c.id]?.interval || 0) >= 2
   )
 
   const [exercises, setExercises] = useState([])
