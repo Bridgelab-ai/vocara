@@ -47,6 +47,7 @@ function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userN
   }
 
   const generateExercises = async (chosenDifficulty) => {
+    console.log('[SATZ] lang:', lang, 'userToLang:', userToLang, 'path:', `${lang}_${userToLang}_level1`)
     setLoading(true); setError(null); setIndex(0); setDone(false)
     setCorrect(0); setRevealed(false); setSelfRating(null); setUserInput(''); setSemanticResult(null); setAutoEasy(false)
 
