@@ -710,78 +710,7 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
   }
   const startBasicsSession = () => startCategorySession('grundlagen')
 
-  const startSatzSession = async () => {
-    const LANG_NAMES = { en: 'English', de: 'German', sw: 'Swahili' }
-    // Only cards with mastery >= 2 (answered correctly at least twice = interval >= 2)
-    const knownVocabCards = activeCards.filter(c =>
-      c.category === 'vocabulary' &&
-      !/_r(_\d+)?$/.test(c.id) &&
-      (cardProgress[c.id]?.interval || 0) >= 2
-    )
-    if (knownVocabCards.length < 5) {
-      setEmptyCategoryMsg(isMarkLang
-        ? 'Übe zuerst mehr Wörter in Meine Worte — du brauchst mindestens 5 gefestigte Wörter!'
-        : 'Practice more words in My Words first — you need at least 5 solid words!')
-      setTimeout(() => setEmptyCategoryMsg(null), 3500)
-      return
-    }
-    setSatzLoading(true)
-    try {
-      // Use the toLang text (back) — the target language words the user has actually learned
-      const wordList = knownVocabCards.map(c => c?.back).slice(0, 60).join(', ')
-      const toLangCode = isMarkLang ? 'de' : 'en'
-      const fromLangCode = isMarkLang ? 'en' : 'de'
-      const toLangName = LANG_NAMES[toLangCode]
-      const fromLangName = LANG_NAMES[fromLangCode]
-      const prompt = `You are a language learning assistant. The user knows these words and phrases in ${toLangName}: ${wordList}
-
-Build exactly 5 short, natural, everyday sentences in ${toLangName} using vocabulary from that list plus only basic grammar words (articles, prepositions, conjunctions, common verbs). Max 8 words per sentence.
-
-For each sentence also write the ${fromLangName} translation.
-
-Return ONLY a valid JSON array with no markdown or explanation:
-[{"front":"<sentence in ${fromLangName}>","back":"<sentence in ${toLangName}>","context":"<1 sentence explaining when you'd say this>"}]`
-
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 800, messages: [{ role: 'user', content: prompt }] }),
-      })
-      const data = await res.json()
-      const raw = data.content?.[0]?.text || ''
-      const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim())
-      const ts = Date.now()
-      const sessionCards = parsed.slice(0, 5).map((card, i) => ({
-        id: `satz_temp_${ts}_${i}`,
-        front: card?.front,
-        back: card?.back,
-        context: card?.context || '',
-        category: 'sentence',
-        langA: fromLangCode,
-        langB: toLangCode,
-        targetLang: toLangCode,
-        source: 'satz-session',
-      }))
-      setCurrentSessionMode('sentence')
-      if (wordOfDay) {
-        setWordOfDayBanner(wordOfDay)
-        setTimeout(() => {
-          setWordOfDayBanner(null)
-          setSession(sessionCards); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
-          markAreaDone('sentence')
-        }, 2000)
-      } else {
-        setSession(sessionCards); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
-        markAreaDone('sentence')
-      }
-    } catch (e) {
-      console.warn('Satz session generation failed:', e)
-      setEmptyCategoryMsg(isMarkLang ? 'Fehler beim Generieren der Sätze.' : 'Failed to generate sentences.')
-      setTimeout(() => setEmptyCategoryMsg(null), 3500)
-    } finally {
-      setSatzLoading(false)
-    }
-  }
+  const startSatzSession = () => startCategorySession('satztraining')
   const startTopicSession = async (topicKey) => {
     const toLangCode = (myData?.toLang || (lang === 'de' ? 'en' : 'de')).toLowerCase()
     const fromLangCode = lang
@@ -1420,9 +1349,9 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
             <span>{catLoading === 'vocabulary' ? '⟳' : t.menuWorte.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</span>
             {catLoading !== 'vocabulary' && catLevelBar('vocabulary')}
           </button>
-          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '1.8s', opacity: satzLoading ? 0.6 : 1, flexDirection: 'column', alignItems: 'center' }} onClick={startSatzSession} disabled={satzLoading}>
-            <span>{satzLoading ? '...' : t.menuSaetze.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</span>
-            {!satzLoading && catLevelBar('vocabulary')}
+          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '1.8s', opacity: catLoading === 'satztraining' ? 0.6 : 1, flexDirection: 'column', alignItems: 'center' }} onClick={startSatzSession} disabled={catLoading === 'satztraining'}>
+            <span>{catLoading === 'satztraining' ? '...' : t.menuSaetze.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</span>
+            {catLoading !== 'satztraining' && catLevelBar('satztraining')}
           </button>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
@@ -1599,8 +1528,8 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
 
       {/* ── SECONDARY NAVIGATION ── */}
       <div className="vocara-nav-section" style={{ marginTop: '4px', marginBottom: '10px' }}>
-        <button className="vocara-nav-btn" style={{ ...s.navBtn, opacity: satzLoading ? 0.6 : 1 }} onClick={startSatzSession} disabled={satzLoading}>
-          ✍️ {satzLoading ? '…' : t.menuSatz}
+        <button className="vocara-nav-btn" style={{ ...s.navBtn, opacity: catLoading === 'satztraining' ? 0.6 : 1 }} onClick={startSatzSession} disabled={catLoading === 'satztraining'}>
+          ✍️ {catLoading === 'satztraining' ? '…' : t.menuSatz}
         </button>
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('ki')}>{t.menuKi}</button>
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('stats')}>
