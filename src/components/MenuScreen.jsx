@@ -1351,6 +1351,14 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           </button>
           <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '1.8s', flexDirection: 'column', alignItems: 'center' }} onClick={startSatzSession}>
             <span>{t.menuSaetze.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</span>
+            {(() => {
+              const lvl = myData?.categoryLevels?.satztraining || 1
+              return (
+                <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', width: '100%', marginTop: '6px' }}>
+                  <span style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.38)', fontWeight: '600', letterSpacing: '0.5px' }}>Lvl {lvl}/14</span>
+                </span>
+              )
+            })()}
           </button>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>

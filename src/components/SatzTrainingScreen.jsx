@@ -55,28 +55,28 @@ function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userN
     const langPair = `${lang}_${userToLang}`
 
     try {
-      const cacheKey = `satz_${langPair}_${diffKey}`
+      const DIFF_TO_LEVELS = { leicht: [1,2,3,4], mittel: [5,6,7,8,9,10], schwer: [11,12,13,14] }
+      const levels = DIFF_TO_LEVELS[diffKey] || [1,2,3,4]
+      const cacheKey = `satz_${lang}_${userToLang}_${diffKey}`
       let rawExercises = getCards(cacheKey)
       if (!rawExercises) {
-        const poolSnap = await getDoc(doc(db, 'sharedExercises', `${langPair}_satz_${diffKey}`))
-        if (poolSnap.exists()) {
-          rawExercises = poolSnap.data().exercises || []
-          if (rawExercises.length >= 8) setCards(cacheKey, rawExercises)
-        }
+        const snaps = await Promise.all(levels.map(n => getDoc(doc(db, 'sharedSentences', `${lang}_${userToLang}_level${n}`))))
+        rawExercises = snaps.flatMap(s => s.exists() ? (s.data().exercises || []) : [])
+        if (rawExercises.length >= 8) setCards(cacheKey, rawExercises)
       }
       if (rawExercises && rawExercises.length >= 8) {
         const pool = rawExercises.map(ex => ({
           ...ex,
           chips: ex.chips && ex.chips.length > 0 ? ex.chips : (ex.type === 'order' ? ex.answer.split(' ') : undefined),
         }))
-        const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, 8)
+        const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, 10)
         setExercises(shuffled)
         exerciseStartRef.current = Date.now()
         if (shuffled[0]?.type === 'order') initChips(shuffled[0])
         setLoading(false)
         return
       }
-    } catch (e) { console.warn('[Vocara] sharedExercises pool load failed, falling back to KI:', e.message) }
+    } catch (e) { console.warn('[Vocara] sharedSentences pool load failed, falling back to KI:', e.message) }
 
     const wordList = knownVocab.map(c => c?.back).slice(0, 30).join(', ')
     const prompt = `Create 8 varied grammar exercises for a ${targetLang} learner at ${diffLabel} level. Native language: ${fromLang}.
