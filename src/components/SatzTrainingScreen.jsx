@@ -36,7 +36,6 @@ function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userN
   const exerciseStartRef = useRef(Date.now())
 
   const ex = exercises[index]
-  console.log('[RENDER] exercises:', exercises.length, 'ex:', !!ex, 'loading:', loading, 'difficulty:', difficulty, 'done:', done)
 
   useEffect(() => { generateExercises('leicht') }, [])
   useEffect(() => { if (done && onSatzComplete) onSatzComplete(correct, exercises.length) }, [done])
@@ -201,15 +200,6 @@ Mix exercise types: gap, order, tense, conjugation, translation. Return ONLY val
     )
   }
 
-  if (knownVocab.length < 5) return (
-    <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
-      <button style={s.backBtn} onClick={onBack}>←</button>
-      <p style={{ color: th.accent, fontSize: '2rem', marginBottom: '12px' }}>📚</p>
-      <p style={{ color: th.text, fontSize: '1rem', marginBottom: '8px', fontWeight: '600' }}>{t.satzNotEnough}</p>
-      <p style={{ color: th.sub, fontSize: '0.88rem', marginBottom: '20px', lineHeight: 1.5 }}>{t.satzNotEnoughDesc}</p>
-      <button style={s.logoutBtn} onClick={onBack}>{t.back}</button>
-    </div></div>
-  )
 
   if (loading) return (
     <div style={s.container} className="vocara-screen">
