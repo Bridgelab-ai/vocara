@@ -50,7 +50,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.090.136'
+const APP_VERSION = 'V01.090.137'
 const MARK_UID = 'aiNZh4Myn8Y0KfYkGGrkNNW0HC72'
 const ELOSY_UID = 'NIX3DYenRdbRjmr2EHsIad9GcqG3'
 const SESSION_SIZE = 15
@@ -2776,7 +2776,9 @@ function App() {
           (c.langA || '').toLowerCase() !== userFromLang &&
           (c.langB || '').toLowerCase() !== userFromLang
         ) return
-        buildCardPair({ ...c, targetLang: data.toLang || c.langB }).forEach(p => cards.push(p))
+        buildCardPair({ ...c, targetLang: data.toLang || c.langB })
+          .filter(p => (p.langA || '').toLowerCase() === userFromLang)
+          .forEach(p => cards.push(p))
       })
     })
     return cards
