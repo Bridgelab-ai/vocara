@@ -78,6 +78,7 @@ function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userN
         const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, 10)
         console.log('[SATZ] setting exercises:', rawExercises?.length)
         setExercises(shuffled)
+        console.log('[SATZ] first exercise:', shuffled[0], 'index:', 0)
         exerciseStartRef.current = Date.now()
         if (shuffled[0]?.type === 'order') initChips(shuffled[0])
         setLoading(false)
