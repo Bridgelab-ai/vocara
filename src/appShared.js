@@ -167,7 +167,7 @@ export function getCatLevel(masteredCount) {
 }
 
 // ── CONSTANTS ─────────────────────────────────────────────────
-export const APP_VERSION = 'V01.090.156'
+export const APP_VERSION = 'V01.090.157'
 
 export const POOL_STRUCTURE = {
   grundlagen:   { totalLevels: 10, cardsPerLevel: 20 },
