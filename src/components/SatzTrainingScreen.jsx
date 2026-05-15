@@ -247,14 +247,15 @@ Mix exercise types: gap, order, tense, conjugation, translation. Return ONLY val
     </div></div>
   )
 
-  if (!ex) return (
+  if (!ex && exercises.length === 0 && !loading) return (
     <div style={{ ...s.screen, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px' }}>
       <p style={{ color: th.text, fontSize: '1.1rem', textAlign: 'center', marginBottom: '24px' }}>
-        {loading ? '⏳ Übungen werden geladen...' : '⚠️ Keine Übungen gefunden. Bitte im Admin-Bereich Satztraining generieren.'}
+        ⚠️ Keine Übungen gefunden. Bitte im Admin-Bereich Satztraining generieren.
       </p>
-      {!loading && <button onClick={onBack} style={{ ...s.btn, background: th.accent }}>← Zurück</button>}
+      <button onClick={onBack} style={{ ...s.btn, background: th.accent }}>← Zurück</button>
     </div>
   )
+  if (!ex) return null
   const correct_bool = revealed && semanticResult !== 'loading' ? isAnswerCorrect() : null
 
   return (
