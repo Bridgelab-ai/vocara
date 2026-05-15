@@ -1164,7 +1164,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
   if (screen === 'impressum') return <>{homeFloat}<ImpressumScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
   if (screen === 'stats') return <>{homeFloat}<StatsScreen user={user} myData={myData} partnerData={partnerData} allCards={allCards} lang={lang} theme={theme} th={th} s={s} onBack={() => setScreen('menu')} cardProgress={cardProgress} t={t} /></>
   if (screen === 'ki') return <>{homeFloat}<KiGespraechScreen lang={lang} theme={theme} th={th} s={s} onBack={() => setScreen('menu')} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={(myData?.toLang || '').toLowerCase() || (lang === 'de' ? 'en' : 'de')} /></>
-  if (screen === 'satz') return <>{homeFloat}<SatzTrainingScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={(myData?.toLang || '').toLowerCase() || (lang === 'de' ? 'en' : 'de')} t={t} user={user} onSatzComplete={async (correct, total) => {
+  if (screen === 'satz') return <>{homeFloat}<SatzTrainingScreen lang={lang} theme={theme} onBack={() => setScreen('menu')} allCards={allCards} cardProgress={cardProgress} userName={user.displayName?.split(' ')[0] || 'du'} userToLang={(myData?.toLang || '').toLowerCase() || (lang === 'de' ? 'en' : 'de')} t={t} user={user} myData={myData} onSatzComplete={async (correct, total) => {
     const entry = { date: todayStr(), correct, total, area: 'satztraining', ts: Date.now() }
     const updated = [entry, ...(myData?.sessionHistory || [])].slice(0, 60)
     try {
@@ -1352,11 +1352,10 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '1.8s', flexDirection: 'column', alignItems: 'center' }} onClick={startSatzSession}>
             <span>{t.menuSaetze.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</span>
             {(() => {
-              const diff = myData?.satzDifficulty || 'leicht'
-              const diffLabel = { leicht: '⬛ Leicht', mittel: '🟦 Mittel', schwer: '🟥 Schwer' }[diff] || '⬛ Leicht'
+              const lvl = myData?.categoryLevels?.satztraining || 1
               return (
                 <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', width: '100%', marginTop: '6px' }}>
-                  <span style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.38)', fontWeight: '600', letterSpacing: '0.5px' }}>{diffLabel}</span>
+                  <span style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.38)', fontWeight: '600', letterSpacing: '0.5px' }}>Lv {lvl}/14</span>
                 </span>
               )
             })()}

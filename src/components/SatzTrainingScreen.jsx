@@ -1,12 +1,12 @@
 // cache-bust-v3-SATZ-FIX
 import React, { useState, useEffect, useRef } from 'react'
-import { doc, getDoc, updateDoc } from 'firebase/firestore'
+import { doc, getDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 import { THEMES, makeStyles } from '../theme'
 import { getCards, setCards } from '../hooks/useCardCache'
 import { speak } from '../appShared'
 
-function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userName, userToLang = 'en', onSatzComplete, t: tProp, user }) {
+function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userName, userToLang = 'en', onSatzComplete, t: tProp, user, myData }) {
   if (!lang || !theme) return null
   const th = THEMES[theme]; const s = makeStyles(th); const t = tProp
   const LANG_NAMES_FULL = { en: 'English', de: 'German', sw: 'Swahili', th: 'Thai', es: 'Spanish', fr: 'French', ar: 'Arabic', tr: 'Turkish', pt: 'Portuguese' }
@@ -31,13 +31,12 @@ function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userN
   const [done, setDone] = useState(false)
   const [semanticResult, setSemanticResult] = useState(null)
   const [difficultyScore, setDifficultyScore] = useState(0)
-  const [difficulty, setDifficulty] = useState('leicht')
   const [autoEasy, setAutoEasy] = useState(false)
   const exerciseStartRef = useRef(Date.now())
 
   const ex = exercises[index]
 
-  useEffect(() => { generateExercises('leicht') }, [])
+  useEffect(() => { generateExercises() }, [])
   useEffect(() => { if (done && onSatzComplete) onSatzComplete(correct, exercises.length) }, [done])
 
   const levenshtein = (a, b) => {
@@ -51,18 +50,17 @@ function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userN
   const generateExercises = async (chosenDifficulty) => {
     setLoading(true); setError(null); setIndex(0); setDone(false)
     setCorrect(0); setRevealed(false); setSelfRating(null); setUserInput(''); setSemanticResult(null); setAutoEasy(false)
-    if (user?.uid && chosenDifficulty) {
-      try { await updateDoc(doc(db, 'users', user.uid), { satzDifficulty: chosenDifficulty }) } catch {}
-    }
 
-    const diffLabel = { leicht: 'beginner (A1-A2)', mittel: 'intermediate (B1)', schwer: 'advanced (B2-C1)' }[chosenDifficulty || 'mittel'] || 'intermediate (B1)'
-    const diffKey = chosenDifficulty || 'mittel'
+    const satzLevel = myData?.categoryLevels?.satztraining || 1
+    const diffKey = chosenDifficulty || 'leicht'
+    const diffLabel = { leicht: 'beginner (A1-A2)', mittel: 'intermediate (B1)', schwer: 'advanced (B2-C1)' }[diffKey] || 'beginner (A1-A2)'
     const langPair = `${lang}_${userToLang}`
 
     try {
-      const DIFF_TO_LEVELS = { leicht: [1,2,3,4], mittel: [5,6,7,8,9,10], schwer: [11,12,13,14] }
-      const levels = DIFF_TO_LEVELS[diffKey] || [1,2,3,4]
-      const cacheKey = `satz_${lang}_${userToLang}_${diffKey}`
+      const levelStart = Math.max(1, satzLevel - 1)
+      const levelEnd = Math.min(14, satzLevel + 2)
+      const levels = Array.from({ length: levelEnd - levelStart + 1 }, (_, i) => levelStart + i)
+      const cacheKey = `satz_${lang}_${userToLang}_lv${satzLevel}`
       let rawExercises = getCards(cacheKey)
       if (!rawExercises || rawExercises.length === 0) {
         try {
@@ -179,29 +177,7 @@ Mix exercise types: gap, order, tense, conjugation, translation. Return ONLY val
     translation: lang === 'de' ? '🌐 Übersetzung' : '🌐 Translation',
   })[type] || type
 
-  if (!difficulty && exercises.length === 0 && !loading) {
-    const isDE = lang === 'de'
-    const levels = [
-      { key: 'leicht', label: t.diffLeicht, sub: t.diffLeichtSub },
-      { key: 'mittel', label: t.diffMittel, sub: t.diffMittelSub },
-      { key: 'schwer', label: t.diffSchwer, sub: t.diffSchwerSub },
-    ]
-    return (
-      <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
-        <button style={s.backBtn} onClick={onBack}>←</button>
-        <p style={{ color: th.accent, fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', margin: '0 0 6px' }}>Satztraining</p>
-        <p style={{ color: th.text, fontSize: '1.1rem', fontWeight: '700', margin: '0 0 4px' }}>{t.chooseDifficulty}</p>
-        <p style={{ color: th.sub, fontSize: '0.82rem', margin: '0 0 20px' }}>{isDE ? `Übungen auf ${targetLang}` : `Exercises in ${targetLang}`}</p>
-        {levels.map(lv => (
-          <button key={lv.key} onClick={() => { setDifficulty(lv.key); generateExercises(lv.key) }}
-            style={{ ...s.button, marginBottom: '10px', textAlign: 'left', display: 'flex', flexDirection: 'column', padding: '14px 18px' }}>
-            <span style={{ fontWeight: '700', fontSize: '0.95rem' }}>{lv.label}</span>
-            <span style={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.75rem', marginTop: '2px' }}>{lv.sub}</span>
-          </button>
-        ))}
-      </div></div>
-    )
-  }
+
 
 
   if (loading) return (
@@ -232,7 +208,7 @@ Mix exercise types: gap, order, tense, conjugation, translation. Return ONLY val
         </p>
         {difficultyScore >= 6 && <p style={{ color: th.accent, fontSize: '0.78rem', marginTop: '8px' }}>⬆️ {lang === 'de' ? 'Schwierigkeitsgrad steigt' : 'Difficulty increasing'}</p>}
       </div>
-      <button style={s.button} onClick={() => { setDifficulty(null); setDone(false); setExercises([]); setIndex(0); setCorrect(0) }}>{t.newExercises}</button>
+      <button style={s.button} onClick={() => { setDone(false); setExercises([]); setIndex(0); setCorrect(0); generateExercises() }}>{t.newExercises}</button>
       <button style={s.logoutBtn} onClick={onBack}>{t.back}</button>
     </div></div>
   )
