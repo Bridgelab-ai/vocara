@@ -361,7 +361,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
 
   // ── CATEGORY LEVEL BADGE + PROGRESS BAR ──────────────────
   const CAT_TO_POOL_BAR = { vocabulary: 'vocab', sentence: 'urlaub' }
-  const CAT_ID_PREFIX_BAR = { vocabulary: 'vocab_', sentence: 'sentence_', street: 'street_', home: 'home_', grundlagen: 'grundlagen_' }
+  const CAT_ID_PREFIX_BAR = { vocabulary: 'vocab_', sentence: 'sentence_', street: 'street_', home: 'home_', grundlagen: 'grundlagen_', saetze: 'saetze_', urlaub: 'sentence_', satztraining: 'satz_temp_' }
   const catLevelBar = (cat) => {
     const poolKey = CAT_TO_POOL_BAR[cat] || cat
     const poolInfo = POOL_STRUCTURE[poolKey] || { cardsPerLevel: 20 }
