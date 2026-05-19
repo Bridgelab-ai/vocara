@@ -703,7 +703,7 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
     // Show Wort des Tages banner for 2s before starting any session
     const startSession = () => {
       setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
-      if (['vocabulary', 'street', 'home', 'basics', 'grundlagen', 'vocab', 'urlaub', 'saetze', 'satztraining'].includes(category)) markAreaDone(category)
+      if (['vocabulary', 'street', 'home', 'basics', 'grundlagen', 'vocab', 'urlaub', 'saetze', 'satztraining'].includes(category)) markAreaDone(category === 'grundlagen' ? 'basics' : category)
     }
     if (wordOfDay) {
       setWordOfDayBanner(wordOfDay)
@@ -801,7 +801,6 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
     }
   }
   const markAreaDone = (area) => {
-    console.log('[WEEKLY] markAreaDone called with:', area, 'weeklyGoals:', myData?.weeklyGoals)
     const currentWeek = getISOWeekStr()
     setWeeklyGoals(prev => {
       const base = prev?.week === currentWeek ? prev : { week: currentWeek, completed: [] }
