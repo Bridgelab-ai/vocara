@@ -167,7 +167,7 @@ export function getCatLevelFromCount(masteredCount) {
 }
 
 // ── CONSTANTS ─────────────────────────────────────────────────
-export const APP_VERSION = 'V01.091.136'
+export const APP_VERSION = 'V01.091.137'
 
 export const POOL_STRUCTURE = {
   grundlagen:   { totalLevels: 10, cardsPerLevel: 20 },
@@ -263,8 +263,8 @@ const DE_VOCAB_WHITELIST = new Set([
   'lediglich','ausschließlich','laut','gegenüber','entsprechend','bezüglich',
 ])
 export function ruleCategory(card) {
-  const front = card.front || ''
-  const back = card.back || ''
+  const front = card?.front || ''
+  const back = card?.back || ''
   const words = front.trim().split(/\s+/).filter(Boolean)
   const backWords = back.trim().split(/\s+/).filter(Boolean)
   if (words.length === 1 && DE_VOCAB_WHITELIST.has(front.trim().toLowerCase())) return 'vocabulary'
@@ -287,7 +287,7 @@ export function buildCardPair(card) {
   const raw = card.category || ruleCategory(card)
   const category = VALID_CATEGORY_SET.has(raw) ? raw : 'vocabulary'
   const forwardCard = { ...card, targetLang, category }
-  const meanings = (card.back || '').split(' / ').map(m => m.trim()).filter(Boolean)
+  const meanings = (card?.back || '').split(' / ').map(m => m.trim()).filter(Boolean)
   let reversedCards
   if (meanings.length > 1) {
     reversedCards = meanings.map((meaning, i) => ({

@@ -237,7 +237,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
         const data = await res.json()
         const raw = data.content?.[0]?.text?.trim() || '{}'
         const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim())
-        if (parsed.front && parsed.back) {
+        if (parsed?.front && parsed?.back) {
           const card = { front: parsed.front, back: parsed?.back, context: parsed.context || '', date: todayD, category, langA: toLangCode, langB: fromLangCode }
           setDailyCard(card)
           await setDoc(doc(db, 'users', user.uid, 'dailyCards', todayD), card).catch(() => {})

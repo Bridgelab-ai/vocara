@@ -548,8 +548,8 @@ const DE_VOCAB_WHITELIST = new Set([
   'lediglich','ausschließlich','laut','gegenüber','entsprechend','bezüglich',
 ])
 function ruleCategory(card) {
-  const front = card.front || ''
-  const back = card.back || ''
+  const front = card?.front || ''
+  const back = card?.back || ''
   const words = front.trim().split(/\s+/).filter(Boolean)
   const backWords = back.trim().split(/\s+/).filter(Boolean)
   // Rule 0: German common-word whitelist → always vocabulary
@@ -584,7 +584,7 @@ function buildCardPair(card) {
   const category = VALID_CATEGORY_SET.has(raw) ? raw : 'vocabulary'
   const forwardCard = { ...card, targetLang, category }
 
-  const meanings = (card.back || '').split(' / ').map(m => m.trim()).filter(Boolean)
+  const meanings = (card?.back || '').split(' / ').map(m => m.trim()).filter(Boolean)
   let reversedCards
   if (meanings.length > 1) {
     reversedCards = meanings.map((meaning, i) => ({
@@ -2889,7 +2889,7 @@ function App() {
               }
 
               // Run ruleCategory for anything else that looks wrong
-              const back = card.back || ''
+              const back = card?.back || ''
               const backWordCount = back.trim().split(/\s+/).filter(Boolean).length
               const swahiliRe = /\b(habari|yako|nzuri|asante|karibu|pole|sawa|jambo|mambo|rafiki|wewe|mimi|nina|hii|hilo|chakula|maji|nyumba|watoto|upendo)\b/i
               const isSwahiliCard = card.pronunciation || swahiliRe.test(front) || card.langA === 'sw'

@@ -14,7 +14,7 @@ function RhythmusScreen({ lang, theme, onBack, allCards, cardProgress, userToLan
     const sentenceCards = (allCards || []).filter(c => {
       const cat = c.category || 'vocabulary'
       const interval = cardProgress[c.id]?.interval || 0
-      return (cat === 'sentence' || cat === 'home') && interval >= 3 && c.front && c.back
+      return (cat === 'sentence' || cat === 'home') && interval >= 3 && c?.front && c?.back
     })
     if (sentenceCards.length === 0) {
       setSentence(null); setLoading(false); return
@@ -93,7 +93,7 @@ function RhythmusScreen({ lang, theme, onBack, allCards, cardProgress, userToLan
               <div style={{ animation: 'vocaraFadeIn 0.3s ease both' }}>
                 <p style={{ color: th.sub, fontSize: '0.78rem', marginBottom: '8px' }}>{t.youSaid} <em style={{ color: th.text }}>{transcript}</em></p>
                 <div style={{ display: 'flex', justifyContent: 'center', gap: '4px', marginBottom: '12px' }}>
-                  {(sentence.back || '').split(/\s+/).map((w, i) => {
+                  {(sentence?.back || '').split(/\s+/).map((w, i) => {
                     const heard = transcript.split(/\s+/)
                     const hit = heard.some(h => h.includes(w.toLowerCase()) || w.toLowerCase().includes(h))
                     return <span key={i} style={{ color: hit ? '#4CAF50' : '#e53935', fontSize: '1rem', fontWeight: '600' }}>{w}</span>
