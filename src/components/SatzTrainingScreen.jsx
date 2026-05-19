@@ -4,7 +4,7 @@ import { doc, getDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 import { THEMES, makeStyles } from '../theme'
 import { getCards, setCards } from '../hooks/useCardCache'
-import { speak } from '../appShared'
+import { speak, getCatLevel } from '../appShared'
 
 function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userName, userToLang = 'en', onSatzComplete, t: tProp, user, myData }) {
   if (!lang || !theme) return null
@@ -51,20 +51,21 @@ function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userN
     setLoading(true); setError(null); setIndex(0); setDone(false)
     setCorrect(0); setRevealed(false); setSelfRating(null); setUserInput(''); setSemanticResult(null); setAutoEasy(false)
 
-    const satzLevel = myData?.categoryLevels?.satztraining || 1
+    const fromLangCode = (myData?.fromLang || lang).toLowerCase()
+    const langPair = `${fromLangCode}_${userToLang}`
+    const satzLevel = getCatLevel(myData?.categoryLevels, 'satztraining', langPair)
     const diffKey = chosenDifficulty || 'leicht'
     const diffLabel = { leicht: 'beginner (A1-A2)', mittel: 'intermediate (B1)', schwer: 'advanced (B2-C1)' }[diffKey] || 'beginner (A1-A2)'
-    const langPair = `${lang}_${userToLang}`
 
     try {
       const levelStart = Math.max(1, satzLevel - 1)
       const levelEnd = Math.min(14, satzLevel + 2)
       const levels = Array.from({ length: levelEnd - levelStart + 1 }, (_, i) => levelStart + i)
-      const cacheKey = `satz_${lang}_${userToLang}_lv${satzLevel}`
+      const cacheKey = `satz_${langPair}_lv${satzLevel}`
       let rawExercises = getCards(cacheKey)
       if (!rawExercises || rawExercises.length === 0) {
         try {
-          const snaps = await Promise.all(levels.map(n => getDoc(doc(db, 'sharedExercises', `${lang}_${userToLang}_satz_level${n}`))))
+          const snaps = await Promise.all(levels.map(n => getDoc(doc(db, 'sharedExercises', `${langPair}_satz_level${n}`))))
           rawExercises = snaps.flatMap(s => s.exists() ? (s.data().exercises || []) : [])
           if (rawExercises.length >= 8) setCards(cacheKey, rawExercises)
         } catch(err) { console.error('[SATZ] error:', err); setError(err.message) }

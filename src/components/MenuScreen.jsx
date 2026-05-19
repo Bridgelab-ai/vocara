@@ -1092,7 +1092,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     await onSaveProgress(finalProgress)
     // ── Pool level-up check ────────────────────────────────
     const CAT_TO_POOL = { vocabulary: 'vocab', sentence: 'urlaub' }
-    const CAT_ID_PREFIX = { vocabulary: 'vocab_', sentence: 'sentence_', street: 'street_', home: 'home_', grundlagen: 'grundlagen_' }
+    const CAT_ID_PREFIX = { vocabulary: 'vocab_', sentence: 'sentence_', street: 'street_', home: 'home_', grundlagen: 'grundlagen_', saetze: 'saetze_' }
     const poolKey = CAT_TO_POOL[currentSessionMode] || currentSessionMode
     const poolInfo = POOL_STRUCTURE[poolKey]
     const idPrefix = CAT_ID_PREFIX[currentSessionMode]
