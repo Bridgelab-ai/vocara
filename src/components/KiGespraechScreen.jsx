@@ -40,7 +40,7 @@ function KiGespraechScreen({ lang, theme, onBack, userName, userToLang = 'en', s
   const ttsLangCode = userToLang.toLowerCase()
   const LANG_NAMES_FULL = { en: 'English', de: 'German', sw: 'Swahili', th: 'Thai', es: 'Spanish', fr: 'French', ar: 'Arabic', tr: 'Turkish', pt: 'Portuguese' }
   const targetLang = LANG_NAMES_FULL[ttsLangCode] || ttsLangCode
-  const nativeLang = LANG_NAMES_FULL[lang] || lang
+  const nativeLang = LANG_NAMES_FULL[(myData?.fromLang || lang).toLowerCase()] || lang
   const ui = (de, en) => lang === 'de' ? de : en
   const masteredCount = Object.values(myData?.cardProgress || {}).filter(p => (p?.interval || 0) >= 7).length
   const tenseUnlocks = getTenseUnlocks(masteredCount)
@@ -63,7 +63,8 @@ function KiGespraechScreen({ lang, theme, onBack, userName, userToLang = 'en', s
     if (!sc) return ''
     const regCtx = socialRegisterContext(sessionRegister)
     const cefrCtx = myData?.cefr ? `The user's current CEFR level is ${myData.cefr}. Adapt your language complexity accordingly.` : ''
-    return `You are playing the role of a ${sc.role} in a ${sc.en} scenario. The user ${userName} is practicing ${targetLang}.
+    return `Conduct the entire conversation in ${targetLang}. The user is learning ${targetLang} and their native language is ${nativeLang}. If the user makes mistakes, gently correct them in ${targetLang}.
+You are playing the role of a ${sc.role} in a ${sc.en} scenario. The user ${userName} is practicing ${targetLang}.
 Social register / tone: ${regCtx}. Adapt your vocabulary and formality accordingly.${cefrCtx ? `\n${cefrCtx}` : ''}
 CRITICAL LANGUAGE RULE: You MUST ALWAYS respond EXCLUSIVELY in ${targetLang}. This is non-negotiable. NEVER write a single word in ${nativeLang} or any other language. If the user writes in ${nativeLang}, respond ONLY in ${targetLang} and gently remind them to practice ${targetLang}.
 ${tenseRule}
