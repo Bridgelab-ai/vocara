@@ -801,6 +801,7 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
     }
   }
   const markAreaDone = (area) => {
+    console.log('[WEEKLY] markAreaDone called with:', area, 'weeklyGoals:', myData?.weeklyGoals)
     const currentWeek = getISOWeekStr()
     setWeeklyGoals(prev => {
       const base = prev?.week === currentWeek ? prev : { week: currentWeek, completed: [] }
