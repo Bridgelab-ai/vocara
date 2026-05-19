@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { getDocs, collection, doc, updateDoc, deleteField, writeBatch } from 'firebase/firestore'
+import { getDocs, collection, doc, updateDoc, deleteField, writeBatch, query, where } from 'firebase/firestore'
 import { db } from '../firebase'
 import { THEMES, makeStyles } from '../theme'
 import { todayStr, getISOWeekStr, MARK_UID, ELOSY_UID, getCatLevel, getActiveLangPairs } from '../appShared'
@@ -57,6 +57,9 @@ function AdminScreen({ user, myData, lang, theme, onBack }) {
   const [topicResetStatus, setTopicResetStatus] = useState(null)
   const [deleteNoLevelLoading, setDeleteNoLevelLoading] = useState(false)
   const [deleteNoLevelStatus, setDeleteNoLevelStatus] = useState(null)
+  const [deleteCatLoading, setDeleteCatLoading] = useState(false)
+  const [deleteCatStatus, setDeleteCatStatus] = useState(null)
+  const [deleteCatTarget, setDeleteCatTarget] = useState('saetze')
   const [expandedCat, setExpandedCat] = useState(null)
   const [expandedTopic, setExpandedTopic] = useState(null)
   const [testLoading, setTestLoading] = useState(null)
@@ -513,6 +516,33 @@ function AdminScreen({ user, myData, lang, theme, onBack }) {
     setDeleteNoLevelLoading(false)
   }
 
+  // ── Delete by category ────────────────────────────────────────
+  const deleteCategoryPool = async () => {
+    const cat = deleteCatTarget.trim().toLowerCase()
+    if (!cat) return
+    const colName = cat === 'saetze' || cat === 'satztraining' ? 'sharedExercises' : 'sharedCards'
+    const fieldName = cat === 'saetze' || cat === 'satztraining' ? null : 'category'
+    if (!window.confirm(`Alle Dokumente aus "${colName}"${fieldName ? ` mit category="${cat}"` : ''} löschen?`)) return
+    setDeleteCatLoading(true); setDeleteCatStatus(null)
+    try {
+      const snap = fieldName
+        ? await getDocs(query(collection(db, colName), where(fieldName, '==', cat)))
+        : await getDocs(collection(db, colName))
+      if (snap.empty) { setDeleteCatStatus('Keine Dokumente gefunden'); setDeleteCatLoading(false); return }
+      let deleted = 0
+      const chunks = []
+      for (let i = 0; i < snap.docs.length; i += 500) chunks.push(snap.docs.slice(i, i + 500))
+      for (const chunk of chunks) {
+        const batch = writeBatch(db)
+        chunk.forEach(d => batch.delete(d.ref))
+        await batch.commit()
+        deleted += chunk.length
+      }
+      setDeleteCatStatus(`✓ ${deleted} Dokumente gelöscht`)
+    } catch (e) { setDeleteCatStatus(`Fehler: ${e.message}`) }
+    setDeleteCatLoading(false)
+  }
+
   // ── Delete all sharedCards ─────────────────────────────────────
   const deleteAllCards = async () => {
     if (!window.confirm('Alle sharedCards unwiderruflich löschen?')) return
@@ -845,6 +875,28 @@ function AdminScreen({ user, myData, lang, theme, onBack }) {
         </div>
         {deleteAllStatus && <p style={{ color: deleteAllStatus.startsWith('✓') ? '#81c784' : '#e06c75', fontSize: '0.75rem', margin: '8px 0 0' }}>{deleteAllStatus}</p>}
         {deleteNoLevelStatus && <p style={{ color: deleteNoLevelStatus.startsWith('✓') ? '#81c784' : '#e06c75', fontSize: '0.75rem', margin: '4px 0 0' }}>{deleteNoLevelStatus}</p>}
+      </div>
+
+      {/* Delete by category */}
+      <div style={{ ...s.card, marginTop: '12px' }}>
+        <p style={{ color: th.text, fontSize: '0.88rem', fontWeight: '700', margin: '0 0 10px' }}>🗑️ Kategorie löschen</p>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <select value={deleteCatTarget} onChange={e => setDeleteCatTarget(e.target.value)}
+            style={{ padding: '7px 10px', borderRadius: '10px', fontSize: '0.78rem', background: th.card, color: th.text, border: `1px solid ${th.border}`, cursor: 'pointer' }}>
+            <option value="saetze">saetze (sharedExercises)</option>
+            <option value="satztraining">satztraining (sharedExercises)</option>
+            <option value="vocab">vocab (sharedCards)</option>
+            <option value="sentence">sentence (sharedCards)</option>
+            <option value="street">street (sharedCards)</option>
+            <option value="home">home (sharedCards)</option>
+            <option value="grundlagen">grundlagen (sharedCards)</option>
+          </select>
+          <button onClick={deleteCategoryPool} disabled={deleteCatLoading}
+            style={{ padding: '7px 16px', borderRadius: '10px', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', opacity: deleteCatLoading ? 0.5 : 1, background: 'rgba(220,40,40,0.15)', color: '#e06c75', border: '1px solid rgba(220,40,40,0.35)' }}>
+            {deleteCatLoading ? '…' : '🗑️ Löschen'}
+          </button>
+        </div>
+        {deleteCatStatus && <p style={{ color: deleteCatStatus.startsWith('✓') ? '#81c784' : '#e06c75', fontSize: '0.75rem', margin: '8px 0 0' }}>{deleteCatStatus}</p>}
       </div>
 
       {/* Reset User */}
