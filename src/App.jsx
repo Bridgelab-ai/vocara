@@ -51,7 +51,7 @@ function getSeasonOverlay(themeKey) {
   return null
 }
 
-const APP_VERSION = 'V01.091.144'
+const APP_VERSION = 'V01.091.145'
 const MARK_UID = 'aiNZh4Myn8Y0KfYkGGrkNNW0HC72'
 const ELOSY_UID = 'NIX3DYenRdbRjmr2EHsIad9GcqG3'
 const SESSION_SIZE = 15
@@ -2757,7 +2757,7 @@ function App() {
   const [mainNav, setMainNav] = useState('main') // 'main' | 'sprechen' | 'entdecken' | 'horizont' | 'livesession'
   const CAT_NORMALIZE_POOL = { vocabulary: 'vocab', sentence: 'urlaub' }
   // Maps caller's category key → what generators actually write as data.category
-  const CAT_ALIASES = { urlaub: 'sentence', vocabulary: 'vocab', satztraining: 'sentence', saetze: 'saetze' }
+  const CAT_ALIASES = { urlaub: 'sentence', vocabulary: 'vocab', satztraining: 'sentence' }
   const loadCardsForCategory = async (category, langPair) => {
     const cacheKey = `${category}_${langPair}`
     if (poolCacheRef.current[cacheKey]) return poolCacheRef.current[cacheKey]
