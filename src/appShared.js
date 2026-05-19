@@ -167,7 +167,7 @@ export function getCatLevelFromCount(masteredCount) {
 }
 
 // ── CONSTANTS ─────────────────────────────────────────────────
-export const APP_VERSION = 'V01.091.139'
+export const APP_VERSION = 'V01.091.140'
 
 export const POOL_STRUCTURE = {
   grundlagen:   { totalLevels: 10, cardsPerLevel: 20 },
@@ -283,6 +283,7 @@ export function ruleCategory(card) {
 }
 
 export function buildCardPair(card) {
+  if (!card || !card.front || !card.back) return []
   const targetLang = card.langA
   const raw = card.category || ruleCategory(card)
   const category = VALID_CATEGORY_SET.has(raw) ? raw : 'vocabulary'
