@@ -17,7 +17,7 @@ const KI_SCENARIOS = [
 ]
 
 function KiGespraechScreen({ lang, theme, onBack, userName, userToLang = 'en', socialRegister = 'friends', myData, partnerData, user, t: tProp, th, s }) {
-  const t = tProp
+  const t = tProp || {}
   const isPremium = (user?.uid === MARK_UID || user?.uid === ELOSY_UID) || (myData?.plan && myData.plan !== 'free')
   const MAX_SESSIONS = isPremium ? 3 : 1
   const MAX_EXCHANGES = isPremium ? 15 : 8
@@ -211,7 +211,7 @@ CRITICAL: intro = ${nativeLang} only. opener = ${targetLang} only. No exceptions
   // ── SCENARIO PICKER ──
   if (!scenario) return (
     <div style={{ ...s.container, minHeight: '100vh' }} className="vocara-screen"><div style={s.homeBox}>
-      <button style={s.backBtn} onClick={onBack}>← {t.back}</button>
+      <button style={s.backBtn} onClick={onBack}>← {t?.back}</button>
       <div style={{ textAlign: 'center', marginBottom: '16px' }}>
         <p style={{ color: th.accent, fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', margin: '0 0 6px' }}>🤖 KI-Gespräch 2.0</p>
         <p style={{ color: th.text, fontSize: '1.1rem', fontWeight: '700', margin: '0 0 4px' }}>{ui('Wähle ein Szenario:', 'Choose a scenario:')}</p>
@@ -267,7 +267,7 @@ CRITICAL: intro = ${nativeLang} only. opener = ${targetLang} only. No exceptions
         <p style={{ color: th.text, fontSize: '0.88rem', margin: 0, lineHeight: 1.55 }}>{feedback.weaknesses}</p>
       </div>
       <button style={s.button} onClick={() => { setScenario(null); setMessages([]); setFeedback(null) }}>{ui('🔄 Neues Szenario', '🔄 New scenario')}</button>
-      <button style={{ ...s.button, background: 'transparent', color: th.sub, border: `1px solid ${th.border}` }} onClick={onBack}>{t.back}</button>
+      <button style={{ ...s.button, background: 'transparent', color: th.sub, border: `1px solid ${th.border}` }} onClick={onBack}>{t?.back}</button>
     </div></div>
   )
 
