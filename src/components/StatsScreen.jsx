@@ -129,40 +129,14 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
 
       {/* ── TOP STATS GRID ── */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
-        {statBox(t?.learnedToday, todayCorrect, `${todaySessions} Session${todaySessions !== 1 ? 's' : ''}`)}
+        {statBox(t?.learnedToday || 'Karten gelernt', todayCorrect, `${todaySessions} Session${todaySessions !== 1 ? 's' : ''}`)}
         {statBox('Streak', myStreak > 0 ? `🔥 ${myStreak}` : '—', t.statDays)}
       </div>
       <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-        {statBox(t.totalCards, totalCards, `${myMastered} ✓`)}
-        {statBox(t.dueTomorrow, dueTomorrow, '')}
+        {statBox(t.totalCards || 'Bekannte Wörter', totalCards, `${myMastered} ✓`)}
+        {statBox(t.dueTomorrow || 'Gemeistert', myMastered, '')}
       </div>
 
-      {/* ── LERNZEIT ── */}
-      {(() => {
-        const nowMonth = new Date().toISOString().slice(0, 7)
-        const nowWeek = getISOWeekStr()
-        const wMin = myData?.learningWeek === nowWeek ? (myData?.weeklyMinutes || 0) : 0
-        const mMin = myData?.learningMonth === nowMonth ? (myData?.monthlyMinutes || 0) : 0
-        const tMin = myData?.totalMinutes || 0
-        if (tMin === 0) return null
-        return (
-          <div style={{ ...s.card, marginBottom: '12px' }}>
-            <p style={{ ...s.cardLabel, marginBottom: '10px' }}>{t.studyTime}</p>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              {[
-                [t.week, wMin],
-                [t.month, mMin],
-                [t.total, tMin],
-              ].map(([label, min]) => (
-                <div key={label} style={{ textAlign: 'center', flex: 1 }}>
-                  <p style={{ color: th.gold, fontSize: '1.3rem', fontWeight: '700', margin: '0 0 2px', lineHeight: 1 }}>{min < 60 ? `${min}m` : `${Math.round(min/60)}h`}</p>
-                  <p style={{ color: th.sub, fontSize: '0.68rem', margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )
-      })()}
 
       {/* ── 7-DAY CHART ── */}
       <div style={{ ...s.card, marginBottom: '16px' }}>
@@ -215,7 +189,7 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
               return (
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                    <span style={{ color: th.sub, fontSize: '0.72rem' }}>{lang === 'de' ? `→ ${TENSE_LABELS[nextTense].de} freischalten` : `→ Unlock ${TENSE_LABELS[nextTense].en}`}</span>
+                    <span style={{ color: th.sub, fontSize: '0.72rem' }}>{lang === 'de' ? `Meistere ${threshold} Karten um ${TENSE_LABELS[nextTense].de} freizuschalten` : `→ Unlock ${TENSE_LABELS[nextTense].en}`}</span>
                     <span style={{ color: th.sub, fontSize: '0.72rem' }}>{myMastered}/{threshold}</span>
                   </div>
                   <div style={{ height: '5px', background: th.border, borderRadius: '4px', overflow: 'hidden' }}>
@@ -277,7 +251,7 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
             const TEAL = '#00D4AA'
             const badges = [
               { emoji: '🏅', label: lang === 'de' ? 'Fleißigster' : 'Most diligent', myVal: myWeekSessions, pVal: partnerWeekSessions, fmt: v => `${v}` },
-              { emoji: '🔥', label: lang === 'de' ? 'Longest Streak' : 'Best streak', myVal: myLongestStreak, pVal: partnerLongestStreak, fmt: v => `${v}d` },
+              { emoji: '🔥', label: lang === 'de' ? 'Längste Serie' : 'Best streak', myVal: myLongestStreak, pVal: partnerLongestStreak, fmt: v => `${v}d` },
               { emoji: '🎯', label: lang === 'de' ? 'Genauigkeit' : 'Accuracy', myVal: myWeekAccuracy, pVal: partnerWeekAccuracy, fmt: v => `${v}%` },
               { emoji: '📚', label: lang === 'de' ? 'Gemeistert' : 'Mastered', myVal: myMastered, pVal: partnerMastered, fmt: v => `${v}` },
               { emoji: '⚡', label: lang === 'de' ? 'Wochenkarten' : 'Week cards', myVal: myWeekCorrect, pVal: partnerWeekCorrect, fmt: v => `${v}` },
@@ -342,10 +316,10 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
               <div style={{ marginTop: '8px' }}>
                 <BarPair label={lang === 'de' ? 'Diese Woche' : 'This week'} myVal={myW} pVal={pW} />
                 <BarPair label={lang === 'de' ? 'Dieser Monat' : 'This month'} myVal={myM} pVal={pM} />
-                <div style={{ padding: '8px 0 0' }}>
+                <div style={{ padding: '8px 0 0', borderBottom: `1px solid ${th.border}` }}>
+                  <p style={{ color: th.sub, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'center', margin: '0 0 6px' }}>{t.total || 'GESAMT'}</p>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ color: th.accent, fontWeight: '700', fontSize: '0.82rem' }}>{fmtM(myT)}</span>
-                    <span style={{ color: th.sub, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t.total}</span>
                     <span style={{ color: th.gold, fontWeight: '700', fontSize: '0.82rem' }}>{fmtM(pT)}</span>
                   </div>
                 </div>
