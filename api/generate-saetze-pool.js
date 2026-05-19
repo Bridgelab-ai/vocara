@@ -121,7 +121,7 @@ async function writeToFirestore(fromLang, toLang, level, cards) {
             fields: {
               id: { stringValue: `saetze_${level}_${fromLang}_${toLang}_${Math.random().toString(36).slice(2, 8)}` },
               front: { stringValue: c.front || '' },
-              back: { stringValue: c.back || '' },
+              back: { stringValue: c?.back || '' },
               pronunciation: { stringValue: c.pronunciation || '' },
               category: { stringValue: 'saetze' },
               level: { integerValue: String(level) },

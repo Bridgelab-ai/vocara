@@ -66,7 +66,7 @@ function cardToFirestore(c, fromLang, toLang, level) {
       fields: {
         id: { stringValue: `street_l${level}_${fromLang}_${toLang}_${Math.random().toString(36).slice(2, 8)}` },
         front: { stringValue: c.front || '' },
-        back: { stringValue: c.back || '' },
+        back: { stringValue: c?.back || '' },
         pronunciation: { stringValue: c.pronunciation || '' },
         category: { stringValue: 'street' },
         wordType: { stringValue: 'phrase' },

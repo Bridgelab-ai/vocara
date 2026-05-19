@@ -63,7 +63,7 @@ function cardToFirestore(c, fromLang, toLang, level) {
       fields: {
         id: { stringValue: `home_l${level}_${fromLang}_${toLang}_${Math.random().toString(36).slice(2, 8)}` },
         front: { stringValue: c.front || '' },
-        back: { stringValue: c.back || '' },
+        back: { stringValue: c?.back || '' },
         category: { stringValue: 'home' },
         tense: { stringValue: c.tense || 'present' },
         context: { stringValue: c.context || '' },

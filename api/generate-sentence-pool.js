@@ -184,7 +184,7 @@ async function writeFlashcardPool(fromLang, toLang, level, cards) {
           mapValue: {
             fields: {
               id: { stringValue: `sentence_l${level}_${fromLang}_${toLang}_${Math.random().toString(36).slice(2, 9)}` },
-              front: { stringValue: c.front || '' }, back: { stringValue: c.back || '' },
+              front: { stringValue: c.front || '' }, back: { stringValue: c?.back || '' },
               category: { stringValue: 'sentence' }, vocabCategory: { stringValue: c.vocabCategory || '' },
               level: { integerValue: String(level) }, langA: { stringValue: fromLang }, langB: { stringValue: toLang },
               source: { stringValue: 'sentence-pool' },
@@ -215,7 +215,7 @@ async function writeFlatSentencePool(fromLang, toLang, level, cards) {
           mapValue: {
             fields: {
               id: { stringValue: `sentence_l${level}_${fromLang}_${toLang}_${Math.random().toString(36).slice(2, 9)}` },
-              front: { stringValue: c.front || '' }, back: { stringValue: c.back || '' },
+              front: { stringValue: c.front || '' }, back: { stringValue: c?.back || '' },
               category: { stringValue: 'sentence' }, vocabCategory: { stringValue: c.vocabCategory || '' },
               level: { integerValue: String(level) }, langA: { stringValue: fromLang }, langB: { stringValue: toLang },
               source: { stringValue: 'sentence-pool' },

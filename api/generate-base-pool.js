@@ -122,7 +122,7 @@ async function writeToFirestore(fromLang, toLang, level, cards) {
             fields: {
               id: { stringValue: `grundlagen_${level}_${fromLang}_${toLang}_${Math.random().toString(36).slice(2, 8)}` },
               front: { stringValue: c.front || '' },
-              back: { stringValue: c.back || '' },
+              back: { stringValue: c?.back || '' },
               pronunciation: { stringValue: c.pronunciation || '' },
               category: { stringValue: 'grundlagen' },
               level: { integerValue: String(level) },
@@ -178,7 +178,7 @@ async function writeVocabEmotions(fromLang, toLang, cards) {
     count: { integerValue: String(cards.length) },
     cards: { arrayValue: { values: cards.map(c => ({ mapValue: { fields: {
       id: { stringValue: `emotion_${fromLang}_${toLang}_${Math.random().toString(36).slice(2,8)}` },
-      front: { stringValue: c.front || '' }, back: { stringValue: c.back || '' },
+      front: { stringValue: c.front || '' }, back: { stringValue: c?.back || '' },
       pronunciation: { stringValue: c.pronunciation || '' }, category: { stringValue: 'vocabulary' },
       wordType: { stringValue: 'adjective' }, level: { integerValue: '1' }, tense: { stringValue: 'present' },
       register: { stringValue: 'neutral' }, langA: { stringValue: fromLang }, langB: { stringValue: toLang },
