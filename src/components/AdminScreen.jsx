@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { getDocs, collection, doc, updateDoc, deleteField, writeBatch } from 'firebase/firestore'
 import { db } from '../firebase'
 import { THEMES, makeStyles } from '../theme'
-import { todayStr, getISOWeekStr, MARK_UID, ELOSY_UID } from '../appShared'
+import { todayStr, getISOWeekStr, MARK_UID, ELOSY_UID, getCatLevel, getActiveLangPairs } from '../appShared'
 import { TOPIC_STRUCTURE } from '../../api/_topicStructure.js'
 
 const BASE_URL = 'https://vocara-peach.vercel.app'
@@ -34,7 +34,7 @@ const TOPICS_LIST = [
 ]
 const LANGUAGE_PAIRS = ['de_en','de_sw','en_de','en_sw','sw_de','sw_en']
 
-function AdminScreen({ user, lang, theme, onBack }) {
+function AdminScreen({ user, myData, lang, theme, onBack }) {
   const th = THEMES[theme]; const s = makeStyles(th)
   const isDE = lang === 'de'
   const [users, setUsers] = useState([])
@@ -678,18 +678,28 @@ function AdminScreen({ user, lang, theme, onBack }) {
                   <span style={{ color: th.sub, fontSize: '0.7rem' }}>{totalLevels}L {isExp ? '▲' : '▼'}</span>
                 </button>
                 {isExp && (
-                  <div style={{ borderTop: `1px solid ${th.border}`, padding: '8px 10px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                    {Array.from({ length: totalLevels }, (_, i) => i + 1).map(lvl => {
-                      const bs = getLevelBtnStyle(cat, lvl)
-                      const lkey = `${cat}_${lvl}`
-                      return (
-                        <button key={lvl} onClick={() => generateAtLevel(cat, lvl)} disabled={!!poolLoading}
-                          style={{ padding: '4px 8px', borderRadius: '8px', fontSize: '0.72rem', fontWeight: '700', cursor: poolLoading ? 'default' : 'pointer', opacity: poolLoading && poolLoading !== lkey ? 0.5 : 1, ...bs }}>
-                          {poolLoading === lkey ? '⟳' : `L${lvl}`}
-                        </button>
-                      )
-                    })}
-                  </div>
+                  <>
+                    <div style={{ borderTop: `1px solid ${th.border}`, padding: '8px 10px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                      {Array.from({ length: totalLevels }, (_, i) => i + 1).map(lvl => {
+                        const bs = getLevelBtnStyle(cat, lvl)
+                        const lkey = `${cat}_${lvl}`
+                        return (
+                          <button key={lvl} onClick={() => generateAtLevel(cat, lvl)} disabled={!!poolLoading}
+                            style={{ padding: '4px 8px', borderRadius: '8px', fontSize: '0.72rem', fontWeight: '700', cursor: poolLoading ? 'default' : 'pointer', opacity: poolLoading && poolLoading !== lkey ? 0.5 : 1, ...bs }}>
+                            {poolLoading === lkey ? '⟳' : `L${lvl}`}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    {myData && (
+                      <div style={{ padding: '2px 10px 7px', fontSize: '0.62rem', color: th.sub }}>
+                        {getActiveLangPairs(myData).map(lp => {
+                          const [f, t] = lp.split('_')
+                          return `${f.toUpperCase()}→${t.toUpperCase()}: L${getCatLevel(myData?.categoryLevels, cat, lp)}`
+                        }).join(' | ')}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )

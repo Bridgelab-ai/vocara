@@ -2747,6 +2747,7 @@ function App() {
   const [myData, setMyData] = useState(null)
   const [partnerData, setPartnerData] = useState(null)
   const partnerUnsubRef = useRef(null)
+  const poolCacheRef = useRef({})
   const [theme, setTheme] = useState('nairobi')
   const [lightMode, setLightMode] = useState(false)
   const [cardSize, setCardSize] = useState('normal')
@@ -2758,6 +2759,8 @@ function App() {
   // Maps caller's category key → what generators actually write as data.category
   const CAT_ALIASES = { urlaub: 'sentence', vocabulary: 'vocab', satztraining: 'sentence' }
   const loadCardsForCategory = async (category, langPair) => {
+    const cacheKey = `${category}_${langPair}`
+    if (poolCacheRef.current[cacheKey]) return poolCacheRef.current[cacheKey]
     const snap = await Promise.race([
       getDocs(collection(db, 'sharedCards')),
       new Promise((_, reject) => setTimeout(() => reject(new Error('Firestore timeout')), 10000))
@@ -2789,6 +2792,7 @@ function App() {
           .forEach(p => cards.push(p))
       })
     })
+    poolCacheRef.current[cacheKey] = cards
     return cards
   }
 

@@ -364,24 +364,30 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const CAT_ID_PREFIX_BAR = { vocabulary: 'vocab_', sentence: 'sentence_', street: 'street_', home: 'home_', grundlagen: 'grundlagen_', saetze: 'saetze_', urlaub: 'sentence_', satztraining: 'satz_temp_' }
   const catLevelBar = (cat) => {
     const poolKey = CAT_TO_POOL_BAR[cat] || cat
-    const poolInfo = POOL_STRUCTURE[poolKey] || { cardsPerLevel: 20 }
+    const poolInfo = POOL_STRUCTURE[poolKey] || { cardsPerLevel: 20, totalLevels: 10 }
     const cardsPerLevel = poolInfo.cardsPerLevel
     const activePairs = getActiveLangPairs(myData)
     const currentLevel = activePairs.length > 0
       ? Math.min(...activePairs.map(lp => getCatLevel(categoryLevels, poolKey, lp)))
       : (categoryLevels?.[poolKey] || 1)
-    const primaryPair = activePairs[0] || null
-    const [ppFrom, ppTo] = primaryPair ? primaryPair.split('_') : [null, null]
     const idPrefix = CAT_ID_PREFIX_BAR[cat]
-    const mastered = idPrefix
-      ? Object.entries(cardProgress || {})
-          .filter(([id]) => id.startsWith(idPrefix) && (!primaryPair || id.includes(`_${ppFrom}_${ppTo}_`)))
-          .filter(([, p]) => p !== undefined && p !== null).length
-      : activeCards.filter(c => c.category === cat && !/_r(_\d+)?$/.test(c.id) && cardProgress[c.id] !== undefined).length
-    const pct = Math.min(100, Math.round((mastered / cardsPerLevel) * 100))
+    const pct = (() => {
+      if (!idPrefix || activePairs.length === 0) {
+        const count = activeCards.filter(c => c.category === cat && !/_r(_\d+)?$/.test(c.id) && cardProgress[c.id] !== undefined).length
+        return Math.min(100, Math.round((count / cardsPerLevel) * 100))
+      }
+      const perPairPcts = activePairs.map(lp => {
+        const [pf, pt] = lp.split('_')
+        const count = Object.entries(cardProgress || {})
+          .filter(([id]) => id.startsWith(idPrefix) && id.includes(`_${pf}_${pt}_`))
+          .filter(([, p]) => (p?.interval ?? 0) >= 1).length
+        return Math.min(100, Math.round((count / cardsPerLevel) * 100))
+      })
+      return Math.round(perPairPcts.reduce((a, b) => a + b, 0) / perPairPcts.length)
+    })()
     return (
       <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', width: '100%', marginTop: '6px' }}>
-        <span style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.38)', fontWeight: '600', letterSpacing: '0.5px' }}>Lvl {currentLevel}</span>
+        <span style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.38)', fontWeight: '600', letterSpacing: '0.5px' }}>Lv {currentLevel}/{poolInfo.totalLevels || 10}</span>
         <span style={{ display: 'block', width: '70%', height: '3px', background: 'rgba(255,255,255,0.1)', borderRadius: '1px', overflow: 'hidden' }}>
           <span style={{ display: 'block', height: '100%', width: `${pct}%`, background: '#00D4AA', borderRadius: '1px' }} />
         </span>
@@ -1184,7 +1190,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     } catch(e) { console.warn('satz session save failed:', e) }
   }} /></>
   if (screen === 'diary') return <>{homeFloat}<DiaryScreen user={user} myData={myData} setMyData={setMyData} partnerData={partnerData} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
-  if (screen === 'admin' && user.uid === MARK_UID) return <>{homeFloat}<AdminScreen user={user} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
+  if (screen === 'admin' && user.uid === MARK_UID) return <>{homeFloat}<AdminScreen user={user} myData={myData} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
   if (screen === 'langprogress') return <>{homeFloat}<LanguageProgressScreen user={user} myData={myData} allCards={allCards} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
 
   return (
