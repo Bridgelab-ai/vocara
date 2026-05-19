@@ -520,8 +520,8 @@ function AdminScreen({ user, myData, lang, theme, onBack }) {
   const deleteCategoryPool = async () => {
     const cat = deleteCatTarget.trim().toLowerCase()
     if (!cat) return
-    const colName = cat === 'saetze' || cat === 'satztraining' ? 'sharedExercises' : 'sharedCards'
-    const fieldName = cat === 'saetze' || cat === 'satztraining' ? null : 'category'
+    const colName = cat === 'satztraining' ? 'sharedExercises' : 'sharedCards'
+    const fieldName = cat === 'satztraining' ? null : 'category'
     if (!window.confirm(`Alle Dokumente aus "${colName}"${fieldName ? ` mit category="${cat}"` : ''} löschen?`)) return
     setDeleteCatLoading(true); setDeleteCatStatus(null)
     try {
@@ -883,7 +883,7 @@ function AdminScreen({ user, myData, lang, theme, onBack }) {
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
           <select value={deleteCatTarget} onChange={e => setDeleteCatTarget(e.target.value)}
             style={{ padding: '7px 10px', borderRadius: '10px', fontSize: '0.78rem', background: th.card, color: th.text, border: `1px solid ${th.border}`, cursor: 'pointer' }}>
-            <option value="saetze">saetze (sharedExercises)</option>
+            <option value="saetze">saetze (sharedCards)</option>
             <option value="satztraining">satztraining (sharedExercises)</option>
             <option value="vocab">vocab (sharedCards)</option>
             <option value="sentence">sentence (sharedCards)</option>
