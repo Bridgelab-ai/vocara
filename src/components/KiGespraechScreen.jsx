@@ -62,8 +62,9 @@ function KiGespraechScreen({ lang, theme, onBack, userName, userToLang = 'en', s
   const getSystemPrompt = (sc) => {
     if (!sc) return ''
     const regCtx = socialRegisterContext(sessionRegister)
+    const cefrCtx = myData?.cefr ? `The user's current CEFR level is ${myData.cefr}. Adapt your language complexity accordingly.` : ''
     return `You are playing the role of a ${sc.role} in a ${sc.en} scenario. The user ${userName} is practicing ${targetLang}.
-Social register / tone: ${regCtx}. Adapt your vocabulary and formality accordingly.
+Social register / tone: ${regCtx}. Adapt your vocabulary and formality accordingly.${cefrCtx ? `\n${cefrCtx}` : ''}
 CRITICAL LANGUAGE RULE: You MUST ALWAYS respond EXCLUSIVELY in ${targetLang}. This is non-negotiable. NEVER write a single word in ${nativeLang} or any other language. If the user writes in ${nativeLang}, respond ONLY in ${targetLang} and gently remind them to practice ${targetLang}.
 ${tenseRule}
 Stay in character. If the user makes a grammar mistake, continue naturally, then add "💡 Tip: ..." written entirely in ${targetLang}.
@@ -109,7 +110,7 @@ Return ONLY valid JSON (no markdown, no code fences):
 CRITICAL: intro = ${nativeLang} only. opener = ${targetLang} only. No exceptions.`
       const res = await fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 200, messages: [{ role: 'user', content: introPrompt }] })
+        body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 200, messages: [{ role: 'user', content: introPrompt }] })
       })
       const data = await res.json()
       const raw = (data.content?.[0]?.text || '').trim()
@@ -119,7 +120,10 @@ CRITICAL: intro = ${nativeLang} only. opener = ${targetLang} only. No exceptions
         if (parsed.intro) setIntroText(parsed.intro)
         if (parsed.opener) setMessages([{ role: 'assistant', content: parsed.opener }])
       }
-    } catch(_) {}
+    } catch(err) {
+      setMessages([{ role: 'assistant', content: '⚠️ Konversation konnte nicht gestartet werden. Bitte zurück und nochmal versuchen.' }])
+      setGeneratingOpener(false)
+    }
     setGeneratingOpener(false)
   }
 
@@ -132,7 +136,7 @@ CRITICAL: intro = ${nativeLang} only. opener = ${targetLang} only. No exceptions
     try {
       const response = await fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 250, system: getSystemPrompt(scenario), messages: newMessages })
+        body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 250, system: getSystemPrompt(scenario), messages: newMessages })
       })
       const data = await response.json()
       const reply = data.content?.[0]?.text || '...'
@@ -189,7 +193,7 @@ CRITICAL: intro = ${nativeLang} only. opener = ${targetLang} only. No exceptions
     try {
       const res = await fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 150, messages: [{ role: 'user', content: `Translate to ${nativeLang}. Return ONLY the translation, nothing else:\n"${text}"` }] })
+        body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 150, messages: [{ role: 'user', content: `Translate to ${nativeLang}. Return ONLY the translation, nothing else:\n"${text}"` }] })
       })
       const d = await res.json()
       const translated = (d.content?.[0]?.text || '').trim()
