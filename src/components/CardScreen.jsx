@@ -101,7 +101,10 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
   const answer = item?.back
   const fromLang = item.langA
   const toLang = item.langB
-  const showPronunciation = item.pronunciation
+  const isReverseCard = /(_r$|_r_\d+$)/.test(item?.id || '')
+  const showPronunciation = isReverseCard
+    ? (item.pronunciationBack || item.pronunciationB || null)
+    : item.pronunciation
   const speakBack = (mode = ttsMode) => {
     const result = getToLangText(item, userToLang)
     if (!result) return
@@ -513,7 +516,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
               {fromLang === 'de' && toLang === 'en' && phoneticCache[item.id] && (
                 <p style={{ ...s.cardPronunciation, fontStyle: 'italic', marginTop: '2px' }}>🗣 /{phoneticCache[item.id]}/</p>
               )}
-              {!phoneticCache[item.id] && cardProgress[item.id]?._phonetic && (
+              {!isReverseCard && !phoneticCache[item.id] && cardProgress[item.id]?._phonetic && (
                 <p style={{ ...s.cardPronunciation, fontStyle: 'italic', marginTop: '2px', color: 'rgba(255,255,255,0.4)' }}>🗣 /{cardProgress[item.id]._phonetic}/</p>
               )}
               {item.context && <p style={s.cardContext}>„{item.context}"</p>}
