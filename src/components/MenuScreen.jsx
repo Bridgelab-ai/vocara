@@ -722,45 +722,7 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
 
   const startSatzSession = () => setScreen('satz')
 
-  const startSaetzeSession = async () => {
-    const fromLangCode = (myData?.fromLang || lang).toLowerCase()
-    const userToLang = (myData?.toLang || '').toLowerCase() || (lang === 'de' ? 'en' : 'de')
-    const langPair = `${fromLangCode}_${userToLang}`
-    const satzLevel = getCatLevel(myData?.categoryLevels, 'saetze', langPair)
-    setCatLoading('saetze')
-    try {
-      const levelStart = Math.max(1, satzLevel - 1)
-      const levelEnd = Math.min(14, satzLevel + 2)
-      const levels = Array.from({ length: levelEnd - levelStart + 1 }, (_, i) => levelStart + i)
-      const snaps = await Promise.all(levels.map(n => getDoc(doc(db, 'sharedSentences', `${langPair}_level${n}`))))
-      const exercises = snaps.flatMap(s => s.exists() ? (s.data().exercises || []) : [])
-      if (exercises.length === 0) {
-        alert('Für dieses Level wurden noch keine Sätze generiert. Bitte im Admin-Bereich generieren.')
-        return
-      }
-      const cards = exercises.map((ex, i) => ({
-        id: `saetze_${langPair}_lv${satzLevel}_${i}`,
-        front: ex.question || ex.front || '',
-        back: ex.answer || ex.back || '',
-        category: 'saetze',
-        targetLang: userToLang,
-        langB: fromLangCode,
-      }))
-      const userSessionSize = myData?.sessionSize || 10
-      const sess = buildSession(cards, cardProgress, userSessionSize)
-      const finalSess = sess.length > 0 ? sess : [...cards].sort(() => Math.random() - 0.5).slice(0, userSessionSize)
-      if (finalSess.length === 0) return
-      setCurrentSessionMode('saetze')
-      setSession(finalSess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null)
-      markAreaDone('saetze')
-      setScreen('cards')
-    } catch (e) {
-      console.error('[saetze session]', e)
-      alert('Fehler beim Laden der Sätze.')
-    } finally {
-      setCatLoading(null)
-    }
-  }
+
   const startTopicSession = async (topicKey) => {
     const toLangCode = (myData?.toLang || (lang === 'de' ? 'en' : 'de')).toLowerCase()
     const fromLangCode = lang
@@ -1406,7 +1368,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
             <span>{catLoading === 'vocabulary' ? '⟳' : t.menuWorte.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</span>
             {catLoading !== 'vocabulary' && catLevelBar('vocabulary')}
           </button>
-          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '1.8s', flexDirection: 'column', alignItems: 'center', opacity: catLoading ? 0.5 : 1 }} onClick={startSaetzeSession} disabled={catLoading === 'saetze'}>
+          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '1.8s', flexDirection: 'column', alignItems: 'center', opacity: catLoading ? 0.5 : 1 }} onClick={() => startCategorySession('saetze')} disabled={catLoading === 'saetze'}>
             <span>{catLoading === 'saetze' ? '⟳' : t.menuSaetze.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</span>
             {catLoading !== 'saetze' && (() => {
               const _saetzePairs = getActiveLangPairs(myData)
