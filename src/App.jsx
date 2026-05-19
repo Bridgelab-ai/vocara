@@ -13,6 +13,7 @@ import OnboardingScreen from './components/OnboardingScreen'
 import MenuScreen from './components/MenuScreen'
 import SprachkompassScreen from './components/SprachkompassScreen'
 import { AppPrefsContext } from './context'
+import { getCatLevel, getActiveLangPairs } from './appShared'
 
 // ── THEME RESOLVER (applies light mode overrides) ─────────────
 function resolveTheme(themeKey, lightMode = false) {
@@ -2756,19 +2757,26 @@ function App() {
   const CAT_NORMALIZE_POOL = { vocabulary: 'vocab', sentence: 'urlaub' }
   // Maps caller's category key → what generators actually write as data.category
   const CAT_ALIASES = { urlaub: 'sentence', vocabulary: 'vocab', satztraining: 'sentence' }
-  const loadCardsForCategory = async (category, level) => {
+  const loadCardsForCategory = async (category, langPair) => {
     const snap = await Promise.race([
       getDocs(collection(db, 'sharedCards')),
       new Promise((_, reject) => setTimeout(() => reject(new Error('Firestore timeout')), 10000))
     ])
     const cards = []
-    const userFromLang = (myData?.fromLang || 'de').toLowerCase()
+    const userFromLang = langPair ? langPair.split('_')[0] : (myData?.fromLang || 'de').toLowerCase()
+    const CAT_POOL_MAP = { vocabulary: 'vocab', sentence: 'urlaub' }
+    const poolCat = CAT_POOL_MAP[category] || category
+    const level = (poolCat && langPair) ? getCatLevel(myData?.categoryLevels, poolCat, langPair) : null
     snap.forEach(d => {
       const data = d.data()
       if (category) {
         const docCat = CAT_NORMALIZE_POOL[data.category] || data.category
         const wantCat = CAT_ALIASES[category] || category
         if (data.category !== category && docCat !== category && data.category !== wantCat) return
+      }
+      if (langPair && data.fromLang && data.toLang) {
+        const cardLangPair = `${data.fromLang.toLowerCase()}_${data.toLang.toLowerCase()}`
+        if (cardLangPair !== langPair) return
       }
       if (level && String(data.level) !== String(level)) return
       ;(data.cards || []).forEach(c => {

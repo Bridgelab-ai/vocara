@@ -160,14 +160,14 @@ export function calcLongestStreak(history) {
 }
 
 const CAT_LEVEL_THRESHOLDS = [0, 1, 5, 10, 15, 20, 30, 40, 50, 65, 80]
-export function getCatLevel(masteredCount) {
+export function getCatLevelFromCount(masteredCount) {
   let lv = 0
   for (let i = 1; i <= 10; i++) { if (masteredCount >= CAT_LEVEL_THRESHOLDS[i]) lv = i }
   return lv
 }
 
 // ── CONSTANTS ─────────────────────────────────────────────────
-export const APP_VERSION = 'V01.090.159'
+export const APP_VERSION = 'V01.091.133'
 
 export const POOL_STRUCTURE = {
   grundlagen:   { totalLevels: 10, cardsPerLevel: 20 },
@@ -177,6 +177,26 @@ export const POOL_STRUCTURE = {
   urlaub:       { totalLevels: 10, cardsPerLevel: 20 },
   satztraining: { totalLevels: 14, cardsPerLevel: 22 },
   saetze:       { totalLevels: 10, cardsPerLevel: 20 },
+}
+
+export function getCatLevelKey(category, langPair) {
+  return `${category}_${langPair}`
+}
+
+export function getCatLevel(categoryLevels, category, langPair) {
+  const newKey = getCatLevelKey(category, langPair)
+  const newVal = categoryLevels?.[newKey]
+  if (newVal !== undefined) return newVal
+  const legacyVal = categoryLevels?.[category]
+  return legacyVal || 1
+}
+
+export function getActiveLangPairs(myData) {
+  const fromLang = (myData?.fromLang || 'de').toLowerCase()
+  const toLangs = myData?.toLangs?.length > 0
+    ? myData.toLangs.map(l => l.lang.toLowerCase())
+    : [myData?.toLang || 'en']
+  return toLangs.map(to => `${fromLang}_${to}`)
 }
 export const SESSION_SIZE = 15
 export const NEW_CARDS_BATCH = 3

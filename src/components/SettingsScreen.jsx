@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { doc, updateDoc, getDoc, setDoc, writeBatch } from 'firebase/firestore'
 import { signOut } from 'firebase/auth'
 import { db, auth } from '../firebase'
-import { MARK_UID, ELOSY_UID, SOCIAL_REGISTERS, AVAILABLE_LANGS, TOPICS_LIST, CARD_GEN_SYSTEM, todayStr, getCatLevel } from '../appShared'
+import { MARK_UID, ELOSY_UID, SOCIAL_REGISTERS, AVAILABLE_LANGS, TOPICS_LIST, CARD_GEN_SYSTEM, todayStr, getCatLevelFromCount } from '../appShared'
 import { THEMES } from '../theme'
 import { invalidateCache } from '../hooks/useCardCache'
 
@@ -579,7 +579,7 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
           const n = myData?.masteredPerCategory?.[key] || 0
           if (key === 'urlaub') return Math.min(10, Math.floor(n / 6))
           if (key === 'home')   return Math.min(10, Math.floor(n / 8))
-          return getCatLevel(n)
+          return getCatLevelFromCount(n)
         }
         const handleAreaReset = async (areaKey) => {
           console.log('[Reset] starting for cat:', areaKey, 'uid:', auth.currentUser?.uid)

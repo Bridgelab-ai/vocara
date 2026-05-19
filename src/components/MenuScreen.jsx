@@ -8,7 +8,7 @@ import {
   clearSessionState, saveSessionHistory, saveSessionState, checkMastery, getNextNewCards,
   CEFR_LEVELS, CEFR_COLORS, CEFR_MASTERY_REQ, WEEK_AREAS, VALID_CATEGORY_SET,
   LANG_FLAGS, NEW_CARDS_BATCH, getLevelName, MARK_UID, ELOSY_UID, APP_VERSION,
-  SESSION_SIZE, MONTHLY_TEST_DAYS, getCatLevel, TOPICS_LIST, POOL_STRUCTURE
+  SESSION_SIZE, MONTHLY_TEST_DAYS, getCatLevelFromCount, getCatLevel, getCatLevelKey, getActiveLangPairs, TOPICS_LIST, POOL_STRUCTURE
 } from '../appShared'
 import { TOPIC_STRUCTURE } from '../../api/_topicStructure.js'
 import LanguageProgressScreen from './LanguageProgressScreen'
@@ -366,11 +366,16 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
     const poolKey = CAT_TO_POOL_BAR[cat] || cat
     const poolInfo = POOL_STRUCTURE[poolKey] || { cardsPerLevel: 20 }
     const cardsPerLevel = poolInfo.cardsPerLevel
-    const currentLevel = categoryLevels?.[poolKey] || 1
+    const activePairs = getActiveLangPairs(myData)
+    const currentLevel = activePairs.length > 0
+      ? Math.min(...activePairs.map(lp => getCatLevel(categoryLevels, poolKey, lp)))
+      : (categoryLevels?.[poolKey] || 1)
+    const primaryPair = activePairs[0] || null
+    const [ppFrom, ppTo] = primaryPair ? primaryPair.split('_') : [null, null]
     const idPrefix = CAT_ID_PREFIX_BAR[cat]
     const mastered = idPrefix
       ? Object.entries(cardProgress || {})
-          .filter(([id]) => id.startsWith(idPrefix))
+          .filter(([id]) => id.startsWith(idPrefix) && (!primaryPair || id.includes(`_${ppFrom}_${ppTo}_`)))
           .filter(([, p]) => p !== undefined && p !== null).length
       : activeCards.filter(c => c.category === cat && !/_r(_\d+)?$/.test(c.id) && cardProgress[c.id] !== undefined).length
     const pct = Math.min(100, Math.round((mastered / cardsPerLevel) * 100))
@@ -628,13 +633,12 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
     let sessionCards = null
     if (loadCardsForCategory) {
       setCatLoading(category)
-      const CAT_TO_POOL_KEY = { vocabulary: 'vocab', sentence: 'urlaub' }
-      const poolCatKey = CAT_TO_POOL_KEY[category] || category
-      const level = myData?.categoryLevels?.[poolCatKey] || 1
       const poolCat = category === 'all' ? null : category
-      const poolLevel = category === 'all' ? null : level
       try {
-        const fetched = await loadCardsForCategory(poolCat, poolLevel)
+        const activePairs = getActiveLangPairs(myData)
+        const fetched = (await Promise.all(
+          activePairs.map(lp => loadCardsForCategory(poolCat, lp))
+        )).flat()
         if (!fetched || fetched.length === 0) {
           alert('Für dieses Level wurden noch keine Karten generiert. Bitte im Admin-Bereich generieren.')
           return
@@ -1087,17 +1091,24 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     const poolInfo = POOL_STRUCTURE[poolKey]
     const idPrefix = CAT_ID_PREFIX[currentSessionMode]
     if (poolInfo && idPrefix && currentSessionMode !== 'all') {
-      const masteredCount = Object.entries(finalProgress)
-        .filter(([id]) => id.startsWith(idPrefix))
-        .filter(([, p]) => (p?.interval ?? 0) >= 7).length
-      const currentCatLevel = myData?.categoryLevels?.[poolKey] || 1
-      if (currentCatLevel < poolInfo.totalLevels && masteredCount >= poolInfo.cardsPerLevel * 0.8) {
-        const newLevel = currentCatLevel + 1
-        const newCategoryLevels = { ...(myData?.categoryLevels || {}), [poolKey]: newLevel }
+      const activePairs = getActiveLangPairs(myData)
+      const levelUpdates = {}
+      for (const lp of activePairs) {
+        const [lpFrom, lpTo] = lp.split('_')
+        const masteredCount = Object.entries(finalProgress)
+          .filter(([id]) => id.startsWith(idPrefix) && id.includes(`_${lpFrom}_${lpTo}_`))
+          .filter(([, p]) => (p?.interval ?? 0) >= 7).length
+        const currentCatLevel = getCatLevel(myData?.categoryLevels, poolKey, lp)
+        if (currentCatLevel < poolInfo.totalLevels && masteredCount >= poolInfo.cardsPerLevel * 0.8) {
+          levelUpdates[getCatLevelKey(poolKey, lp)] = currentCatLevel + 1
+          console.log(`[LevelUp] ${poolKey}_${lp} → Lv${currentCatLevel + 1} (${masteredCount}/${poolInfo.cardsPerLevel} mastered)`)
+        }
+      }
+      if (Object.keys(levelUpdates).length > 0) {
+        const newCategoryLevels = { ...(myData?.categoryLevels || {}), ...levelUpdates }
         try {
           await updateDoc(doc(db, 'users', user.uid), { categoryLevels: newCategoryLevels })
           setMyData(d => ({ ...d, categoryLevels: newCategoryLevels }))
-          console.log(`[LevelUp] ${currentSessionMode} → Lv${newLevel} (${masteredCount}/${poolInfo.cardsPerLevel} mastered)`)
         } catch (e) { console.error('[LevelUp] Failed:', e) }
       }
     }
@@ -1352,7 +1363,10 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '1.8s', flexDirection: 'column', alignItems: 'center' }} onClick={startSatzSession}>
             <span>{t.menuSaetze.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</span>
             {(() => {
-              const lvl = myData?.categoryLevels?.satztraining || 1
+              const _satzPairs = getActiveLangPairs(myData)
+              const lvl = _satzPairs.length > 0
+                ? Math.min(..._satzPairs.map(lp => getCatLevel(myData?.categoryLevels, 'satztraining', lp)))
+                : (myData?.categoryLevels?.satztraining || 1)
               return (
                 <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', width: '100%', marginTop: '6px' }}>
                   <span style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.38)', fontWeight: '600', letterSpacing: '0.5px' }}>Lv {lvl}/14</span>
