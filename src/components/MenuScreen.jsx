@@ -1493,6 +1493,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
               )
             })()}
           </button>
+          <TutorialTooltip tutorialKey="saetze" title={isMarkLang ? 'Sätze lernen' : 'Learn Sentences'} description={isMarkLang ? 'Lerne vollständige Sätze — aufgebaut aus deinem bisherigen Vokabular.' : 'Learn full sentences — built from your existing vocabulary.'} myData={myData} setMyData={setMyData} user={user} th={th} s={s} />
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
           <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '3.5s', flexDirection: 'column', alignItems: 'center', opacity: catLoading ? 0.5 : 1 }} onClick={() => startCategorySession('street')} disabled={catLoading === 'street'}>
@@ -1678,6 +1679,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         </button>
         <TutorialTooltip tutorialKey="satztraining" title="Satztraining" description="Grammatik-Übungen: Lückentext, Wortstellung und Zeitformen." myData={myData} setMyData={setMyData} user={user} th={th} s={s} />
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('ki')}>{t.menuKi}</button>
+        <TutorialTooltip tutorialKey="kigespraech" title={isMarkLang ? 'KI-Gespräch' : 'AI Conversation'} description={isMarkLang ? 'Übe echte Konversationen mit einem KI-Sprachpartner — angepasst an dein Niveau.' : 'Practice real conversations with an AI language partner — tailored to your level.'} myData={myData} setMyData={setMyData} user={user} th={th} s={s} />
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('stats')}>
           {t.progressBtn}
           <span style={{ marginLeft: '6px', fontSize: '0.76rem', color: th.gold }}>
@@ -1695,6 +1697,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('partner')}>
           {myData?.partnerUID ? `${t.menuPartnerLabel}: ${partnerName}` : t.menuPartnerConnect}
         </button>
+        <TutorialTooltip tutorialKey="partner" title={isMarkLang ? 'Lernpartner' : 'Learning Partner'} description={isMarkLang ? 'Vergleiche deinen Fortschritt mit deinem Partner und motiviert euch gegenseitig.' : 'Compare your progress with your partner and motivate each other.'} myData={myData} setMyData={setMyData} user={user} th={th} s={s} />
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('langprogress')}>🌍 {isMarkLang ? 'Meine Sprachen' : 'My Languages'}</button>
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('settings')}>{t.menuSettings}</button>
         <button className="vocara-nav-btn" style={{ ...s.navBtn, marginBottom: 0 }} onClick={() => signOut(auth)}>{t.menuSignOut}</button>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { THEMES, makeStyles, resolveTheme } from '../theme'
-import { LANG_FLAGS } from '../appShared'
+import { LANG_FLAGS, getActiveLangPairs } from '../appShared'
 
 const TEAL = '#00D4AA'
 const GOLD = '#FFD700'
@@ -46,8 +46,20 @@ function LanguageProgressScreen({ user, myData, allCards, lang, theme, onBack })
   const fromLang = myData?.fromLang || lang
   const toLangCode = myData?.toLang || (lang === 'de' ? 'en' : 'de')
 
+  const activePairs = getActiveLangPairs(myData)
+
   // Count tiers from cardProgress directly (not allCards — pool cards not in allCards)
-  const allProgressEntries = Object.entries(cardProgress).filter(([id]) => !/_r(_\d+)?$/.test(id))
+  // Filter to active lang pairs: pool card IDs embed langPair (e.g. vocab_de_en_1_5)
+  const allProgressEntries = Object.entries(cardProgress).filter(([id]) => {
+    if (/_r(_\d+)?$/.test(id)) return false
+    if (activePairs.length === 0) return true
+    if (activePairs.some(lp => id.includes(`_${lp}_`) || id.endsWith(`_${lp}`))) return true
+    const card = (allCards || []).find(c => c.id === id)
+    if (card?.langA && card?.langB) {
+      return activePairs.includes(`${card.langA}_${card.langB}`) || activePairs.includes(`${card.langB}_${card.langA}`)
+    }
+    return true
+  })
   const gesehen   = allProgressEntries.filter(([, p]) => (p?.interval || 0) >= 1).length
   const bekannt   = allProgressEntries.filter(([, p]) => (p?.interval || 0) >= 3).length
   const gemeistert = allProgressEntries.filter(([, p]) => (p?.interval || 0) >= 7).length

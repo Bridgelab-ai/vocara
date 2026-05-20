@@ -1,7 +1,7 @@
 // Shared pool architecture config — imported by all API generators and src/App.jsx
 // AUTHORITATIVE reference for card counts, level caps, and active language pairs.
 
-export const ACTIVE_LANGUAGES = ['de', 'en', 'sw']
+export const ACTIVE_LANGUAGES = ['de', 'en', 'sw', 'es']
 export const LANGUAGE_PAIRS = ACTIVE_LANGUAGES.flatMap(a =>
   ACTIVE_LANGUAGES.filter(b => b !== a).map(b => `${a}_${b}`)
 )

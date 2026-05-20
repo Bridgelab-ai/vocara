@@ -380,7 +380,7 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               {AVAILABLE_LANGS.map(l => {
-                const isActive = ['de', 'en', 'sw'].includes(l.code)
+                const isActive = ['de', 'en', 'sw', 'es'].includes(l.code)
                 const isSelected = currentToLang === l.code
                 return (
                   <button key={l.code}
@@ -749,7 +749,7 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
               {t.premiumDesc}
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center', marginBottom: '20px' }}>
-              {['🇪🇸 Español', '🇫🇷 Français', '🇹🇭 ภาษาไทย', '🇵🇹 Português', '🇹🇷 Türkçe'].map(l => (
+              {['🇫🇷 Français', '🇹🇭 ภาษาไทย', '🇵🇹 Português', '🇹🇷 Türkçe'].map(l => (
                 <span key={l} style={{ background: `${th.gold}12`, color: th.text, border: `1px solid ${th.gold}33`, borderRadius: '20px', padding: '4px 12px', fontSize: '0.82rem' }}>{l}</span>
               ))}
             </div>
