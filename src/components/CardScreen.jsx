@@ -469,6 +469,12 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
           </button>
           <p style={s.dirLabel}>{LANG_FLAGS[fromLang]} → {LANG_FLAGS[toLang]}</p>
           <p style={s.cardFront}>{question}</p>
+          {item.wordType === 'pronoun' && (
+            <span style={{ display: 'inline-block', fontSize: '0.58rem', color: '#a78bfa', background: 'rgba(167,139,250,0.12)', border: '1px solid rgba(167,139,250,0.3)', borderRadius: '6px', padding: '2px 8px', marginTop: '4px', fontWeight: '700', letterSpacing: '0.3px' }}>Pronomen</span>
+          )}
+          {item.hint && (
+            <p style={{ color: 'rgba(255,255,255,0.42)', fontSize: '0.72rem', margin: '6px 0 0', fontStyle: 'italic', textAlign: 'center', lineHeight: 1.4, padding: '0 8px' }}>{item.hint}</p>
+          )}
           {(item.wordType === 'pronoun' || PRONOUN_HINTS[item.front?.toLowerCase()]) && PRONOUN_HINTS[item.front?.toLowerCase()] && (
             <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: '0.62rem', margin: '2px 0 0', fontStyle: 'italic', textAlign: 'center', letterSpacing: '0.3px' }}>{PRONOUN_HINTS[item.front.toLowerCase()]}</p>
           )}

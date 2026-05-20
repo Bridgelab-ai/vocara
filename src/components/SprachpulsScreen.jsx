@@ -134,7 +134,9 @@ function SprachpulsScreen({ user, myData, setMyData, theme, th: thProp, s: sProp
         determined = botLevel
       }
 
-      const prevIdx = CEFR_LEVELS.indexOf(myData?.cefr || myData?.sprachkompassResult || 'A2')
+      const lastPulsEntry = (myData?.sprachpulsResults || []).slice(-1)[0]
+      const prevLevel = lastPulsEntry?.cefrLevel || myData?.cefr || myData?.sprachkompassResult || 'A2'
+      const prevIdx = CEFR_LEVELS.indexOf(prevLevel)
       const newIdx = CEFR_LEVELS.indexOf(determined)
       setDeterminedLevel(determined)
       setTrend(newIdx > prevIdx ? 'up' : newIdx < prevIdx ? 'down' : 'stable')
@@ -281,7 +283,9 @@ function SprachpulsScreen({ user, myData, setMyData, theme, th: thProp, s: sProp
             <span style={{ fontSize: '1.6rem' }}>{trendEmoji}</span>
             <div style={{ textAlign: 'left' }}>
               <p style={{ color: trendColor, fontWeight: '700', fontSize: '1rem', margin: 0 }}>{trendText}</p>
-              <p style={{ color: th.sub, fontSize: '0.75rem', margin: '2px 0 0' }}>{totalScore}/{testLevels.length * QUESTIONS_PER_LEVEL} {isDE ? 'korrekt' : 'correct'}</p>
+              <p style={{ color: th.sub, fontSize: '0.75rem', margin: '2px 0 0' }}>
+                {lastResult?.cefrLevel ? `${lastResult.cefrLevel} → ${determinedLevel} · ` : ''}{totalScore}/{testLevels.length * QUESTIONS_PER_LEVEL} {isDE ? 'korrekt' : 'correct'}
+              </p>
             </div>
           </div>
 

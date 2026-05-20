@@ -25,7 +25,7 @@ async function generateCards(fromLang, toLang, topic, level) {
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 4000,
-      system: 'You are a professional language educator creating topic-specific flashcards. Every card must be unique and natural. Return ONLY valid JSON array, no markdown, no explanation.\nQUALITY RULES: All words and phrases must be natural, correct language as used by native speakers. Never invent words or use incorrect forms. Double-check every translation for accuracy. Verbs in English always with "to": "to read", "to write". Each card must be unique — no duplicate translations within one level.',
+      system: 'You are a professional language educator creating topic-specific flashcards. Every card must be unique and natural. Return ONLY valid JSON array, no markdown, no explanation.\nQUALITY RULES: All words and phrases must be natural, correct language as used by native speakers. Never invent words or use incorrect forms. Double-check every translation for accuracy. Verbs in English always with "to": "to read", "to write". Each card must be unique — no duplicate translations within one level.\nCRITICAL: The example sentence for each card MUST contain the target word being learned. Never show an example sentence that does not include the word on the card.',
       messages: [{ role: 'user', content: prompt }],
     }),
   })

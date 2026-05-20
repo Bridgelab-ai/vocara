@@ -1194,7 +1194,9 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           .filter(([id]) => id.startsWith(idPrefix) && id.includes(`_${lpFrom}_${lpTo}_`))
           .filter(([, p]) => (p?.interval ?? 0) >= 2).length
         const currentCatLevel = getCatLevel(myData?.categoryLevels, poolKey, lp)
-        if (currentCatLevel < poolInfo.totalLevels && masteredCount >= poolInfo.cardsPerLevel * 0.8) {
+        const threshold = poolInfo.cardsPerLevel * 0.8
+        console.log('[LEVELUP]', poolKey, lp, 'mastered:', masteredCount, 'threshold:', threshold, 'currentLevel:', currentCatLevel)
+        if (currentCatLevel < poolInfo.totalLevels && masteredCount >= threshold) {
           levelUpdates[getCatLevelKey(poolKey, lp)] = currentCatLevel + 1
           console.log(`[LevelUp] ${poolKey}_${lp} → Lv${currentCatLevel + 1} (${masteredCount}/${poolInfo.cardsPerLevel} mastered)`)
         }
