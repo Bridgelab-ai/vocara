@@ -1521,20 +1521,28 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
             {catLoading !== 'urlaub' && catLevelBar('urlaub')}
           </button>
         </div>
-        <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '9.5s', flexDirection: 'column', alignItems: 'center', width: '100%' }} onClick={startSatzSession}>
-          <span>🖊️ {t.menuSatz}</span>
-          {(() => {
-            const ap = getActiveLangPairs(myData)
-            const lv = ap.length > 0 ? getCatLevel(myData?.categoryLevels, 'satztraining', ap[0]) : 1
-            const badge = lv <= 5 ? '⬛ Leicht' : lv <= 10 ? '🟦 Mittel' : '🟥 Schwer'
-            return (
-              <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', marginTop: '6px' }}>
-                <span style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.38)', fontWeight: '600', letterSpacing: '0.5px' }}>Lv {lv}/14</span>
-                <span style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.45)', fontWeight: '600' }}>{badge}</span>
-              </span>
-            )
-          })()}
-        </button>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '9.5s', flexDirection: 'column', alignItems: 'center' }} onClick={startSatzSession}>
+            <span>🖊️ {t.menuSatz}</span>
+            {(() => {
+              const ap = getActiveLangPairs(myData)
+              const lv = ap.length > 0 ? getCatLevel(myData?.categoryLevels, 'satztraining', ap[0]) : 1
+              const badge = lv <= 5 ? '⬛ Leicht' : lv <= 10 ? '🟦 Mittel' : '🟥 Schwer'
+              return (
+                <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', marginTop: '6px' }}>
+                  <span style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.38)', fontWeight: '600', letterSpacing: '0.5px' }}>Lv {lv}/14</span>
+                  <span style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.45)', fontWeight: '600' }}>{badge}</span>
+                </span>
+              )
+            })()}
+          </button>
+          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '10.8s', flexDirection: 'column', alignItems: 'center' }} onClick={() => setScreen('ki')}>
+            <span>🤖 {isMarkLang ? 'KI-\nGespräch' : 'AI\nChat'}</span>
+            <span style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.35)', fontWeight: '600', marginTop: '6px' }}>
+              {isMarkLang ? 'Konversation' : 'Conversation'}
+            </span>
+          </button>
+        </div>
         <TutorialTooltip tutorialKey="grundlagen" title="Grundlagen" description="Lerne grundlegende Wörter — Zahlen, Farben, Pronomen. Level für Level aufbauend." myData={myData} setMyData={setMyData} user={user} th={th} s={s} />
       </div>
 

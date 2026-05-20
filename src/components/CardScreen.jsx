@@ -640,7 +640,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
           <div style={{ flex: 1 }}>
             {kiExplanation === 'loading'
               ? <p style={{ color: '#8A8A9A', fontSize: '0.78rem', margin: 0 }}>💡 {lang === 'de' ? 'KI erklärt…' : 'AI explaining…'}</p>
-              : <p style={{ color: '#81c784', fontSize: '0.78rem', margin: 0, lineHeight: 1.5 }}>💡 {kiExplanation}</p>
+              : <p style={{ color: '#81c784', fontSize: '0.78rem', margin: 0, lineHeight: 1.5 }}>💡 {stripMd(kiExplanation)}</p>
             }
           </div>
           {kiExplanation !== 'loading' && (
@@ -655,7 +655,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
               {patternTip === 'loading' ? `💡 ${lang === 'de' ? 'KI analysiert Muster…' : 'AI analysing pattern…'}` : `💡 ${lang === 'de' ? 'KI hat ein Muster erkannt' : 'AI spotted a pattern'}`}
             </p>
             {patternTip !== 'loading' && (
-              <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.78rem', margin: 0, lineHeight: 1.5 }}>{patternTip}</p>
+              <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.78rem', margin: 0, lineHeight: 1.5 }}>{stripMd(patternTip)}</p>
             )}
           </div>
           {patternTip !== 'loading' && (
