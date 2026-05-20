@@ -58,7 +58,7 @@ Return ONLY a valid JSON array (no markdown):
     headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({
       model: 'claude-sonnet-4-6', max_tokens: 5000,
-      system: 'You are a professional language educator. Generate accurate vocabulary flashcards. Return ONLY valid JSON array, no markdown fences. All English verbs must be written with "to": "to read", "to write", "to eat". Never write verbs without the "to" prefix.',
+      system: 'You are a professional language educator. Generate accurate vocabulary flashcards. Return ONLY valid JSON array, no markdown fences.\nQUALITY RULES: All words must be natural, correct language as used by native speakers. Never invent words or use incorrect forms. Double-check every translation for accuracy. Verbs in English always with "to": "to read", "to write", "to eat". Never write verbs without the "to" prefix. Each card must be unique — no duplicate translations within one level.',
       messages: [{ role: 'user', content: prompt }],
     }),
   })

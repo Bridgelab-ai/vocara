@@ -63,12 +63,19 @@ function KiGespraechScreen({ lang, theme, onBack, userName, userToLang = 'en', s
     if (!sc) return ''
     const regCtx = socialRegisterContext(sessionRegister)
     const cefrCtx = myData?.cefr ? `The user's current CEFR level is ${myData.cefr}. Adapt your language complexity accordingly.` : ''
-    return `Conduct the entire conversation in ${targetLang}. The user is learning ${targetLang} and their native language is ${nativeLang}. If the user makes mistakes, gently correct them in ${targetLang}.
+    const cefrCorrection = (() => {
+      const level = myData?.cefr || ''
+      if (level === 'A1' || level === 'A2') return 'Only correct major errors (wrong word, completely wrong verb form).'
+      if (level === 'B1' || level === 'B2') return 'Correct grammar mistakes and unnatural phrasing.'
+      if (level === 'C1' || level === 'C2') return 'Suggest more natural native-speaker alternatives, even for minor unnaturalness.'
+      return 'Adapt correction depth to apparent level.'
+    })()
+    return `Conduct the entire conversation in ${targetLang}. The user is learning ${targetLang} and their native language is ${nativeLang}.
 You are playing the role of a ${sc.role} in a ${sc.en} scenario. The user ${userName} is practicing ${targetLang}.
 Social register / tone: ${regCtx}. Adapt your vocabulary and formality accordingly.${cefrCtx ? `\n${cefrCtx}` : ''}
-CRITICAL LANGUAGE RULE: You MUST ALWAYS respond EXCLUSIVELY in ${targetLang}. This is non-negotiable. NEVER write a single word in ${nativeLang} or any other language. If the user writes in ${nativeLang}, respond ONLY in ${targetLang} and gently remind them to practice ${targetLang}.
+CRITICAL LANGUAGE RULE: You MUST ALWAYS respond EXCLUSIVELY in ${targetLang}. This is non-negotiable. NEVER write a single word in ${nativeLang} or any other language — EXCEPT for the 💡 Tipp correction below.
 ${tenseRule}
-Stay in character. If the user makes a grammar mistake, continue naturally, then add "💡 Tip: ..." written entirely in ${targetLang}.
+Stay in character. After each user message, if you notice grammar mistakes or unnatural phrasing, add a brief gentle correction at the very end of your response written in ${nativeLang}. Format: "💡 Tipp: [correction]". Keep corrections short and encouraging. ${cefrCorrection} This 💡 Tipp line is the ONLY exception to the ${targetLang}-only rule.
 Keep each response to 1-3 sentences. Be realistic and helpful for the scenario.
 After the user has sent ${MAX_EXCHANGES} messages, add "---END---" at the very end of your response.`
   }
