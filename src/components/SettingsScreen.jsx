@@ -458,7 +458,7 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
       <div style={s.card}>
         <p style={{ ...s.cardLabel, marginBottom: '12px' }}>🎁 {t.myGimmicks}</p>
         {(() => {
-          const total = myData?.unlockedGimmicks || 0
+          const total = myData?.gimmickUnlockCount || 0
           const history = myData?.gimmickHistory || []
           const themeNames = { nairobi: '🌙 Nairobi', hamburg: '⚓ Hamburg', welt: '🌍 Welt' }
           if (total === 0) return <p style={{ color: th.sub, fontSize: '0.82rem', margin: 0 }}>{t.noGimmicks}</p>

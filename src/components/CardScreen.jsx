@@ -57,7 +57,7 @@ function ThaiColorPronunciation({ text }) {
   )
 }
 
-function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveState, onSaveSessionProgress, onStop, onSaveExample, mode = 'all', startIndex = 0, startProgress = null, userToLang = 'en', t: tProp, onRequestMoreCards, theme }) {
+function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveState, onSaveSessionProgress, onStop, onSaveExample, mode = 'all', startIndex = 0, startProgress = null, userToLang = 'en', t: tProp, onRequestMoreCards, theme, myData }) {
   const [index, setIndex] = useState(startIndex)
   const [queue, setQueue] = useState(session)
   const [revealed, setRevealed] = useState(false)
@@ -395,6 +395,11 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
   }
 
   const playThemeSound = (event) => {
+    const gimmickKey = theme + '_easy'
+    const unlocked = (myData?.unlockedGimmicks && typeof myData.unlockedGimmicks === 'object')
+      ? myData.unlockedGimmicks[gimmickKey]
+      : false
+    if (!unlocked) return
     const sound = THEME_SOUNDS[theme]?.[event]
     if (sound) {
       const audio = new Audio(sound)

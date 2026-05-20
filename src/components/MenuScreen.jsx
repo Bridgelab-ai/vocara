@@ -75,6 +75,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const [weekGoalCelebration, setWeekGoalCelebration] = useState(false)
   const [monthlyUnlockNotification, setMonthlyUnlockNotification] = useState(false)
   const [gimmickPopup, setGimmickPopup] = useState(false)
+  const [gimmickSoundPopup, setGimmickSoundPopup] = useState(false)
   const [weeklyGoals, setWeeklyGoals] = useState(() => {
     const currentWeek = getISOWeekStr()
     const stored = myData?.weeklyGoals
@@ -363,7 +364,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
 
   // ── CATEGORY LEVEL BADGE + PROGRESS BAR ──────────────────
   const CAT_TO_POOL_BAR = { vocabulary: 'vocab', sentence: 'urlaub' }
-  const CAT_ID_PREFIX_BAR = { vocabulary: 'vocab_', sentence: 'sentence_', street: 'street_', home: 'home_', grundlagen: 'grundlagen_', saetze: 'saetze_', urlaub: 'sentence_', satztraining: 'satz_temp_' }
+  const CAT_ID_PREFIX_BAR = { vocabulary: 'vocab_', sentence: 'sentence_', street: 'street_', home: 'home_', grundlagen: 'grundlagen_', saetze: 'saetze_', urlaub: 'urlaub_', satztraining: 'satz_temp_' }
   const catLevelBar = (cat) => {
     const poolKey = CAT_TO_POOL_BAR[cat] || cat
     const poolInfo = POOL_STRUCTURE[poolKey] || { cardsPerLevel: 20, totalLevels: 10 }
@@ -846,12 +847,12 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
         try { if (navigator.vibrate) navigator.vibrate(300) } catch(e) {}
         setTimeout(() => setWeekGoalCelebration(false), 4500)
         if (newWeekCount >= 5) {
-          const newGimmicks = (myData?.unlockedGimmicks || 0) + 1
+          const newGimmicks = (myData?.gimmickUnlockCount || 0) + 1
           const newMonthly = { completedWeeks: 0, lastUnlock: currentMonth }
           const gimmickEntry = { theme, date: todayStr() }
           const gimmickHistory = [...(myData?.gimmickHistory || []), gimmickEntry]
-          updateDoc(doc(db, 'users', user.uid), { monthlyGoal: newMonthly, unlockedGimmicks: newGimmicks, weeklyGoals: updated, gimmickHistory }).catch(() => {})
-          setMyData(d => ({ ...d, monthlyGoal: newMonthly, unlockedGimmicks: newGimmicks, weeklyGoals: updated, gimmickHistory }))
+          updateDoc(doc(db, 'users', user.uid), { monthlyGoal: newMonthly, gimmickUnlockCount: newGimmicks, weeklyGoals: updated, gimmickHistory }).catch(() => {})
+          setMyData(d => ({ ...d, monthlyGoal: newMonthly, gimmickUnlockCount: newGimmicks, weeklyGoals: updated, gimmickHistory }))
           setMonthlyUnlockNotification(true)
           setTimeout(() => setMonthlyUnlockNotification(false), 5000)
           setGimmickPopup(true)
@@ -1177,7 +1178,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     await onSaveProgress(finalProgress)
     // ── Pool level-up check ────────────────────────────────
     const CAT_TO_POOL = { vocabulary: 'vocab', sentence: 'urlaub' }
-    const CAT_ID_PREFIX = { vocabulary: 'vocab_', sentence: 'sentence_', street: 'street_', home: 'home_', grundlagen: 'grundlagen_', saetze: 'saetze_' }
+    const CAT_ID_PREFIX = { vocabulary: 'vocab_', sentence: 'sentence_', street: 'street_', home: 'home_', grundlagen: 'grundlagen_', saetze: 'saetze_', urlaub: 'urlaub_' }
     const poolKey = CAT_TO_POOL[currentSessionMode] || currentSessionMode
     const poolInfo = POOL_STRUCTURE[poolKey]
     const idPrefix = CAT_ID_PREFIX[currentSessionMode]
@@ -1222,6 +1223,21 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           } catch (e) { console.error('[TopicLevelUp] Failed:', e) }
         }
       }
+    }
+    // ── Theme sound gimmick unlock ────────────────────────
+    {
+      const sessionCounts = { ...(myData?.themeSessionCount || {}) }
+      sessionCounts[theme] = (sessionCounts[theme] || 0) + 1
+      const gimmickKey = theme + '_easy'
+      const currentGimmicks = (myData?.unlockedGimmicks && typeof myData.unlockedGimmicks === 'object') ? { ...myData.unlockedGimmicks } : {}
+      const soundJustUnlocked = !currentGimmicks[gimmickKey] && sessionCounts[theme] >= 3
+      if (soundJustUnlocked) currentGimmicks[gimmickKey] = true
+      const themeUpdates = { themeSessionCount: sessionCounts, ...(soundJustUnlocked ? { unlockedGimmicks: currentGimmicks } : {}) }
+      try {
+        await updateDoc(doc(db, 'users', user.uid), themeUpdates)
+        setMyData(d => ({ ...d, ...themeUpdates }))
+        if (soundJustUnlocked) { setGimmickSoundPopup(true); setTimeout(() => setGimmickSoundPopup(false), 4000) }
+      } catch (e) {}
     }
     // ── Learning time tracking ─────────────────────────────
     const sessionMinutes = Math.max(1, Math.round((correct + wrong) * 30 / 60))
@@ -1276,7 +1292,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
       <button onClick={() => { setSuggestModal(null); setScreen('result') }} style={{ ...s.button, background: 'transparent', border: `1px solid ${th.border}`, color: th.sub, padding: '12px', fontSize: '0.9rem' }}>Nein danke</button>
     </div>
   </div></>
-  if (screen === 'cards' && session) return <>{homeFloat}<CardScreen session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} onSaveSessionProgress={saveSessionProgress} onStop={handleSessionStop} onSaveExample={handleSaveExample} mode={currentSessionMode} startIndex={resumeStartIndex} startProgress={resumeStartProgress} userToLang={(myData?.toLang || '').toLowerCase() || (lang === 'de' ? 'en' : 'de')} t={t} onRequestMoreCards={handleRequestMoreCards} theme={theme} /></>
+  if (screen === 'cards' && session) return <>{homeFloat}<CardScreen session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} onSaveSessionProgress={saveSessionProgress} onStop={handleSessionStop} onSaveExample={handleSaveExample} mode={currentSessionMode} startIndex={resumeStartIndex} startProgress={resumeStartProgress} userToLang={(myData?.toLang || '').toLowerCase() || (lang === 'de' ? 'en' : 'de')} t={t} onRequestMoreCards={handleRequestMoreCards} theme={theme} myData={myData} /></>
   if (screen === 'rhythmus') return <>{homeFloat}<RhythmusScreen lang={lang} theme={theme} onBack={() => { setScreen('result') }} allCards={allCards} cardProgress={cardProgress} userToLang={(myData?.toLang || '').toLowerCase() || (lang === 'de' ? 'en' : 'de')} /></>
   if (screen === 'result') return <>{homeFloat}<ResultScreen correct={result.correct} wrong={result.wrong} fast={result.fast} easy={result.easy} weakestCard={result.weakestCard} strongestCard={result.strongestCard} masteryUnlocked={masteryUnlocked} t={t} lang={lang} onBack={() => { setScreen('menu'); setSession(null) }} onReplay={result.originalSession ? () => { setSession(result.originalSession); setResumeStartIndex(0); setResumeStartProgress(null); setScreen('cards') } : null} s={s} th={th} /></>
   if (screen === 'settings') return <>{homeFloat}<SettingsScreen t={t} s={s} theme={theme} onThemeChange={onThemeChange} onBack={() => setScreen('menu')} user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} onPartner={() => setScreen('partner')} onLightModeChange={onLightModeChange} onCardSizeChange={onCardSizeChange} onSprachkompass={() => setScreen('sprachkompass')} onSprachpuls={() => setScreen('sprachpuls')} /></>
@@ -1787,6 +1803,20 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           </div>
         )
       })()}
+
+      {/* ── THEME SOUND UNLOCK POPUP ── */}
+      {gimmickSoundPopup && (
+        <div style={{ position: 'fixed', top: '18%', left: '50%', transform: 'translateX(-50%)', zIndex: 8500, background: th.card, border: `2px solid ${th.accent}`, borderRadius: '20px', padding: '20px 28px', textAlign: 'center', animation: 'vocaraFadeIn 0.3s ease both', maxWidth: '280px', width: '85%', boxShadow: `0 0 40px ${th.accent}44` }}
+          onClick={() => setGimmickSoundPopup(false)}>
+          <p style={{ fontSize: '1.8rem', margin: '0 0 6px' }}>🎉</p>
+          <p style={{ color: th.text, fontSize: '0.95rem', fontWeight: '700', margin: '0 0 4px' }}>
+            {theme.charAt(0).toUpperCase() + theme.slice(1)} Sound freigeschaltet!
+          </p>
+          <p style={{ color: th.sub, fontSize: '0.78rem', margin: 0 }}>
+            {isMarkLang ? '3 Sessions abgeschlossen 🔊' : '3 sessions completed 🔊'}
+          </p>
+        </div>
+      )}
 
       {/* ── PARTNER ACTIVITY BANNER (elegant) ── */}
       {reactionPrompt && (
