@@ -71,7 +71,7 @@ export const TENSE_LABELS = {
   future:  { de: 'Zukunft',       en: 'Future',  emoji: '🔮' },
 }
 
-export const SPEECH_LANGS = { en: 'en-GB', de: 'de-DE', sw: 'sw-KE', th: 'th-TH', fr: 'fr-FR', es: 'es-ES', ar: 'ar-SA', tr: 'tr-TR', pt: 'pt-PT' }
+export const SPEECH_LANGS = { en: 'en-GB', de: 'de-DE', sw: 'sw-TZ', th: 'th-TH', fr: 'fr-FR', es: 'es-ES', ar: 'ar-SA', tr: 'tr-TR', pt: 'pt-PT' }
 
 export function getToLangText(card, userToLang) {
   if (!card) return null
@@ -97,7 +97,7 @@ export async function speak(text, langCode) {
     || voices.find(v => v.lang.startsWith(langTag.split('-')[0]) && v.name.toLowerCase().includes('google'))
     || voices.find(v => v.lang.startsWith(langTag.split('-')[0]))
   if (preferred) { u.voice = preferred }
-  else if (langTag === 'sw-KE') {
+  else if (langTag === 'sw-TZ') {
     const enFallback = voices.find(v => v.lang === 'en-US') || voices.find(v => v.lang.startsWith('en-'))
     if (enFallback) u.voice = enFallback
     u.lang = 'en-US'
@@ -168,7 +168,7 @@ export function getCatLevelFromCount(masteredCount) {
 }
 
 // ── CONSTANTS ─────────────────────────────────────────────────
-export const APP_VERSION = 'V01.092.144'
+export const APP_VERSION = 'V01.092.145'
 
 export const POOL_STRUCTURE = {
   grundlagen:   { totalLevels: 10, cardsPerLevel: 20 },
@@ -203,6 +203,19 @@ export const SESSION_SIZE = 15
 export const NEW_CARDS_BATCH = 3
 export const MASTERY_THRESHOLD = 0.85
 export const MONTHLY_TEST_DAYS = 30
+
+export const PLANS = {
+  free:      { label: 'Free',        features: ['grundlagen', 'alphabet', 'zahlen'] },
+  premium:   { label: 'Premium',     price: '0.99€', features: ['all_categories', 'satztraining', 'sprachpuls'] },
+  unlimited: { label: 'Unbegrenzt',  features: ['everything'] }
+}
+
+export function hasFeature(myData, feature) {
+  const plan = myData?.plan || 'free'
+  if (plan === 'unlimited') return true
+  if (plan === 'premium') return PLANS.premium.features.includes(feature) || PLANS.free.features.includes(feature)
+  return PLANS.free.features.includes(feature)
+}
 
 export const LANG_FLAGS = { en: '🇬🇧', de: '🇩🇪', sw: '🇰🇪', th: '🇹🇭', es: '🇪🇸', fr: '🇫🇷', ar: '🇸🇦', tr: '🇹🇷', pt: '🇵🇹' }
 

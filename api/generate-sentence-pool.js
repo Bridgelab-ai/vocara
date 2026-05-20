@@ -44,6 +44,7 @@ Rules:
 - Use ONLY Level ${level} vocabulary listed above
 - Keep sentences short (max 7 words)
 - For "order" type, put shuffled words in "chips" array
+- CRITICAL for word-order exercises: chips must contain the EXACT words needed to form the correct answer. If answer is 'I drank hot tea yesterday', chips MUST be ['I','drank','hot','tea','yesterday'] — never use base forms like 'drink' when answer needs 'drank'. Every chip word must appear verbatim in the answer, and every answer word must appear as a chip.
 
 Return ONLY a valid JSON array, no markdown:
 [
@@ -62,7 +63,7 @@ Return ONLY a valid JSON array, no markdown:
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 6000,
-      system: 'You are a language education expert. Generate high-quality grammar exercises. Return ONLY a valid JSON array with no markdown fences.',
+      system: 'You are a language education expert. Generate high-quality grammar exercises. Return ONLY a valid JSON array with no markdown fences.\nCRITICAL: For "order" type exercises, chips must contain the EXACT inflected words from the answer (e.g. "drank" not "drink", "went" not "go"). Every chip must appear in the answer and every answer word must be a chip.',
       messages: [{ role: 'user', content: prompt }],
     }),
   })

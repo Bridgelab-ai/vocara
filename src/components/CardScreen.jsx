@@ -145,7 +145,14 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
       setMicResult({ score: pct, words, transcript })
       setMicState('done')
     }
-    rec.onerror = () => { clearTimeout(timeout); setMicState('idle') }
+    rec.onerror = (event) => {
+      clearTimeout(timeout)
+      if (event.error === 'language-not-supported' || event.error === 'service-not-allowed') {
+        setMicState('lang-error')
+      } else {
+        setMicState('idle')
+      }
+    }
     rec.onend = () => { clearTimeout(timeout); setMicState(s => s === 'listening' ? 'idle' : s) }
     rec.start()
   }
@@ -467,7 +474,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
           )}
           {!revealed && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', width: '100%' }}>
-              {micState !== 'unsupported' && (
+              {micState !== 'unsupported' && micState !== 'lang-error' && (
                 <button
                   onClick={handleMic}
                   disabled={micState === 'listening'}
@@ -475,6 +482,9 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
                 >
                   🎤 {micState === 'listening' ? (lang === 'de' ? 'Höre zu…' : 'Listening…') : (lang === 'de' ? 'Antwort sprechen' : 'Speak your answer')}
                 </button>
+              )}
+              {micState === 'lang-error' && (
+                <p style={{ color: '#ff9800', fontSize: '0.75rem', fontStyle: 'italic', textAlign: 'center', margin: '2px 0' }}>Swahili-Sprache nicht erkannt — bitte tippe die Antwort</p>
               )}
               {micResult && (
                 <div style={{ textAlign: 'center', animation: 'vocaraFadeIn 0.3s ease both', width: '100%' }}>
@@ -510,6 +520,9 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
               </div>
               {micState === 'unsupported' && (
                 <p style={{ color: '#ff9800', fontSize: '0.75rem', fontStyle: 'italic', marginTop: '6px', textAlign: 'center' }}>Dein Browser unterstützt keine Spracherkennung — bitte Chrome verwenden</p>
+              )}
+              {micState === 'lang-error' && (
+                <p style={{ color: '#ff9800', fontSize: '0.75rem', fontStyle: 'italic', marginTop: '6px', textAlign: 'center' }}>Swahili-Sprache nicht erkannt — bitte tippe die Antwort</p>
               )}
               {micResult && (
                 <div style={{ marginTop: '8px', textAlign: 'center', animation: 'vocaraFadeIn 0.3s ease both' }}>
