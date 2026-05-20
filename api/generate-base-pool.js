@@ -15,7 +15,7 @@ const LEVEL_CONTENT = {
 Single words only: numbers 1-10, basic colors (red/blue/green/yellow/black/white/orange/purple/brown/pink), personal pronouns (I/you/he/she/it/we/they). Exactly 20 unique words.
 All ${fromName} fronts, all ${toName} backs. Include phonetic pronunciation for ${toName}.
 Return ONLY a valid JSON array (no markdown):
-[{"front":"word in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic","category":"grundlagen","level":1,"wordType":"number|color|pronoun","tense":"present"}]`,
+[{"front":"word in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic","category":"grundlagen","level":1,"wordType":"number|color|pronoun","tense":"present","hint":"for pronouns only: disambiguation e.g. sie = she / they / Sie (formal)"}]`,
 
   2: (fromName, toName) =>
     `Generate exactly 20 Level 2 Grundlagen flashcards for a ${fromName} speaker learning ${toName}.

@@ -100,6 +100,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
   const question = item.front
   const answer = item?.back
   const stripMd = str => str?.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*(.*?)\*/g, '$1').replace(/#{1,6}\s/g, '').replace(/`/g, '') || ''
+  const PRONOUN_HINTS = { sie: 'sie = she / sie = they / Sie = you (formal)', you: 'you = du (singular) / you = ihr (plural)', ils: 'ils = they (masc.)', elles: 'elles = they (fem.)', on: 'on = one / on = we (informell)', wir: 'wir = we (1. Pers. Plural)', ihr: 'ihr = you (2. Pers. Plural)', 'you all': 'you all = ihr (plural)' }
   const fromLang = item.langA
   const toLang = item.langB
   const isReverseCard = /(_r$|_r_\d+$)/.test(item?.id || '')
@@ -438,6 +439,9 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
           </button>
           <p style={s.dirLabel}>{LANG_FLAGS[fromLang]} → {LANG_FLAGS[toLang]}</p>
           <p style={s.cardFront}>{question}</p>
+          {(item.wordType === 'pronoun' || PRONOUN_HINTS[item.front?.toLowerCase()]) && PRONOUN_HINTS[item.front?.toLowerCase()] && (
+            <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: '0.62rem', margin: '2px 0 0', fontStyle: 'italic', textAlign: 'center', letterSpacing: '0.3px' }}>{PRONOUN_HINTS[item.front.toLowerCase()]}</p>
+          )}
           {!revealed && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', width: '100%' }}>
               {micState !== 'unsupported' && (

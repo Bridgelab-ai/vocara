@@ -29,7 +29,7 @@ export const TOPIC_NAMES = {
   gesundheit:  { en: 'Health & Body',        de: 'Gesundheit & Körper' },
   psychologie: { en: 'Psychology & Mind',    de: 'Psychologie & Geist' },
   ausgehen:    { en: 'Going Out & Social',   de: 'Ausgehen & Freizeit' },
-  zahlen:      { en: 'Numbers & Counting',   de: 'Zahlen & Zählen'    },
+  zahlen:      { en: 'Numbers & Math',        de: 'Zahlen & Mathe'     },
   alphabet:    { en: 'Alphabet & Spelling',  de: 'Alphabet & Schrift'  },
 }
 

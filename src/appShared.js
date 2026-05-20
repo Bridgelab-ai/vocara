@@ -23,7 +23,7 @@ export const TOPICS_LIST = [
   { key: 'gesundheit',  emoji: '🏥', de: 'Gesundheit',  en: 'Health'      },
   { key: 'psychologie', emoji: '🧠', de: 'Psychologie', en: 'Psychology'  },
   { key: 'ausgehen',    emoji: '🍺', de: 'Ausgehen',    en: 'Going Out'   },
-  { key: 'zahlen',      emoji: '🔢', de: 'Zahlen',      en: 'Numbers'     },
+  { key: 'zahlen',      emoji: '🔢', de: 'Zahlen & Mathe', en: 'Numbers & Math' },
   { key: 'alphabet',    emoji: '🔤', de: 'Alphabet',    en: 'Alphabet'    },
 ]
 

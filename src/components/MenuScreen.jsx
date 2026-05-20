@@ -416,6 +416,22 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const dailyGoal = myData?.dailyGoal || 10
 
   // ── PARTNER ONLINE STATUS ─────────────────────────────────
+  const humanTime = (iso) => {
+    if (!iso) return ''
+    const diff = Date.now() - new Date(iso).getTime()
+    const days = Math.floor(diff / 86400000)
+    const hours = Math.floor(diff / 3600000)
+    const minutes = Math.floor(diff / 60000)
+    if (minutes < 60) return 'gerade eben'
+    if (hours < 24) return 'heute'
+    if (days === 1) return 'gestern'
+    if (days === 2) return 'vorgestern'
+    if (days < 7) return `vor ${days} Tagen`
+    if (days < 14) return 'letzte Woche'
+    if (days < 30) return 'vor 2 Wochen'
+    if (days < 60) return 'letzten Monat'
+    return 'vor langer Zeit'
+  }
   const partnerLastActive = partnerData?.lastActive
   const partnerOnline = !!(partnerData && (partnerLastActive === today || partnerLastActive === yesterday))
   const partnerActivityStatus = (() => {
@@ -426,7 +442,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
     if (diffMin <= 30) return { label: isMarkLang ? `${partnerName} lernt gerade` : `${partnerName} is learning now`, color: '#4CAF50', dot: '🟢' }
     if (partnerLastActive === today) return { label: isMarkLang ? `${partnerName} war heute aktiv` : `${partnerName} was active today`, color: '#FFC107', dot: '🟡' }
     if (partnerLastActive === yesterday) return { label: isMarkLang ? `${partnerName} war gestern aktiv` : `${partnerName} was active yesterday`, color: th.sub, dot: '⚪' }
-    return { label: isMarkLang ? `${partnerName} zuletzt: ${partnerLastActive}` : `${partnerName} last seen: ${partnerLastActive}`, color: th.sub, dot: '⚪' }
+    return { label: isMarkLang ? `${partnerName} zuletzt aktiv: ${humanTime(partnerLastActive)}` : `${partnerName} last seen: ${humanTime(partnerLastActive)}`, color: th.sub, dot: '⚪' }
   })()
 
   // ── CEFR PROGRESS ─────────────────────────────────────────
