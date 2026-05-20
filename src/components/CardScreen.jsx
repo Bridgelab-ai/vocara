@@ -384,15 +384,26 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
     const delay = isCorrect ? 350 : 480
     triggerAnim(anim, delay, () => handleAnswer(isCorrect))
   }
-  const playEasySound = () => {
-    if (theme === 'hamburg') {
-      const audio = new Audio('/sounds/Hamburg_Cards_Easy.wav')
+  const THEME_SOUNDS = {
+    hamburg: {
+      easy: '/sounds/Hamburg_Cards_Easy.wav',
+      // correct: '/sounds/Hamburg_Cards_Correct.wav', // future
+      // wrong: '/sounds/Hamburg_Cards_Wrong.wav',     // future
+    }
+    // nairobi: { easy: '/sounds/Nairobi_Easy.wav' },  // future
+    // welt: { easy: '/sounds/Welt_Easy.wav' },        // future
+  }
+
+  const playThemeSound = (event) => {
+    const sound = THEME_SOUNDS[theme]?.[event]
+    if (sound) {
+      const audio = new Audio(sound)
       audio.play().catch(() => {})
     }
   }
 
   const handleEasyAnimated = () => {
-    playEasySound()
+    playThemeSound('easy')
     haptic([30, 40, 30, 40, 30])
     triggerAnim('flyUp', 320, () => handleEasy())
   }
