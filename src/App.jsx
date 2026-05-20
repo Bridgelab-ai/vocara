@@ -2783,6 +2783,7 @@ function App() {
       }
       if (level && String(data.level) !== String(level)) return
       ;(data.cards || []).forEach(c => {
+        if (myData?.blockedCards?.includes(c.id)) return
         if (
           (c.langA || '').toLowerCase() !== userFromLang &&
           (c.langB || '').toLowerCase() !== userFromLang
@@ -3021,7 +3022,7 @@ function App() {
 
   const cardCategories = myData?.cardCategories || {}
   const allCards = [
-    ...(myData?.aiCards || []).flatMap(buildCardPair),
+    ...(myData?.aiCards || []).filter(c => !myData?.blockedCards?.includes(c.id)).flatMap(buildCardPair),
   ].map(card => {
     const baseId = card.id.replace(/_r(_\d+)?$/, '')
     const aiCat = cardCategories[baseId]
