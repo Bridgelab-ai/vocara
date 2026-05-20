@@ -1105,7 +1105,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         const [lpFrom, lpTo] = lp.split('_')
         const masteredCount = Object.entries(finalProgress)
           .filter(([id]) => id.startsWith(idPrefix) && id.includes(`_${lpFrom}_${lpTo}_`))
-          .filter(([, p]) => (p?.interval ?? 0) >= 7).length
+          .filter(([, p]) => (p?.interval ?? 0) >= 2).length
         const currentCatLevel = getCatLevel(myData?.categoryLevels, poolKey, lp)
         if (currentCatLevel < poolInfo.totalLevels && masteredCount >= poolInfo.cardsPerLevel * 0.8) {
           levelUpdates[getCatLevelKey(poolKey, lp)] = currentCatLevel + 1
