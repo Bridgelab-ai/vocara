@@ -57,7 +57,7 @@ function ThaiColorPronunciation({ text }) {
   )
 }
 
-function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveState, onSaveSessionProgress, onStop, onSaveExample, mode = 'all', startIndex = 0, startProgress = null, userToLang = 'en', t: tProp, onRequestMoreCards }) {
+function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveState, onSaveSessionProgress, onStop, onSaveExample, mode = 'all', startIndex = 0, startProgress = null, userToLang = 'en', t: tProp, onRequestMoreCards, theme }) {
   const [index, setIndex] = useState(startIndex)
   const [queue, setQueue] = useState(session)
   const [revealed, setRevealed] = useState(false)
@@ -384,7 +384,15 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
     const delay = isCorrect ? 350 : 480
     triggerAnim(anim, delay, () => handleAnswer(isCorrect))
   }
+  const playEasySound = () => {
+    if (theme === 'hamburg') {
+      const audio = new Audio('/sounds/Hamburg_Cards_Easy.wav')
+      audio.play().catch(() => {})
+    }
+  }
+
   const handleEasyAnimated = () => {
+    playEasySound()
     haptic([30, 40, 30, 40, 30])
     triggerAnim('flyUp', 320, () => handleEasy())
   }
