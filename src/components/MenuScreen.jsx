@@ -1481,20 +1481,10 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           </button>
           <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '1.8s', flexDirection: 'column', alignItems: 'center', opacity: catLoading ? 0.5 : 1 }} onClick={() => startCategorySession('saetze')} disabled={catLoading === 'saetze'}>
             <span>{catLoading === 'saetze' ? '⟳' : t.menuSaetze.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</span>
-            {catLoading !== 'saetze' && (() => {
-              const _saetzePairs = getActiveLangPairs(myData)
-              const lvl = _saetzePairs.length > 0
-                ? Math.min(..._saetzePairs.map(lp => getCatLevel(myData?.categoryLevels, 'saetze', lp)))
-                : 1
-              return (
-                <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', width: '100%', marginTop: '6px' }}>
-                  <span style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.38)', fontWeight: '600', letterSpacing: '0.5px' }}>Lv {lvl}/14</span>
-                </span>
-              )
-            })()}
+            {catLoading !== 'saetze' && catLevelBar('saetze')}
           </button>
-          <TutorialTooltip tutorialKey="saetze" title={isMarkLang ? 'Sätze lernen' : 'Learn Sentences'} description={isMarkLang ? 'Lerne vollständige Sätze — aufgebaut aus deinem bisherigen Vokabular.' : 'Learn full sentences — built from your existing vocabulary.'} myData={myData} setMyData={setMyData} user={user} th={th} s={s} />
         </div>
+        <TutorialTooltip tutorialKey="saetze" title={isMarkLang ? 'Sätze lernen' : 'Learn Sentences'} description={isMarkLang ? 'Lerne vollständige Sätze — aufgebaut aus deinem bisherigen Vokabular.' : 'Learn full sentences — built from your existing vocabulary.'} myData={myData} setMyData={setMyData} user={user} th={th} s={s} />
         <div style={{ display: 'flex', gap: '12px' }}>
           <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '3.5s', flexDirection: 'column', alignItems: 'center', opacity: catLoading ? 0.5 : 1 }} onClick={() => startCategorySession('street')} disabled={catLoading === 'street'}>
             <span>{catLoading === 'street' ? '⟳' : t.menuStraße.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</span>
@@ -1508,15 +1498,17 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         <button className="vocara-alle-btn" style={{ ...s.button, padding: '13px 28px', fontSize: '0.9rem', letterSpacing: '0.2px', marginBottom: 0, '--gleam-delay': '2.5s', opacity: catLoading ? 0.5 : 1 }} onClick={() => startCategorySession('all')} disabled={!!catLoading}>
           {catLoading === 'all' ? '⟳ Laden...' : t.menuAlle}
         </button>
-        <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '6.8s', width: '100%', opacity: catLoading === 'grundlagen' ? 0.6 : 1, flexDirection: 'column', alignItems: 'center' }} onClick={startBasicsSession} disabled={catLoading === 'grundlagen'}>
-          <span>{catLoading === 'grundlagen' ? '⟳' : (t.menuGrundlagen || 'Die\nGrundlagen').split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</span>
-          {catLoading !== 'grundlagen' && catLevelBar('grundlagen')}
-        </button>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '6.8s', flexDirection: 'column', alignItems: 'center', opacity: catLoading === 'grundlagen' ? 0.6 : 1 }} onClick={startBasicsSession} disabled={catLoading === 'grundlagen'}>
+            <span>{catLoading === 'grundlagen' ? '⟳' : (t.menuGrundlagen || 'Die\nGrundlagen').split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</span>
+            {catLoading !== 'grundlagen' && catLevelBar('grundlagen')}
+          </button>
+          <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '8.2s', flexDirection: 'column', alignItems: 'center', opacity: catLoading === 'urlaub' ? 0.6 : 1 }} onClick={() => startCategorySession('urlaub')} disabled={catLoading === 'urlaub'}>
+            <span>{catLoading === 'urlaub' ? '⟳' : '✈️ Urlaub'}</span>
+            {catLoading !== 'urlaub' && catLevelBar('urlaub')}
+          </button>
+        </div>
         <TutorialTooltip tutorialKey="grundlagen" title="Grundlagen" description="Lerne grundlegende Wörter — Zahlen, Farben, Pronomen. Level für Level aufbauend." myData={myData} setMyData={setMyData} user={user} th={th} s={s} />
-        <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '8.2s', width: '100%', opacity: catLoading === 'urlaub' ? 0.6 : 1, flexDirection: 'column', alignItems: 'center' }} onClick={() => startCategorySession('urlaub')} disabled={catLoading === 'urlaub'}>
-          <span>{catLoading === 'urlaub' ? '⟳' : '✈️ Urlaub'}</span>
-          {catLoading !== 'urlaub' && catLevelBar('urlaub')}
-        </button>
       </div>
 
       {/* ── KARTE BUTTON ── */}

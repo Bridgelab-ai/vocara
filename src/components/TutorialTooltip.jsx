@@ -12,10 +12,11 @@ function TutorialTooltip({ tutorialKey, title, description, myData, setMyData, u
     }
   }
 
+  const accent = th?.accent || '#00D4AA'
   return (
     <div style={{
-      background: th?.card || '#1e2a38',
-      border: `1px solid ${th?.border || 'rgba(255,255,255,0.1)'}`,
+      background: `${accent}12`,
+      border: `1px solid ${accent}55`,
       borderRadius: '12px',
       padding: '10px 14px',
       marginTop: '6px',
@@ -25,7 +26,7 @@ function TutorialTooltip({ tutorialKey, title, description, myData, setMyData, u
       gap: '10px',
       animation: 'vocaraFadeIn 0.25s ease both',
     }}>
-      <span style={{ fontSize: '1rem', marginTop: '1px', flexShrink: 0 }}>💡</span>
+      <span style={{ fontSize: '1rem', marginTop: '2px', flexShrink: 0 }}>💡</span>
       <div style={{ flex: 1, minWidth: 0 }}>
         {title && <p style={{ color: th?.text || '#fff', fontSize: '0.82rem', fontWeight: '700', margin: '0 0 3px' }}>{title}</p>}
         <p style={{ color: th?.sub || '#aaa', fontSize: '0.78rem', margin: 0, lineHeight: 1.45 }}>{description}</p>
@@ -33,18 +34,19 @@ function TutorialTooltip({ tutorialKey, title, description, myData, setMyData, u
       <button
         onClick={dismiss}
         style={{
-          background: 'transparent',
+          background: accent,
           border: 'none',
-          color: th?.sub || '#aaa',
-          fontSize: '0.75rem',
+          color: '#111',
+          fontSize: '0.7rem',
           cursor: 'pointer',
-          padding: '2px 6px',
-          borderRadius: '6px',
+          padding: '4px 10px',
+          borderRadius: '8px',
           flexShrink: 0,
-          fontWeight: '600',
+          fontWeight: '700',
+          whiteSpace: 'nowrap',
           WebkitTapHighlightColor: 'transparent',
         }}
-      >✓</button>
+      >✕ Schließen</button>
     </div>
   )
 }
