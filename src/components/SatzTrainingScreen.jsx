@@ -162,12 +162,24 @@ Mix exercise types: gap, order, tense, conjugation, translation. Return ONLY val
   const removeChip = (chip) => { if (revealed) return; setChipBank(b => [...b, chip]); setChipOrder(o => o.filter(c => c.id !== chip.id)) }
 
   const isAnswerCorrect = () => {
-    if (ex.type === 'order') return chipOrder.map(c => c.word).join(' ').toLowerCase() === ex.answer.toLowerCase()
+    const normalize = str => str?.toLowerCase().trim().replace(/[.,!?;:]/g, '').replace(/\s+/g, ' ')
+    if (ex.type === 'order') return normalize(chipOrder.map(c => c.word).join(' ')) === normalize(ex.answer)
     if (needsSemanticEval(ex.type)) return semanticResult && semanticResult !== 'loading' ? semanticResult.ok : null
     const norm = str => str.trim().toLowerCase().replace(/[.,!?]/g, '')
     const u = norm(userInput), a = norm(ex.answer)
     if (ex.type === 'conjugation') return u === a || levenshtein(u, a) <= 1
     return u === a
+  }
+
+  const stripMd = str => str?.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*(.*?)\*/g, '$1').replace(/#{1,6}\s/g, '').replace(/`/g, '') || ''
+
+  const displayQuestion = (type, question) => {
+    if (lang !== 'de') return question
+    if (type === 'order') return 'Bringe die Wörter in die richtige Reihenfolge:'
+    if (type === 'conjugation' && /^conjugate/i.test(question)) return question.replace(/^conjugate:?\s*/i, 'Konjugiere: ')
+    if (type === 'translation' && /^translate/i.test(question)) return question.replace(/^translate:?\s*/i, 'Übersetze: ')
+    if (type === 'tense') return question.replace(/^rewrite in ([^:]+):/i, (_, t) => `Schreibe im ${t}:`)
+    return question
   }
 
   const typeLabel = (type) => ({
@@ -239,7 +251,7 @@ Mix exercise types: gap, order, tense, conjugation, translation. Return ONLY val
       </p>
 
       <div style={{ ...s.bigCard, minHeight: '80px', marginBottom: '14px' }}>
-        <p style={{ ...s.cardFront, marginBottom: ex.hint ? '6px' : 0 }}>{ex.question}</p>
+        <p style={{ ...s.cardFront, marginBottom: ex.hint ? '6px' : 0 }}>{displayQuestion(ex.type, ex.question)}</p>
         {ex.hint && <p style={{ color: th.sub, fontSize: '0.72rem', fontStyle: 'italic', margin: 0 }}>💡 {ex.hint}</p>}
       </div>
 
@@ -249,7 +261,7 @@ Mix exercise types: gap, order, tense, conjugation, translation. Return ONLY val
             value={userInput}
             onChange={e => !revealed && setUserInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !revealed && userInput.trim()) handleCheck() }}
-            placeholder={ex.type === 'translation' ? (lang === 'de' ? 'Übersetzung eingeben…' : 'Enter translation…') : t.yourAnswer}
+            placeholder={lang === 'de' ? 'Tippe deine Antwort…' : 'Type your answer…'}
             disabled={revealed}
             style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: `1px solid ${revealed ? (correct_bool === null ? th.border : correct_bool ? '#4CAF50' : '#f44336') : th.border}`, background: th.card, color: th.text, fontSize: '1rem', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
             autoFocus
@@ -292,22 +304,22 @@ Mix exercise types: gap, order, tense, conjugation, translation. Return ONLY val
           </p>
           {semanticResult?.feedback && (
             <div style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${th.border}`, borderRadius: '10px', padding: '8px 12px', marginBottom: '6px' }}>
-              <p style={{ color: correct_bool ? '#81c784' : '#FFB74D', fontSize: '0.78rem', margin: 0, lineHeight: 1.5 }}>💬 {semanticResult.feedback}</p>
+              <p style={{ color: correct_bool ? '#81c784' : '#FFB74D', fontSize: '0.78rem', margin: 0, lineHeight: 1.5 }}>💬 {stripMd(semanticResult.feedback)}</p>
             </div>
           )}
           <div style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${th.border}`, borderRadius: '10px', padding: '10px 14px' }}>
-            <p style={{ color: th.sub, fontSize: '0.78rem', margin: 0, lineHeight: 1.6 }}>📖 {ex.explanation}</p>
+            <p style={{ color: th.sub, fontSize: '0.78rem', margin: 0, lineHeight: 1.6 }}>📖 {stripMd(ex.explanation)}</p>
           </div>
         </div>
       )}
 
       {!revealed && (
         <button
-          style={{ ...s.button, opacity: (ex.type === 'order' ? chipOrder.length > 0 : userInput.trim().length > 0) ? 1 : 0.4 }}
+          style={{ ...s.button, background: th.accent, color: '#fff', fontSize: '1rem', fontWeight: '800', letterSpacing: '0.3px', opacity: (ex.type === 'order' ? chipOrder.length > 0 : userInput.trim().length > 0) ? 1 : 0.4 }}
           onClick={handleCheck}
           disabled={ex.type === 'order' ? chipOrder.length === 0 : !userInput.trim()}
         >
-          {t.checkBtn}
+          ✓ {lang === 'de' ? 'Prüfen' : 'Check'}
         </button>
       )}
 

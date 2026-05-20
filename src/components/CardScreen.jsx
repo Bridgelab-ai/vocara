@@ -99,6 +99,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
   const item = queue[index]
   const question = item.front
   const answer = item?.back
+  const stripMd = str => str?.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*(.*?)\*/g, '$1').replace(/#{1,6}\s/g, '').replace(/`/g, '') || ''
   const fromLang = item.langA
   const toLang = item.langB
   const isReverseCard = /(_r$|_r_\d+$)/.test(item?.id || '')
@@ -191,12 +192,9 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
 
   const [exampleSentence, setExampleSentence] = useState(null)
   useEffect(() => {
-    setExampleSentence(cardProgress[item.id]?._example || null)
-  }, [index])
-  useEffect(() => {
+    setExampleSentence(null)
     if (!revealed || item.category !== 'vocabulary') return
     if (cardProgress[item.id]?._example) { setExampleSentence(cardProgress[item.id]._example); return }
-    if (exampleSentence) return
     const fromL = fromLang === 'de' ? 'German' : fromLang === 'en' ? 'English' : fromLang === 'sw' ? 'Swahili' : fromLang
     const toL = toLang === 'de' ? 'German' : toLang === 'en' ? 'English' : toLang === 'sw' ? 'Swahili' : toLang
     fetch('/api/chat', {
@@ -214,7 +212,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
         }
       } catch(e) {}
     }).catch(() => {})
-  }, [revealed, index])
+  }, [revealed, item.id])
 
   const triggerAnim = (anim, delay, cb) => {
     if (animLock.current) return
@@ -625,9 +623,9 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
               </div>
               {kontextOpen && (
                 <>
-                  <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.72rem', margin: '0 0 3px' }}><span style={{ color: '#9A9AFF', fontWeight: '600' }}>Formell:</span> {kontextVariation.formal}</p>
-                  <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.72rem', margin: '0 0 3px' }}><span style={{ color: '#9A9AFF', fontWeight: '600' }}>Informell:</span> {kontextVariation.informal}</p>
-                  <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.72rem', margin: 0 }}><span style={{ color: '#e88aff', fontWeight: '600' }}>Romantisch:</span> {kontextVariation.romantic}</p>
+                  <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.72rem', margin: '0 0 3px' }}><span style={{ color: '#9A9AFF', fontWeight: '600' }}>Formell:</span> {stripMd(kontextVariation.formal)}</p>
+                  <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.72rem', margin: '0 0 3px' }}><span style={{ color: '#9A9AFF', fontWeight: '600' }}>Informell:</span> {stripMd(kontextVariation.informal)}</p>
+                  <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.72rem', margin: 0 }}><span style={{ color: '#e88aff', fontWeight: '600' }}>Romantisch:</span> {stripMd(kontextVariation.romantic)}</p>
                 </>
               )}
               {!kontextOpen && <button onClick={() => setKontextOpen(true)} style={{ background: 'transparent', border: 'none', color: '#9A9AFF', fontSize: '0.72rem', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>{lang === 'de' ? 'anzeigen' : 'show'}</button>}
