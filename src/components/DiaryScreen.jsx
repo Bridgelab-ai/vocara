@@ -110,6 +110,11 @@ function DiaryScreen({ user, myData, setMyData, partnerData, lang, theme, onBack
                 <span style={{ color: th.gold, fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase' }}>{partnerName}</span>
               </div>
             )}
+            {hasPartner && partnerEntries.length === 0 && (
+              <p style={{ color: th.sub, fontSize: '0.78rem', fontStyle: 'italic', margin: '0 0 10px', textAlign: 'center', opacity: 0.75 }}>
+                {isDE ? `Noch keine Einträge von ${partnerName}` : `No entries from ${partnerName} yet`}
+              </p>
+            )}
             {allDates.map(date => {
               const my = diaryEntries.find(e => e.date === date)
               const partner = partnerEntries.find(e => e.date === date)
@@ -123,7 +128,7 @@ function DiaryScreen({ user, myData, setMyData, partnerData, lang, theme, onBack
                         : <p style={{ color: th.border, fontSize: '0.75rem', margin: 0 }}>—</p>}
                     </div>
                     {hasPartner && (
-                      <div style={{ flex: 1 }}>
+                      <div style={{ flex: 1, background: partner ? `${th.gold}10` : 'transparent', borderRadius: '8px', padding: partner ? '4px 8px' : '0' }}>
                         {partner
                           ? <p style={{ color: th.gold, fontSize: '0.82rem', margin: 0, fontStyle: 'italic' }}>„{partner.text}"</p>
                           : <p style={{ color: th.border, fontSize: '0.75rem', margin: 0 }}>—</p>}

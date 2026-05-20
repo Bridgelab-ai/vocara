@@ -35,6 +35,23 @@ const TOPICS_LIST = [
 ]
 const LANGUAGE_PAIRS = ['de_en','de_sw','en_de','en_sw','sw_de','sw_en']
 
+function humanTime(raw) {
+  if (!raw) return '—'
+  const d = new Date(raw)
+  if (isNaN(d)) return raw
+  const now = new Date()
+  const diffMs = now - d
+  const diffMin = Math.floor(diffMs / 60000)
+  if (diffMin < 2) return 'gerade eben'
+  if (diffMin < 60) return `vor ${diffMin} Min`
+  const diffH = Math.floor(diffMin / 60)
+  if (diffH < 24) return `vor ${diffH} Std`
+  const diffD = Math.floor(diffH / 24)
+  if (diffD === 1) return 'gestern'
+  if (diffD < 7) return `vor ${diffD} Tagen`
+  return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })
+}
+
 function AdminScreen({ user, myData, lang, theme, onBack, onCacheInvalidate }) {
   const th = THEMES[theme]; const s = makeStyles(th)
   const isDE = lang === 'de'
@@ -704,7 +721,7 @@ function AdminScreen({ user, myData, lang, theme, onBack, onCacheInvalidate }) {
               <div key={u.uid} style={{ paddingBottom: '10px', marginBottom: '10px', borderBottom: i < users.length-1 ? `1px solid ${th.border}` : 'none' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ color: th.text, fontWeight: '600', fontSize: '0.88rem' }}>{u.name || u.uid.slice(0,8)}</span>
-                  <span style={{ color: th.sub, fontSize: '0.7rem' }}>{u.lastActive || '—'}</span>
+                  <span style={{ color: th.sub, fontSize: '0.7rem' }}>{humanTime(u.lastActive)}</span>
                 </div>
                 <div style={{ display: 'flex', gap: '8px', marginTop: '4px', alignItems: 'center', flexWrap: 'wrap' }}>
                   <span style={{ color: '#FFA500', fontSize: '0.72rem' }}>🔥 {streak}</span>

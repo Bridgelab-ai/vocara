@@ -373,15 +373,24 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
       ? Math.min(...activePairs.map(lp => getCatLevel(categoryLevels, poolKey, lp)))
       : (categoryLevels?.[poolKey] || 1)
     const idPrefix = CAT_ID_PREFIX_BAR[cat]
+    let tierSeen = 0, tierBekannt = 0, tierGemeistert = 0, showTiers = false
     const pct = (() => {
       if (!idPrefix || activePairs.length === 0) {
         const count = activeCards.filter(c => c.category === cat && !/_r(_\d+)?$/.test(c.id) && cardProgress[c.id] !== undefined).length
         return Math.min(100, Math.round((count / cardsPerLevel) * 100))
       }
+      const mainPair = activePairs[0] || ''
+      const [pf, pt] = mainPair.split('_')
+      const entries = Object.entries(cardProgress || {})
+        .filter(([id]) => id.startsWith(idPrefix) && id.includes(`_${pf}_${pt}_`))
+      tierSeen = entries.filter(([, p]) => (p?.interval ?? 0) >= 1).length
+      tierBekannt = entries.filter(([, p]) => (p?.interval ?? 0) >= 3).length
+      tierGemeistert = entries.filter(([, p]) => (p?.interval ?? 0) >= 7).length
+      showTiers = tierSeen > 0
       const perPairPcts = activePairs.map(lp => {
-        const [pf, pt] = lp.split('_')
+        const [ppf, ppt] = lp.split('_')
         const count = Object.entries(cardProgress || {})
-          .filter(([id]) => id.startsWith(idPrefix) && id.includes(`_${pf}_${pt}_`))
+          .filter(([id]) => id.startsWith(idPrefix) && id.includes(`_${ppf}_${ppt}_`))
           .filter(([, p]) => (p?.interval ?? 0) >= 1).length
         return Math.min(100, Math.round((count / cardsPerLevel) * 100))
       })
@@ -393,6 +402,11 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
         <span style={{ display: 'block', width: '70%', height: '3px', background: 'rgba(255,255,255,0.1)', borderRadius: '1px', overflow: 'hidden' }}>
           <span style={{ display: 'block', height: '100%', width: `${pct}%`, background: '#00D4AA', borderRadius: '1px' }} />
         </span>
+        {showTiers && (
+          <span style={{ fontSize: '0.52rem', color: 'rgba(255,255,255,0.32)', letterSpacing: '0.2px' }}>
+            👁 {tierSeen} · 📖 {tierBekannt} · ⭐ {tierGemeistert}
+          </span>
+        )}
       </span>
     )
   }

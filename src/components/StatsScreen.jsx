@@ -296,6 +296,7 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
                   <p style={{ color: th.sub, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'center', margin: '0 0 6px' }}>{label}</p>
                   <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
                     <div style={{ flex: 1, textAlign: 'right' }}>
+                      <p style={{ color: th.accent, fontSize: '0.6rem', fontWeight: '600', margin: '0 0 1px', opacity: 0.7, letterSpacing: '0.3px' }}>{myName}</p>
                       <p style={{ color: th.accent, fontWeight: '700', fontSize: '0.82rem', margin: '0 0 3px' }}>{fmtM(myVal)}</p>
                       <div style={{ height: '28px', background: th.border, borderRadius: '4px 4px 0 0', overflow: 'hidden', display: 'flex', alignItems: 'flex-end' }}>
                         <div style={{ width: `${myPct}%`, height: '100%', background: th.accent, borderRadius: '4px 4px 0 0', transition: 'width 0.6s ease', marginLeft: 'auto' }} />
@@ -303,6 +304,7 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
                     </div>
                     <div style={{ width: '1px', background: th.border, height: '28px', flexShrink: 0 }} />
                     <div style={{ flex: 1 }}>
+                      <p style={{ color: th.gold, fontSize: '0.6rem', fontWeight: '600', margin: '0 0 1px', opacity: 0.7, letterSpacing: '0.3px' }}>{partnerName}</p>
                       <p style={{ color: th.gold, fontWeight: '700', fontSize: '0.82rem', margin: '0 0 3px' }}>{fmtM(pVal)}</p>
                       <div style={{ height: '28px', background: th.border, borderRadius: '4px 4px 0 0', overflow: 'hidden', display: 'flex', alignItems: 'flex-end' }}>
                         <div style={{ width: `${pPct}%`, height: '100%', background: th.gold, borderRadius: '4px 4px 0 0', transition: 'width 0.6s ease' }} />
@@ -318,9 +320,15 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
                 <BarPair label={lang === 'de' ? 'Dieser Monat' : 'This month'} myVal={myM} pVal={pM} />
                 <div style={{ padding: '8px 0 0', borderBottom: `1px solid ${th.border}` }}>
                   <p style={{ color: th.sub, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'center', margin: '0 0 6px' }}>{t.total || 'GESAMT'}</p>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ color: th.accent, fontWeight: '700', fontSize: '0.82rem' }}>{fmtM(myT)}</span>
-                    <span style={{ color: th.gold, fontWeight: '700', fontSize: '0.82rem' }}>{fmtM(pT)}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                    <div style={{ textAlign: 'left' }}>
+                      <p style={{ color: th.accent, fontSize: '0.6rem', fontWeight: '600', margin: '0 0 1px', opacity: 0.7, letterSpacing: '0.3px' }}>{myName}</p>
+                      <span style={{ color: th.accent, fontWeight: '700', fontSize: '0.82rem' }}>{fmtM(myT)}</span>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <p style={{ color: th.gold, fontSize: '0.6rem', fontWeight: '600', margin: '0 0 1px', opacity: 0.7, letterSpacing: '0.3px' }}>{partnerName}</p>
+                      <span style={{ color: th.gold, fontWeight: '700', fontSize: '0.82rem' }}>{fmtM(pT)}</span>
+                    </div>
                   </div>
                 </div>
               </div>
