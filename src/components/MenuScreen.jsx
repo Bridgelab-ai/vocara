@@ -1227,6 +1227,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     try {
       await updateDoc(doc(db, 'users', user.uid), { sessionHistory: updated })
       setMyData(prev => ({ ...prev, sessionHistory: updated }))
+      markAreaDone('satztraining')
     } catch(e) { console.warn('satz session save failed:', e) }
   }} /></>
   if (screen === 'diary') return <>{homeFloat}<DiaryScreen user={user} myData={myData} setMyData={setMyData} partnerData={partnerData} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
@@ -1437,6 +1438,10 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '6.8s', width: '100%', opacity: catLoading === 'grundlagen' ? 0.6 : 1, flexDirection: 'column', alignItems: 'center' }} onClick={startBasicsSession} disabled={catLoading === 'grundlagen'}>
           <span>{catLoading === 'grundlagen' ? '⟳' : (t.menuGrundlagen || 'Die\nGrundlagen').split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</span>
           {catLoading !== 'grundlagen' && catLevelBar('grundlagen')}
+        </button>
+        <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '8.2s', width: '100%', opacity: catLoading === 'urlaub' ? 0.6 : 1, flexDirection: 'column', alignItems: 'center' }} onClick={() => startCategorySession('urlaub')} disabled={catLoading === 'urlaub'}>
+          <span>{catLoading === 'urlaub' ? '⟳' : '✈️ Urlaub'}</span>
+          {catLoading !== 'urlaub' && catLevelBar('urlaub')}
         </button>
       </div>
 

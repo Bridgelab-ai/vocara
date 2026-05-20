@@ -24,6 +24,7 @@ export const TOPICS_LIST = [
   { key: 'psychologie', emoji: '🧠', de: 'Psychologie', en: 'Psychology'  },
   { key: 'ausgehen',    emoji: '🍺', de: 'Ausgehen',    en: 'Going Out'   },
   { key: 'zahlen',      emoji: '🔢', de: 'Zahlen & Mathe', en: 'Numbers & Math' },
+  { key: 'unterricht',  emoji: '🏫', de: 'Im Unterricht', en: 'In Class'   },
   { key: 'alphabet',    emoji: '🔤', de: 'Alphabet',    en: 'Alphabet'    },
 ]
 
@@ -167,7 +168,7 @@ export function getCatLevelFromCount(masteredCount) {
 }
 
 // ── CONSTANTS ─────────────────────────────────────────────────
-export const APP_VERSION = 'V01.092.138'
+export const APP_VERSION = 'V01.092.139'
 
 export const POOL_STRUCTURE = {
   grundlagen:   { totalLevels: 10, cardsPerLevel: 20 },

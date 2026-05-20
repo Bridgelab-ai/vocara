@@ -13,6 +13,7 @@ export const TOPIC_STRUCTURE = {
   psychologie: { cardsPerLevel: 15, totalLevels: 8 },
   ausgehen:    { cardsPerLevel: 15, totalLevels: 8 },
   zahlen:      { cardsPerLevel: 15, totalLevels: 8 },
+  unterricht:  { cardsPerLevel: 15, totalLevels: 6 },
   alphabet:    { cardsPerLevel: 15, totalLevels: 6 },
 }
 
@@ -30,14 +31,15 @@ export const TOPIC_NAMES = {
   psychologie: { en: 'Psychology & Mind',    de: 'Psychologie & Geist' },
   ausgehen:    { en: 'Going Out & Social',   de: 'Ausgehen & Freizeit' },
   zahlen:      { en: 'Numbers & Math',        de: 'Zahlen & Mathe'     },
-  alphabet:    { en: 'Alphabet & Spelling',  de: 'Alphabet & Schrift'  },
+  unterricht:  { en: 'In Class',             de: 'Im Unterricht'       },
+  alphabet:    { en: 'Alphabet',             de: 'Alphabet'            },
 }
 
 export const TOPIC_EMOJIS = {
   kochen: '🍳', liebe: '❤️', sport: '💪', film: '🎬',
   musik: '🎵', reisen: '✈️', business: '💼', natur: '🌿',
   tech: '💻', gesundheit: '🏥', psychologie: '🧠', ausgehen: '🍺',
-  zahlen: '🔢', alphabet: '🔤',
+  zahlen: '🔢', unterricht: '🏫', alphabet: '🔤',
 }
 
 export const TOPIC_LEVEL_CONTENT = {
@@ -96,4 +98,46 @@ Level 8 (C1): highly nuanced, native-level authentic expressions as a fluent spe
 All ${fromName} fronts, all ${toName} backs. 100% accurate and natural. Include phonetic pronunciation for ${toName}.
 Return ONLY a valid JSON array (no markdown):
 [{"front":"expression in ${fromName}","back":"translation in ${toName}","pronunciation":"phonetic","wordType":"idiom|phrase|collocation","register":"neutral|informal|formal"}]`,
+}
+
+export const ALPHABET_LEVEL_CONTENT = {
+  1: (fromName, toName) =>
+    `Generate exactly 15 flashcards for letters A-M of the ${toName} alphabet for a ${fromName} speaker.
+Each card: the letter as front, its ${toName} name/sound + one example word as back.
+Format front: "A", back: "[sound] — Apfel".
+Return ONLY a valid JSON array (no markdown):
+[{"front":"letter","back":"sound — example word","pronunciation":"phonetic sound","wordType":"letter","register":"neutral"}]`,
+
+  2: (fromName, toName) =>
+    `Generate exactly 15 flashcards for letters N-Z of the ${toName} alphabet (plus Ä, Ö, Ü, ß) for a ${fromName} speaker.
+Each card: the letter as front, its ${toName} name/sound + one example word as back.
+Format front: "N", back: "[sound] — Nacht".
+Return ONLY a valid JSON array (no markdown):
+[{"front":"letter","back":"sound — example word","pronunciation":"phonetic sound","wordType":"letter","register":"neutral"}]`,
+
+  3: (fromName, toName) =>
+    `Generate exactly 15 flashcards for ${toName} special character combinations: sch, ch, th, ph, ck, ng, ei, ie, au, eu, äu, tz, ss, ß, qu.
+Front: the character combination (e.g. "sch"), back: pronunciation rule + example word (e.g. "sh sound — Schule").
+Return ONLY a valid JSON array (no markdown):
+[{"front":"combo","back":"rule — example","pronunciation":"phonetic","wordType":"phoneme","register":"neutral"}]`,
+
+  4: (fromName, toName) =>
+    `Generate exactly 15 flashcards for ${toName} punctuation marks and symbols.
+Include: . , ! ? : ; " ' ( ) - / % & § @ = + *.
+Front: the symbol, back: its ${toName} name and a usage example.
+Return ONLY a valid JSON array (no markdown):
+[{"front":"symbol","back":"name — usage","pronunciation":"phonetic name","wordType":"symbol","register":"neutral"}]`,
+
+  5: (fromName, toName) =>
+    `Generate exactly 15 flashcards for the German phonetic/spelling alphabet (A wie Anton, B wie Berta, ...).
+Each card front: the letter + standard word (e.g. "A wie Anton"), back: English equivalent (e.g. "A as in Alpha").
+Return ONLY a valid JSON array (no markdown):
+[{"front":"A wie Anton","back":"A as in Alpha","pronunciation":"ah","wordType":"spelling","register":"neutral"}]`,
+
+  6: (fromName, toName) =>
+    `Generate exactly 15 flashcards for common ${toName} pronunciation confusion pairs for ${fromName} speakers.
+Include: ie vs ei, v vs w, z vs s, ü vs u, ö vs o, ä vs e, ch (ich) vs ch (ach), r (uvular), ß vs ss, double consonants, final devoicing (b→p, d→t, g→k), unstressed -e, -er ending.
+Front: the confusion pair or rule, back: pronunciation guide + minimal pair example.
+Return ONLY a valid JSON array (no markdown):
+[{"front":"ie vs ei","back":"ie = [ee] (Liebe) | ei = [eye] (Stein)","pronunciation":"lee-beh | shtyne","wordType":"phoneme","register":"neutral"}]`,
 }

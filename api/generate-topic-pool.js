@@ -1,7 +1,7 @@
 // Topic pool generator — POST /api/generate-topic-pool
 // Body: { topic, level, pair, from, to }  e.g. { topic:'kochen', level:1, pair:'de_en', from:'de', to:'en' }
 // Writes to sharedCards/{from}_{to}_{topic}_{level}  with category: topic (e.g. 'kochen')
-import { TOPIC_STRUCTURE, TOPIC_LEVEL_CONTENT, TOPIC_NAMES } from './_topicStructure.js'
+import { TOPIC_STRUCTURE, TOPIC_LEVEL_CONTENT, ALPHABET_LEVEL_CONTENT, TOPIC_NAMES } from './_topicStructure.js'
 import { getRarity, markImportant } from './_poolStructure.js'
 export const config = { api: { bodyParser: false } }
 
@@ -12,7 +12,9 @@ async function generateCards(fromLang, toLang, topic, level) {
   const fromName = LANG_NAMES[fromLang] || fromLang
   const toName = LANG_NAMES[toLang] || toLang
   const topicEn = TOPIC_NAMES[topic]?.en || topic
-  const prompt = TOPIC_LEVEL_CONTENT[level](topicEn, fromName, toName)
+  const prompt = topic === 'alphabet' && ALPHABET_LEVEL_CONTENT[level]
+    ? ALPHABET_LEVEL_CONTENT[level](fromName, toName)
+    : TOPIC_LEVEL_CONTENT[level](topicEn, fromName, toName)
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
