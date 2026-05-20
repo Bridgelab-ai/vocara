@@ -370,7 +370,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
     const cardsPerLevel = poolInfo.cardsPerLevel
     const activePairs = getActiveLangPairs(myData)
     const currentLevel = activePairs.length > 0
-      ? Math.min(...activePairs.map(lp => getCatLevel(categoryLevels, poolKey, lp)))
+      ? getCatLevel(categoryLevels, poolKey, activePairs[0])
       : (categoryLevels?.[poolKey] || 1)
     const idPrefix = CAT_ID_PREFIX_BAR[cat]
     let tierSeen = 0, tierBekannt = 0, tierGemeistert = 0, showTiers = false
@@ -387,14 +387,10 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
       tierBekannt = entries.filter(([, p]) => (p?.interval ?? 0) >= 3).length
       tierGemeistert = entries.filter(([, p]) => (p?.interval ?? 0) >= 7).length
       showTiers = tierSeen > 0
-      const perPairPcts = activePairs.map(lp => {
-        const [ppf, ppt] = lp.split('_')
-        const count = Object.entries(cardProgress || {})
-          .filter(([id]) => id.startsWith(idPrefix) && id.includes(`_${ppf}_${ppt}_`))
-          .filter(([, p]) => (p?.interval ?? 0) >= 1).length
-        return Math.min(100, Math.round((count / cardsPerLevel) * 100))
-      })
-      return Math.round(perPairPcts.reduce((a, b) => a + b, 0) / perPairPcts.length)
+      const primaryCount = Object.entries(cardProgress || {})
+        .filter(([id]) => id.startsWith(idPrefix) && id.includes(`_${pf}_${pt}_`))
+        .filter(([, p]) => (p?.interval ?? 0) >= 1).length
+      return Math.min(100, Math.round((primaryCount / cardsPerLevel) * 100))
     })()
     return (
       <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', width: '100%', marginTop: '6px' }}>
@@ -1195,7 +1191,6 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           .filter(([, p]) => (p?.interval ?? 0) >= 2).length
         const currentCatLevel = getCatLevel(myData?.categoryLevels, poolKey, lp)
         const threshold = poolInfo.cardsPerLevel * 0.8
-        console.log('[LEVELUP]', poolKey, lp, 'mastered:', masteredCount, 'threshold:', threshold, 'currentLevel:', currentCatLevel)
         if (currentCatLevel < poolInfo.totalLevels && masteredCount >= threshold) {
           levelUpdates[getCatLevelKey(poolKey, lp)] = currentCatLevel + 1
           console.log(`[LevelUp] ${poolKey}_${lp} → Lv${currentCatLevel + 1} (${masteredCount}/${poolInfo.cardsPerLevel} mastered)`)
@@ -1510,6 +1505,20 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
             {catLoading !== 'urlaub' && catLevelBar('urlaub')}
           </button>
         </div>
+        <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '9.5s', flexDirection: 'column', alignItems: 'center', width: '100%' }} onClick={startSatzSession}>
+          <span>🖊️ {t.menuSatz}</span>
+          {(() => {
+            const ap = getActiveLangPairs(myData)
+            const lv = ap.length > 0 ? getCatLevel(myData?.categoryLevels, 'satztraining', ap[0]) : 1
+            const badge = lv <= 5 ? '⬛ Leicht' : lv <= 10 ? '🟦 Mittel' : '🟥 Schwer'
+            return (
+              <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', marginTop: '6px' }}>
+                <span style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.38)', fontWeight: '600', letterSpacing: '0.5px' }}>Lv {lv}/14</span>
+                <span style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.45)', fontWeight: '600' }}>{badge}</span>
+              </span>
+            )
+          })()}
+        </button>
         <TutorialTooltip tutorialKey="grundlagen" title="Grundlagen" description="Lerne grundlegende Wörter — Zahlen, Farben, Pronomen. Level für Level aufbauend." myData={myData} setMyData={setMyData} user={user} th={th} s={s} />
       </div>
 
@@ -1669,10 +1678,6 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
 
       {/* ── SECONDARY NAVIGATION ── */}
       <div className="vocara-nav-section" style={{ marginTop: '4px', marginBottom: '10px' }}>
-        <button className="vocara-nav-btn" style={s.navBtn} onClick={startSatzSession}>
-          ✍️ {t.menuSatz}
-        </button>
-        <TutorialTooltip tutorialKey="satztraining" title="Satztraining" description="Grammatik-Übungen: Lückentext, Wortstellung und Zeitformen." myData={myData} setMyData={setMyData} user={user} th={th} s={s} />
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('ki')}>{t.menuKi}</button>
         <TutorialTooltip tutorialKey="kigespraech" title={isMarkLang ? 'KI-Gespräch' : 'AI Conversation'} description={isMarkLang ? 'Übe echte Konversationen mit einem KI-Sprachpartner — angepasst an dein Niveau.' : 'Practice real conversations with an AI language partner — tailored to your level.'} myData={myData} setMyData={setMyData} user={user} th={th} s={s} />
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('stats')}>

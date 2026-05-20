@@ -957,6 +957,8 @@ function AdminScreen({ user, myData, lang, theme, onBack, onCacheInvalidate }) {
             <option value="street">street (sharedCards)</option>
             <option value="home">home (sharedCards)</option>
             <option value="grundlagen">grundlagen (sharedCards)</option>
+            <option value="alphabet">alphabet (sharedCards)</option>
+            <option value="unterricht">unterricht (sharedCards)</option>
           </select>
           <button onClick={deleteCategoryPool} disabled={deleteCatLoading}
             style={{ padding: '7px 16px', borderRadius: '10px', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', opacity: deleteCatLoading ? 0.5 : 1, background: 'rgba(220,40,40,0.15)', color: '#e06c75', border: '1px solid rgba(220,40,40,0.35)' }}>
