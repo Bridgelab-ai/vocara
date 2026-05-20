@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { getDocs, collection, doc, updateDoc, deleteField, writeBatch, query, where } from 'firebase/firestore'
+import { getDocs, getDoc, collection, doc, updateDoc, deleteDoc, deleteField, writeBatch, query, where } from 'firebase/firestore'
 import { db } from '../firebase'
 import { THEMES, makeStyles } from '../theme'
 import { todayStr, getISOWeekStr, MARK_UID, ELOSY_UID, getCatLevel, getActiveLangPairs } from '../appShared'
@@ -66,6 +66,12 @@ function AdminScreen({ user, myData, lang, theme, onBack }) {
   const [testStatus, setTestStatus] = useState(null)
   const [testCounts, setTestCounts] = useState({})
   const [expandedTest, setExpandedTest] = useState(null)
+  const [fixDocId, setFixDocId] = useState('')
+  const [fixCardId, setFixCardId] = useState('')
+  const [fixFront, setFixFront] = useState('')
+  const [fixBack, setFixBack] = useState('')
+  const [fixLoading, setFixLoading] = useState(false)
+  const [fixStatus, setFixStatus] = useState(null)
 
   // ── Pool status ────────────────────────────────────────────────
   const loadPoolStatus = async () => {
@@ -517,6 +523,26 @@ function AdminScreen({ user, myData, lang, theme, onBack }) {
   }
 
   // ── Delete by category ────────────────────────────────────────
+  const fixCard = async () => {
+    if (!fixDocId.trim() || !fixCardId.trim() || (!fixFront.trim() && !fixBack.trim())) return
+    setFixLoading(true); setFixStatus(null)
+    try {
+      const colName = fixDocId.includes('satz') ? 'sharedExercises' : 'sharedCards'
+      const snap = await getDoc(doc(db, colName, fixDocId.trim()))
+      if (!snap.exists()) { setFixStatus('Dokument nicht gefunden'); setFixLoading(false); return }
+      const data = snap.data()
+      const cards = data.cards || []
+      const idx = cards.findIndex(c => c.id === fixCardId.trim())
+      if (idx === -1) { setFixStatus('Karte nicht gefunden'); setFixLoading(false); return }
+      const updated = [...cards]
+      if (fixFront.trim()) updated[idx] = { ...updated[idx], front: fixFront.trim() }
+      if (fixBack.trim()) updated[idx] = { ...updated[idx], back: fixBack.trim() }
+      await updateDoc(doc(db, colName, fixDocId.trim()), { cards: updated })
+      setFixStatus(`✓ Karte ${fixCardId.trim()} korrigiert`)
+    } catch (e) { setFixStatus(`Fehler: ${e.message}`) }
+    setFixLoading(false)
+  }
+
   const deleteCategoryPool = async () => {
     const cat = deleteCatTarget.trim().toLowerCase()
     if (!cat) return
@@ -529,16 +555,18 @@ function AdminScreen({ user, myData, lang, theme, onBack }) {
         ? await getDocs(query(collection(db, colName), where(fieldName, '==', cat)))
         : await getDocs(collection(db, colName))
       if (snap.empty) { setDeleteCatStatus('Keine Dokumente gefunden'); setDeleteCatLoading(false); return }
-      let deleted = 0
-      const chunks = []
-      for (let i = 0; i < snap.docs.length; i += 500) chunks.push(snap.docs.slice(i, i + 500))
-      for (const chunk of chunks) {
-        const batch = writeBatch(db)
-        chunk.forEach(d => batch.delete(d.ref))
-        await batch.commit()
-        deleted += chunk.length
+      if (cat === 'satztraining') {
+        await Promise.all(snap.docs.map(d => deleteDoc(d.ref)))
+      } else {
+        const chunks = []
+        for (let i = 0; i < snap.docs.length; i += 500) chunks.push(snap.docs.slice(i, i + 500))
+        await Promise.all(chunks.map(async chunk => {
+          const batch = writeBatch(db)
+          chunk.forEach(d => batch.delete(d.ref))
+          await batch.commit()
+        }))
       }
-      setDeleteCatStatus(`✓ ${deleted} Dokumente gelöscht`)
+      setDeleteCatStatus(`✓ ${snap.docs.length} Dokumente gelöscht`)
     } catch (e) { setDeleteCatStatus(`Fehler: ${e.message}`) }
     setDeleteCatLoading(false)
   }
@@ -933,6 +961,27 @@ function AdminScreen({ user, myData, lang, theme, onBack }) {
         </div>
         <p style={{ color: th.sub, fontSize: '0.68rem', margin: '6px 0 0' }}>unlockedTopics, topicProgress, topicCards, topicLevels löschen</p>
         {topicResetStatus && <p style={{ color: topicResetStatus.startsWith('✓') ? '#81c784' : '#e06c75', fontSize: '0.75rem', margin: '6px 0 0' }}>{topicResetStatus}</p>}
+      </div>
+
+      {/* Karte korrigieren */}
+      <div style={{ ...s.card, marginTop: '12px' }}>
+        <p style={{ color: th.text, fontSize: '0.88rem', fontWeight: '700', margin: '0 0 10px' }}>✏️ Karte korrigieren</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          {[
+            { label: 'Doc ID (z.B. de_en_street_level1)', val: fixDocId, set: setFixDocId },
+            { label: 'Card ID', val: fixCardId, set: setFixCardId },
+            { label: 'Neues Front (leer = unverändert)', val: fixFront, set: setFixFront },
+            { label: 'Neues Back (leer = unverändert)', val: fixBack, set: setFixBack },
+          ].map(({ label, val, set }) => (
+            <input key={label} value={val} onChange={e => set(e.target.value)} placeholder={label}
+              style={{ background: th.card, color: th.text, border: `1px solid ${th.border}`, borderRadius: '8px', padding: '6px 10px', fontSize: '0.75rem', width: '100%', boxSizing: 'border-box' }} />
+          ))}
+          <button onClick={fixCard} disabled={fixLoading}
+            style={{ padding: '7px 14px', borderRadius: '10px', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', opacity: fixLoading ? 0.5 : 1, background: 'rgba(0,212,170,0.12)', color: '#00D4AA', border: '1px solid rgba(0,212,170,0.35)', marginTop: '2px' }}>
+            {fixLoading ? '…' : '✏️ Karte korrigieren'}
+          </button>
+        </div>
+        {fixStatus && <p style={{ color: fixStatus.startsWith('✓') ? '#81c784' : '#e06c75', fontSize: '0.75rem', margin: '8px 0 0' }}>{fixStatus}</p>}
       </div>
 
     </div></div>
