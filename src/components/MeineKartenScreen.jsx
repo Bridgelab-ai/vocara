@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
-import { doc, updateDoc } from 'firebase/firestore'
+import { doc, updateDoc, arrayUnion } from 'firebase/firestore'
 import { db } from '../firebase'
 import { THEMES, makeStyles } from '../theme'
-import { MARK_UID, ELOSY_UID, todayStr } from '../appShared'
+import { todayStr } from '../appShared'
 
 function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, lang, theme, onBack }) {
   const th = THEMES[theme]; const s = makeStyles(th)
@@ -16,7 +16,9 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
   const [editPronunciation, setEditPronunciation] = useState('')
   const [saveStatus, setSaveStatus] = useState(null)
   const [section, setSection] = useState('cards')
-  const myPartnerUID = myData?.partnerUID || (user.uid === MARK_UID ? ELOSY_UID : user.uid === ELOSY_UID ? MARK_UID : null)
+  const [giftMessageModal, setGiftMessageModal] = useState(null)
+  const [giftMessage, setGiftMessage] = useState('')
+  const myPartnerUID = myData?.partnerUID || null
 
   const blockedCards = myData?.blockedCards || []
   const receivedGifts = myData?.receivedGifts || []
@@ -64,15 +66,21 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
     } catch (e) { console.warn(e) }
   }
 
-  const shareWithPartner = async (card) => {
+  const shareWithPartner = (card) => {
     if (!myPartnerUID) return
+    setGiftMessageModal(card); setGiftMessage('')
+  }
+
+  const confirmSendGift = async () => {
+    if (!myPartnerUID || !giftMessageModal) return
     const myFirstName = user.displayName?.split(' ')[0] || 'Partner'
-    const gift = { front: card?.front, back: card?.back, category: card?.category || 'vocabulary', langA: card?.langA, langB: card?.langB, fromName: myFirstName, message: '' }
+    const gift = { front: giftMessageModal.front, back: giftMessageModal.back, category: giftMessageModal.category || 'vocabulary', langA: giftMessageModal.langA, langB: giftMessageModal.langB, fromName: myFirstName, message: giftMessage.trim().slice(0, 100), sentAt: Date.now(), date: todayStr() }
     try {
-      await updateDoc(doc(db, 'users', myPartnerUID), { pendingGift: gift })
+      await updateDoc(doc(db, 'users', myPartnerUID), { receivedGifts: arrayUnion(gift) })
       setSaveStatus(isDE ? 'Geteilt ✓' : 'Shared ✓')
       setTimeout(() => setSaveStatus(null), 2000)
     } catch (e) { console.warn(e) }
+    setGiftMessageModal(null); setGiftMessage('')
   }
 
   const deleteCard = async (card) => {
@@ -117,7 +125,9 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
       createdAt: ts,
     }
     const updatedAiCards = [...(myData?.aiCards || []), newCard]
-    const newReceived = [...receivedGifts, { ...gift, receivedAt: todayStr() }]
+    const newReceived = gift._isPending
+      ? [...receivedGifts, { ...gift, receivedAt: todayStr() }]
+      : receivedGifts.map((g, i) => `received_${i}` === gift._id ? { ...g, receivedAt: todayStr() } : g)
     const updates = { aiCards: updatedAiCards, receivedGifts: newReceived }
     if (gift._isPending) updates.pendingGift = null
     try {
@@ -146,6 +156,7 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
   })
 
   return (
+    <>
     <div style={s.container} className="vocara-screen"><div style={s.homeBox}>
       <button style={s.backBtn} onClick={onBack}>← {isDE ? 'Zurück' : 'Back'}</button>
       <h2 style={{ color: th.text, marginBottom: '14px', fontSize: '1.15rem', fontFamily: "'Space Grotesk', 'Inter', system-ui, sans-serif", fontWeight: '700' }}>
@@ -179,14 +190,15 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {allGifts.map(gift => (
                 <div key={gift._id} style={{ ...s.card, padding: '12px 14px' }}>
-                  {gift._isPending && (
+                  {!gift.receivedAt && (
                     <span style={{ fontSize: '0.6rem', background: 'rgba(255,200,0,0.15)', color: '#FFD700', border: '1px solid rgba(255,200,0,0.3)', borderRadius: '6px', padding: '1px 7px', fontWeight: '700', marginBottom: '6px', display: 'inline-block' }}>
                       {isDE ? 'Neu' : 'New'}
                     </span>
                   )}
                   <p style={{ color: th.text, fontWeight: '700', fontSize: '0.9rem', margin: '0 0 2px' }}>{gift.front}</p>
                   <p style={{ color: th.sub, fontSize: '0.8rem', margin: '0 0 4px' }}>{gift.back}</p>
-                  {gift.fromName && <p style={{ color: th.sub, fontSize: '0.68rem', margin: '0 0 8px', fontStyle: 'italic' }}>🎁 {isDE ? 'Von' : 'From'}: {gift.fromName}{gift.receivedAt ? ` · ${gift.receivedAt}` : ''}</p>}
+                  {gift.fromName && <p style={{ color: th.sub, fontSize: '0.68rem', margin: '0 0 4px', fontStyle: 'italic' }}>🎁 {isDE ? 'Von' : 'From'}: {gift.fromName}{gift.receivedAt ? ` · ${gift.receivedAt}` : ''}</p>}
+                  {gift.message && <p style={{ color: th.accent, fontSize: '0.78rem', margin: '0 0 8px', fontStyle: 'italic' }}>„{gift.message}"</p>}
                   <div style={{ display: 'flex', gap: '7px' }}>
                     <button onClick={() => addGiftToPool(gift)}
                       style={{ flex: 1, padding: '7px', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '0.75rem', background: 'rgba(0,212,170,0.12)', color: '#00D4AA', border: '1px solid rgba(0,212,170,0.35)' }}>
@@ -326,6 +338,31 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
         </div>
       )}
     </div></div>
+    {giftMessageModal && (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+        onClick={() => setGiftMessageModal(null)}>
+        <div style={{ ...s.card, width: '100%', maxWidth: '440px', borderRadius: '18px 18px 0 0', padding: '20px', animation: 'vocaraFadeIn 0.2s ease both' }}
+          onClick={e => e.stopPropagation()}>
+          <p style={{ ...s.cardLabel, marginBottom: '8px' }}>🎁 {isDE ? 'Karte teilen' : 'Share card'}</p>
+          <p style={{ color: th.text, fontSize: '0.9rem', fontWeight: '700', margin: '0 0 2px' }}>{giftMessageModal.front}</p>
+          <p style={{ color: th.sub, fontSize: '0.8rem', margin: '0 0 12px' }}>{giftMessageModal.back}</p>
+          <input style={{ ...s.input, marginBottom: '4px' }}
+            placeholder={isDE ? 'Nachricht (optional)…' : 'Message (optional)…'}
+            value={giftMessage} maxLength={100}
+            onChange={e => setGiftMessage(e.target.value)} />
+          <p style={{ color: th.sub, fontSize: '0.7rem', textAlign: 'right', margin: '2px 0 12px' }}>{giftMessage.length}/100</p>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button style={{ flex: 1, ...s.button, marginBottom: 0 }} onClick={confirmSendGift}>
+              🎁 {isDE ? 'Senden' : 'Send'}
+            </button>
+            <button style={{ padding: '10px 16px', borderRadius: '10px', cursor: 'pointer', background: 'transparent', color: th.sub, border: `1px solid ${th.border}`, fontSize: '0.85rem' }} onClick={() => setGiftMessageModal(null)}>
+              {isDE ? 'Abbrechen' : 'Cancel'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }
 

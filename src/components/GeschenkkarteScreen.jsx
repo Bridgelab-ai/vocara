@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
 import { db } from '../firebase'
-import { doc, updateDoc } from 'firebase/firestore'
+import { doc, updateDoc, arrayUnion } from 'firebase/firestore'
 import { THEMES, makeStyles } from '../theme'
-import { MARK_UID, ELOSY_UID, todayStr } from '../appShared'
+import { todayStr } from '../appShared'
 
 function GeschenkkarteScreen({ user, myData, lang, theme, onBack, allCards, cardProgress }) {
   const th = THEMES[theme]; const s = makeStyles(th)
@@ -11,8 +11,8 @@ function GeschenkkarteScreen({ user, myData, lang, theme, onBack, allCards, card
   const [message, setMessage] = useState('')
   const [status, setStatus] = useState(null)
   const [sending, setSending] = useState(false)
-  const myPartnerUID = myData?.partnerUID || (user.uid === MARK_UID ? ELOSY_UID : user.uid === ELOSY_UID ? MARK_UID : null)
-  const partnerName = myData?.partnerName || (user.uid === MARK_UID ? 'Elosy' : user.uid === ELOSY_UID ? 'Mark' : null)
+  const myPartnerUID = myData?.partnerUID || null
+  const partnerName = myData?.partnerName || 'Partner'
   const fromName = user.displayName?.split(' ')[0] || 'Partner'
 
   const masteredCards = (allCards || []).filter(c => !/_r(_\d+)?$/.test(c.id) && (cardProgress[c.id]?.interval || 0) >= 7).slice(0, 20)
@@ -22,7 +22,7 @@ function GeschenkkarteScreen({ user, myData, lang, theme, onBack, allCards, card
     setSending(true)
     try {
       const gift = { front: selectedCard?.front, back: selectedCard?.back, category: selectedCard?.category, langA: selectedCard?.langA, langB: selectedCard?.langB, message: message.trim().slice(0, 100), fromName, sentAt: Date.now(), date: todayStr() }
-      await updateDoc(doc(db, 'users', myPartnerUID), { pendingGift: gift })
+      await updateDoc(doc(db, 'users', myPartnerUID), { receivedGifts: arrayUnion(gift) })
       setStatus(isDE ? `🎁 Geschenkt an ${partnerName} ✓` : `🎁 Gifted to ${partnerName} ✓`)
       setSelectedCard(null); setMessage('')
       setTimeout(() => { setStatus(null); onBack() }, 2000)

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { getDocs, collection, doc, updateDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 import { THEMES, makeStyles, resolveTheme } from '../theme'
+import { getActiveLangPairs, getCatLevelKey } from '../appShared'
 
 const CEFR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1']
 
@@ -125,12 +126,20 @@ function SprachkompassScreen({ user, myData, setMyData, theme, th: thProp, s: sP
     setSaving(true)
     const levels = CEFR_TO_POOL_LEVEL[determinedLevel]
     try {
+      const activePairs = getActiveLangPairs(myData)
+      const newLevels = { ...(myData?.categoryLevels || {}) }
+      Object.entries(levels).forEach(([category, level]) => {
+        newLevels[category] = level
+        activePairs.forEach(langPair => {
+          newLevels[getCatLevelKey(category, langPair)] = level
+        })
+      })
       await updateDoc(doc(db, 'users', user.uid), {
-        categoryLevels: levels,
+        categoryLevels: newLevels,
         cefr: determinedLevel,
         lastTestDate: new Date().toISOString().slice(0, 10),
       })
-      if (setMyData) setMyData(d => ({ ...d, categoryLevels: levels, cefr: determinedLevel }))
+      if (setMyData) setMyData(d => ({ ...d, categoryLevels: newLevels, cefr: determinedLevel }))
     } catch (e) { console.warn('SprachkompassScreen save failed:', e) }
     setSaving(false)
     onComplete?.(determinedLevel)

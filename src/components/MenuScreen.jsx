@@ -1528,6 +1528,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         <div style={{ background: th.card, border: `1px solid ${th.border}`, borderRadius: '14px', padding: '4px', marginBottom: '12px', animation: 'vocaraFadeIn 0.2s ease both' }}>
           <button style={{ ...s.navBtn, marginBottom: '2px', textAlign: 'left', paddingLeft: '16px' }} onClick={() => { setKarteMenu(false); setScreen('meinekarten') }}>
             📋 {isMarkLang ? 'Meine Karten' : 'My Cards'}
+            {(() => { const n = (myData?.receivedGifts || []).filter(g => !g.receivedAt).length + (myData?.pendingGift ? 1 : 0); return n > 0 ? <span style={{ marginLeft: '6px', background: '#e06c75', color: '#fff', borderRadius: '10px', padding: '1px 7px', fontSize: '0.62rem', fontWeight: '700', verticalAlign: 'middle' }}>{n}</span> : null })()}
           </button>
           <button style={{ ...s.navBtn, marginBottom: '2px', textAlign: 'left', paddingLeft: '16px' }} onClick={() => { setKarteMenu(false); setScreen('karteerstellen') }}>
             ✏️ {isMarkLang ? 'Karte erstellen' : 'Create card'}
