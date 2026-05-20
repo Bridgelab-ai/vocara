@@ -30,11 +30,12 @@ const TOPICS_LIST = [
   { key: 'psychologie', emoji: '🧠', label: 'Psychologie' },
   { key: 'ausgehen',    emoji: '🍺', label: 'Ausgehen'    },
   { key: 'zahlen',      emoji: '🔢', label: 'Zahlen'      },
+  { key: 'unterricht',  emoji: '🏫', label: 'Im Unterricht' },
   { key: 'alphabet',    emoji: '🔤', label: 'Alphabet'    },
 ]
 const LANGUAGE_PAIRS = ['de_en','de_sw','en_de','en_sw','sw_de','sw_en']
 
-function AdminScreen({ user, myData, lang, theme, onBack }) {
+function AdminScreen({ user, myData, lang, theme, onBack, onCacheInvalidate }) {
   const th = THEMES[theme]; const s = makeStyles(th)
   const isDE = lang === 'de'
   const [users, setUsers] = useState([])
@@ -551,6 +552,8 @@ function AdminScreen({ user, myData, lang, theme, onBack }) {
       if (fixFront.trim()) updated[idx] = { ...updated[idx], front: fixFront.trim() }
       if (fixBack.trim()) updated[idx] = { ...updated[idx], back: fixBack.trim() }
       await updateDoc(doc(db, colName, fixDocId.trim()), { cards: updated })
+      try { await updateDoc(doc(db, 'meta', 'poolVersion'), { version: Date.now(), updatedAt: new Date().toISOString() }) } catch(e) {}
+      onCacheInvalidate?.()
       setFixStatus(`✓ Karte ${fixCardId.trim()} korrigiert`)
     } catch (e) { setFixStatus(`Fehler: ${e.message}`) }
     setFixLoading(false)

@@ -2748,6 +2748,7 @@ function App() {
   const [partnerData, setPartnerData] = useState(null)
   const partnerUnsubRef = useRef(null)
   const poolCacheRef = useRef({})
+  const poolFrontBackRef = useRef(new Set())
   const [theme, setTheme] = useState('nairobi')
   const [lightMode, setLightMode] = useState(false)
   const [cardSize, setCardSize] = useState('normal')
@@ -2794,7 +2795,15 @@ function App() {
       })
     })
     poolCacheRef.current[cacheKey] = cards
+    cards.forEach(c => {
+      if (c.front && c.back) poolFrontBackRef.current.add(`${c.front.toLowerCase().trim()}|${c.back.toLowerCase().trim()}`)
+    })
     return cards
+  }
+
+  const clearPoolCache = () => {
+    poolCacheRef.current = {}
+    poolFrontBackRef.current = new Set()
   }
 
   useEffect(() => {
@@ -2949,6 +2958,19 @@ function App() {
       }
       // Update lastActive timestamp for partner visibility
       try { await updateDoc(doc(db, 'users', u.uid), { lastActive: new Date().toISOString() }) } catch(e) {}
+      // Cache version check — clear pool cache if server version changed
+      try {
+        const pvSnap = await getDoc(doc(db, 'meta', 'poolVersion'))
+        if (pvSnap.exists()) {
+          const remoteV = String(pvSnap.data().version || '')
+          const localV = localStorage.getItem('vocara_pool_v') || ''
+          if (remoteV !== localV) {
+            poolCacheRef.current = {}
+            poolFrontBackRef.current = new Set()
+            localStorage.setItem('vocara_pool_v', remoteV)
+          }
+        }
+      } catch(e) {}
       setUser(u); setLoading(false)
     })
     return unsubscribe
@@ -3022,7 +3044,10 @@ function App() {
 
   const cardCategories = myData?.cardCategories || {}
   const allCards = [
-    ...(myData?.aiCards || []).filter(c => !myData?.blockedCards?.includes(c.id)).flatMap(buildCardPair),
+    ...(myData?.aiCards || [])
+      .filter(c => !myData?.blockedCards?.includes(c.id))
+      .filter(c => !poolFrontBackRef.current.has(`${(c.front||'').toLowerCase().trim()}|${(c.back||'').toLowerCase().trim()}`))
+      .flatMap(buildCardPair),
   ].map(card => {
     const baseId = card.id.replace(/_r(_\d+)?$/, '')
     const aiCat = cardCategories[baseId]
@@ -3085,7 +3110,7 @@ function App() {
             onLightModeChange={handleLightModeChange} onCardSizeChange={handleCardSizeChange}
             onPartnerUpdate={handlePartnerUpdate} onSaveCefr={handleSaveCefr}
             categoryLevels={myData?.categoryLevels || {}}
-            onBack={() => setMainNav('main')} loadCardsForCategory={loadCardsForCategory} />
+            onBack={() => setMainNav('main')} loadCardsForCategory={loadCardsForCategory} clearPoolCache={clearPoolCache} />
         )}
         {mainNav === 'entdecken' && (
           <SetsScreen user={user} myData={myData} setMyData={setMyData} partnerData={partnerData}

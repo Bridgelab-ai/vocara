@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import TutorialTooltip from './TutorialTooltip'
 import { doc, updateDoc, getDoc, setDoc, writeBatch } from 'firebase/firestore'
 import { signOut } from 'firebase/auth'
 import { db, auth } from '../firebase'
@@ -697,10 +698,13 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
 
       {/* ── SPRACHKOMPASS ── */}
       {onSprachkompass && (
-        <button style={{ ...s.logoutBtn, marginTop: '8px', color: '#00D4AA', border: '1px solid rgba(0,212,170,0.35)' }}
-          onClick={onSprachkompass}>
-          🧭 {isDE ? 'Sprachkompass starten' : 'Start Language Compass'}
-        </button>
+        <>
+          <button style={{ ...s.logoutBtn, marginTop: '8px', color: '#00D4AA', border: '1px solid rgba(0,212,170,0.35)' }}
+            onClick={onSprachkompass}>
+            🧭 {isDE ? 'Sprachkompass starten' : 'Start Language Compass'}
+          </button>
+          <TutorialTooltip tutorialKey="sprachkompass" title="Sprachkompass" description="Teste deinen Sprachstand — wir stellen deinen Lernpfad automatisch ein." myData={myData} setMyData={setMyData} user={user} th={th} s={s} />
+        </>
       )}
 
       {/* ── SPRACHPULS ── */}

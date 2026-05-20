@@ -20,6 +20,7 @@ import SprachpulsScreen from './SprachpulsScreen'
 import StatsScreen from './StatsScreen'
 import SatzTrainingScreen from './SatzTrainingScreen'
 import AdminScreen from './AdminScreen'
+import TutorialTooltip from './TutorialTooltip'
 import KiGespraechScreen from './KiGespraechScreen'
 import RhythmusScreen from './RhythmusScreen'
 import GeschenkkarteScreen from './GeschenkkarteScreen'
@@ -56,7 +57,7 @@ function VocaraLogoSVG({ withSlogans = false, animate = false, isDE = true }) {
   )
 }
 
-function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSaveProgress, theme, onThemeChange, onLightModeChange, onCardSizeChange, onPartnerUpdate, onSaveCefr, onBack, categoryLevels, masteredCounts, loadCardsForCategory }) {
+function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSaveProgress, theme, onThemeChange, onLightModeChange, onCardSizeChange, onPartnerUpdate, onSaveCefr, onBack, categoryLevels, masteredCounts, loadCardsForCategory, clearPoolCache }) {
   const [screen, setScreen] = useState('menu')
   const [session, setSession] = useState(null)
   const [result, setResult] = useState(null)
@@ -1288,7 +1289,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     } catch(e) { console.warn('satz session save failed:', e) }
   }} /></>
   if (screen === 'diary') return <>{homeFloat}<DiaryScreen user={user} myData={myData} setMyData={setMyData} partnerData={partnerData} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
-  if (screen === 'admin' && user.uid === MARK_UID) return <>{homeFloat}<AdminScreen user={user} myData={myData} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
+  if (screen === 'admin' && user.uid === MARK_UID) return <>{homeFloat}<AdminScreen user={user} myData={myData} lang={lang} theme={theme} onBack={() => setScreen('menu')} onCacheInvalidate={clearPoolCache} /></>
   if (screen === 'langprogress') return <>{homeFloat}<LanguageProgressScreen user={user} myData={myData} allCards={allCards} lang={lang} theme={theme} onBack={() => setScreen('menu')} /></>
 
   return (
@@ -1496,6 +1497,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           <span>{catLoading === 'grundlagen' ? '⟳' : (t.menuGrundlagen || 'Die\nGrundlagen').split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</span>
           {catLoading !== 'grundlagen' && catLevelBar('grundlagen')}
         </button>
+        <TutorialTooltip tutorialKey="grundlagen" title="Grundlagen" description="Lerne grundlegende Wörter — Zahlen, Farben, Pronomen. Level für Level aufbauend." myData={myData} setMyData={setMyData} user={user} th={th} s={s} />
         <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '8.2s', width: '100%', opacity: catLoading === 'urlaub' ? 0.6 : 1, flexDirection: 'column', alignItems: 'center' }} onClick={() => startCategorySession('urlaub')} disabled={catLoading === 'urlaub'}>
           <span>{catLoading === 'urlaub' ? '⟳' : '✈️ Urlaub'}</span>
           {catLoading !== 'urlaub' && catLevelBar('urlaub')}
@@ -1660,6 +1662,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         <button className="vocara-nav-btn" style={s.navBtn} onClick={startSatzSession}>
           ✍️ {t.menuSatz}
         </button>
+        <TutorialTooltip tutorialKey="satztraining" title="Satztraining" description="Grammatik-Übungen: Lückentext, Wortstellung und Zeitformen." myData={myData} setMyData={setMyData} user={user} th={th} s={s} />
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('ki')}>{t.menuKi}</button>
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('stats')}>
           {t.progressBtn}
