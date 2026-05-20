@@ -64,6 +64,7 @@ function AdminScreen({ user, myData, lang, theme, onBack }) {
   const [expandedTopic, setExpandedTopic] = useState(null)
   const [testLoading, setTestLoading] = useState(null)
   const [testStatus, setTestStatus] = useState(null)
+  const [deleteTestLoading, setDeleteTestLoading] = useState(null)
   const [testCounts, setTestCounts] = useState({})
   const [expandedTest, setExpandedTest] = useState(null)
   const [fixDocId, setFixDocId] = useState('')
@@ -483,6 +484,18 @@ function AdminScreen({ user, myData, lang, theme, onBack }) {
     setTestLoading(null)
   }
 
+  const deleteTestPool = async (testType) => {
+    if (!window.confirm(`Alle ${testType}-Karten löschen?`)) return
+    setDeleteTestLoading(testType)
+    try {
+      const snap = await getDocs(query(collection(db, 'testCards'), where('testType', '==', testType)))
+      await Promise.all(snap.docs.map(d => deleteDoc(d.ref)))
+      setTestStatus(`✓ ${snap.docs.length} ${testType}-Karten gelöscht`)
+      await loadTestPoolStatus()
+    } catch (e) { setTestStatus(`✗ Fehler: ${e.message}`) }
+    setDeleteTestLoading(null)
+  }
+
   // ── Topic user reset ───────────────────────────────────────────
   const resetTopics = async () => {
     const uid = resetTarget === 'mark' ? MARK_UID : ELOSY_UID
@@ -848,6 +861,9 @@ function AdminScreen({ user, myData, lang, theme, onBack }) {
             )
           })}
         </div>
+        <button onClick={() => deleteTestPool('sprachkompass')} disabled={!!deleteTestLoading} style={{ marginTop: '8px', padding: '6px 14px', borderRadius: '10px', background: 'rgba(224,108,117,0.12)', border: '1px solid rgba(224,108,117,0.35)', color: '#e06c75', fontSize: '0.75rem', fontWeight: '700', cursor: deleteTestLoading ? 'default' : 'pointer', opacity: deleteTestLoading === 'sprachkompass' ? 0.6 : 1 }}>
+          {deleteTestLoading === 'sprachkompass' ? '⟳ Lösche...' : '🗑️ Sprachkompass löschen'}
+        </button>
         {testStatus && <p style={{ color: testStatus.startsWith('✓') ? '#81c784' : testStatus.startsWith('⟳') ? th.sub : '#e06c75', fontSize: '0.75rem', margin: '8px 0 0' }}>{testStatus}</p>}
       </div>
 
@@ -885,6 +901,9 @@ function AdminScreen({ user, myData, lang, theme, onBack }) {
             )
           })}
         </div>
+        <button onClick={() => deleteTestPool('sprachpuls')} disabled={!!deleteTestLoading} style={{ marginTop: '8px', padding: '6px 14px', borderRadius: '10px', background: 'rgba(224,108,117,0.12)', border: '1px solid rgba(224,108,117,0.35)', color: '#e06c75', fontSize: '0.75rem', fontWeight: '700', cursor: deleteTestLoading ? 'default' : 'pointer', opacity: deleteTestLoading === 'sprachpuls' ? 0.6 : 1 }}>
+          {deleteTestLoading === 'sprachpuls' ? '⟳ Lösche...' : '🗑️ Sprachpuls löschen'}
+        </button>
         {testStatus && <p style={{ color: testStatus.startsWith('✓') ? '#81c784' : testStatus.startsWith('⟳') ? th.sub : '#e06c75', fontSize: '0.75rem', margin: '8px 0 0' }}>{testStatus}</p>}
       </div>
 

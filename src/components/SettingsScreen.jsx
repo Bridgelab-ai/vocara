@@ -715,6 +715,15 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
         )
       })()}
 
+      {/* ── ERKLÄRUNGEN ZURÜCKSETZEN ── */}
+      <button style={{ ...s.logoutBtn, marginTop: '8px', color: th.sub, border: `1px solid ${th.border}` }}
+        onClick={async () => {
+          setMyData(d => ({ ...d, seenTutorials: [] }))
+          if (user?.uid) await updateDoc(doc(db, 'users', user.uid), { seenTutorials: [] })
+        }}>
+        🔄 {isDE ? 'Erklärungen zurücksetzen' : 'Reset Explanations'}
+      </button>
+
       {/* ── ABMELDEN ── */}
       <button style={{ ...s.logoutBtn, marginTop: '8px', color: '#e06c75', border: '1px solid rgba(224,108,117,0.35)' }}
         onClick={() => { if (window.confirm(t.signOut)) signOut(auth) }}>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react'
-import { doc, updateDoc, getDoc, setDoc, getDocs, collection } from 'firebase/firestore'
+import { doc, updateDoc, getDoc, setDoc, getDocs, collection, query, where } from 'firebase/firestore'
 import { signOut } from 'firebase/auth'
 import { db, auth } from '../firebase'
 import { THEMES, makeStyles, resolveTheme } from '../theme'
@@ -102,7 +102,8 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const [sessionCompleteCount, setSessionCompleteCount] = useState(0)
   const [basicsLoading, setBasicsLoading] = useState(false)
   const [catLoading, setCatLoading] = useState(null)
-  const VALID_SCREENS = new Set(['menu','cards','result','settings','partner','test','impressum','stats','ki','satz','diary','meinekarten','geschenkkarte','karteerstellen','admin','langprogress','sprachkompass','sprachpuls'])
+  const [suggestModal, setSuggestModal] = useState(null)
+  const VALID_SCREENS = new Set(['menu','cards','result','settings','partner','test','impressum','stats','ki','satz','diary','meinekarten','geschenkkarte','karteerstellen','admin','langprogress','sprachkompass','sprachpuls','suggest'])
   if (!VALID_SCREENS.has(screen)) { setScreen('menu'); return null }
 
   // ── KI-TUTOR BANNER ──────────────────────────────────────────
@@ -1113,6 +1114,42 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     return picked.flatMap(buildCardPair)
   }
 
+  const handleSuggestMoreSession = async () => {
+    if (!suggestModal) return
+    const { nextLevel, mode, poolCat, langPair } = suggestModal
+    setSuggestModal(null)
+    setCatLoading(mode)
+    try {
+      const snap = await getDocs(collection(db, 'sharedCards'))
+      const [fromLang, toLang] = langPair.split('_')
+      const found = []
+      snap.forEach(d => {
+        const data = d.data()
+        if (String(data.level) !== String(nextLevel)) return
+        if (data.category !== poolCat && data.category !== mode) return
+        if (!data.fromLang || !data.toLang) return
+        if (data.fromLang.toLowerCase() !== fromLang || data.toLang.toLowerCase() !== toLang) return
+        ;(data.cards || []).forEach(c => found.push({ ...c, targetLang: toLang }))
+      })
+      const seenIds = new Set((session || []).map(c => c.id))
+      const unseen = found.filter(c => !seenIds.has(c.id) && !(cardProgress[c.id]?.interval >= 1))
+      const pool = unseen.length >= 3 ? unseen : found.filter(c => !seenIds.has(c.id))
+      if (pool.length === 0) { setScreen('result'); return }
+      const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
+      const picked = shuffle(pool).slice(0, 3).flatMap(buildCardPair)
+      setCurrentSessionMode(mode)
+      setSession(picked)
+      setResumeStartIndex(0)
+      setResumeStartProgress(null)
+      setScreen('cards')
+    } catch (e) {
+      console.error('[SUGGEST MORE]', e)
+      setScreen('result')
+    } finally {
+      setCatLoading(null)
+    }
+  }
+
   const handleFinish = async (finalProgress, correct, wrong, easy, fast, cardStats) => {
     let unlocked = false
     if (checkMastery(allCards, finalProgress, correct, correct + wrong)) {
@@ -1199,14 +1236,34 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     // Refresh tutor with fresh progress & history so due counts are accurate post-session
     fetchTutorMsg(finalProgress, updatedHistory)
     setSessionCompleteCount(n => n + 1)
-    // #31 After sentence session, offer rhythm training before result
     if (currentSessionMode === 'sentence') {
       setScreen('rhythmus')
+    } else if (suggestMore && totalAnswered >= 5 && !['all', 'satztraining'].includes(currentSessionMode)) {
+      const activePairs = getActiveLangPairs(myData)
+      const langPair = activePairs[0] || 'de_en'
+      const CAT_POOL_MAP_SG = { vocabulary: 'vocab', sentence: 'urlaub', urlaub: 'urlaub' }
+      const poolCat = CAT_POOL_MAP_SG[currentSessionMode] || currentSessionMode
+      const currentLevel = getCatLevel(categoryLevels, poolCat, langPair)
+      const maxLevel = POOL_STRUCTURE[poolCat]?.totalLevels || 10
+      const nextLevel = Math.min(currentLevel + 1, maxLevel)
+      setSuggestModal({ nextLevel, mode: currentSessionMode, poolCat, langPair })
+      setScreen('suggest')
     } else {
       setScreen('result')
     }
   }
 
+  if (screen === 'suggest' && suggestModal) return <>{homeFloat}<div style={{ minHeight: '100vh', background: th.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 24px', gap: '20px' }}>
+    <div style={{ fontSize: '2.5rem', lineHeight: 1 }}>🎉</div>
+    <p style={{ color: th.text, fontSize: '1.1rem', fontWeight: '700', textAlign: 'center', margin: 0 }}>Du kennst diese Karten sehr gut!</p>
+    <p style={{ color: th.sub, fontSize: '0.9rem', textAlign: 'center', margin: '0 0 8px', lineHeight: 1.5 }}>Möchtest du 3 neue Karten aus Level {suggestModal.nextLevel} hinzufügen?</p>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', maxWidth: '280px' }}>
+      <button onClick={handleSuggestMoreSession} disabled={!!catLoading} style={{ ...s.button, background: 'linear-gradient(135deg,#4CAF50,#2E7D32)', color: '#fff', padding: '14px', fontSize: '0.95rem', fontWeight: '700', opacity: catLoading ? 0.6 : 1 }}>
+        {catLoading ? '⟳ Laden...' : 'Ja, weiter lernen!'}
+      </button>
+      <button onClick={() => { setSuggestModal(null); setScreen('result') }} style={{ ...s.button, background: 'transparent', border: `1px solid ${th.border}`, color: th.sub, padding: '12px', fontSize: '0.9rem' }}>Nein danke</button>
+    </div>
+  </div></>
   if (screen === 'cards' && session) return <>{homeFloat}<CardScreen session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} onSaveSessionProgress={saveSessionProgress} onStop={handleSessionStop} onSaveExample={handleSaveExample} mode={currentSessionMode} startIndex={resumeStartIndex} startProgress={resumeStartProgress} userToLang={(myData?.toLang || '').toLowerCase() || (lang === 'de' ? 'en' : 'de')} t={t} onRequestMoreCards={handleRequestMoreCards} /></>
   if (screen === 'rhythmus') return <>{homeFloat}<RhythmusScreen lang={lang} theme={theme} onBack={() => { setScreen('result') }} allCards={allCards} cardProgress={cardProgress} userToLang={(myData?.toLang || '').toLowerCase() || (lang === 'de' ? 'en' : 'de')} /></>
   if (screen === 'result') return <>{homeFloat}<ResultScreen correct={result.correct} wrong={result.wrong} fast={result.fast} easy={result.easy} weakestCard={result.weakestCard} strongestCard={result.strongestCard} masteryUnlocked={masteryUnlocked} t={t} lang={lang} onBack={() => { setScreen('menu'); setSession(null) }} onReplay={result.originalSession ? () => { setSession(result.originalSession); setResumeStartIndex(0); setResumeStartProgress(null); setScreen('cards') } : null} s={s} th={th} /></>
