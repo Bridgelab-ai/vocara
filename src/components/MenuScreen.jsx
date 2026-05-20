@@ -1094,6 +1094,25 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     }
   }
 
+  const handleRequestMoreCards = async () => {
+    const seenIds = new Set((session || []).map(c => c.id))
+    let candidates = []
+    if (currentSessionMode === 'all') {
+      candidates = allCards.filter(c => !seenIds.has(c.id) && !/_r$/.test(c.id))
+    } else if (currentSessionMode.startsWith('topic_')) {
+      const topicKey = currentSessionMode.slice('topic_'.length)
+      candidates = allCards.filter(c => !seenIds.has(c.id) && !/_r$/.test(c.id) && c.topicKey === topicKey)
+    } else {
+      candidates = allCards.filter(c => !seenIds.has(c.id) && !/_r$/.test(c.id) && c.category === currentSessionMode)
+    }
+    const unseen = candidates.filter(c => !cardProgress[c.id] || (cardProgress[c.id]?.interval || 0) === 0)
+    const pool = unseen.length > 0 ? unseen : candidates
+    if (pool.length === 0) return []
+    const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
+    const picked = shuffle(pool).slice(0, 10)
+    return picked.flatMap(buildCardPair)
+  }
+
   const handleFinish = async (finalProgress, correct, wrong, easy, fast, cardStats) => {
     let unlocked = false
     if (checkMastery(allCards, finalProgress, correct, correct + wrong)) {
@@ -1173,7 +1192,10 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     const strongestEntry = statsEntries.filter(([, v]) => v.wrongs === 0 && v.fastestMs < Infinity).sort((a, b) => a[1].fastestMs - b[1].fastestMs)[0]
     const weakestCard = weakestEntry ? session?.find(c => c.id === weakestEntry[0]) : null
     const strongestCard = strongestEntry ? session?.find(c => c.id === strongestEntry[0]) : null
-    setResult({ correct, wrong, easy: easy || 0, fast: fast || 0, weakestCard, strongestCard, originalSession: session })
+    const totalAnswered = correct + wrong
+    const easyRatio = totalAnswered > 0 ? (easy || 0) / totalAnswered : 0
+    const suggestMore = easyRatio >= 0.7
+    setResult({ correct, wrong, easy: easy || 0, fast: fast || 0, weakestCard, strongestCard, originalSession: session, suggestMore })
     // Refresh tutor with fresh progress & history so due counts are accurate post-session
     fetchTutorMsg(finalProgress, updatedHistory)
     setSessionCompleteCount(n => n + 1)
@@ -1185,7 +1207,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     }
   }
 
-  if (screen === 'cards' && session) return <>{homeFloat}<CardScreen session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} onSaveSessionProgress={saveSessionProgress} onStop={handleSessionStop} onSaveExample={handleSaveExample} mode={currentSessionMode} startIndex={resumeStartIndex} startProgress={resumeStartProgress} userToLang={(myData?.toLang || '').toLowerCase() || (lang === 'de' ? 'en' : 'de')} t={t} /></>
+  if (screen === 'cards' && session) return <>{homeFloat}<CardScreen session={session} onBack={() => setScreen('menu')} onFinish={handleFinish} lang={lang} cardProgress={cardProgress} s={s} onSaveState={handleSaveState} onSaveSessionProgress={saveSessionProgress} onStop={handleSessionStop} onSaveExample={handleSaveExample} mode={currentSessionMode} startIndex={resumeStartIndex} startProgress={resumeStartProgress} userToLang={(myData?.toLang || '').toLowerCase() || (lang === 'de' ? 'en' : 'de')} t={t} onRequestMoreCards={handleRequestMoreCards} /></>
   if (screen === 'rhythmus') return <>{homeFloat}<RhythmusScreen lang={lang} theme={theme} onBack={() => { setScreen('result') }} allCards={allCards} cardProgress={cardProgress} userToLang={(myData?.toLang || '').toLowerCase() || (lang === 'de' ? 'en' : 'de')} /></>
   if (screen === 'result') return <>{homeFloat}<ResultScreen correct={result.correct} wrong={result.wrong} fast={result.fast} easy={result.easy} weakestCard={result.weakestCard} strongestCard={result.strongestCard} masteryUnlocked={masteryUnlocked} t={t} lang={lang} onBack={() => { setScreen('menu'); setSession(null) }} onReplay={result.originalSession ? () => { setSession(result.originalSession); setResumeStartIndex(0); setResumeStartProgress(null); setScreen('cards') } : null} s={s} th={th} /></>
   if (screen === 'settings') return <>{homeFloat}<SettingsScreen t={t} s={s} theme={theme} onThemeChange={onThemeChange} onBack={() => setScreen('menu')} user={user} myData={myData} setMyData={setMyData} allCards={allCards} lang={lang} onPartner={() => setScreen('partner')} onLightModeChange={onLightModeChange} onCardSizeChange={onCardSizeChange} onSprachkompass={() => setScreen('sprachkompass')} onSprachpuls={() => setScreen('sprachpuls')} /></>

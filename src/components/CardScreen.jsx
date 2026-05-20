@@ -57,7 +57,7 @@ function ThaiColorPronunciation({ text }) {
   )
 }
 
-function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveState, onSaveSessionProgress, onStop, onSaveExample, mode = 'all', startIndex = 0, startProgress = null, userToLang = 'en', t: tProp }) {
+function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveState, onSaveSessionProgress, onStop, onSaveExample, mode = 'all', startIndex = 0, startProgress = null, userToLang = 'en', t: tProp, onRequestMoreCards }) {
   const [index, setIndex] = useState(startIndex)
   const [queue, setQueue] = useState(session)
   const [revealed, setRevealed] = useState(false)
@@ -84,6 +84,8 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
   const easyCountRef = useRef(0)
   const fastCountRef = useRef(0)
   const cardStatsRef = useRef({})
+  const [consecutiveEasy, setConsecutiveEasy] = useState(0)
+  const [loadingMore, setLoadingMore] = useState(false)
 
   useEffect(() => {
     if (!window.DeviceOrientationEvent) return
@@ -246,6 +248,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
     const cardId = item.id
     answeredIds.current.add(cardId)
     easyCountRef.current += 1
+    setConsecutiveEasy(prev => prev + 1)
     const st = cardStatsRef.current[cardId] || { wrongs: 0, fastestMs: Infinity }
     cardStatsRef.current[cardId] = { ...st, fastestMs: Math.min(st.fastestMs, 500) }
     const prev = newProgress[cardId] || { interval: 0, consecutiveRight: 0, wrongSessions: 0 }
@@ -289,6 +292,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
     const cardId = item.id
     answeredIds.current.add(cardId)
     fastCountRef.current += 1
+    setConsecutiveEasy(0)
     const st = cardStatsRef.current[cardId] || { wrongs: 0, fastestMs: Infinity }
     cardStatsRef.current[cardId] = { ...st, fastestMs: Math.min(st.fastestMs, Date.now()) }
     const prev = newProgress[cardId] || { interval: 0, consecutiveRight: 0, wrongSessions: 0 }
@@ -307,6 +311,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
     const elapsed = (Date.now() - startTime.current) / 1000
     const cardId = item.id
     answeredIds.current.add(cardId)
+    setConsecutiveEasy(0)
     const st = cardStatsRef.current[cardId] || { wrongs: 0, fastestMs: Infinity }
     if (!isCorrect) {
       cardStatsRef.current[cardId] = { ...st, wrongs: st.wrongs + 1 }
@@ -337,6 +342,19 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
       setIndex(i => i + 1); setRevealed(false)
       onSaveState?.(queue, index + 1, finalProgress)
     }
+  }
+
+  const handleLoadMore = async () => {
+    if (!onRequestMoreCards || loadingMore) return
+    setLoadingMore(true)
+    setConsecutiveEasy(0)
+    try {
+      const newCards = await onRequestMoreCards()
+      if (newCards && newCards.length > 0) {
+        setQueue(q => [...q, ...newCards])
+      }
+    } catch (e) { /* silent */ }
+    setLoadingMore(false)
   }
 
   const haptic = (pattern) => { try { if (navigator.vibrate) navigator.vibrate(pattern) } catch(e) {} }
@@ -372,6 +390,11 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
     <div style={s.container} className="vocara-screen"><div style={s.homeBox} className="vocara-card-screen-box">
       <div style={s.cardHeader}>
         <p style={s.greeting}>{t.card} {index + 1} {t.of} {queue.length}</p>
+        {consecutiveEasy >= 3 && onRequestMoreCards && (
+          <button onClick={handleLoadMore} disabled={loadingMore} style={{ background: 'rgba(76,175,80,0.18)', border: '1px solid rgba(76,175,80,0.45)', borderRadius: '10px', padding: '5px 12px', color: '#4CAF50', fontSize: '0.78rem', cursor: loadingMore ? 'default' : 'pointer', fontWeight: '700', WebkitTapHighlightColor: 'transparent', opacity: loadingMore ? 0.6 : 1 }}>
+            {loadingMore ? '…' : '＋ Neue Karten'}
+          </button>
+        )}
         <button style={s.stopBtn} onClick={handleStop}>{t.stop}</button>
       </div>
       {(() => {
