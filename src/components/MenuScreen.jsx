@@ -1536,6 +1536,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
             {catLoading !== 'saetze' && catLevelBar('saetze')}
           </button>
         </div>
+        <TutorialTooltip tutorialKey="vocabulary" title={isMarkLang ? 'Meine Worte' : 'My Words'} description={isMarkLang ? 'Erweitere deinen Wortschatz — sortiert nach Schwierigkeit und Thema.' : 'Expand your vocabulary — sorted by difficulty and topic.'} myData={myData} setMyData={setMyData} user={user} th={th} s={s} />
         <TutorialTooltip tutorialKey="saetze" title={isMarkLang ? 'Sätze lernen' : 'Learn Sentences'} description={isMarkLang ? 'Lerne vollständige Sätze — aufgebaut aus deinem bisherigen Vokabular.' : 'Learn full sentences — built from your existing vocabulary.'} myData={myData} setMyData={setMyData} user={user} th={th} s={s} />
         <div style={{ display: 'flex', gap: '12px' }}>
           <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '3.5s', flexDirection: 'column', alignItems: 'center', opacity: catLoading ? 0.5 : 1 }} onClick={() => startCategorySession('street')} disabled={catLoading === 'street'}>
@@ -1560,6 +1561,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
             {catLoading !== 'urlaub' && catLevelBar('urlaub')}
           </button>
         </div>
+        <TutorialTooltip tutorialKey="urlaub" title={isMarkLang ? 'Im Urlaub' : 'Travel'} description={isMarkLang ? 'Lerne Vokabular für Reisen und Urlaub — Unterkunft, Transport, Restaurant und mehr.' : 'Learn vocabulary for travel — accommodation, transport, restaurant and more.'} myData={myData} setMyData={setMyData} user={user} th={th} s={s} />
         <div style={{ display: 'flex', gap: '12px' }}>
           <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '9.5s', flexDirection: 'column', alignItems: 'center' }} onClick={startSatzSession}>
             <span>🖊️ {t.menuSatz}</span>
