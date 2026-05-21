@@ -751,7 +751,6 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
       ? myData.toLangs
       : [{ lang: myData?.toLang || 'en', percent: 100 }]
     const alloc = toLangs.map(e => ({ lang: e.lang, n: Math.max(1, Math.round(userSessionSize * e.percent / 100)) }))
-    console.log('[ALLOC]', JSON.stringify(myData?.toLangs), 'sessionSize:', myData?.sessionSize)
     const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
     const sess = (() => {
       const results = alloc.map(({ lang: lc, n }) => ({
