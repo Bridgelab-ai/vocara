@@ -523,11 +523,15 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
         lang: lc,
         cards: buildSession(activeCards.filter(c => c.targetLang === lc || c.langB === lc), cardProgress, n)
       }))
+      // Cap secondary languages strictly at their alloc
+      results.forEach((r, i) => { if (i > 0) r.cards = r.cards.slice(0, alloc[i].n) })
       const totalGot = results.reduce((s, r) => s + r.cards.length, 0)
       const missing = targetSize - totalGot
-      if (missing > 0 && results.length > 0) {
+      if (missing > 0) {
         const primary = results[0]
-        const extra = buildSession(activeCards.filter(c => c.targetLang === primary.lang || c.langB === primary.lang), cardProgress, missing)
+        const primaryAll = activeCards.filter(c => c.targetLang === primary.lang || c.langB === primary.lang)
+        const seen = new Set(primary.cards.map(c => c.id))
+        const extra = shuffleAll(primaryAll.filter(c => !seen.has(c.id))).slice(0, missing)
         primary.cards = [...primary.cards, ...extra]
       }
       return shuffleAll(results.flatMap(r => r.cards)).slice(0, targetSize)
@@ -768,14 +772,15 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
         lang: lc,
         cards: buildSession(cards.filter(c => c.targetLang === lc || c.langB === lc), cardProgress, n)
       }))
+      // Cap secondary languages strictly at their alloc
+      results.forEach((r, i) => { if (i > 0) r.cards = r.cards.slice(0, alloc[i].n) })
       const totalGot = results.reduce((s, r) => s + r.cards.length, 0)
       const missing = userSessionSize - totalGot
-      if (missing > 0 && results.length > 0) {
+      if (missing > 0) {
         const primary = results[0]
-        const extra = buildSession(
-          cards.filter(c => c.targetLang === primary.lang || c.langB === primary.lang),
-          cardProgress, missing
-        )
+        const primaryAll = cards.filter(c => c.targetLang === primary.lang || c.langB === primary.lang)
+        const seen = new Set(primary.cards.map(c => c.id))
+        const extra = shuffle(primaryAll.filter(c => !seen.has(c.id))).slice(0, missing)
         primary.cards = [...primary.cards, ...extra]
       }
       return shuffle(results.flatMap(r => r.cards)).slice(0, userSessionSize)
