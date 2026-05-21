@@ -401,7 +401,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
         </span>
         {showTiers && (
           <span style={{ fontSize: '0.52rem', color: 'rgba(255,255,255,0.32)', letterSpacing: '0.2px' }}>
-            👁 {tierSeen} · 📖 {tierBekannt} · ⭐ {tierGemeistert}
+            {[tierSeen > 0 && `👁 ${tierSeen}`, tierBekannt > 0 && `📖 ${tierBekannt}`, tierGemeistert > 0 && `⭐ ${tierGemeistert}`].filter(Boolean).join(' · ') || '—'}
           </span>
         )}
       </span>

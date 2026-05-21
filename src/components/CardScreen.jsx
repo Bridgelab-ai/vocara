@@ -86,6 +86,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
   const cardStatsRef = useRef({})
   const [consecutiveEasy, setConsecutiveEasy] = useState(0)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [langErrInput, setLangErrInput] = useState('')
 
   useEffect(() => {
     if (!window.DeviceOrientationEvent) return
@@ -180,7 +181,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
     setNoteOpen(false)
     setKiExplanation(null)
     setKontextVariation(null); setKontextOpen(false)
-    setMicState('idle'); setMicResult(null)
+    setMicState('idle'); setMicResult(null); setLangErrInput('')
   }, [index])
 
   useEffect(() => {
@@ -240,6 +241,16 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
       speakBack(ttsMode)
     }, 230)
   }
+  const handleLangErrSubmit = () => {
+    const typed = langErrInput.trim().toLowerCase()
+    if (!typed) return
+    const expected = (answer || '').toLowerCase()
+    const isMatch = fuzzyWordMatch(typed, expected) || typed === expected
+    setLangErrInput('')
+    if (isMatch) handleAnswerAnimated(true)
+    else handleReveal()
+  }
+
   const handleStop = () => {
     onSaveState?.(queue, index, newProgress)
     if (onStop) {
@@ -514,7 +525,20 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
                 </button>
               )}
               {micState === 'lang-error' && (
-                <p style={{ color: '#ff9800', fontSize: '0.75rem', fontStyle: 'italic', textAlign: 'center', margin: '2px 0' }}>Swahili-Sprache nicht erkannt — bitte tippe die Antwort</p>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', width: '100%' }}>
+                  <p style={{ color: '#ff9800', fontSize: '0.7rem', fontStyle: 'italic', textAlign: 'center', margin: '0' }}>Sprache nicht erkannt — tippe die Antwort</p>
+                  <div style={{ display: 'flex', gap: '5px', width: '100%', maxWidth: '260px' }}>
+                    <input
+                      value={langErrInput}
+                      onChange={e => setLangErrInput(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleLangErrSubmit()}
+                      placeholder="Antwort eingeben…"
+                      style={{ flex: 1, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,152,0,0.4)', borderRadius: '8px', padding: '7px 10px', color: '#fff', fontSize: '0.82rem', outline: 'none', WebkitTapHighlightColor: 'transparent' }}
+                      autoFocus
+                    />
+                    <button onClick={handleLangErrSubmit} style={{ background: 'rgba(255,152,0,0.18)', border: '1px solid rgba(255,152,0,0.4)', borderRadius: '8px', padding: '7px 12px', color: '#ff9800', fontSize: '0.9rem', cursor: 'pointer', fontWeight: '700', WebkitTapHighlightColor: 'transparent' }}>✓</button>
+                  </div>
+                </div>
               )}
               {micResult && (
                 <div style={{ textAlign: 'center', animation: 'vocaraFadeIn 0.3s ease both', width: '100%' }}>
@@ -550,9 +574,6 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
               </div>
               {micState === 'unsupported' && (
                 <p style={{ color: '#ff9800', fontSize: '0.75rem', fontStyle: 'italic', marginTop: '6px', textAlign: 'center' }}>Dein Browser unterstützt keine Spracherkennung — bitte Chrome verwenden</p>
-              )}
-              {micState === 'lang-error' && (
-                <p style={{ color: '#ff9800', fontSize: '0.75rem', fontStyle: 'italic', marginTop: '6px', textAlign: 'center' }}>Swahili-Sprache nicht erkannt — bitte tippe die Antwort</p>
               )}
               {micResult && (
                 <div style={{ marginTop: '8px', textAlign: 'center', animation: 'vocaraFadeIn 0.3s ease both' }}>
