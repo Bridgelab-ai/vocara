@@ -1434,9 +1434,14 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         <div style={{ background: `${th.card}bb`, border: `1px solid ${th.gold}33`, borderRadius: '14px', padding: '11px 15px', marginBottom: '12px', animation: 'vocaraFadeIn 0.4s ease both' }}>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: tutorCollapsed ? 0 : '5px' }}>
             <span style={{ color: th.gold, fontSize: '0.62rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px' }}>🎓 {isMarkLang ? 'KI-Tutor' : 'AI Tutor'}{tutorCollapsed ? ' ▸' : ''}</span>
-            {!tutorCollapsed && calcStreak(sessionHistory) > 0 && (
-              <span style={{ color: th.sub, fontSize: '0.62rem', marginLeft: 'auto', opacity: 0.55 }}>🔥 {calcStreak(sessionHistory)} {isMarkLang ? 'Tage' : 'days'}</span>
-            )}
+            {!tutorCollapsed && (() => {
+              const sv = calcStreak(sessionHistory)
+              if (sv === 0) return <span style={{ color: th.sub, fontSize: '0.6rem', marginLeft: 'auto', opacity: 0.45, fontStyle: 'italic' }}>{isMarkLang ? 'Starte heute deinen Streak!' : 'Start your streak today!'}</span>
+              const icon = sv >= 30 ? '👑' : '🔥'
+              const hiColor = sv >= 30 ? '#FFD700' : sv >= 7 ? '#FF6B35' : th.sub
+              const glow = sv >= 30 ? '0 0 7px rgba(255,215,0,0.6)' : sv >= 7 ? '0 0 5px rgba(255,107,53,0.5)' : 'none'
+              return <span style={{ fontSize: '0.62rem', marginLeft: 'auto', color: hiColor, opacity: sv >= 7 ? 1 : 0.55, fontWeight: sv >= 7 ? '700' : '400', textShadow: glow }}>{icon} {sv} {isMarkLang ? 'Tage' : 'days'}</span>
+            })()}
             <button onClick={async () => {
               const next = !tutorCollapsed
               setTutorCollapsed(next)

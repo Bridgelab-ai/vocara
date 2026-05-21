@@ -719,6 +719,41 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
         )
       })()}
 
+      {/* ── MEIN PLAN ── */}
+      {(() => {
+        const currentPlan = myData?.plan || 'free'
+        const PLAN_FEATURES = isDE ? {
+          free: ['Vokabular & Grundlagen', 'KI-Gespräch (5 pro Tag)', 'Lernpartner verbinden'],
+          premium: ['Alle Free-Features', 'Alle Themen freigeschaltet', 'Unbegrenzte KI-Gespräche', 'Streak Freeze 1×/Monat'],
+          unlimited: ['Alle Premium-Features', 'Alle zukünftigen Features', 'Prioritäts-Support'],
+        } : {
+          free: ['Vocabulary & Basics', 'AI Chat (5 per day)', 'Connect a learning partner'],
+          premium: ['All Free features', 'All topics unlocked', 'Unlimited AI conversations', 'Streak Freeze 1×/month'],
+          unlimited: ['All Premium features', 'All future features', 'Priority support'],
+        }
+        return (
+          <div style={{ ...s.card, marginTop: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <p style={{ ...s.cardLabel, margin: 0 }}>💎 {isDE ? 'Mein Plan' : 'My Plan'}</p>
+              {currentPlan === 'unlimited' && <span style={{ background: 'linear-gradient(135deg,#FFD700,#FFA500)', color: '#111', fontSize: '0.63rem', fontWeight: '800', padding: '2px 8px', borderRadius: '8px', letterSpacing: '0.5px' }}>✨ UNBEGRENZT</span>}
+              {currentPlan === 'premium' && <span style={{ background: 'rgba(0,212,170,0.18)', color: '#00D4AA', fontSize: '0.63rem', fontWeight: '700', padding: '2px 8px', borderRadius: '8px', border: '1px solid rgba(0,212,170,0.4)' }}>💎 PREMIUM</span>}
+              {currentPlan === 'free' && <span style={{ background: 'rgba(140,140,155,0.15)', color: th.sub, fontSize: '0.63rem', fontWeight: '600', padding: '2px 8px', borderRadius: '8px', border: `1px solid ${th.border}` }}>FREE</span>}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: currentPlan !== 'unlimited' ? '12px' : '0' }}>
+              {(PLAN_FEATURES[currentPlan] || []).map((f, i) => (
+                <span key={i} style={{ color: th.sub, fontSize: '0.78rem' }}>✓ {f}</span>
+              ))}
+            </div>
+            {currentPlan !== 'unlimited' && (
+              <button style={{ width: '100%', padding: '10px', borderRadius: '10px', background: 'linear-gradient(135deg,rgba(0,212,170,0.12),rgba(124,156,239,0.12))', border: '1px solid rgba(0,212,170,0.38)', color: '#00D4AA', fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
+                onClick={() => setPremiumModal(true)}>
+                🚀 {isDE ? 'Plan upgraden' : 'Upgrade plan'}
+              </button>
+            )}
+          </div>
+        )
+      })()}
+
       {/* ── ERKLÄRUNGEN ZURÜCKSETZEN ── */}
       <button style={{ ...s.logoutBtn, marginTop: '8px', color: th.sub, border: `1px solid ${th.border}` }}
         onClick={async () => {
