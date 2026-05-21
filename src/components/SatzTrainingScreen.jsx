@@ -7,13 +7,10 @@ import { getCards, setCards } from '../hooks/useCardCache'
 import { speak, getCatLevel } from '../appShared'
 
 function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userName, userToLang = 'en', onSatzComplete, t: tProp, user, myData }) {
-  if (!lang || !theme) return null
-  const th = THEMES[theme]; const s = makeStyles(th); const t = tProp
   const LANG_NAMES_FULL = { en: 'English', de: 'German', sw: 'Swahili', th: 'Thai', es: 'Spanish', fr: 'French', ar: 'Arabic', tr: 'Turkish', pt: 'Portuguese' }
-  const ttsLangCode = userToLang.toLowerCase()
+  const ttsLangCode = (userToLang || 'en').toLowerCase()
   const targetLang = LANG_NAMES_FULL[ttsLangCode] || ttsLangCode
-  const fromLang = LANG_NAMES_FULL[lang] || lang
-
+  const fromLang = LANG_NAMES_FULL[(lang || '').toLowerCase()] || lang || ''
   const knownVocab = (allCards || []).filter(c =>
     c.category === 'vocabulary' && !/_r(_\d+)?$/.test(c.id) && ((cardProgress || {})[c.id]?.interval || 0) >= 2
   )
@@ -36,8 +33,11 @@ function SatzTrainingScreen({ lang, theme, onBack, allCards, cardProgress, userN
 
   const ex = exercises[index]
 
-  useEffect(() => { generateExercises() }, [])
-  useEffect(() => { if (done && onSatzComplete) onSatzComplete(correct, exercises.length) }, [done])
+  useEffect(() => { if (!lang || !theme) return; generateExercises() }, []) // eslint-disable-line
+  useEffect(() => { if (done && onSatzComplete) onSatzComplete(correct, exercises.length) }, [done]) // eslint-disable-line
+
+  if (!lang || !theme) return null
+  const th = THEMES[theme]; const s = makeStyles(th); const t = tProp
 
   const levenshtein = (a, b) => {
     const m = a.length, n = b.length
