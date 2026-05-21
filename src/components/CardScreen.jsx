@@ -572,6 +572,9 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
                   <span style={{ fontSize: '0.58rem', color: micState === 'listening' ? '#e53935' : micState === 'done' ? (micResult?.score >= 80 ? '#4CAF50' : micResult?.score >= 50 ? '#FFA500' : '#e53935') : '#8A8A9A', fontFamily: "'Inter', system-ui, sans-serif", letterSpacing: '0.3px' }}>{micState === 'listening' ? '…' : micState === 'done' ? `${micResult?.score}%` : 'Mic'}</span>
                 </div>
               </div>
+              {toLang === 'sw' && (
+                <p style={{ color: 'rgba(255,255,255,0.28)', fontSize: '0.67rem', margin: '3px 0 0', fontStyle: 'italic', textAlign: 'center' }}>🔇 Keine Swahili-Aussprache verfügbar</p>
+              )}
               {micState === 'unsupported' && (
                 <p style={{ color: '#ff9800', fontSize: '0.75rem', fontStyle: 'italic', marginTop: '6px', textAlign: 'center' }}>Dein Browser unterstützt keine Spracherkennung — bitte Chrome verwenden</p>
               )}

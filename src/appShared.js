@@ -97,11 +97,7 @@ export async function speak(text, langCode) {
     || voices.find(v => v.lang.startsWith(langTag.split('-')[0]) && v.name.toLowerCase().includes('google'))
     || voices.find(v => v.lang.startsWith(langTag.split('-')[0]))
   if (preferred) { u.voice = preferred }
-  else if (langTag === 'sw-TZ') {
-    const enFallback = voices.find(v => v.lang === 'en-US') || voices.find(v => v.lang.startsWith('en-'))
-    if (enFallback) u.voice = enFallback
-    u.lang = 'en-US'
-  }
+  else if (langTag === 'sw-TZ') { return } // no Swahili voice — silent is better than wrong pronunciation
   window.speechSynthesis.speak(u)
 }
 
@@ -168,7 +164,7 @@ export function getCatLevelFromCount(masteredCount) {
 }
 
 // ── CONSTANTS ─────────────────────────────────────────────────
-export const APP_VERSION = 'V01.092.168'
+export const APP_VERSION = 'V01.092.169'
 
 export const POOL_STRUCTURE = {
   grundlagen:   { totalLevels: 10, cardsPerLevel: 20 },
