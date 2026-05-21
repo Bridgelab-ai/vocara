@@ -39,6 +39,10 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
   const bekannteWorter = Object.entries(cardProgress).filter(([, p]) => (p?.interval ?? 0) >= 1).length
   const dueTomorrow = Object.values(cardProgress).filter(p => p.nextReview === tomorrow).length
   const myMastered = Object.values(cardProgress).filter(p => (p?.interval || 0) >= 7).length
+  const todaySessionsData = sessionHistory.filter(h => h.date === today)
+  const todayTotalAnswers = todaySessionsData.reduce((s, h) => s + (h.total || 0), 0)
+  const todayTotalCorrect = todaySessionsData.reduce((s, h) => s + (h.correct || 0), 0)
+  const todayAccuracy = todayTotalAnswers > 0 ? Math.round(todayTotalCorrect / todayTotalAnswers * 100) : 0
 
   const partnerHistory = safePartner?.sessionHistory || []
   const partnerStreak = safePartner?.streak ?? calcStreak(partnerHistory)
@@ -135,7 +139,7 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
       </div>
       <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
         {statBox(t.totalCards || 'Bekannte Wörter', bekannteWorter, `${myMastered} ✓`)}
-        {statBox(t.dueTomorrow || 'Gemeistert', myMastered, '')}
+        {statBox(lang === 'de' ? 'Genauigkeit heute' : 'Accuracy today', todayAccuracy > 0 ? `${todayAccuracy}%` : '—', '')}
       </div>
 
 

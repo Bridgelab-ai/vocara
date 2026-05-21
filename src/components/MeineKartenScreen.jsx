@@ -320,11 +320,18 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
               { prefix: 'home_', label: '🏠 Zuhause' },
               { prefix: 'satz_', label: '🖊️ Satztraining' },
             ]
+            const cardMap = Object.fromEntries((allCards || []).map(c => [c.id, c]))
             const query = poolSearch.trim().toLowerCase()
             const groups = PREFIXES.map(({ prefix, label }) => {
               const entries = Object.entries(cardProgress || {})
                 .filter(([id]) => !/_r(_\d+)?$/.test(id) && id.startsWith(prefix))
-                .filter(([id]) => !query || id.toLowerCase().includes(query))
+                .filter(([id]) => {
+                  if (!query) return true
+                  const card = cardMap[id]
+                  return id.toLowerCase().includes(query) ||
+                    (card?.front || '').toLowerCase().includes(query) ||
+                    (card?.back || '').toLowerCase().includes(query)
+                })
                 .sort(([, a], [, b]) => (b?.interval || 0) - (a?.interval || 0))
               return { prefix, label, entries }
             }).filter(g => g.entries.length > 0)
@@ -345,10 +352,18 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
                     const interval = prog?.interval || 0
                     const stars = interval >= 14 ? 5 : interval >= 7 ? 4 : interval >= 3 ? 3 : interval >= 1 ? 2 : 0
                     const isBlocked = blockedCards.includes(id)
+                    const poolCard = cardMap[id]
                     return (
                       <div key={id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 0', borderBottom: i < entries.length - 1 ? `1px solid ${th.border}` : 'none' }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ color: th.text, fontSize: '0.68rem', fontFamily: 'monospace', margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.7 }}>{id}</p>
+                          {poolCard ? (
+                            <>
+                              <p style={{ color: th.text, fontSize: '0.85rem', fontWeight: '600', margin: '0 0 1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{poolCard.front}</p>
+                              <p style={{ color: th.sub, fontSize: '0.75rem', margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{poolCard.back}</p>
+                            </>
+                          ) : (
+                            <p style={{ color: th.sub, fontSize: '0.65rem', fontFamily: 'monospace', margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.55 }}>{id}</p>
+                          )}
                           <span style={{ fontSize: '0.7rem', color: th.gold }}>{'★'.repeat(stars)}{'☆'.repeat(5 - stars)}</span>
                           <span style={{ fontSize: '0.62rem', color: th.sub, marginLeft: '5px', opacity: 0.7 }}>iv:{interval}</span>
                         </div>
