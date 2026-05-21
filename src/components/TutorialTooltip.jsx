@@ -1,8 +1,17 @@
+import React, { useEffect } from 'react'
 import { doc, updateDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 
 function TutorialTooltip({ tutorialKey, title, description, myData, setMyData, user, th, s }) {
-  if (!myData || (myData.seenTutorials || []).includes(tutorialKey)) return null
+  const alreadySeen = !myData || (myData?.seenTutorials || []).includes(tutorialKey)
+
+  // All side-effects must live here — never in the render body.
+  // No auto-write: Firestore + setMyData are called only on dismiss click.
+  useEffect(() => {
+    if (alreadySeen) return
+  }, [alreadySeen])
+
+  if (alreadySeen) return null
 
   const dismiss = async () => {
     const updated = [...(myData.seenTutorials || []), tutorialKey]
