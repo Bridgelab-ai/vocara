@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { doc, updateDoc, arrayUnion } from 'firebase/firestore'
+import React, { useState, useRef } from 'react'
+import { doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore'
 import { db } from '../firebase'
 import { THEMES, makeStyles } from '../theme'
 import { todayStr } from '../appShared'
@@ -19,7 +19,26 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
   const [poolSearch, setPoolSearch] = useState('')
   const [giftMessageModal, setGiftMessageModal] = useState(null)
   const [giftMessage, setGiftMessage] = useState('')
+  const [poolCardCache, setPoolCardCache] = useState({})
+  const fetchingRef = useRef(new Set())
   const myPartnerUID = myData?.partnerUID || null
+
+  const fetchPoolCard = async (id) => {
+    if (id in poolCardCache || fetchingRef.current.has(id)) return
+    const parts = id.split('_')
+    if (parts.length < 5 || isNaN(parseInt(parts[1]))) return
+    const [topic, level, fromLang, toLang] = parts
+    const docId = `${fromLang}_${toLang}_${topic}_${level}`
+    fetchingRef.current.add(id)
+    try {
+      const snap = await getDoc(doc(db, 'sharedCards', docId))
+      const found = snap.exists() ? (snap.data().cards || []).find(c => c.id === id) || null : null
+      setPoolCardCache(prev => ({ ...prev, [id]: found }))
+    } catch (e) {
+      setPoolCardCache(prev => ({ ...prev, [id]: null }))
+    }
+    fetchingRef.current.delete(id)
+  }
 
   const blockedCards = myData?.blockedCards || []
   const receivedGifts = myData?.receivedGifts || []
@@ -327,7 +346,7 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
                 .filter(([id]) => !/_r(_\d+)?$/.test(id) && id.startsWith(prefix))
                 .filter(([id]) => {
                   if (!query) return true
-                  const card = cardMap[id]
+                  const card = cardMap[id] || poolCardCache[id]
                   return id.toLowerCase().includes(query) ||
                     (card?.front || '').toLowerCase().includes(query) ||
                     (card?.back || '').toLowerCase().includes(query)
@@ -352,7 +371,9 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
                     const interval = prog?.interval || 0
                     const toStars = (n) => '⭐'.repeat(Math.min(7, n || 0)) + '☆'.repeat(Math.max(0, 7 - (n || 0)))
                     const isBlocked = blockedCards.includes(id)
-                    const poolCard = cardMap[id]
+                    const poolCard = cardMap[id] || poolCardCache[id]
+                    const isFetching = fetchingRef.current.has(id)
+                    if (!cardMap[id] && !(id in poolCardCache) && !isFetching) fetchPoolCard(id)
                     return (
                       <div key={id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 0', borderBottom: i < entries.length - 1 ? `1px solid ${th.border}` : 'none' }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
@@ -361,6 +382,8 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
                               <p style={{ color: th.text, fontSize: '0.85rem', fontWeight: '600', margin: '0 0 1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{poolCard.front}</p>
                               <p style={{ color: th.sub, fontSize: '0.75rem', margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{poolCard.back}</p>
                             </>
+                          ) : isFetching ? (
+                            <p style={{ color: th.sub, fontSize: '0.7rem', margin: '0 0 2px', opacity: 0.5 }}>⏳ Laden…</p>
                           ) : (
                             <p style={{ color: th.sub, fontSize: '0.65rem', fontFamily: 'monospace', margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.55 }}>{id}</p>
                           )}
