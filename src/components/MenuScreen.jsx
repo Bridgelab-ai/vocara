@@ -524,9 +524,6 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
         cards: buildSession(activeCards.filter(c => c.targetLang === lc || c.langB === lc), cardProgress, n)
       }))
       const totalGot = results.reduce((s, r) => s + r.cards.length, 0)
-      if (totalGot < Math.ceil(targetSize * 0.5)) {
-        return shuffleAll(activeCards).slice(0, targetSize)
-      }
       const missing = targetSize - totalGot
       if (missing > 0 && results.length > 0) {
         const primary = results[0]
@@ -772,9 +769,6 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
         cards: buildSession(cards.filter(c => c.targetLang === lc || c.langB === lc), cardProgress, n)
       }))
       const totalGot = results.reduce((s, r) => s + r.cards.length, 0)
-      if (totalGot < Math.ceil(userSessionSize * 0.5)) {
-        return shuffle(cards).slice(0, userSessionSize)
-      }
       const missing = userSessionSize - totalGot
       if (missing > 0 && results.length > 0) {
         const primary = results[0]
