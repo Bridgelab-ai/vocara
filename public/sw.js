@@ -25,7 +25,7 @@ self.addEventListener('fetch', e => {
       if (e.request.mode === 'navigate') {
         try {
           const res = await fetch(e.request)
-          cache.put(e.request, res.clone())
+          if (res.status !== 206) cache.put(e.request, res.clone())
           return res
         } catch {
           return cache.match('/index.html') || cache.match('/')
@@ -35,7 +35,7 @@ self.addEventListener('fetch', e => {
       if (cached) return cached
       try {
         const res = await fetch(e.request)
-        if (res.ok && e.request.method === 'GET') cache.put(e.request, res.clone())
+        if (res.ok && res.status !== 206 && e.request.method === 'GET') cache.put(e.request, res.clone())
         return res
       } catch {
         return new Response('Offline', { status: 503 })
