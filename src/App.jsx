@@ -2938,6 +2938,13 @@ function App() {
               data.fromLang = 'en'; data.toLang = 'de'
             } catch (_) {}
           }
+          // Daily reset: weeklyGoals.completed clears when date changes
+          if (data.weeklyGoals?.week !== todayStr()) {
+            try {
+              await updateDoc(userRef, { 'weeklyGoals.completed': [], 'weeklyGoals.week': todayStr() })
+              data.weeklyGoals = { ...(data.weeklyGoals || {}), completed: [], week: todayStr() }
+            } catch (_) {}
+          }
           setMyData(data)
           const isKnown = u.uid === MARK_UID || u.uid === ELOSY_UID
           if (!isKnown) {

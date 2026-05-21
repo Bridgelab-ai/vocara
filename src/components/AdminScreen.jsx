@@ -33,7 +33,7 @@ const TOPICS_LIST = [
   { key: 'unterricht',  emoji: '🏫', label: 'Im Unterricht' },
   { key: 'alphabet',    emoji: '🔤', label: 'Alphabet'    },
 ]
-const LANGUAGE_PAIRS = ['de_en','de_sw','en_de','en_sw','sw_de','sw_en']
+const LANGUAGE_PAIRS = ['de_en','de_sw','en_de','en_sw']
 
 function humanTime(raw) {
   if (!raw) return '—'
