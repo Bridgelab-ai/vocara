@@ -499,13 +499,25 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
       ? myData.toLangs
       : [{ lang: (myData?.toLang || (lang === 'de' ? 'en' : 'de')).toLowerCase(), percent: 100 }]
     const targetSize = myData?.sessionSize || SESSION_SIZE
-    const alloc = toLangs.map(e => ({ lang: e.lang, n: Math.round(targetSize * e.percent / 100) }))
-    const allocSum = alloc.reduce((s, a) => s + a.n, 0)
-    if (allocSum !== targetSize) alloc[0].n += targetSize - allocSum
+    const alloc = toLangs.map(e => ({ lang: e.lang, n: Math.max(1, Math.round(targetSize * e.percent / 100)) }))
     const shuffleAll = arr => [...arr].sort(() => Math.random() - 0.5)
-    const sess = shuffleAll(alloc.flatMap(({ lang: lc, n }) =>
-      buildSession(activeCards.filter(c => c.targetLang === lc), cardProgress, n)
-    ))
+    const sess = (() => {
+      const results = alloc.map(({ lang: lc, n }) => ({
+        lang: lc,
+        cards: buildSession(activeCards.filter(c => c.targetLang === lc), cardProgress, n)
+      }))
+      const totalGot = results.reduce((s, r) => s + r.cards.length, 0)
+      if (totalGot < Math.ceil(targetSize * 0.5)) {
+        return shuffleAll(activeCards).slice(0, targetSize)
+      }
+      const missing = targetSize - totalGot
+      if (missing > 0 && results.length > 0) {
+        const primary = results[0]
+        const extra = buildSession(activeCards.filter(c => c.targetLang === primary.lang), cardProgress, missing)
+        primary.cards = [...primary.cards, ...extra]
+      }
+      return shuffleAll(results.flatMap(r => r.cards)).slice(0, targetSize)
+    })()
     setCurrentSessionMode('all')
     setSession(sess); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
   }
@@ -715,18 +727,28 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
     const toLangs = myData?.toLangs?.length > 0
       ? myData.toLangs
       : [{ lang: myData?.toLang || 'en', percent: 100 }]
-    const alloc = toLangs.map(e => ({ lang: e.lang, n: Math.round(userSessionSize * e.percent / 100) }))
-    const allocSum = alloc.reduce((s, a) => s + a.n, 0)
-    if (allocSum !== userSessionSize) alloc[0].n += userSessionSize - allocSum
-    let sess = alloc.flatMap(({ lang: lc, n }) =>
-      buildSession(cards.filter(c => c.targetLang === lc || c.langB === lc), cardProgress, n)
-    )
-    sess = [...sess].sort(() => Math.random() - 0.5)
-    // Fallback: if nothing is due (all reviewed, none overdue), practice all category cards
-    if (sess.length === 0) {
-      const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
-      sess = shuffle(cards).slice(0, userSessionSize)
-    }
+    const alloc = toLangs.map(e => ({ lang: e.lang, n: Math.max(1, Math.round(userSessionSize * e.percent / 100)) }))
+    const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
+    const sess = (() => {
+      const results = alloc.map(({ lang: lc, n }) => ({
+        lang: lc,
+        cards: buildSession(cards.filter(c => c.targetLang === lc || c.langB === lc), cardProgress, n)
+      }))
+      const totalGot = results.reduce((s, r) => s + r.cards.length, 0)
+      if (totalGot < Math.ceil(userSessionSize * 0.5)) {
+        return shuffle(cards).slice(0, userSessionSize)
+      }
+      const missing = userSessionSize - totalGot
+      if (missing > 0 && results.length > 0) {
+        const primary = results[0]
+        const extra = buildSession(
+          cards.filter(c => c.targetLang === primary.lang || c.langB === primary.lang),
+          cardProgress, missing
+        )
+        primary.cards = [...primary.cards, ...extra]
+      }
+      return shuffle(results.flatMap(r => r.cards)).slice(0, userSessionSize)
+    })()
     if (sess.length === 0) return
     setCurrentSessionMode(category)
     // Show Wort des Tages banner for 2s before starting any session
@@ -1185,20 +1207,24 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
     if (poolInfo && idPrefix && currentSessionMode !== 'all') {
       const activePairs = getActiveLangPairs(myData)
       const levelUpdates = {}
+      let freshLevels = myData?.categoryLevels || {}
+      try {
+        const freshSnap = await getDoc(doc(db, 'users', user.uid))
+        freshLevels = freshSnap.data()?.categoryLevels || {}
+      } catch (e) {}
       for (const lp of activePairs) {
         const [lpFrom, lpTo] = lp.split('_')
         const masteredCount = Object.entries(finalProgress)
           .filter(([id]) => id.startsWith(idPrefix) && id.includes(`_${lpFrom}_${lpTo}_`))
           .filter(([, p]) => (p?.interval ?? 0) >= 2).length
-        const currentCatLevel = getCatLevel(myData?.categoryLevels, poolKey, lp)
+        const currentCatLevel = getCatLevel(freshLevels, poolKey, lp)
         const threshold = poolInfo.cardsPerLevel * 0.8
         if (currentCatLevel < poolInfo.totalLevels && masteredCount >= threshold) {
           levelUpdates[getCatLevelKey(poolKey, lp)] = currentCatLevel + 1
-          console.log(`[LevelUp] ${poolKey}_${lp} → Lv${currentCatLevel + 1} (${masteredCount}/${poolInfo.cardsPerLevel} mastered)`)
         }
       }
       if (Object.keys(levelUpdates).length > 0) {
-        const newCategoryLevels = { ...(myData?.categoryLevels || {}), ...levelUpdates }
+        const newCategoryLevels = { ...freshLevels, ...levelUpdates }
         try {
           await updateDoc(doc(db, 'users', user.uid), { categoryLevels: newCategoryLevels })
           setMyData(d => ({ ...d, categoryLevels: newCategoryLevels }))

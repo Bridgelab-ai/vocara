@@ -168,7 +168,7 @@ export function getCatLevelFromCount(masteredCount) {
 }
 
 // ── CONSTANTS ─────────────────────────────────────────────────
-export const APP_VERSION = 'V01.092.155'
+export const APP_VERSION = 'V01.092.156'
 
 export const POOL_STRUCTURE = {
   grundlagen:   { totalLevels: 10, cardsPerLevel: 20 },
@@ -325,12 +325,7 @@ export function buildSession(allCards, cardProgress, maxCards = SESSION_SIZE) {
     else if (p.nextReview <= today) due.push(card)
   })
   const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
-  const sortedDue = due.slice().sort((a, b) => {
-    const pa = cardProgress[a.id]?.nextReview || ''
-    const pb = cardProgress[b.id]?.nextReview || ''
-    return pa < pb ? -1 : pa > pb ? 1 : 0
-  })
-  const alwaysNew = newCards.slice(0, Math.min(3, newCards.length))
+  const alwaysNew = newCards.slice(0, Math.min(3, newCards.length, maxCards))
   const dueCards = [...forced, ...due].slice(0, Math.max(0, maxCards - alwaysNew.length))
   return shuffle([...alwaysNew, ...dueCards]).slice(0, maxCards)
 }
