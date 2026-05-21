@@ -350,7 +350,7 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
                 <div style={s.card}>
                   {entries.map(([id, prog], i) => {
                     const interval = prog?.interval || 0
-                    const stars = interval >= 14 ? 5 : interval >= 7 ? 4 : interval >= 3 ? 3 : interval >= 1 ? 2 : 0
+                    const toStars = (n) => '⭐'.repeat(Math.min(7, n || 0)) + '☆'.repeat(Math.max(0, 7 - (n || 0)))
                     const isBlocked = blockedCards.includes(id)
                     const poolCard = cardMap[id]
                     return (
@@ -364,8 +364,7 @@ function MeineKartenScreen({ user, myData, setMyData, allCards, cardProgress, la
                           ) : (
                             <p style={{ color: th.sub, fontSize: '0.65rem', fontFamily: 'monospace', margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.55 }}>{id}</p>
                           )}
-                          <span style={{ fontSize: '0.7rem', color: th.gold }}>{'★'.repeat(stars)}{'☆'.repeat(5 - stars)}</span>
-                          <span style={{ fontSize: '0.62rem', color: th.sub, marginLeft: '5px', opacity: 0.7 }}>iv:{interval}</span>
+                          <span style={{ fontSize: '0.68rem', letterSpacing: '1px' }}>{toStars(interval)}</span>
                         </div>
                         {!isBlocked ? (
                           <button onClick={() => blockCard({ id })}
