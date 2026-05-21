@@ -521,7 +521,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
     const sess = (() => {
       const results = alloc.map(({ lang: lc, n }) => ({
         lang: lc,
-        cards: buildSession(activeCards.filter(c => c.targetLang === lc), cardProgress, n)
+        cards: buildSession(activeCards.filter(c => c.targetLang === lc || c.langB === lc), cardProgress, n)
       }))
       const totalGot = results.reduce((s, r) => s + r.cards.length, 0)
       if (totalGot < Math.ceil(targetSize * 0.5)) {
@@ -530,7 +530,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
       const missing = targetSize - totalGot
       if (missing > 0 && results.length > 0) {
         const primary = results[0]
-        const extra = buildSession(activeCards.filter(c => c.targetLang === primary.lang), cardProgress, missing)
+        const extra = buildSession(activeCards.filter(c => c.targetLang === primary.lang || c.langB === primary.lang), cardProgress, missing)
         primary.cards = [...primary.cards, ...extra]
       }
       return shuffleAll(results.flatMap(r => r.cards)).slice(0, targetSize)
@@ -765,9 +765,6 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
       ? myData.toLangs
       : [{ lang: myData?.toLang || 'en', percent: 100 }]
     const alloc = toLangs.map(e => ({ lang: e.lang, n: Math.max(1, Math.round(userSessionSize * e.percent / 100)) }))
-    console.log('[CARDS EN]', cards.filter(c => c.targetLang==='en'||c.langB==='en').length)
-    console.log('[CARDS SW]', cards.filter(c => c.targetLang==='sw'||c.langB==='sw').length)
-    console.log('[ALLOC]', JSON.stringify(alloc))
     const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
     const sess = (() => {
       const results = alloc.map(({ lang: lc, n }) => ({
