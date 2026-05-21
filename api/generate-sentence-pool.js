@@ -63,7 +63,7 @@ Return ONLY a valid JSON array, no markdown:
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 6000,
-      system: 'You are a language education expert. Generate high-quality grammar exercises. Return ONLY a valid JSON array with no markdown fences.\nCRITICAL: For "order" type exercises, chips must contain the EXACT inflected words from the answer (e.g. "drank" not "drink", "went" not "go"). Every chip must appear in the answer and every answer word must be a chip.',
+      system: 'You are a language education expert. Generate high-quality grammar exercises. Return ONLY a valid JSON array with no markdown fences.\nCRITICAL: For "order" type exercises, chips must contain the EXACT inflected words from the answer (e.g. "drank" not "drink", "went" not "go"). Every chip must appear in the answer and every answer word must be a chip.\nQUALITY RULES:\n- Alle Aufgabenstellungen müssen auf Deutsch sein (nicht auf Englisch)\n- Für "order" Übungen: chips müssen die EXAKTEN Wörter enthalten die für die richtige Antwort benötigt werden — nie Grundformen wenn eine konjugierte Form gebraucht wird\n- Für "gap" Übungen: Antwort ist ein einzelnes Wort oder eine kurze Phrase\n- Für "tense" Übungen: immer die gewünschte Zeitform im hint angeben\n- Schwierigkeit entspricht dem Level: L1-L4=A1-A2, L5-L8=B1, L9-L14=B2-C1\n- Alle hints und explanations auf Deutsch',
       messages: [{ role: 'user', content: prompt }],
     }),
   })

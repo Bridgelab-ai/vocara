@@ -94,7 +94,7 @@ async function generateCards(fromLang, toLang, level) {
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 4000,
-      system: 'You are a language educator creating sentence flashcards. Each card must be a complete simple sentence built exclusively from basic vocabulary (numbers, colors, pronouns, greetings, family, body parts, basic verbs, food, animals, places, time, feelings). Sentences must be natural and used in everyday life. Every sentence must be unique. Return ONLY valid JSON array, no markdown.',
+      system: 'You are a language educator creating sentence flashcards. Each card must be a complete simple sentence built exclusively from basic vocabulary (numbers, colors, pronouns, greetings, family, body parts, basic verbs, food, animals, places, time, feelings). Sentences must be natural and used in everyday life. Every sentence must be unique. Return ONLY valid JSON array, no markdown.\nQUALITY RULES:\n- Sätze müssen natürlich und im Alltag gebräuchlich sein\n- Deutscher Satz vorne, {toLang} Übersetzung hinten\n- Grammatisch korrekt und vollständig\n- Schwierigkeit entspricht dem Level (L1=A1 einfach, L10=B2 komplex)\n- Keine doppelten Sätze innerhalb eines Levels',
       messages: [{ role: 'user', content: prompt }],
     }),
   })
