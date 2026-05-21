@@ -128,7 +128,10 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
     const answerText = item?.back
     rec.lang = SPEECH_LANGS[item.langB] || 'en-GB'
     rec.interimResults = false; rec.maxAlternatives = 3
-    const timeout = setTimeout(() => { try { rec.stop() } catch(e) {} }, 5000)
+    const timeout = setTimeout(() => {
+      try { rec.stop() } catch(e) {}
+      setMicState(s => s === 'listening' ? 'lang-error' : s)
+    }, 5000)
     rec.onresult = (e) => {
       clearTimeout(timeout)
       const alts = []

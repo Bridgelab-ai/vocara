@@ -145,10 +145,23 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
     })
     setTutorRecommendedArea(bestArea)
     setCoachMsg(null)
+    const cefrLevel = myData?.cefr || level
+    const weakCardsList = Object.entries(cardProg)
+      .filter(([, p]) => (p?.interval || 0) <= 1)
+      .sort(([, a], [, b]) => (a?.interval || 0) - (b?.interval || 0))
+      .slice(0, 5)
+      .map(([id]) => { const c = (allCards || []).find(x => x.id === id); return c ? `${c.front}→${c.back}` : null })
+      .filter(Boolean)
+    const weakStr = weakCardsList.length > 0 ? ` Needs work: ${weakCardsList.join(', ')}.` : ''
+    const activePairs = getActiveLangPairs(myData)
+    const langPairsStr = activePairs.map(lp => lp.replace('_', '→')).join(', ') || `${fromLangName}→${toLangName}`
     fetch('/api/chat', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 45,
-        messages: [{ role: 'user', content: `You are a personal language tutor for a ${fromLangName} speaker learning ${toLangName}. Stats: ${catStats}. Last sessions: ${sessionsStr}. Streak: ${streak} days. Level: ${level}.${phoneticStr} Give ONE specific coaching tip (max 20 words) in ${fromLangName} about what to focus on NOW to speak ${toLangName} faster. Be practical and direct. Bridgelab tone: warm, no fluff. Return ONLY the tip, no quotes or markdown.` }]
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 60,
+        system: `Personal language coach. User: CEFR ${cefrLevel}, ${sessionHistory.length} sessions, ${streak}-day streak. Languages: ${langPairsStr}.${weakStr} Give exactly ONE coaching tip (max 25 words) in ${fromLangName}. Warm and specific. Return ONLY the tip, no quotes or markdown.`,
+        messages: [{ role: 'user', content: `Stats: ${catStats}. Last results: ${sessionsStr}.${phoneticStr} What should I focus on now?` }]
       })
     }).then(r => r.json()).then(d => {
       const msg = d.content?.[0]?.text?.trim()
@@ -1414,6 +1427,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           <span style={{ color: '#f44336' }}>→</span>
         </button>
       )}
+      <TutorialTooltip tutorialKey="sprachpuls" title={isMarkLang ? 'Sprachpuls' : 'Language Pulse'} description={isMarkLang ? 'Teste monatlich dein Niveau — sieh ob du dich verbessert hast.' : 'Test your level monthly — see if you have improved.'} myData={myData} setMyData={setMyData} user={user} th={th} s={s} />
 
       {/* ── KI-TUTOR PANEL ── */}
       {coachMsg !== null && (
@@ -1630,6 +1644,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         onClick={() => setThemenOpen(m => !m)}>
         🎯 {isMarkLang ? 'Meine Themen' : 'My Topics'} {themenOpen ? '▲' : '▼'}
       </button>
+      <TutorialTooltip tutorialKey="themen" title={isMarkLang ? 'Meine Themen' : 'My Topics'} description={isMarkLang ? 'Wähle Themen die dich interessieren — von Kochen bis Business. Jedes Thema hat 8 Level.' : 'Choose topics that interest you — from cooking to business. Each topic has 8 levels.'} myData={myData} setMyData={setMyData} user={user} th={th} s={s} />
       {themenOpen && (
         <div style={{ background: th.card, border: `1px solid ${th.border}`, borderRadius: '14px', padding: '4px', marginBottom: '12px', animation: 'vocaraFadeIn 0.2s ease both' }}>
           {/* ── Wir lernen alles: Kategorien ── */}
@@ -1812,6 +1827,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
             </span>
           )}
         </button>
+        <TutorialTooltip tutorialKey="fortschritt" title={isMarkLang ? 'Dein Fortschritt' : 'Your Progress'} description={isMarkLang ? 'Sieh wie viel du gelernt hast — Vergleich mit deinem Partner und deine Streak.' : 'See how much you have learned — compare with your partner and your streak.'} myData={myData} setMyData={setMyData} user={user} th={th} s={s} />
         <button className="vocara-nav-btn" style={s.navBtn} onClick={() => setScreen('diary')}>
           📖 {isMarkLang ? 'Unser Tagebuch' : 'Our Diary'}
         </button>
