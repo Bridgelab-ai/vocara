@@ -54,6 +54,7 @@ async function writeToFirestore(fromLang, toLang, topic, level, cards) {
               front: { stringValue: c.front || '' },
               back: { stringValue: c?.back || '' },
               pronunciation: { stringValue: c.pronunciation || '' },
+              example: { stringValue: c.example || '' },
               category: { stringValue: topic },
               level: { integerValue: String(level) },
               wordType: { stringValue: c.wordType || '' },

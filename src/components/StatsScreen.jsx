@@ -36,6 +36,7 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
   const todaySessions = sessionHistory.filter(h => h.date === today).length
   const myStreak = calcStreak(sessionHistory)
   const totalCards = (allCards ?? []).filter(c => !/_r(_\d+)?$/.test(c.id)).length
+  const bekannteWorter = Object.entries(cardProgress).filter(([, p]) => (p?.interval ?? 0) >= 1).length
   const dueTomorrow = Object.values(cardProgress).filter(p => p.nextReview === tomorrow).length
   const myMastered = Object.values(cardProgress).filter(p => (p?.interval || 0) >= 7).length
 
@@ -133,7 +134,7 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
         {statBox('Streak', myStreak > 0 ? `🔥 ${myStreak}` : '—', t.statDays)}
       </div>
       <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-        {statBox(t.totalCards || 'Bekannte Wörter', totalCards, `${myMastered} ✓`)}
+        {statBox(t.totalCards || 'Bekannte Wörter', bekannteWorter, `${myMastered} ✓`)}
         {statBox(t.dueTomorrow || 'Gemeistert', myMastered, '')}
       </div>
 

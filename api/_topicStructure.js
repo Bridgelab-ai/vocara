@@ -103,17 +103,17 @@ Return ONLY a valid JSON array (no markdown):
 export const ALPHABET_LEVEL_CONTENT = {
   1: (fromName, toName) =>
     `Generate exactly 15 flashcards for letters A-M of the ${toName} alphabet for a ${fromName} speaker.
-Each card: the letter as front, its ${toName} name/sound + one example word as back.
-Format front: "A", back: "[sound] — Apfel".
+Each card: front = the single letter only (e.g. "A"), back = pronunciation of the letter in ${toName} only (e.g. "ah"). Never combine letter + word as the answer.
+Example field: one common ${toName} word starting with this letter (shown as context, NOT as the answer).
 Return ONLY a valid JSON array (no markdown):
-[{"front":"letter","back":"sound — example word","pronunciation":"phonetic sound","wordType":"letter","register":"neutral"}]`,
+[{"front":"A","back":"ah","pronunciation":"ah","example":"Apfel","wordType":"letter","register":"neutral"}]`,
 
   2: (fromName, toName) =>
     `Generate exactly 15 flashcards for letters N-Z of the ${toName} alphabet (plus Ä, Ö, Ü, ß) for a ${fromName} speaker.
-Each card: the letter as front, its ${toName} name/sound + one example word as back.
-Format front: "N", back: "[sound] — Nacht".
+Each card: front = the single letter only (e.g. "N"), back = pronunciation of the letter in ${toName} only (e.g. "en"). Never combine letter + word as the answer.
+Example field: one common ${toName} word starting with this letter (shown as context, NOT as the answer).
 Return ONLY a valid JSON array (no markdown):
-[{"front":"letter","back":"sound — example word","pronunciation":"phonetic sound","wordType":"letter","register":"neutral"}]`,
+[{"front":"N","back":"en","pronunciation":"en","example":"Nacht","wordType":"letter","register":"neutral"}]`,
 
   3: (fromName, toName) =>
     `Generate exactly 15 flashcards for ${toName} special character combinations: sch, ch, th, ph, ck, ng, ei, ie, au, eu, äu, tz, ss, ß, qu.

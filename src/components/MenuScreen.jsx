@@ -674,6 +674,16 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
     }
   }
 
+  const DEFAULT_SELECTED_CATS = ['vocabulary','saetze','street','home','grundlagen','urlaub','satztraining']
+  const toggleSelectedCat = async (key) => {
+    const current = myData?.selectedAllCategories || DEFAULT_SELECTED_CATS
+    const next = current.includes(key) ? current.filter(k => k !== key) : [...current, key]
+    try {
+      await updateDoc(doc(db, 'users', user.uid), { selectedAllCategories: next })
+      setMyData(d => ({ ...d, selectedAllCategories: next }))
+    } catch (e) {}
+  }
+
   const startCategorySession = async (category) => {
     try {
     console.log('[Vocara] startCategorySession:', category)
@@ -710,7 +720,10 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
     const cards = sessionCards
       ? (category === 'vocabulary' ? sessionCards.filter(c => vocabGuard(c)) : sessionCards)
       : category === 'all'
-        ? activeCards
+        ? (() => {
+            const sel = myData?.selectedAllCategories || DEFAULT_SELECTED_CATS
+            return activeCards.filter(c => sel.includes(c.topicKey || c.category))
+          })()
         : category === 'vocabulary'
           ? activeCards.filter(c => vocabGuard(c))
           : activeCards.filter(c => c.category === category || c.category === filterCat)
@@ -1543,7 +1556,7 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
             {catLoading !== 'grundlagen' && catLevelBar('grundlagen')}
           </button>
           <button className="vocara-cat-btn" style={{ ...s.catBtn, '--gleam-delay': '8.2s', flexDirection: 'column', alignItems: 'center', opacity: catLoading === 'urlaub' ? 0.6 : 1 }} onClick={() => startCategorySession('urlaub')} disabled={catLoading === 'urlaub'}>
-            <span>{catLoading === 'urlaub' ? '⟳' : '✈️ Urlaub'}</span>
+            <span>{catLoading === 'urlaub' ? '⟳' : '✈️ Im Urlaub'}</span>
             {catLoading !== 'urlaub' && catLevelBar('urlaub')}
           </button>
         </div>
@@ -1600,7 +1613,36 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
       </button>
       {themenOpen && (
         <div style={{ background: th.card, border: `1px solid ${th.border}`, borderRadius: '14px', padding: '4px', marginBottom: '12px', animation: 'vocaraFadeIn 0.2s ease both' }}>
+          {/* ── Wir lernen alles: Kategorien ── */}
+          <div style={{ padding: '6px 8px 8px', borderBottom: `1px solid ${th.border}`, marginBottom: '4px' }}>
+            <div style={{ fontSize: '0.6rem', color: th.sub, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px', fontWeight: '600' }}>
+              {isMarkLang ? 'Wir lernen alles — inkludiert:' : 'All learning — included:'}
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+              {[
+                { key: 'vocabulary', emoji: '📖', de: 'Vokabeln', en: 'Vocab' },
+                { key: 'saetze', emoji: '💬', de: 'Sätze', en: 'Phrases' },
+                { key: 'grundlagen', emoji: '🏛️', de: 'Grundlagen', en: 'Basics' },
+                { key: 'urlaub', emoji: '✈️', de: 'Im Urlaub', en: 'Travel' },
+                { key: 'street', emoji: '🚶', de: 'Straße', en: 'Street' },
+                { key: 'home', emoji: '🏠', de: 'Zuhause', en: 'Home' },
+                { key: 'satztraining', emoji: '🖊️', de: 'Satztraining', en: 'Sentence' },
+              ].map(cat => {
+                const sel = myData?.selectedAllCategories || DEFAULT_SELECTED_CATS
+                const checked = sel.includes(cat.key)
+                return (
+                  <button key={cat.key} onClick={() => toggleSelectedCat(cat.key)}
+                    style={{ background: checked ? `${th.accent}22` : 'transparent', border: `1px solid ${checked ? th.accent : th.border}`, color: checked ? th.accent : th.sub, borderRadius: '20px', padding: '3px 8px', cursor: 'pointer', fontSize: '0.7rem', fontWeight: checked ? '700' : '400', fontFamily: 'inherit' }}>
+                    {checked ? '✓ ' : ''}{cat.emoji} {lang === 'de' ? cat.de : cat.en}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+          {/* ── Themen mit Checkbox ── */}
           {TOPICS_LIST.map(topic => {
+            const sel = myData?.selectedAllCategories || DEFAULT_SELECTED_CATS
+            const topicChecked = sel.includes(topic.key)
             const topicLevel = myData?.topicLevels?.[topic.key] || 1
             const totalLevels = TOPIC_STRUCTURE[topic.key]?.totalLevels || 8
             const cardsPerLevel = TOPIC_STRUCTURE[topic.key]?.cardsPerLevel || 15
@@ -1608,22 +1650,29 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
             const seenCount = Object.entries(cardProgress).filter(([id, p]) => id.startsWith(prefix) && p !== undefined && p !== null).length
             const pct = Math.min(100, Math.round((seenCount / cardsPerLevel) * 100))
             return (
-              <button key={topic.key}
-                onClick={() => { setThemenOpen(false); startTopicSession(topic.key) }}
-                disabled={!!topicSessionLoading}
-                style={{ ...s.navBtn, marginBottom: '2px', textAlign: 'left', paddingLeft: '16px', opacity: topicSessionLoading && topicSessionLoading !== topic.key ? 0.5 : 1, position: 'relative', overflow: 'hidden' }}>
-                {topicSessionLoading === topic.key ? '…' : (
-                  <>
-                    <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                      <span>{topic.emoji} {lang === 'de' ? topic.de : topic.en}</span>
-                      <span style={{ fontSize: '0.68rem', fontWeight: '700', color: th.accent, opacity: 0.85, marginLeft: '8px', flexShrink: 0 }}>Lv{topicLevel}/{totalLevels}</span>
-                    </span>
-                    {pct > 0 && (
-                      <span style={{ position: 'absolute', bottom: 0, left: 0, height: '2px', width: `${pct}%`, background: th.accent, borderRadius: '0 1px 1px 0', opacity: 0.5 }} />
-                    )}
-                  </>
-                )}
-              </button>
+              <div key={topic.key} style={{ display: 'flex', alignItems: 'center', gap: '2px', marginBottom: '2px' }}>
+                <button
+                  onClick={e => { e.stopPropagation(); toggleSelectedCat(topic.key) }}
+                  style={{ background: topicChecked ? `${th.accent}22` : 'transparent', border: `1px solid ${topicChecked ? th.accent : th.border}`, color: topicChecked ? th.accent : th.sub, borderRadius: '6px', padding: '0 5px', cursor: 'pointer', fontSize: '0.68rem', fontWeight: '700', fontFamily: 'inherit', height: '34px', width: '24px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {topicChecked ? '✓' : '○'}
+                </button>
+                <button
+                  onClick={() => { setThemenOpen(false); startTopicSession(topic.key) }}
+                  disabled={!!topicSessionLoading}
+                  style={{ ...s.navBtn, flex: 1, marginBottom: '0', textAlign: 'left', paddingLeft: '12px', opacity: topicSessionLoading && topicSessionLoading !== topic.key ? 0.5 : 1, position: 'relative', overflow: 'hidden' }}>
+                  {topicSessionLoading === topic.key ? '…' : (
+                    <>
+                      <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                        <span>{topic.emoji} {lang === 'de' ? topic.de : topic.en}</span>
+                        <span style={{ fontSize: '0.68rem', fontWeight: '700', color: th.accent, opacity: 0.85, marginLeft: '8px', flexShrink: 0 }}>Lv{topicLevel}/{totalLevels}</span>
+                      </span>
+                      {pct > 0 && (
+                        <span style={{ position: 'absolute', bottom: 0, left: 0, height: '2px', width: `${pct}%`, background: th.accent, borderRadius: '0 1px 1px 0', opacity: 0.5 }} />
+                      )}
+                    </>
+                  )}
+                </button>
+              </div>
             )
           })}
         </div>
