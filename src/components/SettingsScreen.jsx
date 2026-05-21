@@ -142,7 +142,7 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
 
       {/* ── SESSION-GRÖSSE ── */}
       <div style={s.card}>
-        <p style={{ ...s.cardLabel, marginBottom: '12px' }}>{isMarkLang ? 'Karten pro Session' : 'Cards per session'}</p>
+        <p style={{ ...s.cardLabel, marginBottom: '12px' }}>{isDE ? 'Karten pro Session' : 'Cards per session'}</p>
         <div style={{ display: 'flex', gap: '8px' }}>
           {[5, 10, 15, 20].map(n => (
             <button key={n}
@@ -151,7 +151,7 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
             >{n}</button>
           ))}
         </div>
-        <p style={{ color: th.sub, fontSize: '0.72rem', marginTop: '7px', marginBottom: 0 }}>{isMarkLang ? 'Karten je Lernsession' : 'Cards per learning session'}</p>
+        <p style={{ color: th.sub, fontSize: '0.72rem', marginTop: '7px', marginBottom: 0 }}>{isDE ? 'Karten je Lernsession' : 'Cards per learning session'}</p>
       </div>
 
       {/* ── SPRACHE PAUSIEREN ── */}
