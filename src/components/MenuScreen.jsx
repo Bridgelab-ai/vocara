@@ -107,7 +107,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const [catLoading, setCatLoading] = useState(null)
   const [suggestModal, setSuggestModal] = useState(null)
   const VALID_SCREENS = new Set(['menu','cards','result','settings','partner','test','impressum','stats','ki','satz','diary','meinekarten','geschenkkarte','karteerstellen','admin','langprogress','sprachkompass','sprachpuls','suggest'])
-  if (!VALID_SCREENS.has(screen)) { setScreen('menu'); return null }
+  if (!VALID_SCREENS.has(screen)) return null
 
   // ── KI-TUTOR BANNER ──────────────────────────────────────────
   const fetchTutorMsg = (freshCardProg, freshSessionHistory) => {
@@ -169,6 +169,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
     }).catch(() => setCoachMsg(''))
   }
   useEffect(() => { fetchTutorMsg() }, [sessionCompleteCount]) // eslint-disable-line
+  useEffect(() => { if (!VALID_SCREENS.has(screen)) setScreen('menu') }, [screen]) // eslint-disable-line
 
   // ── EXAMPLE SENTENCE SAVE ────────────────────────────────────
   const handleSaveExample = async (cardId, example) => {
