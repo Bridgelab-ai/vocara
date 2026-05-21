@@ -1,12 +1,12 @@
 import React, { useState } from 'react'
 import TutorialTooltip from './TutorialTooltip'
 import TopicUnlockSection from './TopicUnlockSection'
-import { doc, updateDoc, getDoc, setDoc, writeBatch } from 'firebase/firestore'
+import ResetAreasSection from './ResetAreasSection'
+import { doc, updateDoc, getDoc, setDoc } from 'firebase/firestore'
 import { signOut } from 'firebase/auth'
 import { db, auth } from '../firebase'
-import { MARK_UID, ELOSY_UID, SOCIAL_REGISTERS, AVAILABLE_LANGS, TOPICS_LIST, CARD_GEN_SYSTEM, todayStr, getCatLevelFromCount } from '../appShared'
+import { MARK_UID, ELOSY_UID, SOCIAL_REGISTERS, AVAILABLE_LANGS, TOPICS_LIST, CARD_GEN_SYSTEM, todayStr } from '../appShared'
 import { THEMES } from '../theme'
-import { invalidateCache } from '../hooks/useCardCache'
 
 function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setMyData, allCards, lang, onPartner, onLightModeChange, onCardSizeChange, musicEnabled, musicVolume, onMusicToggle, onMusicVolume, onToLangChange, categoryLevels, setCategoryLevels, lightMode, cardSize, appVersion, onSprachkompass = () => {}, onSprachpuls = () => {} }) {
   const th = THEMES[theme]
@@ -14,7 +14,6 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
   const pausedLanguages = myData?.pausedLanguages || []
   const uniqueTargetLangs = [...new Set((allCards || []).map(c => c.targetLang).filter(Boolean))]
   const [premiumModal, setPremiumModal] = useState(false)
-  const [resetConfirm, setResetConfirm] = useState(null)
   const [langSaveToast, setLangSaveToast] = useState(null) // { msg, ok }
 
   // ── ZIELSPRACHEN MIT ANTEILEN ────────────────────────────────
@@ -265,9 +264,9 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
                 {t.freezeAvailThis} <strong style={{ color: isAvail ? '#4CAF50' : th.sub }}>{isAvail ? '1x ✓' : t.freezeUsed}</strong>
               </p>
               {isAvail && (
-                <button onClick={() => { if (window.confirm(lang === 'de' ? 'Streak Freeze jetzt verwenden? (1x pro Monat)' : 'Use Streak Freeze now? (1x/month)')) handleStreakFreeze() }}
+                <button onClick={() => { if (window.confirm(lang === 'de' ? 'Ruhetag jetzt einlösen? (1x pro Monat)' : 'Use rest day now? (1x/month)')) handleStreakFreeze() }}
                   style={{ ...s.logoutBtn, marginTop: 0, color: '#81c784', border: '1px solid rgba(76,175,80,0.35)' }}>
-                  🧊 {t.freezeActivate}
+                  🌙 {lang === 'de' ? 'Ruhetag einlösen' : 'Use rest day'}
                 </button>
               )}
               {freeze.usedAt && !isAvail && <p style={{ color: th.sub, fontSize: '0.75rem', marginTop: '4px' }}>{lang === 'de' ? `Verwendet am ${freeze.usedAt}` : `Used on ${freeze.usedAt}`}</p>}
@@ -531,135 +530,7 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
       <TopicUnlockSection myData={myData} setMyData={setMyData} user={user} t={t} s={s} th={th} lang={lang} />
 
       {/* ── BEREICHE ZURÜCKSETZEN ── */}
-      {(() => {
-        const RESET_AREAS = [
-          { key: 'basics',      labelDE: 'Grundlagen',     labelEN: 'Basics'            },
-          { key: 'vocabulary',  labelDE: 'Meine Worte',    labelEN: 'My Words'          },
-          { key: 'street',      labelDE: 'Auf der Straße', labelEN: 'On the Street'     },
-          { key: 'home',        labelDE: 'Und zu Hause',   labelEN: 'At Home'           },
-          { key: 'urlaub',      labelDE: 'Im Urlaub',      labelEN: 'Travel'            },
-          { key: 'satztraining',labelDE: 'Satztraining',   labelEN: 'Sentence Training' },
-          { key: 'sentence',   labelDE: 'Werden Sätze',   labelEN: 'Become Sentences'  },
-        ]
-        const getLvForArea = (key) => {
-          const n = myData?.masteredPerCategory?.[key] || 0
-          if (key === 'urlaub') return Math.min(10, Math.floor(n / 6))
-          if (key === 'home')   return Math.min(10, Math.floor(n / 8))
-          return getCatLevelFromCount(n)
-        }
-        const handleAreaReset = async (areaKey) => {
-          console.log('[Reset] starting for cat:', areaKey, 'uid:', auth.currentUser?.uid)
-          const cp = { ...(myData?.cardProgress || {}) }
-          const today = todayStr()
-          const isPoolCategory = ['basics', 'home', 'street'].includes(areaKey)
-          let updatedAiCards = myData?.aiCards || []
-          if (isPoolCategory) {
-            const removedIds = updatedAiCards.filter(c => c.category === areaKey).map(c => c.id)
-            removedIds.forEach(id => { delete cp[id] })
-            updatedAiCards = updatedAiCards.filter(c => c.category !== areaKey)
-          } else if (areaKey !== 'satztraining') {
-            ;(allCards || []).forEach(c => {
-              if (c.category === areaKey && cp[c.id]) {
-                cp[c.id] = { ...cp[c.id], interval: 0, consecutiveRight: 0, wrongSessions: 0, nextReview: today, isGolden: false, mastered: false, masteredAt: null, masteredReviewCount: 0 }
-              }
-            })
-          }
-          const mpc = { ...(myData?.masteredPerCategory || {}), [areaKey]: 0 }
-
-          if (areaKey === 'basics') {
-            ['de_en', 'en_de', 'de_sw'].forEach(pair => {
-              [1, 2, 3].forEach(lv => invalidateCache(`grundlagen_${pair}_${lv}`))
-            })
-          } else {
-            invalidateCache(areaKey)
-          }
-
-          const AREA_TO_CAT_KEY = { basics: 'grundlagen', vocabulary: 'vocab', sentence: 'satz', street: 'street', home: 'home', urlaub: 'urlaub', satztraining: 'satz' }
-          const resetCatKey = AREA_TO_CAT_KEY[areaKey]
-          let newCatLevels = categoryLevels
-          if (resetCatKey) {
-            newCatLevels = { ...categoryLevels, [resetCatKey]: 1 }
-            setCategoryLevels(newCatLevels)
-            setDoc(doc(db, 'users', user.uid, 'settings', 'categoryLevels'), newCatLevels)
-              .then(() => console.log('[Reset] categoryLevels written', newCatLevels))
-              .catch(e => console.error('[Reset] FAILED categoryLevels:', e.code, e.message))
-          }
-
-          setMyData(d => ({
-            ...d,
-            ...(isPoolCategory ? { aiCards: [...updatedAiCards] } : {}),
-            cardProgress: { ...cp },
-            masteredPerCategory: { ...mpc },
-            ...(areaKey === 'basics' ? { basicsPoolLevel: 1 } : {}),
-          }))
-          setResetConfirm(null)
-
-          const updates = { masteredPerCategory: { ...mpc }, cardProgress: { ...cp } }
-          if (isPoolCategory) updates.aiCards = updatedAiCards
-          if (areaKey === 'basics') updates.basicsPoolLevel = 1
-          try {
-            const batch = writeBatch(db)
-            batch.update(doc(db, 'users', user.uid), updates)
-            await batch.commit()
-            console.log('[Reset] cardProgress cleared:', Object.keys(cp).length, 'entries')
-          } catch (e) { console.error('[Reset] FAILED:', e.code, e.message) }
-          const newMasteredCards = Object.values(cp).filter(p => (p?.interval || 0) >= 7).length
-          setDoc(doc(db, 'users', user.uid, 'publicStats', 'data'),
-            { masteredCards: newMasteredCards, totalCards: Object.keys(cp).length },
-            { merge: true }
-          ).catch(e => console.error('[Reset] FAILED publicStats update:', e.code, e.message))
-        }
-        const confirmArea = RESET_AREAS.find(a => a.key === resetConfirm)
-        const confirmLabel = confirmArea ? (isDE ? confirmArea.labelDE : confirmArea.labelEN) : ''
-        return (
-          <div style={s.card}>
-            <p style={{ ...s.cardLabel, marginBottom: '10px' }}>🔄 {t.resetAreas}</p>
-            <p style={{ color: th.sub, fontSize: '0.75rem', marginBottom: '14px', lineHeight: 1.4 }}>
-              {t.resetAreasDesc}
-            </p>
-            {RESET_AREAS.map(area => {
-              const lv = Math.max(1, getLvForArea(area.key))
-              const label = isDE ? area.labelDE : area.labelEN
-              return (
-                <div key={area.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 0', borderBottom: `1px solid ${th.border}` }}>
-                  <span style={{ color: th.text, fontSize: '0.88rem' }}>{label} <span style={{ color: th.sub, fontSize: '0.78rem' }}>Lvl {lv}</span></span>
-                  <button onClick={() => setResetConfirm(area.key)}
-                    style={{ background: 'transparent', border: '1px solid rgba(224,108,117,0.4)', borderRadius: '20px', padding: '4px 12px', color: '#e06c75', fontSize: '0.78rem', cursor: 'pointer', fontWeight: '600', flexShrink: 0 }}>
-                    🔄 Reset
-                  </button>
-                </div>
-              )
-            })}
-            {resetConfirm && (
-              <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', zIndex: 9500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', backdropFilter: 'blur(4px)' }}
-                onClick={() => setResetConfirm(null)}>
-                <div style={{ background: th.card, border: `1px solid ${th.border}`, borderRadius: '20px', padding: '28px 22px', maxWidth: '320px', width: '100%', textAlign: 'center', boxShadow: '0 8px 40px rgba(0,0,0,0.45)', animation: 'vocaraFadeIn 0.2s ease both' }}
-                  onClick={e => e.stopPropagation()}>
-                  <p style={{ fontSize: '2rem', margin: '0 0 12px' }}>🔄</p>
-                  <p style={{ color: th.text, fontWeight: '700', fontSize: '1rem', marginBottom: '10px' }}>
-                    {isDE ? `„${confirmLabel}" zurücksetzen?` : `Reset „${confirmLabel}"?`}
-                  </p>
-                  <p style={{ color: th.sub, fontSize: '0.85rem', marginBottom: '24px', lineHeight: 1.5 }}>
-                    {isDE
-                      ? `Du fängst bei ${confirmLabel} wieder bei Level 1 an. Deine Karten bleiben erhalten.`
-                      : `You'll restart ${confirmLabel} from Level 1. Your cards are kept.`}
-                  </p>
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    <button onClick={() => setResetConfirm(null)}
-                      style={{ flex: 1, padding: '11px', borderRadius: '12px', border: `1px solid ${th.border}`, background: 'transparent', color: th.sub, fontSize: '0.88rem', cursor: 'pointer' }}>
-                      {t.cancel}
-                    </button>
-                    <button onClick={() => handleAreaReset(resetConfirm)}
-                      style={{ flex: 1, padding: '11px', borderRadius: '12px', border: '1px solid rgba(224,108,117,0.5)', background: 'rgba(224,108,117,0.12)', color: '#e06c75', fontSize: '0.88rem', cursor: 'pointer', fontWeight: '700' }}>
-                      {t.reset}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )
-      })()}
+      <ResetAreasSection myData={myData} setMyData={setMyData} user={user} allCards={allCards} t={t} s={s} th={th} lang={lang} categoryLevels={categoryLevels} setCategoryLevels={setCategoryLevels} />
 
       {/* ── SPRACHKOMPASS ── */}
       {onSprachkompass && (
@@ -689,11 +560,11 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
         const currentPlan = myData?.plan || 'free'
         const PLAN_FEATURES = isDE ? {
           free: ['Vokabular & Grundlagen', 'KI-Gespräch (5 pro Tag)', 'Lernpartner verbinden'],
-          premium: ['Alle Free-Features', 'Alle Themen freigeschaltet', 'Unbegrenzte KI-Gespräche', 'Streak Freeze 1×/Monat'],
+          premium: ['Alle Free-Features', 'Alle Themen freigeschaltet', 'Unbegrenzte KI-Gespräche', '🌙 Ruhetag 1×/Monat'],
           unlimited: ['Alle Premium-Features', 'Alle zukünftigen Features', 'Prioritäts-Support'],
         } : {
           free: ['Vocabulary & Basics', 'AI Chat (5 per day)', 'Connect a learning partner'],
-          premium: ['All Free features', 'All topics unlocked', 'Unlimited AI conversations', 'Streak Freeze 1×/month'],
+          premium: ['All Free features', 'All topics unlocked', 'Unlimited AI conversations', '🌙 Rest day 1×/month'],
           unlimited: ['All Premium features', 'All future features', 'Priority support'],
         }
         return (

@@ -512,6 +512,14 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
 
   if (!VALID_SCREENS.has(screen)) return null
 
+  const startQuickSession = () => {
+    const shuffleQ = arr => [...arr].sort(() => Math.random() - 0.5)
+    const picked = shuffleQ(activeCards).slice(0, 2)
+    if (picked.length === 0) return
+    setCurrentSessionMode('all')
+    setSession(picked); setResumeStartIndex(0); setResumeStartProgress(null); setPendingSession(null); setScreen('cards')
+  }
+
   const startSession = () => {
     const toLangs = myData?.toLangs?.length > 0
       ? myData.toLangs
@@ -1489,9 +1497,9 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
             <span style={{ color: '#FFA500', fontWeight: '700', fontSize: '0.9rem', flex: 1 }}>{isMarkLang ? 'Die Verbindung braucht dich heute.' : 'Your streak needs you today.'}</span>
             {freezeAvailable && (
               <button
-                onClick={() => { if (window.confirm(isMarkLang ? 'Streak Freeze jetzt verwenden? (1x/Monat)' : 'Use Streak Freeze now? (1x/month)')) handleStreakFreeze() }}
+                onClick={() => { if (window.confirm(isMarkLang ? 'Ruhetag jetzt einlösen? (1x/Monat)' : 'Use rest day now? (1x/month)')) handleStreakFreeze() }}
                 style={{ background: 'rgba(100,200,255,0.12)', border: '1px solid rgba(100,200,255,0.35)', color: '#7ec8e3', borderRadius: '20px', padding: '5px 10px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700', whiteSpace: 'nowrap', flexShrink: 0 }}
-              >🧊</button>
+              >🌙</button>
             )}
           </div>
           <button
@@ -1622,6 +1630,10 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           </button>
         </div>
         <TutorialTooltip tutorialKey="grundlagen" title="Grundlagen" description="Lerne grundlegende Wörter — Zahlen, Farben, Pronomen. Level für Level aufbauend." myData={myData} setMyData={setMyData} user={user} th={th} s={s} />
+        <button onClick={startQuickSession} disabled={!!catLoading || activeCards.length === 0}
+          style={{ background: 'transparent', border: `1px solid ${th.border}`, borderRadius: '20px', padding: '7px 18px', color: th.sub, fontSize: '0.78rem', cursor: activeCards.length === 0 ? 'default' : 'pointer', fontWeight: '600', opacity: activeCards.length === 0 ? 0.4 : 0.8, alignSelf: 'center', marginTop: '4px', letterSpacing: '0.2px', WebkitTapHighlightColor: 'transparent' }}>
+          ⚡ {isMarkLang ? '2 Karten · Sofort' : '2 Cards · Now'}
+        </button>
       </div>
 
       {/* ── KARTE BUTTON ── */}

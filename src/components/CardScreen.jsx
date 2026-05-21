@@ -87,6 +87,10 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
   const [consecutiveEasy, setConsecutiveEasy] = useState(0)
   const [loadingMore, setLoadingMore] = useState(false)
   const [langErrInput, setLangErrInput] = useState('')
+  const touchStartRef = useRef(null)
+  const [swipeTutorialDone, setSwipeTutorialDone] = useState(() => {
+    try { return localStorage.getItem('vocara_swipe_done') === '1' } catch { return false }
+  })
 
   useEffect(() => {
     if (!window.DeviceOrientationEvent) return
@@ -431,6 +435,28 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
     triggerAnim('flyRight', 350, () => handleFast())
   }
 
+  const handleTouchStart = (e) => {
+    const t = e.touches[0]
+    touchStartRef.current = { x: t.clientX, y: t.clientY }
+  }
+  const handleTouchEnd = (e) => {
+    if (!revealed || !touchStartRef.current) return
+    const dx = e.changedTouches[0].clientX - touchStartRef.current.x
+    const dy = e.changedTouches[0].clientY - touchStartRef.current.y
+    touchStartRef.current = null
+    const adx = Math.abs(dx), ady = Math.abs(dy)
+    if (adx < 20 && ady < 20) return
+    setSwipeTutorialDone(true)
+    try { localStorage.setItem('vocara_swipe_done', '1') } catch {}
+    if (adx > 80 && adx > ady) {
+      dx > 0 ? handleAnswerAnimated(true) : handleAnswerAnimated(false)
+    } else if (dy < -80 && ady > adx) {
+      handleEasyAnimated()
+    } else if (dy > 80 && ady > adx) {
+      handleFastAnimated()
+    }
+  }
+
   return (
     <div style={s.container} className="vocara-screen"><div style={s.homeBox} className="vocara-card-screen-box">
       <div style={s.cardHeader}>
@@ -456,7 +482,7 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
       })()}
       <div style={{ width: '100%', marginBottom: '16px', perspective: '900px',
         animation: cardAnim ? `vocara${cardAnim.charAt(0).toUpperCase() + cardAnim.slice(1)} ${cardAnim === 'shake' ? '0.48s' : '0.35s'} ease forwards` : undefined,
-      }}>
+      }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
         <div className="vocara-big-card" style={{
           ...s.bigCard,
           border: (newProgress[item.id]?.isGolden || cardProgress[item.id]?.isGolden)
@@ -728,6 +754,14 @@ function CardScreen({ session, onBack, onFinish, lang, cardProgress, s, onSaveSt
               {!kontextOpen && <button onClick={() => setKontextOpen(true)} style={{ background: 'transparent', border: 'none', color: '#9A9AFF', fontSize: '0.72rem', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>{lang === 'de' ? 'anzeigen' : 'show'}</button>}
             </div>
           )}
+        </div>
+      )}
+      {revealed && !swipeTutorialDone && (
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginBottom: '6px', opacity: 0.45, pointerEvents: 'none' }}>
+          <span style={{ color: '#e06c75', fontSize: '0.65rem', fontWeight: '600' }}>← {lang === 'de' ? 'Falsch' : 'Wrong'}</span>
+          <span style={{ color: '#888', fontSize: '0.65rem' }}>↑ {lang === 'de' ? 'Easy' : 'Easy'}</span>
+          <span style={{ color: '#888', fontSize: '0.65rem' }}>↓ Fast</span>
+          <span style={{ color: '#4CAF50', fontSize: '0.65rem', fontWeight: '600' }}>{lang === 'de' ? 'Richtig' : 'Correct'} →</span>
         </div>
       )}
       {revealed && (
