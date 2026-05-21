@@ -384,14 +384,16 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
       const mainPair = activePairs[0] || ''
       const [pf, pt] = mainPair.split('_')
       const entries = Object.entries(cardProgress || {})
-        .filter(([id]) => id.startsWith(idPrefix) && id.includes(`_${pf}_${pt}_`))
+        .filter(([id]) => {
+          if (!id.startsWith(idPrefix) || !id.includes(`_${pf}_${pt}_`)) return false
+          const lv = parseInt(id.split('_')[1])
+          return isNaN(lv) || lv === currentLevel
+        })
       tierSeen = entries.filter(([, p]) => (p?.interval ?? 0) >= 1).length
       tierBekannt = entries.filter(([, p]) => (p?.interval ?? 0) >= 3).length
       tierGemeistert = entries.filter(([, p]) => (p?.interval ?? 0) >= 7).length
       showTiers = tierSeen > 0
-      const primaryCount = Object.entries(cardProgress || {})
-        .filter(([id]) => id.startsWith(idPrefix) && id.includes(`_${pf}_${pt}_`))
-        .filter(([, p]) => (p?.interval ?? 0) >= 1).length
+      const primaryCount = entries.filter(([, p]) => (p?.interval ?? 0) >= 1).length
       return Math.min(100, Math.round((primaryCount / cardsPerLevel) * 100))
     })()
     return (
@@ -749,6 +751,7 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
       ? myData.toLangs
       : [{ lang: myData?.toLang || 'en', percent: 100 }]
     const alloc = toLangs.map(e => ({ lang: e.lang, n: Math.max(1, Math.round(userSessionSize * e.percent / 100)) }))
+    console.log('[ALLOC]', JSON.stringify(myData?.toLangs), 'sessionSize:', myData?.sessionSize)
     const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
     const sess = (() => {
       const results = alloc.map(({ lang: lc, n }) => ({

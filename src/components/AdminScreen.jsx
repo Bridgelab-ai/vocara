@@ -675,6 +675,27 @@ function AdminScreen({ user, myData, lang, theme, onBack, onCacheInvalidate }) {
     setResetLoading(false)
   }
 
+  const resetUserKeepStreak = async () => {
+    const uid = resetTarget === 'mark' ? MARK_UID : ELOSY_UID
+    const name = resetTarget === 'mark' ? 'Mark' : 'Elosy'
+    if (!window.confirm(`${name} zurücksetzen (Streak bleibt erhalten)?`)) return
+    setResetLoading(true); setResetStatus(null)
+    try {
+      await updateDoc(doc(db, 'users', uid), {
+        cardProgress: {},
+        categoryLevels: {},
+        weeklyGoals: { week: '', completed: [] },
+        sessionHistory: [],
+        aiCards: [],
+        blockedCards: [],
+      })
+      setResetStatus(`✓ ${name} zurückgesetzt (Streak erhalten)`)
+      load()
+      setTimeout(() => window.location.reload(), 1200)
+    } catch (e) { setResetStatus(`✗ ${e.message}`) }
+    setResetLoading(false)
+  }
+
   const thisWeek = getISOWeekStr()
   const activeThisWeek = users.filter(u => (u.sessionHistory || []).some(h => {
     try { return getISOWeekStr(new Date(...h.date.split('-').map((v,i)=>i===1?v-1:+v))) === thisWeek } catch { return false }
@@ -981,8 +1002,12 @@ function AdminScreen({ user, myData, lang, theme, onBack, onCacheInvalidate }) {
             style={{ padding: '7px 14px', borderRadius: '10px', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', opacity: resetLoading ? 0.5 : 1, background: 'rgba(220,40,40,0.15)', color: '#e06c75', border: '1px solid rgba(220,40,40,0.35)' }}>
             {resetLoading ? '…' : 'Vollständig zurücksetzen'}
           </button>
+          <button onClick={resetUserKeepStreak} disabled={resetLoading}
+            style={{ padding: '7px 14px', borderRadius: '10px', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', opacity: resetLoading ? 0.5 : 1, background: 'rgba(255,152,0,0.15)', color: '#FFA500', border: '1px solid rgba(255,152,0,0.35)' }}>
+            {resetLoading ? '…' : '🔄 Ohne Streak'}
+          </button>
         </div>
-        <p style={{ color: th.sub, fontSize: '0.68rem', margin: '6px 0 0' }}>categoryLevels → 1, cardProgress löschen, publicStats löschen</p>
+        <p style={{ color: th.sub, fontSize: '0.68rem', margin: '6px 0 0' }}>categoryLevels → 1, cardProgress löschen, publicStats löschen · 🔄 Ohne Streak: Streak/Plan/Gimmicks bleiben erhalten</p>
         {resetStatus && <p style={{ color: resetStatus.startsWith('✓') ? '#81c784' : '#e06c75', fontSize: '0.75rem', margin: '6px 0 0' }}>{resetStatus}</p>}
       </div>
 
