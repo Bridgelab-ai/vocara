@@ -718,7 +718,14 @@ Return ONLY valid JSON: [{"front":"...","back":"...","category":"${category}","c
     const CAT_TO_POOL_FILTER = { vocabulary: 'vocab', urlaub: 'sentence' }
     const filterCat = CAT_TO_POOL_FILTER[category] || category
     const cards = sessionCards
-      ? (category === 'vocabulary' ? sessionCards.filter(c => vocabGuard(c)) : sessionCards)
+      ? category === 'vocabulary'
+        ? sessionCards.filter(c => vocabGuard(c))
+        : category === 'all'
+          ? (() => {
+              const sel = myData?.selectedAllCategories || DEFAULT_SELECTED_CATS
+              return sessionCards.filter(c => sel.includes(c.topicKey || c.category))
+            })()
+          : sessionCards
       : category === 'all'
         ? (() => {
             const sel = myData?.selectedAllCategories || DEFAULT_SELECTED_CATS
@@ -1665,7 +1672,10 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
                   {topicSessionLoading === topic.key ? '…' : (
                     <>
                       <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                        <span>{topic.emoji} {lang === 'de' ? topic.de : topic.en}</span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          {topic.emoji} {lang === 'de' ? topic.de : topic.en}
+                          {myData?.plan === 'free' && !['zahlen','alphabet'].includes(topic.key) && <span style={{ fontSize: '0.65rem', opacity: 0.5 }}>🔒</span>}
+                        </span>
                         <span style={{ fontSize: '0.68rem', fontWeight: '700', color: th.accent, opacity: 0.85, marginLeft: '8px', flexShrink: 0 }}>Lv{topicLevel}/{totalLevels}</span>
                       </span>
                       {pct > 0 && (
