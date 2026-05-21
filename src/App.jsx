@@ -2987,7 +2987,6 @@ function App() {
     const ref = doc(db, 'users', user.uid)
     try {
       await updateDoc(ref, { cardProgress: finalProgress })
-      console.log('[PROGRESS DEBUG] cardProgress written, keys:', Object.keys(finalProgress).length)
       const snap = await getDoc(ref); if (snap.exists()) setMyData(snap.data())
     } catch (err) {
       console.error('[PROGRESS ERROR]', err)
