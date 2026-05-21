@@ -76,6 +76,7 @@ function MenuScreen({ user, myData, setMyData, partnerData, allCards, lang, onSa
   const [monthlyUnlockNotification, setMonthlyUnlockNotification] = useState(false)
   const [gimmickPopup, setGimmickPopup] = useState(false)
   const [gimmickSoundPopup, setGimmickSoundPopup] = useState(false)
+  const [levelUpNotif, setLevelUpNotif] = useState(null)
   const [weeklyGoals, setWeeklyGoals] = useState(() => {
     const currentWeek = getISOWeekStr()
     const stored = myData?.weeklyGoals
@@ -1248,6 +1249,10 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
         try {
           await updateDoc(doc(db, 'users', user.uid), { categoryLevels: newCategoryLevels })
           setMyData(d => ({ ...d, categoryLevels: newCategoryLevels }))
+          const POOL_NAMES = { vocab: 'Vokabular', vocabulary: 'Vokabular', grundlagen: 'Grundlagen', saetze: 'Sätze', street: 'Straße', home: 'Zuhause', urlaub: 'Im Urlaub', sentence: 'Satztraining', satztraining: 'Satztraining' }
+          const notifLevel = Object.values(levelUpdates)[0]
+          setLevelUpNotif({ name: POOL_NAMES[poolKey] || poolKey, level: notifLevel })
+          setTimeout(() => setLevelUpNotif(null), 2500)
         } catch (e) { console.error('[LevelUp] Failed:', e) }
       }
     }
@@ -1266,6 +1271,9 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           try {
             await updateDoc(doc(db, 'users', user.uid), { topicLevels: newTopicLevels })
             setMyData(d => ({ ...d, topicLevels: newTopicLevels }))
+            const topicName = TOPICS_LIST.find(t => t.key === topicKey)?.de || topicKey
+            setLevelUpNotif({ name: topicName, level: newLevel })
+            setTimeout(() => setLevelUpNotif(null), 2500)
           } catch (e) { console.error('[TopicLevelUp] Failed:', e) }
         }
       }
@@ -1910,6 +1918,15 @@ Format: [{"front":"...","back":"...","context":"...","category":"..."${needsPron
           <p style={{ color: th.sub, fontSize: '0.78rem', margin: 0 }}>
             {isMarkLang ? '3 Sessions abgeschlossen 🔊' : '3 sessions completed 🔊'}
           </p>
+        </div>
+      )}
+
+      {/* ── LEVEL-UP TOAST ── */}
+      {levelUpNotif && (
+        <div style={{ position: 'fixed', top: '18%', left: '50%', transform: 'translateX(-50%)', zIndex: 8500, background: th.card, border: '2px solid #00D4AA', borderRadius: '20px', padding: '16px 24px', textAlign: 'center', animation: 'vocaraFadeIn 0.3s ease both', maxWidth: '260px', width: '80%', boxShadow: '0 0 40px #00D4AA44', pointerEvents: 'none' }}>
+          <p style={{ fontSize: '1.6rem', margin: '0 0 4px' }}>🎉</p>
+          <p style={{ color: th.text, fontSize: '0.92rem', fontWeight: '700', margin: '0 0 2px' }}>Level aufgestiegen!</p>
+          <p style={{ color: '#00D4AA', fontSize: '0.85rem', fontWeight: '600', margin: 0 }}>{levelUpNotif.name} Lv {levelUpNotif.level}</p>
         </div>
       )}
 
