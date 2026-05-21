@@ -138,7 +138,7 @@ function StatsScreen({ user, myData, partnerData, allCards, lang, theme, onBack,
         {statBox('Streak', myStreak > 0 ? `🔥 ${myStreak}` : '—', t.statDays)}
       </div>
       <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-        {statBox(t.totalCards || 'Bekannte Wörter', bekannteWorter, `${myMastered} ✓`)}
+        {statBox(t.totalCards || 'Bekannte Wörter', bekannteWorter, lang === 'de' ? `davon ⭐ ${myMastered} gemeistert` : `⭐ ${myMastered} mastered`)}
         {statBox(lang === 'de' ? 'Genauigkeit heute' : 'Accuracy today', todayAccuracy > 0 ? `${todayAccuracy}%` : '—', '')}
       </div>
 
