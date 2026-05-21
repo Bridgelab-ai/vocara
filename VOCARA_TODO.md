@@ -740,6 +740,11 @@
 9. PWA Push Notifications ✅
 10. Karten-Kommentar/Notiz ✅
 
+## Liste A2 – Duolingo-Analyse (Nr. 15) — neue Features
+- XP-System: Punkte pro Session, Anzeige auf Homescreen (z.B. +10 XP pro Richtig-Antwort, XP-Balken)
+- Achievements/Abzeichen: "Erste 100 Karten", "7 Tage Streak", "Level 5 erreicht", "Erste Spanisch-Karte" etc.
+- Wochenrangliste: XP-Vergleich gegen Partner — bereits teilweise vorhanden (StatsScreen Badges)
+
 ## Liste B – Social/Gamification
 11. Paar-Challenge gemeinsam ✅
 12. Emoji-Reaktion auf Partner-Fortschritt ✅

@@ -140,6 +140,20 @@ function SettingsScreen({ t, s, theme, onThemeChange, onBack, user, myData, setM
         <p style={{ color: th.sub, fontSize: '0.72rem', marginTop: '7px', marginBottom: 0 }}>{t.cardsPerDay}</p>
       </div>
 
+      {/* ── SESSION-GRÖSSE ── */}
+      <div style={s.card}>
+        <p style={{ ...s.cardLabel, marginBottom: '12px' }}>{isMarkLang ? 'Karten pro Session' : 'Cards per session'}</p>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {[5, 10, 15, 20].map(n => (
+            <button key={n}
+              onClick={async () => { await updateDoc(doc(db, 'users', user.uid), { sessionSize: n }); setMyData(d => ({ ...d, sessionSize: n })) }}
+              style={{ flex: 1, padding: '10px 0', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '0.9rem', background: (myData?.sessionSize || 10) === n ? th.accent : 'transparent', color: (myData?.sessionSize || 10) === n ? (th.btnTextColor || '#111') : th.sub, border: `1px solid ${(myData?.sessionSize || 10) === n ? th.accent : th.border}` }}
+            >{n}</button>
+          ))}
+        </div>
+        <p style={{ color: th.sub, fontSize: '0.72rem', marginTop: '7px', marginBottom: 0 }}>{isMarkLang ? 'Karten je Lernsession' : 'Cards per learning session'}</p>
+      </div>
+
       {/* ── SPRACHE PAUSIEREN ── */}
       {uniqueTargetLangs.length > 0 && (
         <div style={s.card}>
